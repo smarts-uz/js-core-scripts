@@ -184,11 +184,11 @@ export class Chromes {
 
 
 
-  static Chromes.getRandomInt(min, max) {
+  static getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  static Chromes.getRandomFloat(min, max) {
+  static getRandomFloat(min, max) {
     return Math.random() * (max - min) + min;
   }
 

@@ -3,6 +3,7 @@ import puppeteer from "puppeteer";
 import { Files } from "./Files.js";
 import path from "path";
 import fs from "fs";
+import { Chromes } from "./Chromes.js";
 
 export class Puppe {
   constructor(parameters) {
@@ -86,7 +87,7 @@ export class Puppe {
       // Делаем паузу между страницами
       if (index < urlsToProcess.length - 1) {
         console.info("⏳ Пауза перед следующей страницей...");
-        await sleep(3000);
+        await Puppe.sleep(3000);
       }
     }
 
@@ -154,8 +155,8 @@ export class Puppe {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
     // Random waiting and scrolling to simulate human behavior
-    const waitTime = getRandomInt(parseInt(Wait_Min), parseInt(Wait_Max));
-    const scrollCount = getRandomInt(parseInt(Scroll_Count_Min), parseInt(Scroll_Count_Max));
+    const waitTime = Chromes.getRandomInt(parseInt(Wait_Min), parseInt(Wait_Max));
+    const scrollCount = Chromes.getRandomInt(parseInt(Scroll_Count_Min), parseInt(Scroll_Count_Max));
 
     console.info(`⏳ Waiting for ${waitTime}s with ${scrollCount} random scrolls...`);
 
@@ -168,14 +169,14 @@ export class Puppe {
     await new Promise(resolve => setTimeout(resolve, timePerScroll * 1000));
 
     for (let i = 0; i < scrollCount; i++) {
-      const scrollPosition = getRandomInt(0, maxScroll);
+      const scrollPosition = Chromes.getRandomInt(0, maxScroll);
       console.info(`🖱️ Scroll ${i + 1}/${scrollCount}: Scrolling to ${scrollPosition}px...`);
       await page.evaluate(pos => window.scrollTo(0, pos), scrollPosition);
-      const scrollDelay = getRandomFloat(0.5, 2.5);
+      const scrollDelay = Chromes.getRandomFloat(0.5, 2.5);
       await new Promise(resolve => setTimeout(resolve, scrollDelay * 1000));
     }
 
-    const finalScrollPosition = getRandomInt(0, maxScroll);
+    const finalScrollPosition = Chromes.getRandomInt(0, maxScroll);
     console.info(`🖱️ Final scroll to ${finalScrollPosition}px before checking phone...`);
     await page.evaluate(pos => window.scrollTo(0, pos), finalScrollPosition);
 
@@ -303,7 +304,7 @@ URL=${url}`;
       });
 
       // Add multiple delays and scroll attempts to ensure dynamic content loads
-      await sleep(1000);
+      await Puppe.sleep(1000);
 
       // Try to click "next" button multiple times to load all pagination links
       let clicked = true;
@@ -323,7 +324,7 @@ URL=${url}`;
         });
 
         if (clicked) {
-          await sleep(1500); // Wait for page to load
+          await Puppe.sleep(1500); // Wait for page to load
           attempts++;
         }
       }
@@ -332,7 +333,7 @@ URL=${url}`;
       await page.evaluate(() => {
         window.scrollTo(0, 0);
       });
-      await sleep(1000);
+      await Puppe.sleep(1000);
 
       // Get maximum page number from data-testid attributes
       const maxPageNumber = await page.evaluate(() => {
