@@ -1,0 +1,1274 @@
+[
+  {
+    "districtId": "0301",
+    "regionId": 3,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0410\u041d\u0414\u0418\u0416\u0410\u041d"
+  },
+  {
+    "districtId": "0303",
+    "regionId": 3,
+    "districtCode": 3,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0425\u0410\u041d\u0410\u0411\u0410\u0414"
+  },
+  {
+    "districtId": "0305",
+    "regionId": 3,
+    "districtCode": 5,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041a\u0410\u0420\u0410\u0421\u0423"
+  },
+  {
+    "districtId": "0306",
+    "regionId": 3,
+    "districtCode": 6,
+    "name": "\u0410\u041b\u0422\u042b\u041d\u041a\u0423\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0307",
+    "regionId": 3,
+    "districtCode": 7,
+    "name": "\u0410\u041d\u0414\u0418\u0416\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0308",
+    "regionId": 3,
+    "districtCode": 8,
+    "name": "\u0411\u0410\u041b\u042b\u041a\u0427\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0309",
+    "regionId": 3,
+    "districtCode": 9,
+    "name": "\u0411\u041e\u0417\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0310",
+    "regionId": 3,
+    "districtCode": 10,
+    "name": "\u0411\u0423\u041b\u0410\u041a\u0411\u0410\u0428\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0311",
+    "regionId": 3,
+    "districtCode": 11,
+    "name": "\u0414\u0416\u0410\u041b\u0410\u041b\u041a\u0423\u0414\u0423\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0312",
+    "regionId": 3,
+    "districtCode": 12,
+    "name": "\u0418\u0417\u0411\u0410\u0421\u041a\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0313",
+    "regionId": 3,
+    "districtCode": 13,
+    "name": "\u0423\u041b\u0423\u0413\u041d\u041e\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0314",
+    "regionId": 3,
+    "districtCode": 14,
+    "name": "\u041a\u0423\u0420\u0413\u0410\u041d\u0422\u0415\u041f\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0315",
+    "regionId": 3,
+    "districtCode": 15,
+    "name": "\u0410\u0421\u0410\u041a\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0316",
+    "regionId": 3,
+    "districtCode": 16,
+    "name": "\u041c\u0410\u0420\u0425\u0410\u041c\u0410\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0317",
+    "regionId": 3,
+    "districtCode": 17,
+    "name": "\u0428\u0410\u0425\u0420\u0418\u0425\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0318",
+    "regionId": 3,
+    "districtCode": 18,
+    "name": "\u041f\u0410\u0425\u0422\u0410\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0319",
+    "regionId": 3,
+    "districtCode": 19,
+    "name": "\u0425\u041e\u0414\u0416\u0410\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0601",
+    "regionId": 6,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0411\u0423\u0425\u0410\u0420\u0410"
+  },
+  {
+    "districtId": "0603",
+    "regionId": 6,
+    "districtCode": 3,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041a\u0410\u0413\u0410\u041d"
+  },
+  {
+    "districtId": "0604",
+    "regionId": 6,
+    "districtCode": 4,
+    "name": "\u0410\u041b\u0410\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0605",
+    "regionId": 6,
+    "districtCode": 5,
+    "name": "\u0411\u0423\u0425\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0606",
+    "regionId": 6,
+    "districtCode": 6,
+    "name": "\u0412\u0410\u0411\u041a\u0415\u041d\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0607",
+    "regionId": 6,
+    "districtCode": 7,
+    "name": "\u0413\u0418\u0416\u0414\u0423\u0412\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0608",
+    "regionId": 6,
+    "districtCode": 8,
+    "name": "\u0414\u0416\u0410\u041d\u0414\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0609",
+    "regionId": 6,
+    "districtCode": 9,
+    "name": "\u041a\u0410\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0610",
+    "regionId": 6,
+    "districtCode": 10,
+    "name": "\u041a\u0410\u0420\u0410\u041a\u0423\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0611",
+    "regionId": 6,
+    "districtCode": 11,
+    "name": "\u041f\u0415\u0428\u041a\u0423\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0612",
+    "regionId": 6,
+    "districtCode": 12,
+    "name": "\u0420\u041e\u041c\u0418\u0422\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0613",
+    "regionId": 6,
+    "districtCode": 13,
+    "name": "\u0428\u0410\u0424\u0418\u0420\u041a\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0614",
+    "regionId": 6,
+    "districtCode": 14,
+    "name": "\u041a\u0410\u0420\u0410\u0423\u041b\u0411\u0410\u0417\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0801",
+    "regionId": 8,
+    "districtCode": 1,
+    "name": "\u0410\u0420\u041d\u0410\u0421\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0802",
+    "regionId": 8,
+    "districtCode": 2,
+    "name": "\u0411\u0410\u0425\u041c\u0410\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0803",
+    "regionId": 8,
+    "districtCode": 3,
+    "name": "\u0413\u0410\u041b\u041b\u042f\u0410\u0420\u0410\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0804",
+    "regionId": 8,
+    "districtCode": 4,
+    "name": "\u0428\u0410\u0420\u041e\u0424 \u0420\u0410\u0428\u0418\u0414\u041e\u0412\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0805",
+    "regionId": 8,
+    "districtCode": 5,
+    "name": "\u0414\u0423\u0421\u0422\u041b\u0418\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0806",
+    "regionId": 8,
+    "districtCode": 6,
+    "name": "\u0417\u0410\u0420\u0411\u0414\u041e\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0807",
+    "regionId": 8,
+    "districtCode": 7,
+    "name": "\u0417\u0410\u0410\u041c\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0808",
+    "regionId": 8,
+    "districtCode": 8,
+    "name": "\u0417\u0410\u0424\u0410\u0420\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0809",
+    "regionId": 8,
+    "districtCode": 9,
+    "name": "\u041c\u0418\u0420\u0417\u0410\u0427\u0423\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0810",
+    "regionId": 8,
+    "districtCode": 10,
+    "name": "\u041f\u0410\u0425\u0422\u0410\u041a\u041e\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0811",
+    "regionId": 8,
+    "districtCode": 11,
+    "name": "\u0424\u0410\u0420\u0418\u0428\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "0812",
+    "regionId": 8,
+    "districtCode": 12,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0414\u0416\u0418\u0417\u0410\u041a"
+  },
+  {
+    "districtId": "0813",
+    "regionId": 8,
+    "districtCode": 13,
+    "name": "\u042f\u041d\u0413\u0418\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1001",
+    "regionId": 10,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041a\u0410\u0420\u0428\u0418"
+  },
+  {
+    "districtId": "1002",
+    "regionId": 10,
+    "districtCode": 2,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0428\u0410\u04b2\u0420\u0418\u0421\u0410\u0411\u0417"
+  },
+  {
+    "districtId": "1004",
+    "regionId": 10,
+    "districtCode": 4,
+    "name": "\u0413\u0423\u0417\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1005",
+    "regionId": 10,
+    "districtCode": 5,
+    "name": "\u0414\u0415\u0425\u041a\u0410\u041d\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1006",
+    "regionId": 10,
+    "districtCode": 6,
+    "name": "\u041a\u0410\u041c\u0410\u0428\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1007",
+    "regionId": 10,
+    "districtCode": 7,
+    "name": "\u041a\u0410\u0420\u0428\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1008",
+    "regionId": 10,
+    "districtCode": 8,
+    "name": "\u041a\u0410\u0421\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1009",
+    "regionId": 10,
+    "districtCode": 9,
+    "name": "\u041a\u0418\u0422\u0410\u0411\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1010",
+    "regionId": 10,
+    "districtCode": 10,
+    "name": "\u041c\u0423\u0411\u0410\u0420\u0415\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1011",
+    "regionId": 10,
+    "districtCode": 11,
+    "name": "\u041d\u0418\u0428\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1012",
+    "regionId": 10,
+    "districtCode": 12,
+    "name": "\u041a\u0410\u0421\u0411\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1014",
+    "regionId": 10,
+    "districtCode": 14,
+    "name": "\u0427\u0418\u0420\u0410\u041a\u0427\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1015",
+    "regionId": 10,
+    "districtCode": 15,
+    "name": "\u0428\u0410\u0425\u0420\u0418\u0417\u0410\u0411\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1016",
+    "regionId": 10,
+    "districtCode": 16,
+    "name": "\u042f\u041a\u041a\u0410\u0411\u0410\u0413\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1017",
+    "regionId": 10,
+    "districtCode": 17,
+    "name": "\u041c\u0418\u0420\u0418\u0428\u041a\u041e\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1201",
+    "regionId": 12,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041d\u0410\u0412\u041e\u0419\u0418"
+  },
+  {
+    "districtId": "1202",
+    "regionId": 12,
+    "districtCode": 2,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0417\u0410\u0420\u0410\u0412\u0428\u0410\u041d"
+  },
+  {
+    "districtId": "1203",
+    "regionId": 12,
+    "districtCode": 3,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0423\u0427\u041a\u0423\u0414\u0423\u041a"
+  },
+  {
+    "districtId": "1204",
+    "regionId": 12,
+    "districtCode": 4,
+    "name": "\u041a\u0415\u041d\u0418\u041c\u0415\u0425\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1205",
+    "regionId": 12,
+    "districtCode": 5,
+    "name": "\u041a\u042b\u0417\u042b\u041b\u0422\u0415\u041f\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1207",
+    "regionId": 12,
+    "districtCode": 7,
+    "name": "\u0422\u0410\u041c\u0414\u042b\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1208",
+    "regionId": 12,
+    "districtCode": 8,
+    "name": "\u041d\u0410\u0412\u0411\u0410\u0425\u041e\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1209",
+    "regionId": 12,
+    "districtCode": 9,
+    "name": "\u0425\u0410\u0422\u042b\u0420\u0427\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1210",
+    "regionId": 12,
+    "districtCode": 10,
+    "name": "\u041d\u0423\u0420\u0410\u0422\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1211",
+    "regionId": 12,
+    "districtCode": 11,
+    "name": "\u041a\u0410\u0420\u041c\u0410\u041d\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1401",
+    "regionId": 14,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041d\u0410\u041c\u0410\u041d\u0413\u0410\u041d"
+  },
+  {
+    "districtId": "1407",
+    "regionId": 14,
+    "districtCode": 7,
+    "name": "\u041c\u0418\u041d\u0413\u0411\u0423\u041b\u0410\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1408",
+    "regionId": 14,
+    "districtCode": 8,
+    "name": "\u041a\u0410\u0421\u0410\u041d\u0421\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1409",
+    "regionId": 14,
+    "districtCode": 9,
+    "name": "\u041d\u0410\u041c\u0410\u041d\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1410",
+    "regionId": 14,
+    "districtCode": 10,
+    "name": "\u041d\u0410\u0420\u042b\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1411",
+    "regionId": 14,
+    "districtCode": 11,
+    "name": "\u041f\u0410\u041f\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1412",
+    "regionId": 14,
+    "districtCode": 12,
+    "name": "\u0422\u0423\u0420\u0410\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1413",
+    "regionId": 14,
+    "districtCode": 13,
+    "name": "\u0423\u0419\u0427\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1414",
+    "regionId": 14,
+    "districtCode": 14,
+    "name": "\u0423\u0427\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1415",
+    "regionId": 14,
+    "districtCode": 15,
+    "name": "\u0427\u0410\u0420\u0422\u0410\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1416",
+    "regionId": 14,
+    "districtCode": 16,
+    "name": "\u0427\u0423\u0421\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1417",
+    "regionId": 14,
+    "districtCode": 17,
+    "name": "\u042f\u041d\u0413\u0418\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1801",
+    "regionId": 18,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0421\u0410\u041c\u0410\u0420\u041a\u0410\u041d\u0414"
+  },
+  {
+    "districtId": "1804",
+    "regionId": 18,
+    "districtCode": 4,
+    "name": "\u0422\u0410\u0419\u041b\u042f\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1806",
+    "regionId": 18,
+    "districtCode": 6,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041a\u0410\u0422\u0422\u0410\u041a\u0423\u0420\u0413\u0410\u041d"
+  },
+  {
+    "districtId": "1808",
+    "regionId": 18,
+    "districtCode": 8,
+    "name": "\u0410\u041a\u0414\u0410\u0420\u042c\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1809",
+    "regionId": 18,
+    "districtCode": 9,
+    "name": "\u0411\u0423\u041b\u0423\u041d\u0413\u0423\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1811",
+    "regionId": 18,
+    "districtCode": 11,
+    "name": "\u0414\u0416\u0410\u041c\u0411\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1812",
+    "regionId": 18,
+    "districtCode": 12,
+    "name": "\u0418\u0428\u0422\u042b\u0425\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1813",
+    "regionId": 18,
+    "districtCode": 13,
+    "name": "\u041a\u0410\u0422\u0422\u0410\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1814",
+    "regionId": 18,
+    "districtCode": 14,
+    "name": "\u041a\u041e\u0428\u0420\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1815",
+    "regionId": 18,
+    "districtCode": 15,
+    "name": "\u041d\u0410\u0420\u041f\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1817",
+    "regionId": 18,
+    "districtCode": 17,
+    "name": "\u041f\u0410\u0419\u0410\u0420\u042b\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1818",
+    "regionId": 18,
+    "districtCode": 18,
+    "name": "\u041f\u0410\u0421\u0422\u0414\u0410\u0420\u0413\u041e\u041c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1819",
+    "regionId": 18,
+    "districtCode": 19,
+    "name": "\u041f\u0410\u0425\u0422\u0410\u0410\u0427\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1820",
+    "regionId": 18,
+    "districtCode": 20,
+    "name": "\u0421\u0410\u041c\u0410\u0420\u041a\u0410\u041d\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1821",
+    "regionId": 18,
+    "districtCode": 21,
+    "name": "\u041d\u0423\u0420\u041e\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1822",
+    "regionId": 18,
+    "districtCode": 22,
+    "name": "\u0423\u0420\u0413\u0423\u0422\u0421\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2201",
+    "regionId": 22,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0422\u0415\u0420\u041c\u0415\u0417"
+  },
+  {
+    "districtId": "2202",
+    "regionId": 22,
+    "districtCode": 2,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0414\u0415\u041d\u0410\u0423"
+  },
+  {
+    "districtId": "2203",
+    "regionId": 22,
+    "districtCode": 3,
+    "name": "\u0410\u041d\u0413\u041e\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2204",
+    "regionId": 22,
+    "districtCode": 4,
+    "name": "\u0410\u041b\u0422\u042b\u041d\u0421\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2205",
+    "regionId": 22,
+    "districtCode": 5,
+    "name": "\u0411\u0410\u0419\u0421\u0423\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2206",
+    "regionId": 22,
+    "districtCode": 6,
+    "name": "\u041c\u0423\u0417\u0420\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2207",
+    "regionId": 22,
+    "districtCode": 7,
+    "name": "\u0414\u0415\u041d\u0410\u0423\u0421\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2208",
+    "regionId": 22,
+    "districtCode": 8,
+    "name": "\u0414\u0416\u0410\u0420\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2209",
+    "regionId": 22,
+    "districtCode": 9,
+    "name": "\u041a\u0423\u041c\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2210",
+    "regionId": 22,
+    "districtCode": 10,
+    "name": "\u041a\u0418\u0417\u0418\u0420\u0418\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2211",
+    "regionId": 22,
+    "districtCode": 11,
+    "name": "\u0421\u0410\u0420\u042b\u0410\u0421\u0421\u0418\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2212",
+    "regionId": 22,
+    "districtCode": 12,
+    "name": "\u0422\u0415\u0420\u041c\u0415\u0417\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2213",
+    "regionId": 22,
+    "districtCode": 13,
+    "name": "\u0428\u0415\u0420\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2214",
+    "regionId": 22,
+    "districtCode": 14,
+    "name": "\u0428\u0423\u0420\u0427\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2215",
+    "regionId": 22,
+    "districtCode": 15,
+    "name": "\u0423\u0417\u0423\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2216",
+    "regionId": 22,
+    "districtCode": 16,
+    "name": "\u0411\u0410\u041d\u0414\u0418\u0425\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2401",
+    "regionId": 24,
+    "districtCode": 1,
+    "name": "\u041e\u041a\u0410\u041b\u0422\u042b\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2402",
+    "regionId": 24,
+    "districtCode": 2,
+    "name": "\u0411\u0410\u042f\u0423\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2403",
+    "regionId": 24,
+    "districtCode": 3,
+    "name": "\u0413\u0423\u041b\u0418\u0421\u0422\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2405",
+    "regionId": 24,
+    "districtCode": 5,
+    "name": "\u041c\u0418\u0420\u0417\u0410\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2406",
+    "regionId": 24,
+    "districtCode": 6,
+    "name": "\u0421\u0410\u0419\u0425\u0423\u041d\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2407",
+    "regionId": 24,
+    "districtCode": 7,
+    "name": "\u0421\u042b\u0420\u0414\u0410\u0420\u042c\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2408",
+    "regionId": 24,
+    "districtCode": 8,
+    "name": "\u0425\u0410\u0412\u0410\u0421\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2409",
+    "regionId": 24,
+    "districtCode": 9,
+    "name": "\u0421\u0410\u0420\u0414\u041e\u0411\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2410",
+    "regionId": 24,
+    "districtCode": 10,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0413\u0423\u041b\u0418\u0421\u0422\u0410\u041d"
+  },
+  {
+    "districtId": "2412",
+    "regionId": 24,
+    "districtCode": 12,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0428\u0418\u0420\u0418\u041d"
+  },
+  {
+    "districtId": "2413",
+    "regionId": 24,
+    "districtCode": 13,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u042f\u041d\u0413\u0418\u0415\u0420"
+  },
+  {
+    "districtId": "2601",
+    "regionId": 26,
+    "districtCode": 1,
+    "name": "\u041c\u0418\u0420\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2602",
+    "regionId": 26,
+    "districtCode": 2,
+    "name": "\u041c\u0418\u0420\u0417\u041e \u0423\u041b\u0423\u0413\u0411\u0415\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2603",
+    "regionId": 26,
+    "districtCode": 3,
+    "name": "\u042e\u041d\u0423\u0421\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2604",
+    "regionId": 26,
+    "districtCode": 4,
+    "name": "\u042f\u041a\u041a\u0410\u0421\u0410\u0420\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2605",
+    "regionId": 26,
+    "districtCode": 5,
+    "name": "\u0428\u0410\u0419\u0425\u0410\u041d\u0422\u0410\u0425\u0423\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2606",
+    "regionId": 26,
+    "districtCode": 6,
+    "name": "\u0427\u0418\u041b\u041e\u041d\u0417\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2607",
+    "regionId": 26,
+    "districtCode": 7,
+    "name": "\u0421\u0418\u0420\u0413\u0415\u041b\u0418\u0419\u0421\u0418\u041a\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2608",
+    "regionId": 26,
+    "districtCode": 8,
+    "name": "\u042f\u0428\u041d\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2609",
+    "regionId": 26,
+    "districtCode": 9,
+    "name": "\u0410\u041b\u041c\u0410\u0417\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2610",
+    "regionId": 26,
+    "districtCode": 10,
+    "name": "\u0423\u0427\u0422\u0415\u041f\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2611",
+    "regionId": 26,
+    "districtCode": 11,
+    "name": "\u0411\u0415\u041a\u0422\u0415\u041c\u0418\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2701",
+    "regionId": 27,
+    "districtCode": 1,
+    "name": "\u0411\u0415\u041a\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2702",
+    "regionId": 27,
+    "districtCode": 2,
+    "name": "\u0411\u0423\u041a\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2703",
+    "regionId": 27,
+    "districtCode": 3,
+    "name": "\u0411\u041e\u0421\u0422\u0410\u041d\u041b\u042b\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2704",
+    "regionId": 27,
+    "districtCode": 4,
+    "name": "\u0417\u0410\u041d\u0413\u0418\u0410\u0422\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2705",
+    "regionId": 27,
+    "districtCode": 5,
+    "name": "\u042e\u041a\u041e\u0420\u0418 \u0427\u0418\u0420\u0427\u0418\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2706",
+    "regionId": 27,
+    "districtCode": 6,
+    "name": "\u041a\u0418\u0411\u0420\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2707",
+    "regionId": 27,
+    "districtCode": 7,
+    "name": "\u0410\u041a\u041a\u0423\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2708",
+    "regionId": 27,
+    "districtCode": 8,
+    "name": "\u0410\u0425\u0410\u041d\u0413\u0410\u0420\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2709",
+    "regionId": 27,
+    "districtCode": 9,
+    "name": "\u041f\u0410\u0420\u041a\u0415\u041d\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2710",
+    "regionId": 27,
+    "districtCode": 10,
+    "name": "\u041f\u0421\u041a\u0415\u041d\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2711",
+    "regionId": 27,
+    "districtCode": 11,
+    "name": "\u0422\u0410\u0428\u041a\u0415\u041d\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2712",
+    "regionId": 27,
+    "districtCode": 12,
+    "name": "\u0423\u0420\u0422\u0410-\u0427\u0418\u0420\u0427\u0418\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2713",
+    "regionId": 27,
+    "districtCode": 13,
+    "name": "\u0427\u0418\u041d\u0410\u0417\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2714",
+    "regionId": 27,
+    "districtCode": 14,
+    "name": "\u041a\u0423\u0419\u0418-\u0427\u0418\u0420\u0427\u0418\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2715",
+    "regionId": 27,
+    "districtCode": 15,
+    "name": "\u042f\u041d\u0413\u0418\u0419\u0423\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "2716",
+    "regionId": 27,
+    "districtCode": 16,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0410\u041d\u0413\u0420\u0415\u041d"
+  },
+  {
+    "districtId": "2717",
+    "regionId": 27,
+    "districtCode": 17,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0411\u0415\u041a\u0410\u0411\u0410\u0414"
+  },
+  {
+    "districtId": "2718",
+    "regionId": 27,
+    "districtCode": 18,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0410\u041b\u041c\u0410\u041b\u042b\u041a"
+  },
+  {
+    "districtId": "2719",
+    "regionId": 27,
+    "districtCode": 19,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0410\u0425\u0410\u041d\u0413\u0410\u0420\u0410\u041d"
+  },
+  {
+    "districtId": "2720",
+    "regionId": 27,
+    "districtCode": 20,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0427\u0418\u0420\u0427\u0418\u041a"
+  },
+  {
+    "districtId": "2722",
+    "regionId": 27,
+    "districtCode": 22,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u042f\u041d\u0413\u0418\u0419\u0423\u041b\u042c"
+  },
+  {
+    "districtId": "2723",
+    "regionId": 27,
+    "districtCode": 23,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041d\u0423\u0420\u0410\u0424\u0428\u041e\u041d"
+  },
+  {
+    "districtId": "3001",
+    "regionId": 30,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041a\u0423\u0412\u0410\u0421\u0410\u0419"
+  },
+  {
+    "districtId": "3003",
+    "regionId": 30,
+    "districtCode": 3,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041a\u041e\u041a\u0410\u041d\u0414"
+  },
+  {
+    "districtId": "3004",
+    "regionId": 30,
+    "districtCode": 4,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041c\u0410\u0420\u0413\u0418\u041b\u0410\u041d"
+  },
+  {
+    "districtId": "3005",
+    "regionId": 30,
+    "districtCode": 5,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0424\u0415\u0420\u0413\u0410\u041d\u0410"
+  },
+  {
+    "districtId": "3006",
+    "regionId": 30,
+    "districtCode": 6,
+    "name": "\u0411\u0415\u0428\u0410\u0420\u042b\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3007",
+    "regionId": 30,
+    "districtCode": 7,
+    "name": "\u0411\u0410\u0413\u0414\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3008",
+    "regionId": 30,
+    "districtCode": 8,
+    "name": "\u0411\u0423\u0412\u0410\u0419\u0414\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3009",
+    "regionId": 30,
+    "districtCode": 9,
+    "name": "\u0414\u0410\u041d\u0413\u0410\u0420\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3010",
+    "regionId": 30,
+    "districtCode": 10,
+    "name": "\u042f\u0417\u042c\u042f\u0412\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3011",
+    "regionId": 30,
+    "districtCode": 11,
+    "name": "\u041a\u0423\u0412\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3012",
+    "regionId": 30,
+    "districtCode": 12,
+    "name": "\u0410\u041b\u0422\u042b\u0410\u0420\u042b\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3013",
+    "regionId": 30,
+    "districtCode": 13,
+    "name": "\u041a\u0423\u0428\u0422\u0415\u041f\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3014",
+    "regionId": 30,
+    "districtCode": 14,
+    "name": "\u0420\u0418\u0428\u0422\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3015",
+    "regionId": 30,
+    "districtCode": 15,
+    "name": "\u0421\u041e\u0425\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3016",
+    "regionId": 30,
+    "districtCode": 16,
+    "name": "\u0422\u0410\u0428\u041b\u0410\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3017",
+    "regionId": 30,
+    "districtCode": 17,
+    "name": "\u0423\u0417\u0411\u0415\u041a\u0418\u0421\u0422\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3018",
+    "regionId": 30,
+    "districtCode": 18,
+    "name": "\u0423\u0427\u041a\u0423\u041f\u0420\u0418\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3019",
+    "regionId": 30,
+    "districtCode": 19,
+    "name": "\u0424\u0415\u0420\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3020",
+    "regionId": 30,
+    "districtCode": 20,
+    "name": "\u0424\u0423\u0420\u041a\u0410\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3301",
+    "regionId": 33,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0423\u0420\u0413\u0415\u041d\u0427"
+  },
+  {
+    "districtId": "3302",
+    "regionId": 33,
+    "districtCode": 2,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0425\u0418\u0412\u0410"
+  },
+  {
+    "districtId": "3303",
+    "regionId": 33,
+    "districtCode": 3,
+    "name": "\u041f\u0418\u0422\u041d\u0410\u041a \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3304",
+    "regionId": 33,
+    "districtCode": 4,
+    "name": "\u0423\u0420\u0413\u0415\u041d\u0427\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3305",
+    "regionId": 33,
+    "districtCode": 5,
+    "name": "\u0425\u0418\u0412\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3306",
+    "regionId": 33,
+    "districtCode": 6,
+    "name": "\u0425\u0410\u0417\u0410\u0420\u0410\u0421\u041f\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3307",
+    "regionId": 33,
+    "districtCode": 7,
+    "name": "\u0413\u0423\u0420\u041b\u0415\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3308",
+    "regionId": 33,
+    "districtCode": 8,
+    "name": "\u0428\u0410\u0412\u0410\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3309",
+    "regionId": 33,
+    "districtCode": 9,
+    "name": "\u042f\u041d\u0413\u0418\u0410\u0420\u042b\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3310",
+    "regionId": 33,
+    "districtCode": 10,
+    "name": "\u041a\u0423\u0428\u041a\u0423\u041f\u042b\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3311",
+    "regionId": 33,
+    "districtCode": 11,
+    "name": "\u0411\u0410\u0413\u0410\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3312",
+    "regionId": 33,
+    "districtCode": 12,
+    "name": "\u0425\u0410\u041d\u041a\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3313",
+    "regionId": 33,
+    "districtCode": 13,
+    "name": "\u042f\u041d\u0413\u0418\u0411\u0410\u0417\u0410\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3314",
+    "regionId": 33,
+    "districtCode": 14,
+    "name": "\u0422\u0443\u043f\u0440\u043e\u043a\u043a\u0430\u043b\u044a\u0430 \u0440\u0430\u0439\u043e\u043d"
+  },
+  {
+    "districtId": "3501",
+    "regionId": 35,
+    "districtCode": 1,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u041d\u0423\u041a\u0423\u0421"
+  },
+  {
+    "districtId": "3508",
+    "regionId": 35,
+    "districtCode": 8,
+    "name": "\u0410\u041c\u0423\u0414\u0410\u0420\u042c\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3509",
+    "regionId": 35,
+    "districtCode": 9,
+    "name": "\u0411\u0415\u0420\u0423\u041d\u0418\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3510",
+    "regionId": 35,
+    "districtCode": 10,
+    "name": "\u0411\u041e\u0417\u0410\u0422\u0410\u0423\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3511",
+    "regionId": 35,
+    "districtCode": 11,
+    "name": "\u041a\u0415\u0413\u0415\u0419\u041b\u0418\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3512",
+    "regionId": 35,
+    "districtCode": 12,
+    "name": "\u041a\u0423\u041d\u0413\u0420\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3513",
+    "regionId": 35,
+    "districtCode": 13,
+    "name": "\u041a\u0410\u041d\u0414\u0418\u041a\u0423\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3514",
+    "regionId": 35,
+    "districtCode": 14,
+    "name": "\u041c\u0423\u0419\u041d\u0410\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3515",
+    "regionId": 35,
+    "districtCode": 15,
+    "name": "\u041d\u0423\u041a\u0423\u0421\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3516",
+    "regionId": 35,
+    "districtCode": 16,
+    "name": "\u0422\u0410\u0425\u0422\u0410\u041a\u0423\u041f\u042b\u0420\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3517",
+    "regionId": 35,
+    "districtCode": 17,
+    "name": "\u0422\u0423\u0420\u0422\u041a\u0423\u041b\u042c\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3518",
+    "regionId": 35,
+    "districtCode": 18,
+    "name": "\u0425\u041e\u0414\u0416\u0415\u0419\u041b\u0418\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3519",
+    "regionId": 35,
+    "districtCode": 19,
+    "name": "\u0427\u0418\u041c\u0411\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3520",
+    "regionId": 35,
+    "districtCode": 20,
+    "name": "\u0428\u0423\u041c\u0410\u041d\u0410\u0419\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3521",
+    "regionId": 35,
+    "districtCode": 21,
+    "name": "\u042d\u041b\u041b\u0418\u041a\u041a\u0410\u041b\u0418\u041d\u0421\u041a\u0418\u0419"
+  },
+  {
+    "districtId": "3522",
+    "regionId": 35,
+    "districtCode": 22,
+    "name": "\u041a\u0410\u0420\u0410\u0423\u0417\u042f\u041a\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "3523",
+    "regionId": 35,
+    "districtCode": 23,
+    "name": "\u0422\u0410\u0425\u0418\u0410\u0422\u0410\u0428\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "5001",
+    "regionId": 50,
+    "districtCode": 1,
+    "name": "\u041c\u0420\u0418"
+  },
+  {
+    "districtId": "1213",
+    "regionId": 12,
+    "districtCode": 13,
+    "name": "\u0413\u041e\u0420\u041e\u0414 \u0413\u0410\u0417\u0413\u0410\u041d"
+  },
+  {
+    "districtId": "2612",
+    "regionId": 26,
+    "districtCode": 12,
+    "name": "\u042f\u041d\u0413\u0418\u0425\u0410\u0401\u0422\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1018",
+    "regionId": 10,
+    "districtCode": 18,
+    "name": "\u041a\u0423\u041a\u0414\u0410\u041b\u0418\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1418",
+    "regionId": 14,
+    "districtCode": 18,
+    "name": "\u0414\u0410\u0412\u041b\u0410\u0422\u0410\u0411\u0410\u0414\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  },
+  {
+    "districtId": "1419",
+    "regionId": 14,
+    "districtCode": 19,
+    "name": "\u042f\u041d\u0413\u0418\u041d\u0410\u041c\u0410\u041d\u0413\u0410\u041d\u0421\u041a\u0418\u0419 \u0420\u0410\u0419\u041e\u041d"
+  }
+]
