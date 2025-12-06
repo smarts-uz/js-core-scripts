@@ -29,7 +29,7 @@ export class Puppe {
 
     // Прокручиваем вниз для загрузки пагинации
     await Puppe.autoScroll(mainPage);
-    await Puppe.sleep(2000); // Ждём загрузку элементов
+ //   await Puppe.sleep(2000); // Ждём загрузку элементов
 
     const paginationUrls = await Puppe.getPaginationUrls(mainPage);
     await mainPage.close();
