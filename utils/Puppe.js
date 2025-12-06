@@ -17,12 +17,11 @@ export class Puppe {
   /**
    * Saves all ads from a search page, including pagination
    */
-  static async scrapeSearch(searchUrl, saveDir, browser = null) {
+  static async scrapeSearch(browser, searchUrl, saveDir, isUrl = true) {
 
-    let localBrowser = browser;
     let adsCount = 0;
     // Получаем все страницы пагинации
-    const mainPage = await localBrowser.newPage();
+    const mainPage = await browser.newPage();
     await mainPage.setViewport({ width: 1280, height: 900 });
     console.info(`📖 Загружаю главную страницу для получения пагинации: ${searchUrl}`);
     await mainPage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -51,7 +50,7 @@ export class Puppe {
     for (const [index, url] of urlsToProcess.entries()) {
       console.info(`📄 Обрабатываю страницу ${index + 1}/${urlsToProcess.length}: ${url}`);
 
-      const page = await localBrowser.newPage();
+      const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 900 });
 
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -77,7 +76,11 @@ export class Puppe {
       // Обрабатываем каждое объявление
       for (const adUrl of adLinks) {
         adsCount++;
-        await Puppe.scrapeUrl(adUrl, saveDir, localBrowser);
+        if (isUrl)
+          await Puppe.scrapeUrl(browser, adUrl, saveDir);
+        else
+          await Puppe.scrapeMhtml(browser, adUrl, saveDir, false);
+
       }
 
       // Делаем паузу между страницами
@@ -88,7 +91,7 @@ export class Puppe {
     }
 
     if (!browser) {
-      await localBrowser.close();
+      await browser.close();
     }
 
     console.info(`🎉 Сохранено ${adsCount} объявлений с поиска.`);
@@ -97,16 +100,17 @@ export class Puppe {
   /**
    * Accepts an array of searches and saves all ads
    */
-  static async runChromeUrl(tasks) {
+  static async runChrome(headless) {
     console.info(process.env.HeadlessURL, 'headlessURL');
 
-    const browser = await puppeteer.launch({ 
-      headless: process.env.HeadlessURL === 'true',
+    const browser = await puppeteer.launch({
+      headless: headless,
       slowMo: 100,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     console.info("Browser instance created:", browser);
+    console.info("Running Chrome with headless:", headless);
 
     return browser;
 
@@ -136,7 +140,7 @@ export class Puppe {
   }
 
 
-  static async scrapeMhtml(url, saveDir, browser) {
+  static async scrapeMhtml(browser, url, saveDir, isPhone = false) {
 
     const Wait_Min = process.env.Wait_Min || 5;
     const Wait_Max = process.env.Wait_Max || 30;
@@ -175,25 +179,29 @@ export class Puppe {
     console.info(`🖱️ Final scroll to ${finalScrollPosition}px before checking phone...`);
     await page.evaluate(pos => window.scrollTo(0, pos), finalScrollPosition);
 
-    // ✅ Handle phone number display
-    let phoneShown = false;
-    try {
-      const phoneButtons = await page.$$('button[data-testid="show-phone"]');
-      for (const btn of phoneButtons) {
-        const visible = await btn.isVisible?.() || await btn.evaluate(el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length));
-        if (visible) {
-          console.info('📞 Found visible phone button, clicking...');
-          await btn.click();
-          await page.waitForSelector('[data-testid="contact-phone"]', { timeout: 10000 });
-          console.info('✅ Phone number displayed!');
-          phoneShown = true;
-          break;
+    if (isPhone) {
+      // ✅ Handle phone number display
+      let phoneShown = false;
+      try {
+        const phoneButtons = await page.$$('button[data-testid="show-phone"]');
+        for (const btn of phoneButtons) {
+          const visible = await btn.isVisible?.() || await btn.evaluate(el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+          if (visible) {
+            console.info('📞 Found visible phone button, clicking...');
+            await btn.click();
+            await page.waitForSelector('[data-testid="contact-phone"]', { timeout: 10000 });
+            console.info('✅ Phone number displayed!');
+            phoneShown = true;
+            break;
+          }
         }
+        phoneShown = true;
+      } catch (err) {
+        console.warn(`⚠️ Phone handling error: ${err.message}`);
       }
-      phoneShown = true;
-    } catch (err) {
-      console.warn(`⚠️ Phone handling error: ${err.message}`);
+
     }
+
 
     // Safe file naming
     let title = await page.title();
@@ -245,7 +253,10 @@ export class Puppe {
   }
 
 
-  static async scrapeUrl(url, saveDir, browser) {
+
+
+
+  static async scrapeUrl(browser, url, saveDir) {
     // Check if URL already exists in any relevant directory
     if (Files.urlExistsInDirectories(url, saveDir)) {
       console.info(`⏭️  URL already exists, skipping: ${url}`);
