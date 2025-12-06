@@ -261,7 +261,7 @@ export class Chromes {
         lastSavedPath,
         currentProfileIndex: newProfileIndex,
         globalLangIndex: newGlobalLangIndex,
-      } = await tryProfilesForUrl(
+      } = await Chromes.tryProfilesForUrl(
         url,
         outputDir,
         profileDirs,

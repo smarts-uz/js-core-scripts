@@ -141,12 +141,18 @@ export class Puppe {
   }
 
 
-  static async scrapeMhtml(browser, url, saveDir, isPhone = false) {
+  static async extractUserIdWithRegex(page, selector = 'a[data-testid="user-profile-link"]') {
+  
+    return page.$eval(selector, a => {
+      const href = a.getAttribute('href') || '';
+      const m = href.match(/\/list\/user\/([^\/]+)\/?/);
+      return m ? decodeURIComponent(m[1]) : null;
+    }).catch(() => null);
 
-    const Wait_Min = process.env.Wait_Min || 5;
-    const Wait_Max = process.env.Wait_Max || 30;
-    const Scroll_Count_Min = process.env.Scroll_Count_Min || 2;
-    const Scroll_Count_Max = process.env.Scroll_Count_Max || 5;
+  }
+
+
+  static async scrapeMhtml(browser, url, saveDir, isPhone = false) {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 900 });
@@ -154,35 +160,15 @@ export class Puppe {
     console.info(`➡️ Loading ad: ${url}`);
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-    // Random waiting and scrolling to simulate human behavior
-    const waitTime = Chromes.getRandomInt(parseInt(Wait_Min), parseInt(Wait_Max));
-    const scrollCount = Chromes.getRandomInt(parseInt(Scroll_Count_Min), parseInt(Scroll_Count_Max));
-
-    console.info(`⏳ Waiting for ${waitTime}s with ${scrollCount} random scrolls...`);
-
-    const timePerScroll = waitTime / (scrollCount + 1);
-    const pageHeight = await page.evaluate(() => document.body.scrollHeight);
-    const viewportHeight = await page.evaluate(() => window.innerHeight);
-    const maxScroll = pageHeight - viewportHeight;
-
-    // Initial wait before first scroll
-    await new Promise(resolve => setTimeout(resolve, timePerScroll * 1000));
-
-    for (let i = 0; i < scrollCount; i++) {
-      const scrollPosition = Chromes.getRandomInt(0, maxScroll);
-      console.info(`🖱️ Scroll ${i + 1}/${scrollCount}: Scrolling to ${scrollPosition}px...`);
-      await page.evaluate(pos => window.scrollTo(0, pos), scrollPosition);
-      const scrollDelay = Chromes.getRandomFloat(0.5, 2.5);
-      await new Promise(resolve => setTimeout(resolve, scrollDelay * 1000));
-    }
-
-    const finalScrollPosition = Chromes.getRandomInt(0, maxScroll);
-    console.info(`🖱️ Final scroll to ${finalScrollPosition}px before checking phone...`);
-    await page.evaluate(pos => window.scrollTo(0, pos), finalScrollPosition);
+    const userId = await Puppe.extractUserIdWithRegex(page);
+    console.log(`User ID: ${userId}`);
+    
 
     if (isPhone) {
+
+      await Puppe.scrollAds(page);
+
       // ✅ Handle phone number display
-      let phoneShown = false;
       try {
         const phoneButtons = await page.$$('button[data-testid="show-phone"]');
         for (const btn of phoneButtons) {
@@ -196,7 +182,6 @@ export class Puppe {
             break;
           }
         }
-        phoneShown = true;
       } catch (err) {
         console.warn(`⚠️ Phone handling error: ${err.message}`);
       }
@@ -208,49 +193,46 @@ export class Puppe {
     let title = await page.title();
     let safeName = title.replace(/[<>:"/\\|?*]+/g, " ").trim().substring(0, 100);
     if (!safeName) safeName = `ad_${Date.now()}`;
+
     const filePath = path.join(saveDir, `${safeName}.mhtml`);
 
     if (!fs.existsSync(saveDir)) fs.mkdirSync(saveDir, { recursive: true });
 
     let savedPath = null;
 
-    if (phoneShown) {
-      // ✅ Save as MHTML only if phoneShown = true
+
+    try {
+      console.info("🧩 Capturing MHTML snapshot...");
+      const cdp = await page.createCDPSession();
+      await cdp.send("Page.enable");
+
+      // Wait a bit to let dynamic content settle
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       try {
-        console.info("🧩 Capturing MHTML snapshot...");
-        const cdp = await page.createCDPSession();
-        await cdp.send("Page.enable");
-
-        // Wait a bit to let dynamic content settle
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        try {
-          const { data } = await cdp.send("Page.captureSnapshot", { format: "mhtml" });
-          fs.writeFileSync(filePath, data);
-          console.info(`💾 Saved (MHTML): ${filePath}`);
-          savedPath = filePath;
-        } catch (mhtmlErr) {
-          // More specific error handling for MHTML capture
-          if (
-            mhtmlErr.message &&
-            mhtmlErr.message.includes("Protocol error (Page.captureSnapshot): Failed  to generate MHTML")
-          ) {
-            console.error(
-              `❌ Failed to capture MHTML for ${url}: The page may contain resources or frames that prevent MHTML generation.`
-            );
-          } else {
-            console.error(`⚠️ Failed to capture MHTML for ${url}: ${mhtmlErr.message}`);
-          }
+        const { data } = await cdp.send("Page.captureSnapshot", { format: "mhtml" });
+        fs.writeFileSync(filePath, data);
+        console.info(`💾 Saved (MHTML): ${filePath}`);
+        savedPath = filePath;
+      } catch (mhtmlErr) {
+        // More specific error handling for MHTML capture
+        if (
+          mhtmlErr.message &&
+          mhtmlErr.message.includes("Protocol error (Page.captureSnapshot): Failed  to generate MHTML")
+        ) {
+          console.error(
+            `❌ Failed to capture MHTML for ${url}: The page may contain resources or frames that prevent MHTML generation.`
+          );
+        } else {
+          console.error(`⚠️ Failed to capture MHTML for ${url}: ${mhtmlErr.message}`);
         }
-      } catch (err) {
-        console.error(`⚠️ Unexpected error during MHTML capture for ${url}: ${err.message}`);
       }
-    } else {
-      console.info("⚠️ Phone number not shown. Skipping MHTML capture.");
+    } catch (err) {
+      console.error(`⚠️ Unexpected error during MHTML capture for ${url}: ${err.message}`);
     }
 
     await page.close();
-    return { phoneShown, savedPath };
+    return savedPath
   }
 
 
@@ -287,8 +269,41 @@ URL=${url}`;
     console.info(`💾 Saved URL file: ${filePath}`);
   }
 
+  static async scrollAds(page) {
+
+    const Wait_Min = process.env.Wait_Min || 5;
+    const Wait_Max = process.env.Wait_Max || 30;
+    const Scroll_Count_Min = process.env.Scroll_Count_Min || 2;
+    const Scroll_Count_Max = process.env.Scroll_Count_Max || 5;
+
+    // Random waiting and scrolling to simulate human behavior
+    const waitTime = Chromes.getRandomInt(parseInt(Wait_Min), parseInt(Wait_Max));
+    const scrollCount = Chromes.getRandomInt(parseInt(Scroll_Count_Min), parseInt(Scroll_Count_Max));
+
+    console.info(`⏳ Waiting for ${waitTime}s with ${scrollCount} random scrolls...`);
+
+    const timePerScroll = waitTime / (scrollCount + 1);
+    const pageHeight = await page.evaluate(() => document.body.scrollHeight);
+    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    const maxScroll = pageHeight - viewportHeight;
+
+    // Initial wait before first scroll
+    await new Promise(resolve => setTimeout(resolve, timePerScroll * 1000));
+
+    for (let i = 0; i < scrollCount; i++) {
+      const scrollPosition = Chromes.getRandomInt(0, maxScroll);
+      console.info(`🖱️ Scroll ${i + 1}/${scrollCount}: Scrolling to ${scrollPosition}px...`);
+      await page.evaluate(pos => window.scrollTo(0, pos), scrollPosition);
+      const scrollDelay = Chromes.getRandomFloat(0.5, 2.5);
+      await new Promise(resolve => setTimeout(resolve, scrollDelay * 1000));
+    }
+
+    const finalScrollPosition = Chromes.getRandomInt(0, maxScroll);
+    console.info(`🖱️ Final scroll to ${finalScrollPosition}px before checking phone...`);
+    await page.evaluate(pos => window.scrollTo(0, pos), finalScrollPosition);
 
 
+  }
 
   static async getPaginationUrls(page) {
     try {
