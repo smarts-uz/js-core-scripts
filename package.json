@@ -1,22 +1,20 @@
 {
-  "name": "js-scripts",
-  "version": "1.0.0",
-  "description": "js-scripts",
-  "main": "app.js",
   "type": "module",
-  "author": "Asror",
-  "license": "MIT",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "node yaml-fill.js",
+    "electron": "electron ."
+  },
   "dependencies": {
-    "bunyan": "^1.8.15",
-    "bunyan-rotating-file-stream": "^2.0.6",
-    "dotenv": "17.2.3",
-    "node-telegram-bot-api": "^0.66.0",
-    "puppeteer": "24.23.0",
     "dayjs": "^1.11.19",
+    "dotenv": "^17.2.2",
     "js-yaml": "^4.1.0",
     "number-to-words-ru": "^2.4.1",
-    "winax": "3.6.2",
-    "yargs": "18.0.0",
-    "user-agents": "^1.1.668"
+    "winax": "^3.6.2",
+    "yargs": "18.0.0"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-squirrel-startup": "^1.0.0"
   }
 }
