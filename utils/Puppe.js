@@ -97,39 +97,21 @@ export class Puppe {
   /**
    * Accepts an array of searches and saves all ads
    */
-  static async scrapeMultipleSearches(tasks) {
+  static async runChromeUrl(tasks) {
     console.info(process.env.HeadlessURL, 'headlessURL');
 
-    const browser = await puppeteer.launch({ //komol
-      headless: process.env.HeadlessURL === 'true' || process.env.HeadlessURL === true ? true : process.env.HeadlessURL === 'new' ? 'new' : false,
+    const browser = await puppeteer.launch({ 
+      headless: process.env.HeadlessURL === 'true',
       slowMo: 100,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
-    for (const { url, saveDir } of tasks) {
-      await Puppe.scrapeSearch(url, saveDir, browser);
-    }
+    console.info("Browser instance created:", browser);
 
-    await browser.close();
-    console.info("🎉 Все поиски обработаны!");
+    return browser;
+
   }
 
-  static async scrapeMultipleSearchesMht(tasks) {
-    console.info(process.env.HeadlessURL, 'headlessURL');
-
-    const browser = await puppeteer.launch({ //komol
-      headless: process.env.HeadlessURL === 'true' || process.env.HeadlessURL === true ? true : process.env.HeadlessURL === 'new' ? 'new' : false,
-      slowMo: 100,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-
-    for (const { url, saveDir } of tasks) {
-      await Puppe.scrapeSearch(url, saveDir, browser);
-    }
-
-    await browser.close();
-    console.info("🎉 Все поиски обработаны!");
-  }
 
 
   /**
