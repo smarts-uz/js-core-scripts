@@ -319,7 +319,7 @@ export class Excels {
     Files.copyFileWithRetry(TemplateExcel, newFilePath);
 
     // 1. Read the list from Excel.txt
-    const cellsFilePath = path.join(Files.currentDir(), 'data', 'Excel.txt');
+    const cellsFilePath = path.join(Files.currentDir(), 'Excel.txt');
     if (!fs.existsSync(cellsFilePath))
       Dialogs.warningBox('Excel.txt not found', 'Error');
 
