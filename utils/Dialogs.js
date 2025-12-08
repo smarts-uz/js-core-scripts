@@ -4,7 +4,8 @@ import { exec, execSync } from "child_process";
 import dotenv from 'dotenv';
 import winax from 'winax';
 import { execFileSync } from "child_process";
-import { notifier } from "node-notifier";
+import notifier from "node-notifier";
+import { fileURLToPath } from "url";
 
 
 export class Dialogs {
@@ -14,29 +15,37 @@ export class Dialogs {
   static notify(message, title = "Message") {
     try {
 
+
+      // __dirname workaround for ESM
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+
       notifier.notify(
         {
           title: title,
           message: message,
-          icon: null, // Absolute path (doesn't work on balloons)
-          sound: true, // Only Notification Center or Windows Toasters
-          wait: true // Wait with callback, until user action is taken against notification, does not apply to Windows Toasters as they always wait or notify-send as it does not support the wait option
+          icon: null,  // Absolute path
+          sound: true,
+          wait: true
         },
-        function (err, response, metadata) {
-          // Response is response from notification
-          // Metadata contains activationType, activationAt, deliveredAt
-          console.error(response, metadata);
+        (err, response, metadata) => {
+          // Response from notification
+          // metadata: activationType, activationAt, deliveredAt
         }
       );
 
-      notifier.on('click', function (notifierObject, options, event) {
-        // Triggers if `wait: true` and user clicks notification
+      // Events
+      notifier.on("click", (notifierObject, options, event) => {
+        // Fires when user clicks (with wait: true)
       });
 
-      notifier.on('timeout', function (notifierObject, options) {
-        // Triggers if `wait: true` and notification closes
+      notifier.on("timeout", (notifierObject, options) => {
+        // Fires when notification closes (with wait: true)
       });
-      // Use -EncodedCommand to avoid shell escaping issues
+
+    } catch (err) {
+      console.error(err);
+      this.messageBox(message, title);
     }
   }
 
