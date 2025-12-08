@@ -70,9 +70,58 @@ export class Dates {
       process.exit(0);
     }, ms);
 
-
     //  return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  static sleepPro = (ms) => new Promise((res) => setTimeout(res, ms));
+
+  // umumiy kanditat regex (turli separatorlarni oladi)
+
+
+  static normalizeUzAccordingToRule(raw) {
+    if (!raw || typeof raw !== "string") return null;
+    let digits = raw.replace(/\D/g, "");
+    if (digits.length < 9) return null; // juda qisqa -> rad
+
+    // ANIQ QOIDALAR:
+    if (digits.length === 9) {
+      // bevosita 9 ta -> 998 + that
+      digits = "998" + digits;
+    } else if (digits.length === 11) {
+      // 11 ta: agar 8 bilan boshlasa 8 ni tashlab qolganidan oxirgi 9 olamiz;
+      // aks holda ham xavfsizlik uchun oxirgi 9 olamiz
+      if (digits.startsWith("8")) {
+        // 8XXXXXXXXXX -> olib tashla 8, oxirgi 9 ol
+        digits = "998" + digits.slice(1).slice(-9);
+      } else {
+        // boshqa 11 -> oxirgi 9 olamiz
+        digits = "998" + digits.slice(-9);
+      }
+    } else if (digits.length === 10) {
+      // 0XXXXXXXXX yoki 9XXXXXXXXX: agar 0 bilan boshlangan bo'lsa 0ni tashlab oldik
+      if (digits.startsWith("0")) digits = "998" + digits.slice(1);
+      else digits = "998" + digits.slice(-9);
+    } else if (digits.length >= 12) {
+      // katta stringlar: agar oxirgi 12 "998..." bilan boshlasa saqlaymiz,
+      // aks holda oxirgi 9 olamiz
+      const last12 = digits.slice(-12);
+      if (last12.startsWith("998")) digits = last12;
+      else digits = "998" + digits.slice(-9);
+    } else {
+      // boshqa hollarda (masalan 9 dan katta lekin yuqorida ko'rsatilmagan) oxirgi 9 olamiz
+      digits = "998" + digits.slice(-9);
+    }
+
+    if (digits.length !== 12 || !digits.startsWith("998")) return null;
+
+    const p1 = digits.slice(3, 5);
+    const p2 = digits.slice(5, 8);
+    const p3 = digits.slice(8, 10);
+    const p4 = digits.slice(10, 12);
+
+    return `+998-${p1}-${p2}-${p3}-${p4}`;
+  }
+
 
   static compareDatesDMY(a, b) {
     const da = this.parseDMY(a);

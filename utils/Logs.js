@@ -27,7 +27,7 @@ export class Logs {
         const logFilePattern = path.join(logsDir, '%Y-%m-%d.log');
 
         // Loger instansiyasini yaratamiz
-        this.log = bunyan.createLogger({
+        console = bunyan.createLogger({
             name: "next-bunyan-test",
             streams: [
                 {
@@ -66,7 +66,7 @@ export class Logs {
             const safeMsg = message.replace(/"/g, "'");
             execSync(`msg * "${title}: ${safeMsg}"`);
         } catch (err) {
-            this.log.error('⚠️ Failed to show message box:', err.message);
+            console.error('⚠️ Failed to show message box:', err.message);
         }
     }
 

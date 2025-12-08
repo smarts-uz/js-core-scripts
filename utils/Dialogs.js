@@ -3,9 +3,42 @@ import path from 'path';
 import { exec, execSync } from "child_process";
 import dotenv from 'dotenv';
 import winax from 'winax';
+import { execFileSync } from "child_process";
+import { notifier } from "node-notifier";
 
 
 export class Dialogs {
+
+
+  // windows notification function
+  static notify(message, title = "Message") {
+    try {
+
+      notifier.notify(
+        {
+          title: title,
+          message: message,
+          icon: null, // Absolute path (doesn't work on balloons)
+          sound: true, // Only Notification Center or Windows Toasters
+          wait: true // Wait with callback, until user action is taken against notification, does not apply to Windows Toasters as they always wait or notify-send as it does not support the wait option
+        },
+        function (err, response, metadata) {
+          // Response is response from notification
+          // Metadata contains activationType, activationAt, deliveredAt
+          console.error(response, metadata);
+        }
+      );
+
+      notifier.on('click', function (notifierObject, options, event) {
+        // Triggers if `wait: true` and user clicks notification
+      });
+
+      notifier.on('timeout', function (notifierObject, options) {
+        // Triggers if `wait: true` and notification closes
+      });
+      // Use -EncodedCommand to avoid shell escaping issues
+    }
+  }
 
 
   static warningBox(message, title, type = 16) {

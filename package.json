@@ -15,6 +15,7 @@
     "js-yaml": "^4.1.0",
     "number-to-words-ru": "^2.4.1",
     "yargs": "18.0.0",
+    "node-notifier": "^10.0.1",
     "user-agents": "^1.1.668"
   },
   "devDependencies": {

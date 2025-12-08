@@ -8,7 +8,7 @@ import { access, copyFile, constants } from 'node:fs/promises';
 export class Files {
 
 
-  
+
 
 
   /**
@@ -65,6 +65,7 @@ export class Files {
       .map(l => l.trim())
       .filter(l => l.length > 0);
   }
+
 
   /**
    * Checks if a URL already exists in any relevant directory
@@ -256,18 +257,18 @@ export class Files {
   }
 
 
-/**
- * Reads a text file and returns an array of non-empty trimmed lines.
- * @param {string} filePath - Path to the text file.
- * @returns {string[]} Array of lines.
- */
-static readLines(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  return content
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-}
+  /**
+   * Reads a text file and returns an array of non-empty trimmed lines.
+   * @param {string} filePath - Path to the text file.
+   * @returns {string[]} Array of lines.
+   */
+  static readLines(filePath) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return content
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+  }
 
 
 
@@ -341,7 +342,7 @@ static readLines(filePath) {
     }
 
     const sourceStat = fs.lstatSync(source);
-    
+
     if (sourceStat.isDirectory()) {
       // If source is a directory, create target directory if it doesn't exist
       if (!fs.existsSync(target)) {
@@ -353,7 +354,7 @@ static readLines(filePath) {
       files.forEach((file) => {
         const sourcePath = path.join(source, file);
         const targetPath = path.join(target, file);
-        
+
         if (fs.lstatSync(sourcePath).isDirectory()) {
           this.copyFolderRecursiveSync(sourcePath, targetPath);
         } else {
@@ -479,7 +480,76 @@ static readLines(filePath) {
     console.log(currentDir, 'currentDir in Function');
     return currentDir;
   }
+  static cleanPath(p) {
+    return p.replace(/\\\\+/g, "\\").replace(/\\/g, "/");
+  }
 
+
+
+  // scan all json files in folder except ALL.json and return array of json objects. combine arrays from all jsons. remove duplicates. save result array to ALL.json. folder as argument
+  static combineJsonFiles(folder) {
+    const files = fs.readdirSync(folder).filter(file => path.extname(file).toLowerCase() === '.json' && file !== 'ALL.json');
+    console.log(files, 'files in Function');
+
+    const combinedData = [];
+
+    for (const file of files) {
+      const filePath = path.join(folder, file);
+      const fileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      combinedData.push(...fileData);
+    }
+
+    // Remove duplicates
+    const uniqueData = [...new Set(combinedData)];
+    console.log('uniqueData in Function', uniqueData);
+
+    // save uniqueData to ALL.json
+    Files.writeJson(path.join(folder, 'ALL.json'), uniqueData);
+
+    return uniqueData;
+
+  }
+
+
+  static writeJson(filePath, data) {
+
+    const jsonData = JSON.stringify(data, null, 2);
+    console.info("jsonData:", jsonData);
+
+    fs.writeFileSync(filePath, jsonData);
+
+  }
+
+  // static function pick random file inside folder and return its path
+
+  static pickRandomFile(folder, extension) {
+    const files = fs.readdirSync(folder).filter(file => path.extname(file).toLowerCase() === extension);
+    if (files.length === 0) {
+      console.warn('No', extension, 'files found in folder:', folder);
+      return null;
+    }
+    const randomIndex = Math.floor(Math.random() * files.length);
+    const randomFile = files[randomIndex];
+    console.log(randomFile, 'randomFile in Function');
+    return path.join(folder, randomFile);
+  }
+
+
+  static cleanupFileName(filename) {
+
+    console.info("cleanupFileName Before:", filename);
+    filename = filename
+    .replace(/[<>:"/\\|?*\:]+/g, " ")
+    .trim()
+    .substring(0, 100);
+    
+    filename = filename.replace(/\s+/g, ' ');
+    // replace \ / to empty
+    filename = filename.replace(/\\|\//g, "");
+    
+    console.info("cleanupFileName After:", filename);
+    return filename;
+  }
 
   static saveInfoToFile(folder, filename) {
 
@@ -488,8 +558,9 @@ static readLines(filePath) {
 
     this.mkdirIfNotExists(folder);
 
-    filename = filename.replace(/[:?<>|\/\\]/g, ''); // remove incompatible with file system chars
-    console.log(filename, 'filename in Function');
+    filename = Files.cleanupFileName(filename);
+
+    console.log('saveInfoToFile', filename);
 
     const filePath = path.join(folder, `${filename}.app`);
     fs.writeFileSync(filePath, 'App', 'utf8');
