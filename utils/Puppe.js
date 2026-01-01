@@ -764,7 +764,7 @@ export class Puppe {
 
 
     let urlObj = new URL(currentUrl);
-    
+
     if (urlObj.searchParams.has('page')) {
       urlObj.searchParams.delete('page');
     }
@@ -1149,7 +1149,9 @@ export class Puppe {
       console.info(`⚠️ Code: ${error.code} Message: ${error.message}`);
       //    Dialogs.messageBoxAx(`⚠️ Code: ${error.code} Message: ${error.message}`, 'Error');
 
-      await Chromes.runBrowser();
+      await Dates.sleep(20000)
+
+      await Chromes.runBrowser(true, false, false)
 
       await this.appSaveOffers();
     }

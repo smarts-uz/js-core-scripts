@@ -53,6 +53,10 @@ export class Chromes {
     console.info(globalThis.saveDirApp, 'saveDirApp globalThis');
     Files.mkdirIfNotExists(globalThis.saveDirApp);
 
+    globalThis.saveDirAzk = path.join(globalThis.saveDir, 'Azk');
+    console.info(globalThis.saveDirAzk, 'saveDirAzk globalThis');
+    Files.mkdirIfNotExists(globalThis.saveDirAzk);
+
   }
 
 
