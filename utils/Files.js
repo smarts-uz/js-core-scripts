@@ -484,6 +484,15 @@ export class Files {
   }
 
 
+  /**
+   * 
+   * @param {string} folder 
+   * @param {string} fileName 
+   * 
+   *         Files.archiveFolder('c:\\App\\js-scraper-olx.uz\\parseMHTMLs\\', 'AL1313L');
+   *         Files.archiveFolder('c:\\App\\js-scraper-olx.uz\\parseMHTMLs\\', `c:\\App\\js-scraper-olx.uz\\App`);
+   * 
+   */
   static archiveFolder(folder, fileName) {
     const zip = new AdmZip();
     // get parent of folder
@@ -504,7 +513,7 @@ export class Files {
     // add .zip extension if not exists
     if (!archiveName.endsWith('.zip')) {
       archiveName += '.zip';
-    } 
+    }
 
     console.log(archiveName, 'archiveName');
 
