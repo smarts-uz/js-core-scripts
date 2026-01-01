@@ -246,6 +246,33 @@ export class Files {
     }
 
   }
+
+
+  
+  static backupFolderZip(folderPath, deletes = true ) {
+    const backupDir = path.join(path.dirname(folderPath), '- Theory');
+    this.mkdirIfNotExists(backupDir);
+
+    const dateTime = new Date().toISOString().split('.')[0].replace(/[:.]/g, '-').replace('T', ' ');
+    const backupFolderPath = path.join(backupDir, `${path.basename(folderPath)} ${dateTime}`);
+
+    // Recursively copy folder contents
+    const archiveName = this.archiveFolder(folderPath, backupFolderPath);
+
+    if (fs.existsSync(archiveName)) {
+      console.log(`Backup created: ${archiveName}`);
+      if (deletes) {
+        fs.rmSync(folderPath, { recursive: true });
+      }
+      return archiveName;
+    } else {
+      console.error(`Error creating backup: ${archiveName}`);
+      return null;
+    }
+
+  }
+
+
   static async exists(path) {
     try {
       await fs.access(path);
@@ -520,6 +547,8 @@ export class Files {
     zip.addLocalFolder(folder); // add folder to zip
     zip.writeZip(`${archiveName}`); // write zip File
     console.log(`Archived ${folder}`);
+
+    return archiveName;
   }
 
 
