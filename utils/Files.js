@@ -484,10 +484,32 @@ export class Files {
   }
 
 
-  static archiveFolder(folder, fileName = 'ALL') {
-    const zip = new   ();
+  static archiveFolder(folder, fileName) {
+    const zip = new AdmZip();
+    // get parent of folder
+    const parentFolder = path.dirname(folder);
+    console.log(parentFolder, 'parentFolder');
+
+    let archiveName
+
+    // if filename is full path
+    if (path.isAbsolute(fileName)) {
+      console.log('filename is full path');
+      archiveName = fileName;
+    } else {
+      console.log('filename is not full path');
+      archiveName = `${parentFolder}/${fileName}`;
+    }
+
+    // add .zip extension if not exists
+    if (!archiveName.endsWith('.zip')) {
+      archiveName += '.zip';
+    } 
+
+    console.log(archiveName, 'archiveName');
+
     zip.addLocalFolder(folder); // add folder to zip
-    zip.writeZip(`${folder}/${fileName}.zip`); // write zip File
+    zip.writeZip(`${archiveName}`); // write zip File
     console.log(`Archived ${folder}`);
   }
 
