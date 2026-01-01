@@ -4,10 +4,9 @@ import { exec, execSync } from "child_process";
 import dotenv from 'dotenv';
 import { Dialogs } from './Dialogs.js';
 import { access, copyFile, constants } from 'node:fs/promises';
+import AdmZip from 'adm-zip';
 
 export class Files {
-
-
 
 
 
@@ -485,10 +484,20 @@ export class Files {
   }
 
 
+  static archiveFolder(folder) {
+    const zip = new AdmZip();
+    zip.addLocalFolder(folder);
+    zip.writeZip(`${folder}.zip`);
+  } 
+
 
   // scan all json files in folder except ALL.json and return array of json objects. combine arrays from all jsons. remove duplicates. save result array to ALL.json. folder as argument
-  static combineJsonFiles(folder) {
-    const files = fs.readdirSync(folder).filter(file => path.extname(file).toLowerCase() === '.json' && file !== 'ALL.json');
+  static combineJsonFiles(folder, fileName = 'ALL') {
+
+    console.log(`Combining JSON files in ${folder}`);
+    console.info(`Filename: ${fileName}`);
+
+    const files = fs.readdirSync(folder).filter(file => path.extname(file).toLowerCase() === '.json' && !(file.includes(fileName) && file.includes('.json')));
     console.log(files, 'files in Function');
 
     const combinedData = [];
@@ -504,7 +513,7 @@ export class Files {
     console.log('uniqueData in Function', uniqueData);
 
     // save uniqueData to ALL.json
-    Files.writeJson(path.join(folder, 'ALL.json'), uniqueData);
+    Files.writeJson(path.join(folder, `${fileName}.json`), uniqueData);
 
     return uniqueData;
 
@@ -518,6 +527,88 @@ export class Files {
 
     fs.writeFileSync(filePath, jsonData);
 
+  }
+
+  static readJson(filePath) {
+    const jsonData = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(jsonData);
+  } 
+
+  static moveWithCommas(src, dest) {
+    // dest = d:\...\App\200013314, 339999699\zZQ8V
+
+    const parent = path.dirname(dest);
+
+    // Agar ota-papka yo‘q bo‘lsa — yaratib qo‘yish
+    if (!fs.existsSync(parent)) {
+      fs.mkdirSync(parent, { recursive: true });
+    }
+
+    // Source borligini tekshirish
+    if (!fs.existsSync(src)) {
+      throw new Error("Source does not exist: " + src);
+    }
+
+    fs.renameSync(src, dest);
+
+    console.log("Moved:", src, "→", dest);
+  }
+
+
+  static findPhonesRec(dir, condition) {
+    let results = [];
+    const list = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of list) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results = results.concat(Files.findPhonesRec(fullPath, condition));
+      } else if (condition(entry.name)) {
+        results.push(entry.name);
+      }
+    }
+    return results;
+  }
+
+
+  static findPhonesRecFull(dir, condition) {
+    let results = [];
+    const list = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of list) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results = results.concat(Files.findPhonesRecFull(fullPath, condition));
+      } else if (condition(entry.name)) {
+        results.push(fullPath);
+      }
+    }
+    return results;
+  }
+
+  static phoneToFolder(phones) {
+    // phones is an array of strings like ['+998-20-001-33-14.app', '+998-33-999-96-99.app']
+
+    let cleanedPhones = phones.map(phone => {
+      // For each 'phone' string in the array, apply the cleaning chain:
+      return this.phoneToFolderItem(phone);
+    });
+
+    // implode  cleanedPhones with ,
+    cleanedPhones = cleanedPhones.join(', ');
+    return cleanedPhones;
+  }
+
+  static phoneToFolderItem(phone) {
+
+    /**
+     * @typedef {String} phone
+     */
+    if (!phone.startsWith('+998-88'))
+      phone = phone.replace('+998-', '');
+
+    phone = phone
+      .replace('.app', ''); // Removes the suffix
+
+    return phone;
   }
 
   // static function pick random file inside folder and return its path
@@ -539,20 +630,21 @@ export class Files {
 
     console.info("cleanupFileName Before:", filename);
     filename = filename
-    .replace(/[<>:"/\\|?*\:]+/g, " ")
-    .trim()
-    .substring(0, 100);
-    
+      .replace(/[<>:"/\\|?*\:]+/g, " ")
+      .trim()
+      .substring(0, 100);
+
     filename = filename.replace(/\s+/g, ' ');
     // replace \ / to empty
     filename = filename.replace(/\\|\//g, "");
-    
+
     console.info("cleanupFileName After:", filename);
     return filename;
   }
 
   static saveInfoToFile(folder, filename) {
 
+    
     if (Files.isEmpty(filename))
       return null;
 

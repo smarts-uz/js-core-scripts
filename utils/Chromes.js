@@ -21,50 +21,37 @@ export class Chromes {
   }
 
 
-  static async initFolders(mhtmlFile) {
+  static async initFolders(app) {
 
-    globalThis.mhtmlFile = mhtmlFile;
-    console.info(globalThis.mhtmlFile, 'mhtmlFile globalThis');
+    globalThis.app = app;
+    console.info(globalThis.app, 'app globalThis');
 
-    globalThis.mhtmlUrl = Chromes.getUrlFromMht(globalThis.mhtmlFile);
-    console.info(globalThis.mhtmlUrl, 'mhtmlUrl globalThis');
-
-    globalThis.mhtmlDir = path.dirname(globalThis.mhtmlFile);
-    console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
-
-    globalThis.mhtmlPageDir = path.join(globalThis.mhtmlDir, 'Page');
-    console.info(globalThis.mhtmlPageDir, 'mhtmlPageDir globalThis');
-    Files.mkdirIfNotExists(globalThis.mhtmlPageDir);
-
-    globalThis.mhtmlPageDirAllJson = path.join(globalThis.mhtmlPageDir, 'ALL.json');
-    console.info(globalThis.mhtmlPageDirAllJson, 'mhtmlPageDirAllJson globalThis');
-
-    globalThis.mhtmlDataDir = path.join(globalThis.mhtmlDir, 'Data');
-    console.info(globalThis.mhtmlDataDir, 'mhtmlDataDir globalThis');
-    Files.mkdirIfNotExists(globalThis.mhtmlDataDir);
-
-    globalThis.mhtmlDataDirAllJson = path.join(globalThis.mhtmlDataDir, 'ALL.json');
-    console.info(globalThis.mhtmlDataDirAllJson, 'mhtmlDataDirAllJson globalThis');
-
-    globalThis.mhtmlParentDir = path.dirname(globalThis.mhtmlDir);
-    console.info(globalThis.mhtmlParentDir, 'mhtmlParentDir globalThis');
-
-    globalThis.mhtmlFolderName = path.basename(globalThis.mhtmlDir);
-    console.info(globalThis.mhtmlFolderName, 'mhtmlFolderName globalThis');
-
-    if (globalThis.mhtmlFolderName === '- Theory') {
-      // Place 'App' beside 'Theory'
-      globalThis.saveDir = globalThis.mhtmlParentDir;
-    } else {
-      // Place 'App' inside the same directory as the MHTML file
-      globalThis.saveDir = globalThis.mhtmlDir;
-    }
+    globalThis.saveDir = path.dirname(globalThis.app);
     console.info(globalThis.saveDir, 'saveDir globalThis');
 
-    globalThis.saveDirALL = path.join(globalThis.saveDir, 'ALL');
-    console.info(globalThis.saveDirALL, 'saveDirALL globalThis');
-    Files.mkdirIfNotExists(globalThis.saveDirALL);
+    globalThis.mhtmlDir = path.join(globalThis.saveDir, '- Theory');
+    console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
 
+
+    globalThis.mhtmlDirPage = path.join(globalThis.mhtmlDir, 'Page');
+    console.info(globalThis.mhtmlDirPage, 'mhtmlDirPage globalThis');
+    Files.mkdirIfNotExists(globalThis.mhtmlDirPage);
+
+    globalThis.mhtmlDirPageAllJson = path.join(globalThis.mhtmlDirPage, 'ALL.json');
+    console.info(globalThis.mhtmlDirPageAllJson, 'mhtmlDirPageAllJson globalThis');
+
+
+    globalThis.mhtmlDirData = path.join(globalThis.mhtmlDir, 'Data');
+    console.info(globalThis.mhtmlDirData, 'mhtmlDirData globalThis');
+    Files.mkdirIfNotExists(globalThis.mhtmlDirData);
+
+    globalThis.mhtmlDirDataAllJson = path.join(globalThis.mhtmlDirData, 'ALL.json');
+    console.info(globalThis.mhtmlDirDataAllJson, 'mhtmlDirDataAllJson globalThis');
+
+
+    globalThis.saveDirApp = path.join(globalThis.saveDir, 'App');
+    console.info(globalThis.saveDirApp, 'saveDirApp globalThis');
+    Files.mkdirIfNotExists(globalThis.saveDirApp);
 
   }
 
@@ -72,7 +59,7 @@ export class Chromes {
   static async runBrowser(isCmdGo = false, hideChrome = false) {
 
     await Chromes.closeBrowsers();
-    
+
     globalThis.browser = await Chromes.runIxbrowser(isCmdGo);
     globalThis.page = await globalThis.browser.newPage();
     globalThis.page.setViewport({ width: 1280, height: 900 });
@@ -83,7 +70,6 @@ export class Chromes {
       globalThis.page.on('console', m => console.log('PAGE:', m.text()));
       globalThis.page.on('pageerror', e => console.error('PAGE ERROR:', e));
       globalThis.page.on('requestfailed', r => console.log('REQUEST NO:', r.url(), r.failure && r.failure().errorText));
-
     }
 
     if (hideChrome || process.env.hideChrome === 'true')
@@ -280,17 +266,17 @@ URL=${url}`;
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-     /*  '--renderer-process-limit=3',
-      '--js-flags=--max-old-space-size=12536',
-      '--disable-gpu',
-      '--single-process',
-      '--disk-cache-size=0',
-      '--media-cache-size=0',
-      '--disable-background-networking',
-      '--disable-background-timer-throttling',
-      '--disable-renderer-backgrounding',
-      '--disable-software-rasterizer',
-      '--mute-audio', */
+      /*  '--renderer-process-limit=3',
+       '--js-flags=--max-old-space-size=12536',
+       '--disable-gpu',
+       '--single-process',
+       '--disk-cache-size=0',
+       '--media-cache-size=0',
+       '--disable-background-networking',
+       '--disable-background-timer-throttling',
+       '--disable-renderer-backgrounding',
+       '--disable-software-rasterizer',
+       '--mute-audio', */
       '--no-first-run',
       '--no-zygote',
       ...filteredArgs.filter(a => !a.startsWith("--load-extension"))

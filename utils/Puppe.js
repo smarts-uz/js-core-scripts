@@ -6,16 +6,43 @@ import fs from "fs";
 import { Chromes } from "./Chromes.js";
 import { Dialogs } from "./Dialogs.js";
 import { Dates } from "./Dates.js";
+import { ES } from "./ES.js";
+import { exit } from "process";
 
 export class Puppe {
   constructor(parameters) {
+
+
+    // create file inside Chromes.folder
+
+    // get rate from
 
   }
 
 
 
 
-  static async autoScroll(page, distance = 300, setIntervalTime = 50) {
+  static async humanScroll(page) {
+    const steps = 15;
+
+    for (let i = 0; i < steps; i++) {
+      if (!page || page.isClosed()) break;
+
+      try {
+        await page.mouse.wheel({ deltaY: 120 });
+      } catch (err) {
+        console.warn('humanScroll Failed:', err.message);
+        break;
+      }
+
+      await Dates.sleep(400);
+    }
+  }
+
+
+
+  static async autoScrollOld(page, distance = 300, setIntervalTime = 50) {
+    if (!page || page.isClosed()) return;
     await page.evaluate(
       async ({ distance, setIntervalTime }) => {
         await new Promise((resolve) => {
@@ -37,10 +64,59 @@ export class Puppe {
   }
 
 
+  static async autoScroll(page, step = 400, delay = 150) {
+    if (!page || page.isClosed()) return;
+
+    await page.evaluate(
+      async (step, delay) => {
+        await new Promise(resolve => {
+          let total = 0;
+          const timer = setInterval(() => {
+            const height = document.body.scrollHeight;
+            window.scrollBy(0, step);
+            total += step;
+
+            if (total >= height) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, delay);
+        });
+      },
+      step,
+      delay
+    );
+  }
+
+
+  static async scrollUntilSelector(
+    page,
+    selector,
+    {
+      step = 500,
+      delay = 300,
+      maxScrolls = 30
+    } = {}
+  ) {
+    for (let i = 0; i < maxScrolls; i++) {
+      const found = await page.$(selector);
+      if (found) return true;
+
+      await page.evaluate((step) => {
+        window.scrollBy(0, step);
+      }, step);
+
+      await page.waitForTimeout(delay);
+    }
+
+    return false;
+  }
+
   /**
    * Saves all ads from a search page, including pagination
    */
   static async extractOffers(page) {
+    if (!page || page.isClosed()) return;
 
     let adLinks = await page.$$eval(
       'a[href*="/obyavlenie/"], a[href*="/offer/"]',
@@ -74,7 +150,7 @@ export class Puppe {
 
 
   static async extractUserId(page) {
-
+    if (!page || page.isClosed()) return;
     const selector = 'a[data-testid="user-profile-link"]'
 
     let matches = await page.$eval(selector, a => {
@@ -119,7 +195,7 @@ export class Puppe {
 
 
   static async extractContent(page) {
-
+    if (!page || page.isClosed()) return;
     const description = await page.$eval(
       '[data-cy="ad_description"] > div:last-child',
       el => el.textContent.trim()
@@ -190,7 +266,7 @@ export class Puppe {
 
 
   static async extractID(page) {
-
+    if (!page || page.isClosed()) return;
     let id = await page.$eval(
       '[data-testid="ad-footer-bar-section"]',
       el => {
@@ -211,6 +287,7 @@ export class Puppe {
   static async showPhone(page) {
     // await Puppe.scrollAds(page);
 
+    if (!page || page.isClosed()) return;
     // ✅ Handle phone number display\
     let phone;
     try {
@@ -249,6 +326,7 @@ export class Puppe {
 
 
   static async saveAsMhtml(page, filePath) {
+    if (!page || page.isClosed()) return;
     try {
       console.info("🧩 Capturing MHTML snapshot...");
       const cdp = await page.createCDPSession();
@@ -286,7 +364,7 @@ export class Puppe {
     const slug = slugApp?.[1];
     console.info(`Safe Name: ${slug}`);
 
-    const offerURLPath = path.join(globalThis.saveDirALL, `${slug}.url`);
+    const offerURLPath = path.join(globalThis.saveDirAzk, `${slug}.url`);
     console.info(`Offer URL Path: ${offerURLPath}`);
 
     if (fs.existsSync(offerURLPath)) {
@@ -294,16 +372,16 @@ export class Puppe {
       return;
     }
 
-    await Dates.sleepPro(1000)
+    await Dates.sleep(1000)
 
     Chromes.saveUrlFile(offerURLPath, url);
 
 
     console.info(`➡️ Loading Olx Post: ${url}`);
-    await globalThis.page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
 
-    await Puppe.autoScroll(globalThis.page, process.env.distance, process.env.setIntervalTime);
-    console.info(`domcontentloaded`);
+    await Puppe.humanScroll(globalThis.page);
+    console.info(`networkidle2`);
 
     const { href, match } = await Puppe.extractUserId(globalThis.page);
 
@@ -365,8 +443,10 @@ export class Puppe {
     ];
 
     for (const pattern of patterns) {
-      const text = await Puppe.extractApp(pattern, page);
+      let text = await Puppe.extractApp(pattern, page);
       if (text) {
+        text = Dates.normalizeUzAccordingToRule(text);
+        console.info(`Text: ${text}`);
         Files.saveInfoToFile(offerPath, text);
       }
     }
@@ -385,12 +465,12 @@ export class Puppe {
 
   static async scrapePhone(url, userIdPath) {
 
-
     console.info(`➡️ Loading Olx Post: ${url}`);
-    
-    await globalThis.page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-    await Puppe.autoScroll(globalThis.page, process.env.distanceGo, process.env.setIntervalTimeGo);
+    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
+    await Dates.sleep(500)
+
+    await Puppe.humanScroll(globalThis.page);
 
     const phone = await Puppe.showPhone(globalThis.page);
     console.info(`Phone: ${phone}`);
@@ -409,30 +489,35 @@ export class Puppe {
 
       Files.saveInfoToFile(userIdPath, '#PhoneOK');
       Files.saveInfoToFile(userIdPath, phoneApp);
+
+      const patternsPhone = [
+        //    '[data-testid="other-contacts"] ul li:nth-child(1) p a',
+        //    '[data-testid="other-contacts"] ul li:nth-child(2) p a',
+        //    '[data-testid="other-contacts"] ul li:nth-child(3) p a',
+        //    '[data-testid="other-contacts"] ul li:nth-child(4) p a',
+        '[data-testid="phones-container"] div div a:nth-child(1)',
+        '[data-testid="phones-container"] div div a:nth-child(2)',
+        '[data-testid="phones-container"] div div a:nth-child(3)',
+        '[data-testid="phones-container"] div div a:nth-child(4)',
+      ]
+
+      for (const pattern of patternsPhone) {
+        const text = await Puppe.extractAppPhone(pattern, globalThis.page);
+        if (text) {
+          const phoneApp = Dates.normalizeUzAccordingToRule(text);
+          Files.saveInfoToFile(userIdPath, phoneApp);
+        }
+      }
+
+      return true
+
     } else {
+      await Dates.sleep(1000)
       await Chromes.runBrowser(true, false)
       Files.saveInfoToFile(userIdPath, '#PhoneError');
-      await Dates.sleepPro(1000)
+      return false
     }
 
-    const patternsPhone = [
-      //    '[data-testid="other-contacts"] ul li:nth-child(1) p a',
-      //    '[data-testid="other-contacts"] ul li:nth-child(2) p a',
-      //    '[data-testid="other-contacts"] ul li:nth-child(3) p a',
-      //    '[data-testid="other-contacts"] ul li:nth-child(4) p a',
-      '[data-testid="phones-container"] div div a:nth-child(1)',
-      '[data-testid="phones-container"] div div a:nth-child(2)',
-      '[data-testid="phones-container"] div div a:nth-child(3)',
-      '[data-testid="phones-container"] div div a:nth-child(4)',
-    ]
-
-    for (const pattern of patternsPhone) {
-      const text = await Puppe.extractAppPhone(pattern, globalThis.page);
-      if (text) {
-        const phoneApp = Dates.normalizeUzAccordingToRule(text);
-        Files.saveInfoToFile(userIdPath, phoneApp);
-      }
-    }
 
   }
 
@@ -447,10 +532,10 @@ export class Puppe {
       return;
     }
 
-    console.info(`➡️ Loading Olx Post: ${url}`);
-    await globalThis.page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+    console.info(`➡️ Loading Olx User: ${url}`);
+    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
 
-    await Puppe.autoScroll(globalThis.page, process.env.distance, process.env.setIntervalTime);
+    await Puppe.humanScroll(globalThis.page);
 
     Puppe.saveAsMhtml(globalThis.page, userIdALLMhtml);
 
@@ -468,8 +553,10 @@ export class Puppe {
     ]
 
     for (const pattern of patternsPhone) {
-      const text = await Puppe.extractApp(pattern, page);
+      let text = await Puppe.extractApp(pattern, page);
       if (text) {
+        text = Dates.normalizeUzAccordingToRule(text);
+        console.info(`Text: ${text}`);
         Files.saveInfoToFile(userIdPath, text);
       }
     }
@@ -478,42 +565,133 @@ export class Puppe {
 
   }
 
+  static async offersCount(fullPath) {
+    // scan fullPath for folders using fs
+    let folders = Files.findPhonesRecFull(fullPath, function (file) {
+      return file.includes('Мы нашли') && file.includes('объявлений')
+    });
+    console.info(`Found ${folders.length} folders`, folders);
 
+  }
+
+
+  static async actualizePhoneFolder(paths) {
+
+    // recursive scan for path. filter, include +998 and .app
+    // Recursively find all files under 'path' that include '+998' and '.app'
+
+    let results = Files.findPhonesRec(paths, function (file) {
+      return file.includes('+998') && file.includes('.app') && file.length === 21
+    });
+    console.info(`Found ${results.length} files`, results);
+
+    // remove duplicates
+    results = [...new Set(results)];
+    console.info(`Found ${results.length} files. After duplicates removal`, results);
+
+    let resultsFullPaths = Files.findPhonesRecFull(paths, function (file) {
+      return file.includes('+998') && file.includes('.app') && file.length === 21
+    });
+    console.info(`Found ${resultsFullPaths.length} files`, resultsFullPaths);
+
+    // copy all of these files to path 
+    for (const file of resultsFullPaths) {
+      // copy file to path
+      const fileName = path.basename(file);
+      const dest = path.join(paths, fileName);
+
+      if (!fs.existsSync(dest)) {
+        fs.copyFileSync(file, dest);
+        console.info(`Copied ${file} to ${dest}`);
+      }
+      else {
+        console.info(`File ${dest} already exists`);
+      }
+    }
+
+    // rename path to phoneFolder
+    const phoneFolder = Files.phoneToFolder(results);
+    console.info(`phoneFolder`, phoneFolder);
+
+    // get parent path of paths
+    const parentPath = path.dirname(paths);
+
+    const newPath = path.join(parentPath, phoneFolder);
+    if (!fs.existsSync(newPath)) {
+      fs.renameSync(paths, newPath);
+      console.info(`Renamed ${paths} to ${newPath}`);
+      return newPath;
+    }
+    else {
+      console.info(`File ${newPath} already exists`);
+      return paths;
+    }
+  }
 
   static async scrapePages(url) {
 
 
     console.info(`➡️ Loading Catalog: ${url}`);
-    await globalThis.page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
 
-    await Puppe.autoScroll(globalThis.page, process.env.distancePage, process.env.setIntervalTimePage);
-    console.info(`domcontentloaded`);
+    //  await Puppe.humanScroll(globalThis.page);
+
+    console.info(`networkidle2`);
 
     const title = await Puppe.pageTitle(globalThis.page);
 
     let adLinks = await Puppe.extractOffers(globalThis.page)
     console.info(`adLinks`, adLinks)
 
-    const filePathJson = path.join(globalThis.mhtmlDataDir, `${title}.json`);
+    const filePathJson = path.join(globalThis.mhtmlDirData, `${title}.json`);
     Files.writeJson(filePathJson, adLinks)
 
-    const filePathMhtml = path.join(globalThis.mhtmlPageDir, `${title}.mhtml`);
+    const filePathMhtml = path.join(globalThis.mhtmlDirPage, `${title}.mhtml`);
     await Puppe.saveAsMhtml(page, filePathMhtml);
 
 
   }
 
 
+  static async appSavePagination() {
+    console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
 
-  static async savePagination(browser) {
+    // scan globalThis.mhtmlDir for *.mhtml files
+    console.info(`Scanning ${globalThis.mhtmlDir} for *.mhtml files`);
+    let files = await fs.promises.readdir(globalThis.mhtmlDir, { withFileTypes: true });
+    files = files.filter(file => file.isFile() && file.name.endsWith('.mhtml'));
+    console.info(`Found ${files.length} files`);
+    console.info(`Found ${files.length} files in ${globalThis.mhtmlDir}`);
 
+    for (const file of files) {
+      console.info(`File: ${file.name}`);
+      const filePath = path.join(globalThis.mhtmlDir, file.name);
+      const url = Chromes.getUrlFromMht(filePath);
+      console.info(`URL: ${url}`);
+      await Puppe._appSavePaginationItem(url);
+
+    }
+
+    Files.combineJsonFiles(globalThis.mhtmlDirPage);
+
+
+
+  }
+
+
+  static async _appSavePaginationItem(url) {
+
+
+    console.info(`📖 Загружаю главную страницу для получения пагинации: ${url}`);
 
     await globalThis.page.setViewport({ width: 1280, height: 900 });
-    console.info(`📖 Загружаю главную страницу для получения пагинации: ${globalThis.mhtmlUrl}`);
-    await globalThis.page.goto(globalThis.mhtmlUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
+
+    const title = await Puppe.pageTitle(globalThis.page);
+    console.info(`Title: ${title}`);
 
     // Прокручиваем вниз для загрузки пагинации
-    await Puppe.autoScroll(page, process.env.distancePage, process.env.setIntervalTimePage);
+    await Puppe.humanScroll(globalThis.page);
 
     // Wait for pagination elements to load
     await globalThis.page.waitForSelector('ul.pagination-list', { timeout: 10000 }).catch(() => { });
@@ -545,7 +723,7 @@ export class Puppe {
       });
 
       if (clicked) {
-        //   await Puppe.sleep(1500); // Wait for page to load
+        await Dates.sleep(500); // Wait for page to load
         attempts++;
       }
     }
@@ -554,7 +732,7 @@ export class Puppe {
     await globalThis.page.evaluate(() => {
       window.scrollTo(0, 0);
     });
-    //   await Puppe.sleep(1000);
+    await Dates.sleep(500);
 
     // Get maximum page number from data-testid attributes
     const maxPageNumber = await globalThis.page.evaluate(() => {
@@ -576,118 +754,212 @@ export class Puppe {
 
     // Generate pagination URLs based on page numbers
     const paginationUrls = [];
+
     // add serachurl to paginationUrls
-    paginationUrls.push(globalThis.mhtmlUrl);
+    const currentUrl = globalThis.page.url();
+    console.info(`Current URL: ${currentUrl}`);
+    console.info(`maxPageNumber: ${maxPageNumber}`);
+
+
+    let urlObj = new URL(currentUrl);
+    
+    if (urlObj.searchParams.has('page')) {
+      urlObj.searchParams.delete('page');
+    }
+
+    paginationUrls.push(urlObj.toString());
 
     if (maxPageNumber > 0) {
-      const currentUrl = globalThis.page.url();
-      const urlObj = new URL(currentUrl);
+
+      const urlObjApp = new URL(currentUrl);
 
       // Generate URLs for all pages from 2 to maxPageNumber
       for (let i = 2; i <= maxPageNumber; i++) {
-        urlObj.searchParams.set('page', i.toString());
-        paginationUrls.push(urlObj.toString());
+        urlObjApp.searchParams.set('page', i.toString());
+        paginationUrls.push(urlObjApp.toString());
       }
+
     }
 
-    // Also try multiple approaches to get pagination URLs as fallback
-    const fallbackUrls = await globalThis.page.evaluate(() => {
-      // Get all pagination links, not just from ul.pagination-list
-      const elements = Array.from(document.querySelectorAll('ul.pagination-list a, .pager a'));
-      return elements
-        .map(el => {
-          // Try href attribute first, then href property
-          return el.getAttribute('href') || el.href;
-        })
-        .filter(url => url && !url.includes('javascript:') && !url.includes('#') && url.trim() !== '')
-        .map(url => {
-          // Make sure URLs are absolute
-          if (url.startsWith('/')) {
-            const baseUrl = window.location.origin;
-            return baseUrl + url;
-          }
-          return url;
-        });
-    });
+    console.info(`📑 Найдено ${paginationUrls.length} страниц пагинации`, paginationUrls);
 
-    // Also check for data-page attributes or other pagination patterns
-    const additionalUrls = await globalThis.page.evaluate(() => {
-      const urls = [];
-      const baseUrl = window.location.origin;
+    // read globalThis.mhtmlDirPageAllJson to array
+    //  paginationUrls = paginationUrls.concat(Files.readUrlsFromDirectory(globalThis.mhtmlDirPageAllJson));
 
-      // Look for data-page attributes
-      const pageElements = document.querySelectorAll('[data-page]');
-      pageElements.forEach(el => {
-        const page = el.getAttribute('data-page');
-        if (page && !isNaN(page)) {
-          // Try to construct URL - this is heuristic-based
-          const currentUrl = new URL(window.location.href);
-          currentUrl.searchParams.set('page', page);
-          urls.push(currentUrl.toString());
-        }
-      });
-
-      return urls;
-    });
-
-    // Combine all found URLs
-    const allUrls = [...paginationUrls, ...fallbackUrls, ...additionalUrls];
-
-    // Remove duplicates and current page
-    const uniqueUrls = [...new Set(allUrls)].filter(url => {
-      try {
-        const currentUrl = new URL(window.location.href);
-        const checkUrl = new URL(url);
-        // Filter out current page
-        return checkUrl.searchParams.get('page') !== currentUrl.searchParams.get('page') ||
-          (checkUrl.searchParams.get('page') === null && currentUrl.searchParams.get('page') === null && url !== window.location.href);
-      } catch {
-        return true;
-      }
-    });
-
-    console.info(`📑 Найдено ${paginationUrls.length} страниц пагинации`);
-
-    // save paginationUrls to file as json to 
-
-    Files.writeJson(globalThis.mhtmlPageDirAllJson, paginationUrls)
+    const filePathJson = path.join(globalThis.mhtmlDirPage, `${title}.json`);
+    Files.writeJson(filePathJson, paginationUrls)
 
     return paginationUrls;
 
   }
 
-  static async saveAllPages() {
 
-    console.info(globalThis.mhtmlPageDirAllJson, 'mhtmlPageDirAllJson globalThis');
+  static async appSavePages() {
 
-    // read this json. globalThis.mhtmlPageDirAllJson iterate through all pages and save them as mhtml files
 
-    if (fs.existsSync(globalThis.mhtmlPageDirAllJson)) {
+    console.info(globalThis.mhtmlDirPageAllJson, 'mhtmlDirPageAllJson globalThis');
 
-      const mhtmlPageDirAllJson = JSON.parse(fs.readFileSync(globalThis.mhtmlPageDirAllJson, 'utf8'));
+    // read this json. globalThis.mhtmlDirPageAllJson iterate through all pages and save them as mhtml files
 
-      for (const pageUrl of mhtmlPageDirAllJson) {
+    if (fs.existsSync(globalThis.mhtmlDirPageAllJson)) {
+
+      const mhtmlDirPageAllJson = JSON.parse(fs.readFileSync(globalThis.mhtmlDirPageAllJson, 'utf8'));
+
+      for (const pageUrl of mhtmlDirPageAllJson) {
         console.info(`➡️ Loading Olx Catalog Page: ${pageUrl}`);
         await Puppe.scrapePages(pageUrl);
       }
 
-      Files.combineJsonFiles(globalThis.mhtmlDataDir);
+      Files.combineJsonFiles(globalThis.mhtmlDirData);
+
+
+    }
+
+  }
+
+  static async appMergePhones() {
+
+    console.info(`Scanning ${globalThis.saveDir} for folders`);
+
+    // scan appolxPathParent for folders, exclude - Theory and  ALL and App folders
+    const folders = fs.readdirSync(globalThis.saveDir).filter(file =>
+      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() &&
+      !file.includes('ALL') &&
+      !file.includes('App') &&
+      !file.includes('Azk') &&
+      !file.includes('@') &&
+      !file.includes('#') &&
+      file !== '- Theory'
+    );
+
+    for (const folder of folders) {
+
+      const userDir = path.join(globalThis.saveDir, folder);
+      console.info(`Scanning ${userDir} for folders`);
+
+      await Puppe._appMergePhonesItem(userDir, folder);
+
     }
 
   }
 
 
-  static async saveAllPhones() {
+  static async _appMergePhonesItem(userDir, folder) {
+
+    console.info(`Scanning ${userDir} for folders`);
+    console.info(`Folder: ${folder}`);
+
+
+    // scan in folder not recursive for +998.*.app files in not exists push this folder path to new array
+    // +998-33-212-95-20.app
+    const files = ES.getPhones(userDir);
+
+    let phoneExists = false
+
+    // iterate files as file, get phoneToFolderItem
+    for (const file of files) {
+
+      const phoneFolderItem = Files.phoneToFolderItem(file);
+      console.info(`phoneFolderItem IN`, phoneFolderItem);
+
+      // scan globalThis.saveDirApp for phoneFolderItem usibng readdirSync  
+
+      const found = fs.readdirSync(globalThis.saveDirApp).filter(file =>
+        fs.statSync(path.join(globalThis.saveDirApp, file)).isDirectory() &&
+        file.includes(phoneFolderItem)
+      );
+      console.info(`Found ${found.length} folders with such phone IN`, found);
+
+      if (found.length !== 0) {
+        const parentMovedFolder = path.join(globalThis.saveDirApp, found[0]);
+        console.info(`parentMovedFolder IN`, parentMovedFolder);
+        Files.mkdirIfNotExists(parentMovedFolder);
+
+        const movedFolderPath = path.join(parentMovedFolder, folder);
+        if (!fs.existsSync(userDir)) {
+          console.warn(`UserDir IN Not existsSync, ${userDir} to ${movedFolderPath}`);
+          continue
+        }
+
+        console.info(`Moving IN ${userDir} to ${movedFolderPath}`);
+
+        // move folder using fs
+
+        Files.moveWithCommas(userDir, movedFolderPath);
+        if (!fs.existsSync(movedFolderPath)) {
+          console.error(`Error IN with Move, ${userDir} to ${movedFolderPath}`);
+        }
+        else {
+          console.info(`Moved IN ${userDir} to ${movedFolderPath}`); // Changed from Moved to Moved IN
+          await Puppe.actualizePhoneFolder(parentMovedFolder);
+          phoneExists = true
+          continue
+        }
+
+      }
+
+
+    }
+
+    if (phoneExists) {
+      console.info(`phone Moved from ${userDir}`);
+      return false
+    }
+
+    if (!fs.existsSync(userDir)) {
+      console.warn(`UserDir Not existsSync, ${userDir} to ${movedFolderPath}`);
+      return false
+    }
+
+    const phoneFolder = Files.phoneToFolder(files);
+    console.info(`phoneFolder`, phoneFolder);
+    //+998-33-212-95-20.app
+    if (!phoneFolder) {
+      console.warn(`phoneFolder is null, ${userDir}`);
+      return false
+    }
+
+    const parentMovedFolder = path.join(globalThis.saveDirApp, phoneFolder);
+    console.info(`parentMovedFolder`, parentMovedFolder);
+    Files.mkdirIfNotExists(parentMovedFolder);
+
+    const movedFolderPath = path.join(parentMovedFolder, folder);
+    console.info(`Moving ${userDir} to ${movedFolderPath}`);
+
+    // move folder using fs
+    Files.moveWithCommas(userDir, movedFolderPath);
+    if (!fs.existsSync(movedFolderPath)) {
+      console.error(`Error with Move, ${userDir} to ${movedFolderPath}`);
+    }
+    else {
+      await Puppe.actualizePhoneFolder(parentMovedFolder);
+      console.info(`Moved ${userDir} to ${movedFolderPath}`);
+    }
+
+
+  }
+
+
+
+
+
+
+
+
+  static async appFindPhones() {
 
     // get parent path of appolxPath
 
     console.info(`Scanning ${globalThis.saveDir} for folders`);
 
     // scan appolxPathParent for folders, exclude - Theory and  ALL and App folders
-    const folders = fs.readdirSync(globalThis.saveDir).filter(file => 
-      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() && 
-      !file.includes('ALL') && 
+    const folders = fs.readdirSync(globalThis.saveDir).filter(file =>
+      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() &&
+      !file.includes('ALL') &&
       !file.includes('App') &&
+      !file.includes('Azk') &&
+      !file.includes('@') &&
+      !file.includes('#') &&
       file !== '- Theory'
     );
 
@@ -695,16 +967,107 @@ export class Puppe {
 
     for (const folder of folders) {
 
+      console.info(`\r\nFolder Name: ${folder}`);
+
+      const userDir = path.join(globalThis.saveDir, folder);
+      console.info(`Scanning ${userDir} for folders`);
+
+      let clones = ES.find(folder)
+      //  console.info(`Found ${clones.length} clones`, clones);
+
+      clones = clones.filter(clone => clone.toLowerCase() !== userDir.toLowerCase());
+      console.info(`Filtered ${clones.length} clones`, clones);
+
+      if (clones.length === 0) {
+        console.info(`⚠️ Folder ${folder} has no clones`);
+        continue
+      }
+
+      // iterate clones
+      for (const clone of clones) {
+        console.info(`Clone Name: ${clone}`);
+        const files = ES.getPhones(clone, true);
+
+        if (files.length === 0) {
+          console.info(`⚠️ Folder ${folder} has no phone files`);
+          continue
+        }
+
+        console.info(`Found ${files.length} phone files`, files);
+        // copy all files into userDir
+        for (const file of files) {
+          const fileName = path.basename(file);
+          const dest = path.join(userDir, fileName);
+          console.info(`Dest File:  ${file} to ${dest}`);
+          if (!fs.existsSync(dest)) {
+            fs.copyFileSync(file, dest);
+            console.info(`Copied ${file} to ${dest}`);
+          }
+          else {
+            console.info(`File ${dest} already exists`);
+          }
+        }
+
+
+      }
+
+
+
+    }
+
+
+
+  }
+
+  static async getNoPhones() {
+    // get parent path of appolxPath
+
+    console.info(`Scanning ${globalThis.saveDir} for folders`);
+
+    // scan appolxPathParent for folders, exclude - Theory and  ALL and App folders
+    const folders = fs.readdirSync(globalThis.saveDir).filter(file =>
+      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() &&
+      !file.includes('ALL') &&
+      !file.includes('App') &&
+      !file.includes('Azk') &&
+      !file.includes('@') &&
+      !file.includes('#') &&
+      file !== '- Theory'
+    );
+
+    let foldersToScan = [];
+
+    for (const folder of folders) {
+
+      const userDir = path.join(globalThis.saveDir, folder);
+      console.info(`Scanning ${userDir} for folders`);
+
       // scan in folder not recursive for +998.*.app files in not exists push this folder path to new array
-      const files = fs.readdirSync(path.join(globalThis.saveDir, folder)).filter(file => file.includes('+998') && file.includes('.app'));
+      const files = ES.getPhones(userDir);
       if (files.length !== 0) {
         console.info(`⚠️ Folder ${folder} already has phone number`);
       } else {
         console.info(`➡️ Adding Olx Appolx Folder: ${folder}`);
+
         foldersToScan.push(path.join(globalThis.saveDir, folder));
       }
 
     }
+
+    const noPhoneJson = path.join(globalThis.mhtmlDir, 'NoPhone.json');
+    console.info(`NoPhoneJson: ${noPhoneJson}`);
+
+    Files.writeJson(noPhoneJson, foldersToScan)
+
+    console.info(`Scanned ${foldersToScan.length} folders for +998.*.app files`);
+    console.info(`Folders to scan: ${foldersToScan}`);
+    return noPhoneJson
+  }
+
+  static async appSavePhones() {
+
+    const noPhoneJson = await Puppe.getNoPhones();
+    const foldersToScan = Files.readJson(noPhoneJson);
 
     console.info(`Scanned ${foldersToScan.length} folders for +998.*.app files`);
     console.info(`Folders to scan: ${foldersToScan}`);
@@ -721,44 +1084,77 @@ export class Puppe {
         continue
       }
 
+      if (!folderApp || !fs.existsSync(folderApp)) {
+        console.info(`⚠️ folderApp not found: ${folderApp}`);
+        continue;
+      }
+
       // make full path for 
       const mainMhtml = path.join(folderApp, 'ALL.mhtml');
+      if (!fs.existsSync(mainMhtml)) {
+        console.info(`⚠️ MHTML file not found: ${mainMhtml}`);
+        continue;
+      }
+
+
       console.info(`OLX Offer MHTML found: ${mainMhtml}`);
-      
+
       const url = await Chromes.getUrlFromMht(mainMhtml);
       console.info(`OLX Offer URL found: ${url}`);
 
-      await Puppe.scrapePhone(url, folderToScan);
-      await Dates.sleepPro(1000)
+      const isPhone = await Puppe.scrapePhone(url, folderToScan);
+      if (isPhone) {
+        await Puppe.saveAsMhtml(globalThis.page, path.join(folderApp, `ALL.mhtml`));
+      }
+      await Dates.sleep(1000)
     }
 
+    await Puppe.getNoPhones();
 
   }
 
 
 
-  static async saveAllOffers() {
 
-    console.info(globalThis.mhtmlDataDirAllJson, 'mhtmlDataDirAllJson globalThis');
+  static async appSaveOffers() {
 
-    // read this json. globalThis.mhtmlPageDirAllJson iterate through all pages and save them as mhtml files
+    console.info(globalThis.mhtmlDirDataAllJson, 'mhtmlDirDataAllJson globalThis');
 
-    if (fs.existsSync(globalThis.mhtmlDataDirAllJson)) {
+    try {
+      if (fs.existsSync(globalThis.mhtmlDirDataAllJson)) {
 
-      const mhtmlDataDirAllJson = JSON.parse(fs.readFileSync(globalThis.mhtmlDataDirAllJson, 'utf8'));
+        // read this json. globalThis.mhtmlDirPageAllJson iterate through all pages and save them as mhtml files
+        let mhtmlDirDataAllJson = JSON.parse(fs.readFileSync(globalThis.mhtmlDirDataAllJson, 'utf8'));
 
-      for (const pageUrl of mhtmlDataDirAllJson) {
-        console.info(`➡️ Loading Olx Post: ${pageUrl}`);
-        await Puppe.scrapeOffers(pageUrl);
+        for (const pageUrl of mhtmlDirDataAllJson) {
+          console.info(`➡️ Loading Olx Post: ${pageUrl}`);
+          await Puppe.scrapeOffers(pageUrl);
+
+          // remove pageUrl from mhtmlDirDataAllJson
+          mhtmlDirDataAllJson = mhtmlDirDataAllJson.filter(url => url !== pageUrl);
+
+        }
+        console.info(`Remaining pages: ${mhtmlDirDataAllJson.length}`);
+        Files.writeJson(globalThis.mhtmlDirDataAllJson, mhtmlDirDataAllJson);
 
       }
+    } catch (error) {
+      console.error(error);
 
+      console.info(`⚠️ Code: ${error.code} Message: ${error.message}`);
+      //    Dialogs.messageBoxAx(`⚠️ Code: ${error.code} Message: ${error.message}`, 'Error');
+
+      await Chromes.runBrowser();
+
+      await this.appSaveOffers();
     }
+
 
   }
 
 
   static async pageTitle(page) {
+    if (!page || page.isClosed()) return;
     // Safe file naming
     let title = await page.title();
 
@@ -772,7 +1168,7 @@ export class Puppe {
 
 
   static async scrollAds(page) {
-
+    if (!page || page.isClosed()) return;
     const Wait_Min = process.env.Wait_Min || 5;
     const Wait_Max = process.env.Wait_Max || 30;
     const Scroll_Count_Min = process.env.Scroll_Count_Min || 2;

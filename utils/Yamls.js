@@ -219,20 +219,31 @@ export class Yamls {
         let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl);
         console.log(ceo, 'ceo');
 
-        const person = path.join(globalThis.folderDirector, ceo.name);
-        Files.saveInfoToFile(person, '#Director');
 
-        companyInfo.ceo = ceo
+        if (ceo) {
+            const person = path.join(globalThis.folderDirector, ceo.name);
+            Files.saveInfoToFile(person, '#Director');
 
-        if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
-            console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
-            yamlData.SurPINFL = companyInfo.directorPinfl
-            companyInfo.surety = ceo
+            companyInfo.ceo = ceo
+
+        }
+
+        if (companyInfo.directorPinfl) {
+            if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
+                console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
+                yamlData.SurPINFL = companyInfo.directorPinfl
+                companyInfo.surety = ceo
+            } else {
+                console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
+                let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL)
+                console.log(surety, 'surety');
+
+                if (surety) {
+                    companyInfo.surety = surety
+                }
+            }
         } else {
-            console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
-            let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL)
-            console.log(surety, 'surety');
-            companyInfo.surety = surety
+            console.warn(`directorPinfl is empty for TIN: ${ComTIN}`)
         }
 
         if (!Files.isEmpty(yamlData.RepPINFL)) {
@@ -360,10 +371,25 @@ export class Yamls {
 
         yamlData.ComBankCode = companyInfo.bankCode
         const bank = Didox.bankByCode(companyInfo.bankCode);
+        console.log(bank, 'bank');
+
+        if (!bank) {
+            console.warn(`Bank not found for code: ${companyInfo.bankCode}`)
+            Dialogs.warningBox(`Bank not found for code: ${companyInfo.bankCode}`, yamlData.ComNameShort, 64)
+
+            Files.backupFolder(globalThis.folderRestAPI, true);
+        }
+
         yamlData.ComBank = bank.name
 
         yamlData.ComNs10Code = companyInfo.ns10Code
         const region = Didox.regionsByCode(companyInfo.ns10Code)
+        console.log(region, 'region');
+        if (!region) {
+            console.warn(`Region not found for code: ${companyInfo.ns10Code}`)
+            Dialogs.warningBox(`Region not found for code: ${companyInfo.ns10Code}`, yamlData.ComNameShort, 64)
+        }
+
         yamlData.ComNs10Name = region.name;
 
         yamlData.ComNs11Code = companyInfo.ns11Code

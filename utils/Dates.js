@@ -63,25 +63,66 @@ export class Dates {
   }
 
 
-  static sleep(ms) {
+  static sleepSync(ms) {
 
     console.log(`Sleeping for ${ms} milliseconds...`);
     setTimeout(() => {
-      process.exit(0);
+      console.log("Wake up: ", ms);
     }, ms);
 
     //  return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  static sleepPro = (ms) => new Promise((res) => setTimeout(res, ms));
+  /**
+ * Berilgan minimum (min) va maksimum (max) qiymatlar oralig'ida
+ * tasodifiy butun sonni hosil qiladi (min va max o'z ichiga olgan holda).
+ *
+ * @param {number} min - Kiritilishi mumkin bo'lgan eng kichik butun son.
+ * @param {number} max - Kiritilishi mumkin bo'lgan eng katta butun son.
+ * @returns {number} Tasodifiy butun son.
+ */
+  static getRandomInt(min, max) {
+    // Argumentlarning butun son ekanligini ta'minlash
+    min = Math.ceil(min);
+    max = Math.floor(max);
 
+    // Math.random() [0, 1) oralig'ida son beradi
+    // (max - min + 1) oralig'ining hajmini beradi (masalan, 1 dan 10 gacha 10 ta son)
+    // Math.floor() butun songa aylantiradi
+    // + min natijani kerakli diapazonga siljitadi
+
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // Misollar:
+
+
+  static async sleep(ms, random = true) {
+
+    let relMs;
+
+    if (random) {
+      const half = Math.floor(ms / 2);
+      console.log(`half: ${half}`);
+
+      const randomInt = this.getRandomInt(1, half);
+      relMs = randomInt;
+    } else {
+      relMs = ms;
+    }
+    console.log(`Sleeping for ${relMs} milliseconds... Random: ${random}`);
+
+    return new Promise(resolve => setTimeout(resolve, relMs));
+  }
+
+  static sleepOne = (ms) => new Promise((res) => setTimeout(res, ms));
   // umumiy kanditat regex (turli separatorlarni oladi)
 
 
   static normalizeUzAccordingToRule(raw) {
-    if (!raw || typeof raw !== "string") return null;
+    if (!raw || typeof raw !== "string") return raw;
     let digits = raw.replace(/\D/g, "");
-    if (digits.length < 9) return null; // juda qisqa -> rad
+    if (digits.length < 9) return raw; // juda qisqa -> rad
 
     // ANIQ QOIDALAR:
     if (digits.length === 9) {
@@ -112,7 +153,7 @@ export class Dates {
       digits = "998" + digits.slice(-9);
     }
 
-    if (digits.length !== 12 || !digits.startsWith("998")) return null;
+    if (digits.length !== 12 || !digits.startsWith("998")) return raw;
 
     const p1 = digits.slice(3, 5);
     const p2 = digits.slice(5, 8);
