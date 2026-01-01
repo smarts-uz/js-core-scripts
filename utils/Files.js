@@ -193,7 +193,7 @@ export class Files {
 
 
 
-  static backupFile(filePath, deletes = false) {
+  static backupFile(filePath, deletes = true) {
     const backupDir = path.join(path.dirname(filePath), '- Theory');
     this.mkdirIfNotExists(backupDir);
 
@@ -224,7 +224,7 @@ export class Files {
 
   }
 
-  static backupFolder(folderPath, deletes = false) {
+  static backupFolder(folderPath, deletes = true) {
     const backupDir = path.join(path.dirname(folderPath), '- Theory');
     this.mkdirIfNotExists(backupDir);
 

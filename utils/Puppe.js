@@ -1139,6 +1139,7 @@ export class Puppe {
 
         }
         console.info(`Remaining pages: ${mhtmlDirDataAllJson.length}`);
+        Files.backupFile(globalThis.mhtmlDirDataAllJson);
         Files.writeJson(globalThis.mhtmlDirDataAllJson, mhtmlDirDataAllJson);
 
       }
