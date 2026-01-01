@@ -484,11 +484,12 @@ export class Files {
   }
 
 
-  static archiveFolder(folder) {
-    const zip = new AdmZip();
-    zip.addLocalFolder(folder);
-    zip.writeZip(`${folder}.zip`);
-  } 
+  static archiveFolder(folder, fileName = 'ALL') {
+    const zip = new   ();
+    zip.addLocalFolder(folder); // add folder to zip
+    zip.writeZip(`${folder}/${fileName}.zip`); // write zip File
+    console.log(`Archived ${folder}`);
+  }
 
 
   // scan all json files in folder except ALL.json and return array of json objects. combine arrays from all jsons. remove duplicates. save result array to ALL.json. folder as argument
@@ -532,7 +533,7 @@ export class Files {
   static readJson(filePath) {
     const jsonData = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(jsonData);
-  } 
+  }
 
   static moveWithCommas(src, dest) {
     // dest = d:\...\App\200013314, 339999699\zZQ8V
@@ -644,7 +645,7 @@ export class Files {
 
   static saveInfoToFile(folder, filename) {
 
-    
+
     if (Files.isEmpty(filename))
       return null;
 
