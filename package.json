@@ -6,17 +6,15 @@
     "electron": "electron ."
   },
   "dependencies": {
-    "bunyan": "^1.8.15",
-    "bunyan-rotating-file-stream": "^2.0.6",
-    "dotenv": "17.2.3",
-    "node-telegram-bot-api": "^0.66.0",
-    "puppeteer": "24.23.0",
+    "adm-zip": "0.5.16",
     "dayjs": "^1.11.19",
-    "js-yaml": "^4.1.0",
-    "number-to-words-ru": "^2.4.1",
-    "yargs": "18.0.0",
-    "node-notifier": "^10.0.1",
-    "user-agents": "^1.1.668"
+    "dotenv": "17.2.3",
+    "js-yaml": "4.1.1",
+    "node-notifier": "10.0.1",
+    "number-to-words-ru": "2.4.1",
+    "puppeteer": "24.34.0",
+    "user-agents": "^1.1.668",
+    "yargs": "18.0.0"
   },
   "devDependencies": {
     "electron": "^39.0.0",
