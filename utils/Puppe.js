@@ -656,6 +656,8 @@ export class Puppe {
   static async appSavePagination() {
     console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
 
+    Files.backupFolderZip(globalThis.mhtmlDirPage);
+
     // scan globalThis.mhtmlDir for *.mhtml files
     console.info(`Scanning ${globalThis.mhtmlDir} for *.mhtml files`);
     let files = await fs.promises.readdir(globalThis.mhtmlDir, { withFileTypes: true });
@@ -796,6 +798,8 @@ export class Puppe {
 
   static async appSavePages() {
 
+
+    Files.backupFolderZip(globalThis.mhtmlDirData);
 
     console.info(globalThis.mhtmlDirPageAllJson, 'mhtmlDirPageAllJson globalThis');
 

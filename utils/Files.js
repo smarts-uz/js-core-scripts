@@ -583,6 +583,15 @@ export class Files {
 
   static writeJson(filePath, data) {
 
+    // get parent
+    const parent = path.dirname(filePath);
+    console.log(parent, 'parent');
+
+    // Agar ota-papka yo‘q bo‘lsa — yaratib qo‘yish
+    if (!fs.existsSync(parent)) {
+      fs.mkdirSync(parent, { recursive: true });
+    } 
+
     const jsonData = JSON.stringify(data, null, 2);
     console.info("jsonData:", jsonData);
 
