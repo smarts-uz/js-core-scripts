@@ -5,9 +5,48 @@ const { convert } = pkg;
 import { Files } from "./Files.js";
 import { Yamls } from "./Yamls.js";
 import { existsSync } from 'fs';
+import fs from 'fs';
 import { Dialogs } from './Dialogs.js';
 
 export class Contracts {
+
+
+  static initFolders(ymlFile) {
+
+    globalThis.ymlFile = ymlFile;
+    console.info(globalThis.ymlFile, 'ymlFile globalThis');
+
+    // get parent folder of ymlpath
+    globalThis.folderALL = path.dirname(globalThis.ymlFile);
+    console.log(globalThis.folderALL, 'folderALL');
+
+
+    // folderCompan
+    globalThis.folderCompan = path.join(globalThis.folderALL, 'Compan');
+
+    if (!fs.existsSync(globalThis.folderCompan))
+      return Dialogs.warningBox(`Compan folder not found: ${globalThis.folderCompan}`, 'Compan Folder not found');
+    else
+      console.log(`Compan folder found: ${globalThis.folderCompan}`);
+
+    // folderCompan
+    globalThis.folderDirector = path.join(globalThis.folderALL, 'Director');
+    globalThis.folderFounder = path.join(globalThis.folderALL, 'Founder');
+    globalThis.folderSureties = path.join(globalThis.folderALL, 'Sureties');
+    globalThis.folderPartners = path.join(globalThis.folderALL, 'Partners');
+    globalThis.folderActReco = path.join(globalThis.folderALL, 'ActReco');
+    globalThis.folderRestAPI = path.join(globalThis.folderALL, 'RestAPI');
+    Files.mkdirIfNotExists(globalThis.folderRestAPI);
+    globalThis.folderContract = path.join(globalThis.folderALL, 'Contract');
+    globalThis.folderNotifiers = path.join(globalThis.folderALL, 'Notifiers');
+    globalThis.folderPricings = path.join(globalThis.folderALL, 'Pricings');
+    globalThis.folderTelegram = path.join(globalThis.folderALL, 'Telegram');
+    globalThis.folderForNDS = path.join(globalThis.folderALL, 'ForNDS');
+
+
+    return true
+  }
+
 
   static getNumberWordOnly(num) {
 
@@ -73,11 +112,11 @@ export class Contracts {
      Function: Generate Contract Number
      ============================ */
   static contractNumFromFormat(data) {
-    const prefix = process.env.ContractPrefix;
-    const format = process.env.ContractFormat;
+    const prefix = Yamls.getConfig('Contract.Prefix');
+    const format = Yamls.getConfig('Contract.Format');
 
     const values = {
-      ContractPrefix: prefix,
+      contractPrefix: prefix,
       Prefix: prefix,
       ComName: this.getComNameInitials(data.ComName),
       Day: data.Day,
@@ -86,7 +125,7 @@ export class Contracts {
     };
 
     const replaceAll = format.replace(
-      /\{(ContractPrefix|Prefix|ComName|Day|Month|Year)\}/g,
+      /\{(contractPrefix|Prefix|ComName|Day|Month|Year)\}/g,
       (_, key) => values[key] || ""
     );
     console.log("Generated Contract Number:", replaceAll);
@@ -100,10 +139,8 @@ export class Contracts {
      Function: Generate Contract Files (DOCX and PDF)
      ============================ */
   static makeContract(ymlFile) {
-    
-    const { TemplateWord } = process.env;
 
-    const templatePath = path.resolve(TemplateWord);
+    const templatePath = path.resolve(Yamls.getConfig('Templates.Word'));
 
     console.log("Using template", templatePath);
 
@@ -112,11 +149,18 @@ export class Contracts {
       return;
     }
 
-    
+
     let data = Yamls.loadYamlWithDeps(ymlFile);
 
+    /* ============================
+       Extract Date
+       ============================
+    const comDate = Contracts.extractDate(data.ComDate);
+    data.Day = comDate.day;
+    data.Month = comDate.month;
+    data.Year = comDate.year;
 
-    data = Contracts.extractDate(data);
+ */
     
     const resolvedTemplate = path.resolve(templatePath);
     console.log("Resolved template:", resolvedTemplate);
@@ -149,26 +193,26 @@ export class Contracts {
   }
 
 
-  static extractDate(data) {
-    const comDate = data.ComDate;
+  static extractDate(date) {
 
-    if (!comDate) {
-      console.warn("ComDate is not defined in YAML.");
-      return;
+    if (!date || typeof date !== "string") {
+      Dialogs.warningBox(`Date not found or invalid: ${date}`, "Error");
+      return null;
     }
 
     // extract year, month and day from comDate from format 24.10.2025
-    const [day, month, year] = comDate.split(".");
+    const [day, month, year] = date.split(".");
 
-    data.Year = year;
-    data.Month = month;
-    data.Day = day;
+    if (!day || !month || !year) {
+      Dialogs.warningBox(`Invalid date format: ${date}`, "Error");
+      return null;
+    }
 
     console.log("Year:", year);
     console.log("Month:", month);
     console.log("Day:", day);
 
-    return data;
+    return { year, month, day };
   }
 
   static wordReplace(data, templatePath, outputDocxPath, outputPdfPath) {
@@ -205,15 +249,19 @@ export class Contracts {
           const key = placeholder.replace(/Text$/, "");
           const value = data[key];
 
-          if (key === "Month") {
-            replacementText = this.getRussianMonthName(value);
-          }
-          else {
-            replacementText = this.getNumberWordOnly(value);
-          }
-
+          replacementText = this.getNumberWordOnly(value);
           break;
         }
+
+        case (placeholder.endsWith("Title")): {
+
+          const key = placeholder.replace(/Title$/, "");
+          const value = data[key];
+          replacementText = this.getRussianMonthName(value);
+          break;
+        }
+
+        
 
         case (placeholder.endsWith("Phone")): {
           const keyPhone = placeholder.replace(/Phone$/, "");
@@ -246,12 +294,9 @@ export class Contracts {
       );
     }
 
-    const PDF_FORMAT_CODE = process.env.PDF_FORMAT_CODE;
-    console.log("PDF_FORMAT_CODE:", PDF_FORMAT_CODE);
-
     // Save as DOCX and PDF
     doc.SaveAs(outputDocxPath);
-    doc.SaveAs(outputPdfPath, Number(PDF_FORMAT_CODE));
+    doc.SaveAs(outputPdfPath, Number(Yamls.getConfig('Contract.PdfFormatCode')));
 
     if (existsSync(outputDocxPath)) console.log('✅ Word yaratildi:', outputDocxPath);
     if (existsSync(outputPdfPath)) console.log('✅ PDF yaratildi:', outputPdfPath);

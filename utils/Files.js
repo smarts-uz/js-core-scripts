@@ -5,9 +5,9 @@ import dotenv from 'dotenv';
 import { Dialogs } from './Dialogs.js';
 import { access, copyFile, constants } from 'node:fs/promises';
 import AdmZip from 'adm-zip';
+import { Phone } from "./Phone.js";
 
 export class Files {
-
 
 
   /**
@@ -137,37 +137,6 @@ export class Files {
   }
 
 
-  static initFolders(ymlFile) {
-
-    globalThis.ymlFile = ymlFile;
-    console.info(globalThis.ymlFile, 'ymlFile globalThis');
-
-    // get parent folder of ymlpath
-    globalThis.folderALL = path.dirname(globalThis.ymlFile);
-    console.log(globalThis.folderALL, 'folderALL');
-
-
-    // folderCompan
-    globalThis.folderCompan = path.join(globalThis.folderALL, 'Compan');
-
-    if (!fs.existsSync(globalThis.folderCompan))
-      Dialogs.warningBox(`Compan folder not found: ${globalThis.folderCompan}`, 'Compan Folder not found');
-    else
-      console.log(`Compan folder found: ${globalThis.folderCompan}`);
-
-    // folderCompan
-    globalThis.folderDirector = path.join(globalThis.folderALL, 'Director');
-    globalThis.folderActReco = path.join(globalThis.folderALL, 'ActReco');
-    globalThis.folderRestAPI = path.join(globalThis.folderALL, 'RestAPI');
-    this.mkdirIfNotExists(globalThis.folderRestAPI);
-    globalThis.folderContract = path.join(globalThis.folderALL, 'Contract');
-    globalThis.folderNotifiers = path.join(globalThis.folderALL, 'Notifiers');
-    globalThis.folderPricings = path.join(globalThis.folderALL, 'Pricings');
-    globalThis.folderTelegram = path.join(globalThis.folderALL, 'Telegram');
-    globalThis.folderForNDS = path.join(globalThis.folderALL, 'ForNDS');
-
-  }
-
   static isEmpty(value) {
     // Check for null or undefined
     if (value === null || value === undefined) return true;
@@ -193,9 +162,13 @@ export class Files {
 
 
 
-  static backupFile(filePath, deletes = true) {
-    const backupDir = path.join(path.dirname(filePath), '- Theory');
+  static backupFile(filePath, deletes = false, backupDir = path.join(path.dirname(filePath), '- Theory')) {
     this.mkdirIfNotExists(backupDir);
+
+    if (!fs.existsSync(filePath)) {
+      console.error(`File does not exist: ${filePath}`);
+      return null;
+    }
 
     const fileName = path.basename(filePath);
     // extract filename and extension from filepath
@@ -224,6 +197,17 @@ export class Files {
 
   }
 
+
+  static removeFilesWithExtension(dir, extension) {
+    console.info(`Removing files with extension ${extension} from ${dir}`);
+    const files = fs.readdirSync(dir);
+    files.forEach(file => {
+      if (path.extname(file) === extension) {
+        fs.unlinkSync(path.join(dir, file));
+      }
+    });
+  }
+
   static backupFolder(folderPath, deletes = true) {
     const backupDir = path.join(path.dirname(folderPath), '- Theory');
     this.mkdirIfNotExists(backupDir);
@@ -248,8 +232,8 @@ export class Files {
   }
 
 
-  
-  static backupFolderZip(folderPath, deletes = true ) {
+
+  static backupFolderZip(folderPath, deletes = true) {
     const backupDir = path.join(path.dirname(folderPath), '- Theory');
     this.mkdirIfNotExists(backupDir);
 
@@ -403,11 +387,14 @@ export class Files {
 
   static mkdirIfNotExists(dirPath) {
     if (!fs.existsSync(dirPath)) {
+      console.log(`Directory does not exist: ${dirPath}`);
       fs.mkdirSync(dirPath, { recursive: true });
 
       if (fs.existsSync(dirPath)) {
         console.log(`Directory created: ${dirPath}`);
       }
+    } else {
+      console.log(`Directory already exists: ${dirPath}`);
     }
   }
 
@@ -437,7 +424,7 @@ export class Files {
       }
     }
 
-    // if ComTIN is not null, throw error
+    // if comTIN is not null, throw error
     if (fileName === null)
       console.log(`TIN file not found: ${fileName}`);
     else {
@@ -453,12 +440,13 @@ export class Files {
     const files = fs.readdirSync(folderCompan);
     let fileName = null;
     for (const file of files) {
-      if ((/^\d{9}\.txt$/.test(file) || /^\d{3}\s\d{3}\s\d{3}\.txt$/.test(file))) {
+      if (/^(\d{9}|\d{3}\s\d{3}\s\d{3})\.(txt|app)$/.test(file)) {
         fileName = file;
         // filename found log
         console.log(`File found INN: ${file}`);
         // remove txt ext
         fileName = fileName.replace('.txt', '');
+        fileName = fileName.replace('.app', '');
         console.log(`File removed ext INN: ${fileName}`);
 
         // remove spaces
@@ -469,12 +457,49 @@ export class Files {
       }
     }
 
-    // if ComTIN is not null, throw error
-    if (fileName === null)
-      Dialogs.warningBox(`TIN file not found: ${fileName}`, 'TIN File not found');
-    else {
-      console.log(`TIN file found: ${fileName}`);
+    // if comTIN is not null, throw error
+    if (fileName === null) {
+      console.error(`TIN file not found: ${fileName}`);
+      return null;
+
     }
+
+    console.log(`TIN file found: ${fileName}`);
+
+    return fileName;
+  }
+
+
+
+  static getPINFLFromTXT(folderCompan) {
+    const files = fs.readdirSync(folderCompan);
+    let fileName = null;
+    for (const file of files) {
+      if ((/^\d{14}\.(txt|app)$/.test(file))) {
+        fileName = file;
+        // filename found log
+        console.log(`File found PINFL: ${file}`);
+        // remove txt ext
+        fileName = fileName.replace('.txt', '');
+        fileName = fileName.replace('.app', '');
+        console.log(`File removed ext PINFL: ${fileName}`);
+
+        // remove spaces
+        fileName = fileName.replace(/\s/g, '');
+        console.log(`File removed spaces PINFL: ${fileName}`);
+
+        break;
+      }
+    }
+
+    // if comTIN is not null, throw error
+    if (fileName === null) {
+      console.error(`PINFL file not found: ${fileName}`);
+      return null;
+
+    }
+
+    console.log(`PINFL file found: ${fileName}`);
 
     return fileName;
   }
@@ -488,24 +513,31 @@ export class Files {
     return path.dirname(path.resolve(filePath));
   }
 
-  static dotenv() {
+  static currentDir() {
 
     // Get parent path for current file
-    let currentFilePath = process.argv[1];
-    let currentDir = path.dirname(currentFilePath);
+    const currentFilePath = process.argv[1];
+
+    const currentDir = path.dirname(currentFilePath);
     console.log(currentDir, 'currentDir');
 
-    // Append .env to current path
-    dotenv.config({ path: path.join(currentDir, ".env") });
-
-  }
-
-  static currentDir() {
-    const currentFilePath = process.argv[1];
-    const currentDir = path.dirname(currentFilePath);
-    console.log(currentDir, 'currentDir in Function');
     return currentDir;
   }
+
+  static dotenv() {
+
+    const envPath = path.join(Files.currentDir(), ".env");
+    console.log(envPath, 'envPath dotenv');
+
+    if (!fs.existsSync(envPath)) {
+      return Dialogs.warningBox(`.env file not found: ${envPath}`, 'Env File not found');;
+    }
+
+    // Append .env to current path
+    dotenv.config({ path: envPath });
+
+  }
+
   static cleanPath(p) {
     return p.replace(/\\\\+/g, "\\").replace(/\\/g, "/");
   }
@@ -585,16 +617,13 @@ export class Files {
 
     // get parent
     const parent = path.dirname(filePath);
-    console.log(parent, 'parent');
 
     // Agar ota-papka yo‘q bo‘lsa — yaratib qo‘yish
     if (!fs.existsSync(parent)) {
       fs.mkdirSync(parent, { recursive: true });
-    } 
+    }
 
     const jsonData = JSON.stringify(data, null, 2);
-    console.info("jsonData:", jsonData);
-
     fs.writeFileSync(filePath, jsonData);
 
   }
@@ -604,34 +633,58 @@ export class Files {
     return JSON.parse(jsonData);
   }
 
-  static moveWithCommas(src, dest) {
+
+
+  static readTextFile(filePath) {
+    const data = fs.readFileSync(filePath, 'utf8');
+    return data;
+  }
+
+  static moveFolder(src, dest, rename = false) {
     // dest = d:\...\App\200013314, 339999699\zZQ8V
-
-    const parent = path.dirname(dest);
-
-    // Agar ota-papka yo‘q bo‘lsa — yaratib qo‘yish
-    if (!fs.existsSync(parent)) {
-      fs.mkdirSync(parent, { recursive: true });
-    }
 
     // Source borligini tekshirish
     if (!fs.existsSync(src)) {
       throw new Error("Source does not exist: " + src);
     }
 
-    fs.renameSync(src, dest);
 
-    console.log("Moved:", src, "→", dest);
+    if (rename) {
+      if (fs.existsSync(dest)) {
+        console.warn("Destination already exists:", dest);
+        return;
+      };
+
+      const parent = path.dirname(dest);
+
+      // Agar ota-papka yo‘q bo‘lsa — yaratib qo‘yish
+      if (!fs.existsSync(parent)) {
+        fs.mkdirSync(parent, { recursive: true });
+      }
+
+      fs.renameSync(src, dest);
+      console.log("Moved via Rename", src, "→", dest);
+    } else {
+      this.copyFolderRecursiveSync(src, dest);
+
+      if (fs.existsSync(dest)) {
+        console.log("Moved via Copy", src, "→", dest);
+        fs.rmSync(src, { recursive: true });
+      }
+
+    }
+
   }
 
 
-  static findPhonesRec(dir, condition) {
+
+  static findRecursive(dir, condition) {
     let results = [];
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        results = results.concat(Files.findPhonesRec(fullPath, condition));
+        results = results.concat(Files.findRecursive(fullPath, condition));
       } else if (condition(entry.name)) {
         results.push(entry.name);
       }
@@ -640,13 +693,13 @@ export class Files {
   }
 
 
-  static findPhonesRecFull(dir, condition) {
+  static findRecursiveFull(dir, condition) {
     let results = [];
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        results = results.concat(Files.findPhonesRecFull(fullPath, condition));
+        results = results.concat(Files.findRecursiveFull(fullPath, condition));
       } else if (condition(entry.name)) {
         results.push(fullPath);
       }
@@ -654,32 +707,7 @@ export class Files {
     return results;
   }
 
-  static phoneToFolder(phones) {
-    // phones is an array of strings like ['+998-20-001-33-14.app', '+998-33-999-96-99.app']
 
-    let cleanedPhones = phones.map(phone => {
-      // For each 'phone' string in the array, apply the cleaning chain:
-      return this.phoneToFolderItem(phone);
-    });
-
-    // implode  cleanedPhones with ,
-    cleanedPhones = cleanedPhones.join(', ');
-    return cleanedPhones;
-  }
-
-  static phoneToFolderItem(phone) {
-
-    /**
-     * @typedef {String} phone
-     */
-    if (!phone.startsWith('+998-88'))
-      phone = phone.replace('+998-', '');
-
-    phone = phone
-      .replace('.app', ''); // Removes the suffix
-
-    return phone;
-  }
 
   // static function pick random file inside folder and return its path
 
@@ -696,15 +724,15 @@ export class Files {
   }
 
 
-  static cleanupFileName(filename) {
+  static cleanupFileName(filename, replaceWith = ' ') {
 
     console.info("cleanupFileName Before:", filename);
     filename = filename
-      .replace(/[<>:"/\\|?*\:]+/g, " ")
+      .replace(/[<>:"/\\|?*\:]+/g, replaceWith)
       .trim()
       .substring(0, 100);
 
-    filename = filename.replace(/\s+/g, ' ');
+    filename = filename.replace(/\s+|&/g, replaceWith);
     // replace \ / to empty
     filename = filename.replace(/\\|\//g, "");
 
@@ -724,11 +752,21 @@ export class Files {
 
     console.log('saveInfoToFile', filename);
 
+    const filePathTxt = path.join(folder, `${filename}.txt`);
+    Files.removeFile(filePathTxt);
+
     const filePath = path.join(folder, `${filename}.app`);
     fs.writeFileSync(filePath, 'App', 'utf8');
     console.log(`Info saved to ${filePath}`);
     return filePath;
   }
+
+  static removeFile(file) {
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+  }
+
 
   static openFile(file) {
     console.info("Opening file:", file);

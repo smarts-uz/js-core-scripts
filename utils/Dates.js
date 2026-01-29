@@ -37,6 +37,46 @@ export class Dates {
     return date.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1');
   }
 
+  // add 2 years to current date. get last date (31 dec) of this year
+  static addYearsGetLastDate(dateStr, years) {
+    console.log("addYearsGetLastDate dateStr", dateStr, "years", years);
+
+    const date = this.parseDMY(dateStr);
+    const newDate = new Date(date.getFullYear() + years, 12, 31);
+    
+    const formatted = new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(newDate);
+
+    console.log("addYearsGetLastDate formatted", formatted);
+    return formatted;
+  }
+
+
+  // add 363 days into date
+  static addDays(dateStr, days) {
+
+    console.log("addDays dateStr", dateStr, "days", days);
+
+    const date = this.parseDMY(dateStr);
+    const newDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    // convert "2027-01-10T19:00:00.000Z" to 10.01.2027
+
+    const formatted = new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(newDate);
+
+    console.log("addDays formatted", formatted);
+
+    return formatted;
+  }
+
   static excelToDidox(date) {
     if (!date) return "";
     // convert 2023-08-10 format to 10.08.2023 format
@@ -58,8 +98,14 @@ export class Dates {
     }
     // return in format 2025-11-06
     //  return futureDate.toISOString().slice(0, 10); // return in format 2025-11-06
-    const dateString = `${new Intl.DateTimeFormat('en-CA').format(futureDate)}`;
-    return dateString;
+    const formatted = new Intl.DateTimeFormat("en-CA", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(futureDate);
+
+    return formatted;
   }
 
 
@@ -81,7 +127,7 @@ export class Dates {
  * @param {number} max - Kiritilishi mumkin bo'lgan eng katta butun son.
  * @returns {number} Tasodifiy butun son.
  */
-  static getRandomInt(min, max) {
+  static randomInt(min, max) {
     // Argumentlarning butun son ekanligini ta'minlash
     min = Math.ceil(min);
     max = Math.floor(max);
@@ -94,25 +140,24 @@ export class Dates {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  // Misollar:
+  static randomIntOne(value) {
+    const half = Math.floor(value * 3 / 4);
+    const random = this.randomInt(half, value);
+    console.log(`random: ${random}`);
+    return random;
+  }
+
 
 
   static async sleep(ms, random = true) {
 
-    let relMs;
-
     if (random) {
-      const half = Math.floor(ms / 2);
-      console.log(`half: ${half}`);
-
-      const randomInt = this.getRandomInt(1, half);
-      relMs = randomInt;
-    } else {
-      relMs = ms;
+      ms = this.randomIntOne(ms);
     }
-    console.log(`Sleeping for ${relMs} milliseconds... Random: ${random}`);
 
-    return new Promise(resolve => setTimeout(resolve, relMs));
+    console.log(`Sleeping for ${ms} milliseconds... Random: ${random}`);
+
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   static sleepOne = (ms) => new Promise((res) => setTimeout(res, ms));

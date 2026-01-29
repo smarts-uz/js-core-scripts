@@ -13,7 +13,53 @@ import { Dates } from "./Dates.js";
 import { Dialogs } from "./Dialogs.js";
 
 
+export const Owner = {
+    SRental: 'SRental',
+    WorkSpace: 'WorkSpace',
+    Zakirov: 'Zakirov',
+    Ruaz: 'Ruaz',
+    Smarts: 'Smarts',
+    YaTT: 'YaTT',
+}
+
 export class Yamls {
+
+
+
+    static getConfig(keyPath) {
+        const config = Files.currentDir() + '\\config.yml';
+        if (!fs.existsSync(config)) {
+            throw new Error(`YAML Core Config file not found: ${config}`);
+        }
+
+        if (!keyPath) {
+            throw new Error(`Key path is required`);
+        }
+
+        const value = this.getYamlValue(config, keyPath)
+
+        console.log(`Key: ${keyPath}, Value: ${value}`);
+
+        return value
+    }
+
+    /**
+     * Load YAML and return value by dot-notated path
+     * @param {string} filePath - path to yaml file
+     * @param {string} keyPath - e.g. "Contract.Format"
+     * @param {*} defaultValue - optional fallback
+     */
+    static getYamlValue(filePath, keyPath, defaultValue = undefined) {
+        if (!fs.existsSync(filePath)) {
+            throw new Error(`YAML file not found: ${filePath}`);
+        }
+
+        const doc = yaml.load(fs.readFileSync(filePath, "utf8"));
+
+        return keyPath
+            .split(".")
+            .reduce((obj, key) => obj?.[key], doc) ?? defaultValue;
+    }
 
     // Read text file and find text line which contains the given text
     static findTextLine(filePath, text) {
@@ -167,9 +213,7 @@ export class Yamls {
 
 
     static async update(ymlFile) {
-        const { TemplateYaml } = process.env;
-
-        const template = path.resolve(TemplateYaml);
+        const template = path.resolve(Yamls.getConfig('Templates.Yaml'));
 
         console.log("Using template", template);
 
@@ -178,7 +222,8 @@ export class Yamls {
             return;
         }
 
-        Files.initFolders(ymlFile)
+        if (!Contracts.initFolders(ymlFile))
+            return false;
 
         let oldYaml = Files.backupFile(ymlFile, true);
         if (!oldYaml) return;
@@ -201,31 +246,62 @@ export class Yamls {
 
     static async fillYamlWithInfo(ymlFile, yamlData = null, backup = true) {
 
-        Files.initFolders(ymlFile)
+        if (!ymlFile) {
+            Dialogs.warningBox(`ymlFile is empty for TIN: ${ymlFile}`, ymlFile);
+            return;
+        }
 
-        if (backup) Files.backupFile(ymlFile);
+        if (!Contracts.initFolders(ymlFile))
+            return null;
+
+        if (backup) Files.backupFile(ymlFile, false);
 
         if (!yamlData) yamlData = Yamls.loadYamlWithDeps(ymlFile);
         console.log(yamlData, 'yamlData');
 
 
-        let ComTIN = Files.getTINFromTXT(globalThis.folderCompan);
-        console.info("ComTIN:", ComTIN);
+        let comTIN = Files.getTINFromTXT(globalThis.folderCompan);
+        console.info("comTIN:", comTIN);
 
-        let companyInfo = await Didox.infoByTinPinfl(ComTIN);
+        let isYatt = false;
+
+        if (!comTIN) {
+            comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
+            console.info("comTIN ComPINFL:", comTIN);
+        }
+
+        if (!comTIN) {
+            Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
+            return null;
+        }
+
+        if (comTIN.length === 14) {
+            Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
+            isYatt = true;
+        }
+
+        let companyInfo = await Didox.infoByTinPinfl(comTIN);
         console.log(companyInfo, 'companyInfo');
 
+        if (!companyInfo) {
+            Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
+            return null;
+        }
 
-        let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl);
+        console.info("Core isYatt:", isYatt);
+        companyInfo.isYatt = isYatt;
+
+        if (isYatt)
+            companyInfo.directorPinfl = comTIN;
+
+        let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl, globalThis.folderDirector);
         console.log(ceo, 'ceo');
-
 
         if (ceo) {
             const person = path.join(globalThis.folderDirector, ceo.name);
             Files.saveInfoToFile(person, '#Director');
 
             companyInfo.ceo = ceo
-
         }
 
         if (companyInfo.directorPinfl) {
@@ -235,7 +311,7 @@ export class Yamls {
                 companyInfo.surety = ceo
             } else {
                 console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
-                let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL)
+                let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
                 console.log(surety, 'surety');
 
                 if (surety) {
@@ -243,29 +319,36 @@ export class Yamls {
                 }
             }
         } else {
-            console.warn(`directorPinfl is empty for TIN: ${ComTIN}`)
+            console.warn(`directorPinfl is empty for TIN: ${comTIN}`)
         }
 
         if (!Files.isEmpty(yamlData.RepPINFL)) {
-            let reps = await Didox.infoByTinPinfl(yamlData.RepPINFL)
+            let reps = await Didox.infoByTinPinfl(yamlData.RepPINFL, globalThis.folderPartners)
             console.log(reps, 'surety');
             companyInfo.reps = reps
         }
 
-        let vatInfo = await MySoliq.getVatInfo(ComTIN);
-        console.log(vatInfo, 'vatInfo');
-        companyInfo.vat = vatInfo
-
-        let infoSoliq = await MySoliq.getCompanyInfo(ComTIN);
-        console.log(infoSoliq, 'infoSoliq');
-        companyInfo.soliq = infoSoliq
 
 
-        Files.saveInfoToFile(globalThis.folderALL, `#${yamlData.MyCompany}`)
-        Files.saveInfoToFile(globalThis.folderALL, `#${yamlData.Area}-kv`)
 
-        fs.writeFileSync(path.join(globalThis.folderRestAPI, `ALL.json`), JSON.stringify(companyInfo, null, 2));
-        // fs.writeFileSync(path.join(globalThis.folderRestAPI, `/ALL.json`), JSON.stringify(yamlData, null, 2));
+
+        if (!isYatt) {
+            companyInfo.soliq = await MySoliq.companyInfo(comTIN);
+            console.log(companyInfo.soliq, 'soliq');
+
+            //     let vatInfo = await MySoliq.vatInfo(comTIN);
+            //     console.log(vatInfo, 'vatInfo');
+            //     companyInfo.vat = vatInfo
+
+        } else {
+            companyInfo.soliqYatt = await MySoliq.entrepreneurInfo(comTIN, yamlData.SurPassportSerial, yamlData.SurPassportNumber);
+            console.log(companyInfo.soliqYatt, 'soliqYatt');
+        }
+
+        Files.saveInfoToFile(globalThis.folderALL, `#From-${yamlData.MyCompany}`)
+        Files.saveInfoToFile(globalThis.folderALL, `#Area-${yamlData.Area}-kv`)
+
+        Files.writeJson(path.join(globalThis.folderRestAPI, `ALL.json`), companyInfo)
 
         Yamls.replaceYaml(globalThis.ymlFile, yamlData, companyInfo);
     }
@@ -274,14 +357,13 @@ export class Yamls {
     static getPrepayMonth(yamlData) {
         let prepay
 
-        if (Files.isEmpty(yamlData.PrepayMonth)) {
-            const { PrepayMonth } = process.env
-            prepay = PrepayMonth
-            console.log(`PrepayMonth from Yaml: ${prepay}`);
+        if (Files.isEmpty(yamlData.prepayMonth)) {
+            prepay = Yamls.getConfig('Contract.PrepayMonth')
+            console.log(`prepayMonth from Yaml: ${prepay}`);
         }
         else {
-            prepay = yamlData.PrepayMonth
-            console.log(`PrepayMonth from ENV: ${prepay}`);
+            prepay = yamlData.prepayMonth
+            console.log(`prepayMonth from ENV: ${prepay}`);
         }
 
         return prepay;
@@ -296,6 +378,16 @@ export class Yamls {
 
         console.log(yamlData, 'yamlData');
         console.log(companyInfo, 'companyInfo');
+
+        if (!yamlData.ComDateIjara) {
+            const ijaraYears = Yamls.getConfig('Contract.IjaraYears');
+            console.log(`ijaraYears from Yaml: ${ijaraYears}`);
+            yamlData.ComDateIjara = Dates.addYearsGetLastDate(yamlData.ComDate, ijaraYears)
+        }   
+
+        const addDays = Yamls.getConfig('Contract.AddDays');
+        console.log(`addDays from Yaml: ${addDays}`);
+        yamlData.ComDateEnd = Dates.addDays(yamlData.ComDate, addDays)
 
         if (Files.isEmpty(yamlData.ComDate)) {
             let comDateFromTxt = Files.getDateFromTXT(globalThis.folderCompan)
@@ -335,19 +427,48 @@ export class Yamls {
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.ComINN}`)
 
         yamlData.ComName = Contracts.cleanCompanyName(companyInfo.shortName)
+        yamlData.IsYatt = companyInfo.isYatt
 
         yamlData.ComNameLong = companyInfo.name
         yamlData.ComNameShort = companyInfo.shortName
 
-        yamlData = Contracts.extractDate(yamlData);
+        const comDate = Contracts.extractDate(yamlData.ComDate);
+        yamlData.Day = comDate.day;
+        yamlData.Month = comDate.month;
+        yamlData.Year = comDate.year;
+
+
+        if (yamlData.ComDateEnd) {
+            const comDateEnd = Contracts.extractDate(yamlData.ComDateEnd);
+            yamlData.DayEnd = comDateEnd.day;
+            yamlData.MonthEnd = comDateEnd.month;
+            yamlData.YearEnd = comDateEnd.year;
+        }
+
+        if (yamlData.ComDateIjara) {
+            const comDateIjara = Contracts.extractDate(yamlData.ComDateIjara);
+            yamlData.DayIjara = comDateIjara.day;
+            yamlData.MonthIjara = comDateIjara.month;
+            yamlData.YearIjara = comDateIjara.year;
+        }
 
         yamlData.ComDateExcel = Dates.didoxToExcel(yamlData.ComDate);
         yamlData.ComDateEndExcel = Dates.didoxToExcel(yamlData.ComDateEnd);
+        yamlData.ComDateIjaraExcel = Dates.didoxToExcel(yamlData.ComDateIjara);
 
-        const PrepayMonth = Yamls.getPrepayMonth(yamlData);
+        yamlData.ActDateExcel = Dates.didoxToExcel(yamlData.ActDate);
+        yamlData.ActDateEndExcel = Dates.didoxToExcel(yamlData.ActDateEnd);
 
-        yamlData.FutureDateExcel = Dates.futureDateByMonth(PrepayMonth, false)
-        console.log(yamlData.FutureDateExcel, 'yamlData.FutureDateExcel');
+        const prepayMonth = Yamls.getPrepayMonth(yamlData);
+
+        if (!yamlData.ActDateEnd) {
+            yamlData.FutureDateExcel = Dates.futureDateByMonth(prepayMonth, false)
+            console.log('FutureDateExcel from prepayMonth', yamlData.FutureDateExcel);
+        }
+        else {
+            yamlData.FutureDateExcel = Dates.didoxToExcel(yamlData.ActDateEnd)
+            console.log('FutureDateExcel from ActDateEnd', yamlData.FutureDateExcel);
+        }
 
         yamlData.FutureDateAppExcel = Dates.getMinusOneDay(yamlData.FutureDateExcel)
         console.log(yamlData.FutureDateAppExcel, 'yamlData.FutureDateAppExcel');
@@ -365,9 +486,14 @@ export class Yamls {
         yamlData.IsAnorzor = companyInfo.IsAnorzor;
 
         yamlData.ComOKED = companyInfo.oked
-        yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail.name_uz_latn ?? ''
+        if (!yamlData.isYatt)
+            yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail.name_uz_latn ?? ''
+        else
+            yamlData.ComOKEDName = companyInfo?.soliqYatt?.activityTypeName?.uz ?? ''
+
         yamlData.ComMFO = companyInfo.bankCode
         yamlData.ComRS = companyInfo.account
+        yamlData.ComBankAccount = companyInfo.bankAccount
 
         yamlData.ComBankCode = companyInfo.bankCode
         const bank = Didox.bankByCode(companyInfo.bankCode);
@@ -375,9 +501,8 @@ export class Yamls {
 
         if (!bank) {
             console.warn(`Bank not found for code: ${companyInfo.bankCode}`)
-            Dialogs.warningBox(`Bank not found for code: ${companyInfo.bankCode}`, yamlData.ComNameShort, 64)
-
             Files.backupFolder(globalThis.folderRestAPI, true);
+            Dialogs.warningBox(`Bank not found for code: ${companyInfo.bankCode}`, yamlData.ComNameShort, 64)
         }
 
         yamlData.ComBank = bank.name
@@ -385,6 +510,7 @@ export class Yamls {
         yamlData.ComNs10Code = companyInfo.ns10Code
         const region = Didox.regionsByCode(companyInfo.ns10Code)
         console.log(region, 'region');
+
         if (!region) {
             console.warn(`Region not found for code: ${companyInfo.ns10Code}`)
             Dialogs.warningBox(`Region not found for code: ${companyInfo.ns10Code}`, yamlData.ComNameShort, 64)
@@ -399,7 +525,7 @@ export class Yamls {
         yamlData.DirName = companyInfo.director
 
         if (!Files.isEmpty(yamlData.DirPINFL) && yamlData.DirPINFL !== companyInfo.directorPinfl) {
-            Files.saveInfoToFile(globalThis.folderALL, `#CEO`)
+            Files.saveInfoToFile(globalThis.folderALL, `#ChangedCEO`)
             console.warn(`DirPINFL changed to: ${yamlData.DirPINFL}`)
             Dialogs.messageBoxAx(`DirPINFL changed to: ${yamlData.DirPINFL}`, yamlData.ComNameShort, 64)
         }
@@ -415,6 +541,8 @@ export class Yamls {
         yamlData.SurNs10Code = companyInfo.surety?.ns10Code ?? ''
         yamlData.SurNs11Code = companyInfo.surety?.ns11Code ?? ''
 
+        yamlData.SurPassport = `${yamlData.SurPassportSerial ?? ''} ${yamlData.SurPassportNumber ?? ''}`
+
         if (!Files.isEmpty(yamlData.RepPINFL)) {
             yamlData.RepName = companyInfo.reps?.fullName ?? ''
             yamlData.RepTIN = companyInfo.reps?.tin ?? ''
@@ -424,71 +552,138 @@ export class Yamls {
         }
 
         yamlData.ComNa1Code = companyInfo.na1Code
-        yamlData.ComNa1Name = companyInfo.soliq?.company.businessStructureDetail.name_uz_latn ?? ''
+        yamlData.ComNa1Name = companyInfo.na1Name
+        if (!yamlData.isYatt)
+            yamlData.ComNa1NameLat = companyInfo.soliq?.company.businessStructureDetail.name_uz_latn ?? ''
+        else
+            yamlData.ComNa1NameLat = companyInfo?.soliqYatt?.formName?.uz ?? ''
 
-        if (!Files.isEmpty(yamlData.ComNa1Name)) {
-            yamlData.ComNa1NameShort = yamlData.ComNa1Name.split(' ').map(word => word.charAt(0)).join('')
+        if (!Files.isEmpty(yamlData.ComNa1NameLat)) {
+            yamlData.ComNa1NameShort = yamlData.ComNa1NameLat.split(' ').map(word => word.charAt(0)).join('')
                 .toUpperCase()
         }
 
         yamlData.ComStatusCode = companyInfo.statusCode
-        yamlData.ComStatusName = companyInfo.soliq?.company.statusDetail.name_uz_latn ?? ''
-        yamlData.ComStatusGroup = companyInfo.soliq?.company.statusDetail.group ?? ''
+        yamlData.ComStatusName = companyInfo.statusName
 
-        yamlData.ComStatusType = companyInfo.soliq?.company.statusType ?? ''
-        yamlData.ComIsScammer = companyInfo.soliq.IsScammer ?? ''
+        if (!yamlData.isYatt) {
+            yamlData.ComStatusNameLat = companyInfo.soliq?.company.statusDetail.name_uz_latn ?? ''
+            yamlData.ComStatusGroup = companyInfo.soliq?.company.statusDetail.group ?? ''
 
-        yamlData.ComOpf = companyInfo.soliq?.company.opf ?? ''
-        yamlData.ComKfs = companyInfo.soliq?.company.kfs ?? ''
-        yamlData.ComSoato = companyInfo.soliq?.company.soato ?? ''
-        yamlData.ComSoogu = companyInfo.soliq?.company.soogu ?? ''
-        yamlData.ComSooguRegistrator = companyInfo.soliq?.company.sooguRegistrator ?? ''
+            yamlData.ComStatusType = companyInfo.soliq?.company.statusType ?? ''
+            yamlData.ComIsScammer = companyInfo.soliq?.IsScammer ?? ''
 
-        yamlData.ComRegDate = companyInfo.soliq?.company.registrationDate ?? ''
-        yamlData.ComRegNumber = companyInfo.soliq?.company.registrationNumber ?? ''
+        }
+        else {
+            yamlData.ComStatusNameLat = companyInfo?.soliqYatt?.status?.name?.uz ?? ''
 
-        yamlData.ComReRegDate = companyInfo.soliq?.company.reregistrationDate ?? ''
+        }
 
-        yamlData.ComLiquidationDate = companyInfo.soliq?.company.liquidationDate ?? ''
-        yamlData.ComLiquidationReason = companyInfo.soliq?.company.liquidationReason ?? ''
 
-        yamlData.ComTaxMode = companyInfo.soliq?.company.taxMode ?? ''
-        yamlData.ComTaxpayerType = companyInfo.soliq?.company.taxpayerType ?? ''
-        yamlData.ComBusinessType = companyInfo.soliq?.company.businessType ?? ''
 
-        // replace number with comma
-        let fund = Number(companyInfo.soliq?.company.businessFund ?? 0)
-        yamlData.ComBusinessFund = fund.toLocaleString("en-US")
+        yamlData.ComPersonalNum = companyInfo.personalNum
 
-        yamlData.ComSectorCode = companyInfo.soliq?.companyBillingAddress.sectorCode ?? ''
-        yamlData.ComVillageCode = companyInfo.soliq?.company.villageCode ?? ''
-        yamlData.ComVillageName = companyInfo.soliq?.company.villageName ?? ''
+        yamlData.ComIsItd = companyInfo.isItd
+        if (yamlData.isYatt) {
+            if (companyInfo.isItd === true)
+                Files.saveInfoToFile(globalThis.folderALL, '#YaTT-Active');
+            else
+                Files.saveInfoToFile(globalThis.folderALL, '#YaTT-Inactive');
+        }
+
+        yamlData.ComIsBudget = companyInfo.isBudget
+        if (companyInfo.isBudget === true)
+            Files.saveInfoToFile(globalThis.folderALL, '#Is-Budget');
+
+        yamlData.ComSelfEmployment = companyInfo.selfEmployment
+        if (companyInfo.selfEmployment === true)
+            Files.saveInfoToFile(globalThis.folderALL, '#Is-SelfEmployment');
+
+        yamlData.ComPrivateNotary = companyInfo.privateNotary
+        if (companyInfo.privateNotary === true)
+            Files.saveInfoToFile(globalThis.folderALL, '#Is-PrivateNotary');
+
+        yamlData.ComPeasantFarm = companyInfo.peasantFarm
+        if (companyInfo.peasantFarm === true)
+            Files.saveInfoToFile(globalThis.folderALL, '#Is-PeasantFarm');
+
+
+        if (!yamlData.isYatt) {
+            yamlData.ComOpf = companyInfo.soliq?.company.opf ?? ''
+            yamlData.ComKfs = companyInfo.soliq?.company.kfs ?? ''
+            yamlData.ComSoato = companyInfo.soliq?.company.soato ?? ''
+            yamlData.ComSoogu = companyInfo.soliq?.company.soogu ?? ''
+            yamlData.ComSooguRegistrator = companyInfo.soliq?.company.sooguRegistrator ?? ''
+
+            yamlData.ComRegDate = companyInfo.soliq?.company.registrationDate ?? ''
+            yamlData.ComRegNumber = companyInfo.soliq?.company.registrationNumber ?? ''
+
+            yamlData.ComReRegDate = companyInfo.soliq?.company.reregistrationDate ?? ''
+
+            yamlData.ComLiquidationDate = companyInfo.soliq?.company.liquidationDate ?? ''
+            yamlData.ComLiquidationReason = companyInfo.soliq?.company.liquidationReason ?? ''
+
+            yamlData.ComTaxMode = companyInfo.soliq?.company.taxMode ?? ''
+            yamlData.ComTaxpayerType = companyInfo.soliq?.company.taxpayerType ?? ''
+            yamlData.ComBusinessType = companyInfo.soliq?.company.businessType ?? ''
+
+            // replace number with comma
+            let fund = Number(companyInfo.soliq?.company.businessFund ?? 0)
+            yamlData.ComBusinessFund = fund.toLocaleString("en-US")
+
+            yamlData.ComSectorCode = companyInfo.soliq?.companyBillingAddress.sectorCode ?? ''
+            yamlData.ComVillageCode = companyInfo.soliq?.company.villageCode ?? ''
+            yamlData.ComVillageName = companyInfo.soliq?.company.villageName ?? ''
+
+        }
+        else {
+            yamlData.ComRegDate = companyInfo.soliqYatt?.registrationDate ?? ''
+            yamlData.ComRegNumber = companyInfo.soliqYatt?.registrationId ?? ''
+
+            yamlData.ComLiquidationDate = companyInfo.soliqYatt?.liquidationDate ?? ''
+
+            yamlData.ComTaxMode = companyInfo.soliqYatt?.taxMode ?? ''
+
+            yamlData.ComSectorCode = companyInfo.soliqYatt?.entrepreneurshipAddress?.soatoCode ?? ''
+
+        }
+
+
 
         // ###########################
 
         yamlData.ComVATRegCode = companyInfo.VATRegCode
         yamlData.ComVATRegStatus = companyInfo.VATRegStatus
 
-        yamlData.ComVATCompanyName = companyInfo.vat?.companyName ?? ''
+        if (!yamlData.isYatt) {
+            yamlData.ComVATCompanyName = companyInfo.vat?.companyName ?? ''
+            yamlData.ComVATDirectorName = companyInfo.vat?.directorFioLatn ?? ''
 
+            yamlData.ComVATAddress = companyInfo.vat?.address ?? ''
+            yamlData.ComVATDateReg = companyInfo.vat?.dateReg ?? ''
+            yamlData.ComVATDateFrom = companyInfo.vat?.dateFrom ?? ''
 
+            yamlData.ComVATStateId = companyInfo.vat?.stateId ?? ''
+            yamlData.ComVATStateNameLat = companyInfo?.vat?.stateNameLat ?? '';
 
-        yamlData.ComVATCompanyName = companyInfo.vat?.companyName ?? ''
-        yamlData.ComVATDirectorName = companyInfo.vat?.directorFioLatn ?? ''
+            yamlData.ComVATPkey = companyInfo?.vat?.pkey ?? '';
+            yamlData.ComVATDateSys = companyInfo?.vat?.dateSys ?? '';
 
-        yamlData.ComVATAddress = companyInfo.vat?.address ?? ''
-        yamlData.ComVATDateReg = companyInfo.vat?.dateReg ?? ''
-        yamlData.ComVATDateFrom = companyInfo.vat?.dateFrom ?? ''
+            yamlData.ComVATUpdatedAt = companyInfo?.vat?.updatedAt ?? '';
+            yamlData.ComVATStatementId = companyInfo?.vat?.statementId ?? '';
 
-        yamlData.ComVATStateId = companyInfo.vat?.stateId ?? ''
-        yamlData.ComVATStateNameLat = companyInfo?.vat?.stateNameLat ?? '';
+        } else {
 
+            yamlData.ComVATAddress = companyInfo.soliqYatt?.entrepreneurshipAddress?.address ?? ''
+            yamlData.ComVATDateReg = companyInfo.soliqYatt?.vatRegDate ?? ''
 
-        yamlData.ComVATPkey = companyInfo?.vat?.pkey ?? '';
-        yamlData.ComVATDateSys = companyInfo?.vat?.dateSys ?? '';
+            yamlData.ComVATStateId = companyInfo.soliqYatt?.vatStatusId ?? ''
+            yamlData.ComVATStateNameLat = companyInfo?.soliqYatt?.vatStatusName ?? '';
 
-        yamlData.ComVATUpdatedAt = companyInfo?.vat?.updatedAt ?? '';
-        yamlData.ComVATStatementId = companyInfo?.vat?.statementId ?? '';
+            yamlData.ComVATUpdatedAt = companyInfo?.soliqYatt?.vatRegDate ?? '';
+            yamlData.ComVATStatementId = companyInfo?.soliqYatt?.certificateDocNumber ?? '';
+        }
+
 
 
         const ComDate = Dates.parseDMY(yamlData.ComDate);
@@ -498,7 +693,7 @@ export class Yamls {
         if (companyInfo.VATRegCode) {
             if (ComDate < ComVATDateReg) {
                 yamlData.ComVATFromUs = 'Да'
-                Files.saveInfoToFile(globalThis.folderALL, '#VAT')
+                Files.saveInfoToFile(globalThis.folderALL, '#VAT-From-Us')
             } else {
                 yamlData.ComVATFromUs = 'Нет'
             }

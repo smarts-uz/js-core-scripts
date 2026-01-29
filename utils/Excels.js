@@ -7,6 +7,8 @@ import { Files } from './Files.js';
 import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
 import { Dates } from './Dates.js';
+import { Contracts } from './Contracts.js';
+
 
 
 export class Excels {
@@ -106,16 +108,6 @@ export class Excels {
     console.info(`amountApp: ${amountApp}`);
     console.info(`dateApp: ${dateApp}`);
 
-    let future
-
-    if (yamlData.ComDateEndExcel) {
-      future = yamlData.ComDateEndExcel
-      console.info(`Future date from ComDateEndExcel: ${future}`);
-    }
-    else {
-      future = yamlData.FutureDateExcel
-      console.info(`Future date from ComDateEndExcel: ${future}`);
-    }
 
     if (!amountApp)
       amountApp = yamlData.Price;
@@ -129,11 +121,11 @@ export class Excels {
       console.info(`dateApp: ${dateApp}`);
 
       const lastDate = Dates.parseDMYExcel(dateApp);
-      const futureDate = Dates.parseDMYExcel(future);
+      const futureDate = Dates.parseDMYExcel(yamlData.FutureDateExcel);
 
       if (lastDate < futureDate) {
         console.log(`lastDate < futureDate`);
-        globalThis.excelSheet.Cells(row, found.Column).Value = future;
+        globalThis.excelSheet.Cells(row, found.Column).Value = yamlData.FutureDateExcel;
         globalThis.excelSheet.Cells(row, found.Column + 1).Value = amountApp;
 
       }
@@ -141,7 +133,7 @@ export class Excels {
     } else {
       console.log(`dateApp not defined`);
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = future;
+      globalThis.excelSheet.Cells(row, found.Column).Value = yamlData.FutureDateExcel;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amountApp;
 
     }
@@ -294,7 +286,7 @@ export class Excels {
 
   static generate(ymlFile) {
 
-    Files.initFolders(ymlFile)
+    Contracts.initFolders(ymlFile)
 
     Files.mkdirIfNotExists(globalThis.folderActReco);
 
@@ -302,21 +294,19 @@ export class Excels {
     let yamlData = Yamls.loadYamlWithDeps(ymlFile);
     console.log(yamlData, 'yamlData');
 
-    const { TemplateExcel } = process.env;
+    const prepayMonth = Yamls.getPrepayMonth(yamlData);
 
-    const PrepayMonth = Yamls.getPrepayMonth(yamlData);
-
-    const templateFileName = Files.getBaseName(TemplateExcel, '.xlsx');
+    const templateFileName = Files.getBaseName(Yamls.getConfig('Templates.Excel'), '.xlsx');
     const dateString = `${new Intl.DateTimeFormat('en-CA').format(new Date())}`;
 
-    const actRecoFile = `ActReco, ${yamlData.ComName}, ${templateFileName}, ${dateString}, PrePay-${PrepayMonth}.xlsx`;
+    const actRecoFile = `ActReco, ${yamlData.ComName}, ${templateFileName}, ${dateString}, PrePay-${prepayMonth}.xlsx`;
     console.log(`New file name: ${actRecoFile}`);
 
     const newFilePath = path.join(globalThis.folderActReco, actRecoFile);
     console.log(`New file path: ${newFilePath}`);
 
     // Attempt to copy the file
-    Files.copyFileWithRetry(TemplateExcel, newFilePath);
+    Files.copyFileWithRetry(Yamls.getConfig('Templates.Excel'), newFilePath);
 
     // 1. Read the list from Excel.txt
     const cellsFilePath = path.join(Files.currentDir(), 'Excel.txt');

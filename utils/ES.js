@@ -15,17 +15,7 @@ export class ES {
 
     }
 
-    static getPhones(userDir, fullPath = false) {
-        let files = fs.readdirSync(userDir).filter(file => file.includes('+998') && file.endsWith('.app') && file.length === 21);
-        console.info(`Found ${files.length} phones`, files);
 
-        if (fullPath) {
-            files = files.map(file => `${userDir}\\${file}`)
-        }
-
-        return files
-
-    }
 
     static findIn(name, folder, instance = "One") {
 
@@ -50,7 +40,7 @@ export class ES {
 
             // replace \\ to \
             data = data.map(line => line.replace(/\\\\/g, '\\'))
-        //    data.forEach(line => console.log('Line: ', line));
+            //    data.forEach(line => console.log('Line: ', line));
 
             // console.log('data Three: ', data)\r
             return data

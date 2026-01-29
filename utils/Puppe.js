@@ -8,6 +8,7 @@ import { Dialogs } from "./Dialogs.js";
 import { Dates } from "./Dates.js";
 import { ES } from "./ES.js";
 import { exit } from "process";
+import { Phone } from "./Phone.js";
 
 export class Puppe {
   constructor(parameters) {
@@ -22,15 +23,24 @@ export class Puppe {
 
 
 
-  static async humanScroll(page) {
-    const steps = 15;
+  static async humanScroll() {
 
-    for (let i = 0; i < steps; i++) {
-      if (!page || page.isClosed()) break;
+    const humanScrollStep = parseInt(process.env.humanScrollStep);
+    console.info('humanScrollStep', humanScrollStep);
+
+    for (let i = 0; i < humanScrollStep; i++) {
 
       try {
-        await page.mouse.wheel({ deltaY: 120 });
+
+        const humanScrollDeltaY = parseInt(process.env.humanScrollDeltaY);
+        console.info('humanScrollDeltaY', humanScrollDeltaY);
+
+        const deltaY = Dates.randomIntOne(humanScrollDeltaY);
+        console.info('deltaY', deltaY);
+
+        await globalThis.page.mouse.wheel({ deltaY });
       } catch (err) {
+
         console.warn('humanScroll Failed:', err.message);
         break;
       }
@@ -41,33 +51,9 @@ export class Puppe {
 
 
 
-  static async autoScrollOld(page, distance = 300, setIntervalTime = 50) {
-    if (!page || page.isClosed()) return;
-    await page.evaluate(
-      async ({ distance, setIntervalTime }) => {
-        await new Promise((resolve) => {
-          let totalHeight = 0;
-          const timer = setInterval(() => {
-            const scrollHeight = document.body.scrollHeight;
-            window.scrollBy(0, distance);
-            totalHeight += distance;
+  static async autoScroll(step = 400, delay = 150) {
 
-            if (totalHeight >= scrollHeight - window.innerHeight) {
-              clearInterval(timer);
-              resolve();
-            }
-          }, setIntervalTime);
-        });
-      },
-      { distance, setIntervalTime } // <-- paramlar browserga uzatilyapti
-    );
-  }
-
-
-  static async autoScroll(page, step = 400, delay = 150) {
-    if (!page || page.isClosed()) return;
-
-    await page.evaluate(
+    await globalThis.page.evaluate(
       async (step, delay) => {
         await new Promise(resolve => {
           let total = 0;
@@ -90,7 +76,6 @@ export class Puppe {
 
 
   static async scrollUntilSelector(
-    page,
     selector,
     {
       step = 500,
@@ -99,14 +84,14 @@ export class Puppe {
     } = {}
   ) {
     for (let i = 0; i < maxScrolls; i++) {
-      const found = await page.$(selector);
+      const found = await globalThis.page.$(selector);
       if (found) return true;
 
-      await page.evaluate((step) => {
+      await globalThis.page.evaluate((step) => {
         window.scrollBy(0, step);
       }, step);
 
-      await page.waitForTimeout(delay);
+      await globalThis.page.waitForTimeout(delay);
     }
 
     return false;
@@ -115,10 +100,9 @@ export class Puppe {
   /**
    * Saves all ads from a search page, including pagination
    */
-  static async extractOffers(page) {
-    if (!page || page.isClosed()) return;
+  static async extractOffers() {
 
-    let adLinks = await page.$$eval(
+    let adLinks = await globalThis.page.$$eval(
       'a[href*="/obyavlenie/"], a[href*="/offer/"]',
       (els) =>
         els
@@ -149,11 +133,10 @@ export class Puppe {
 
 
 
-  static async extractUserId(page) {
-    if (!page || page.isClosed()) return;
+  static async extractUserId() {
     const selector = 'a[data-testid="user-profile-link"]'
 
-    let matches = await page.$eval(selector, a => {
+    let matches = await globalThis.page.$eval(selector, a => {
       const href = a.getAttribute('href') || '';
       console.info('href', href);
 
@@ -195,8 +178,8 @@ export class Puppe {
 
 
   static async extractContent(page) {
-    if (!page || page.isClosed()) return;
-    const description = await page.$eval(
+
+    const description = await globalThis.page.$eval(
       '[data-cy="ad_description"] > div:last-child',
       el => el.textContent.trim()
     );
@@ -208,32 +191,14 @@ export class Puppe {
   }
 
 
-  static extractUzbekPhones(text) {
 
-    const CANDIDATE_RE = /(?:\+?998|998|8|0)?[-.\s()]*\d{2}[-.\s()]*\d{3}[-.\s()]*\d{2}[-.\s()]*\d{2}|\b\d{9}\b/g;
-
-    if (!text || typeof text !== "string") return [];
-    const found = text.match(CANDIDATE_RE) || [];
-    const seen = new Set();
-    const out = [];
-
-    for (const f of found) {
-      if (f && !seen.has(f)) {
-        seen.add(f);
-        out.push(f);
-      }
-    }
-    console.info('uzbekPhones', out);
-
-    return out;
-  }
 
 
 
   static async extractApp(pattern, page) {
 
     try {
-      const username = await page.$eval(
+      const username = await globalThis.page.$eval(
         pattern,
         el => el.textContent.trim()
       );
@@ -250,7 +215,7 @@ export class Puppe {
   static async extractAppPhone(pattern, page) {
 
     try {
-      const username = await page.$eval(
+      const username = await globalThis.page.$eval(
         pattern,
         el => el.getAttribute("href").replace("tel:", "")
       );
@@ -266,8 +231,8 @@ export class Puppe {
 
 
   static async extractID(page) {
-    if (!page || page.isClosed()) return;
-    let id = await page.$eval(
+
+    let id = await globalThis.page.$eval(
       '[data-testid="ad-footer-bar-section"]',
       el => {
         const m = el.textContent.match(/ID:\s*(\d+)/);
@@ -284,14 +249,22 @@ export class Puppe {
   }
 
 
-  static async showPhone(page) {
+  static async showPhone() {
     // await Puppe.scrollAds(page);
 
-    if (!page || page.isClosed()) return;
+
     // ✅ Handle phone number display\
     let phone;
     try {
-      const phoneButtons = await page.$$('button[data-testid="show-phone"]');
+      const phoneButtons = await globalThis.page.$$('button[data-testid="show-phone"]');
+      console.info(`Found phoneButtons ${phoneButtons.length} phone buttons`, phoneButtons);
+
+      if (phoneButtons.length === 0) {
+        console.warn(`⚠️ No phone buttons found`);
+        return false;
+      }
+
+
       for (const btn of phoneButtons) {
         const visible = await btn.isVisible?.() || await btn.evaluate(el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length));
         if (visible) {
@@ -301,35 +274,34 @@ export class Puppe {
           const timeout = Number(process.env.phoneClickTimeout) || 5000;
           console.info(`Waiting for phone number to appear (${timeout}ms)...`);
 
-          await page.waitForSelector('[data-testid="contact-phone"]', { timeout: timeout });
-          phone = await page.$eval(
+          await globalThis.page.waitForSelector('[data-testid="contact-phone"]', { timeout: timeout });
+          phone = await globalThis.page.$eval(
             'a[data-testid="contact-phone"]',
             el => el.getAttribute("href").replace("tel:", "")
           );
 
           if (phone) {
             console.info('✅ Phone number displayed!', phone);
-            break;
+            return phone;
           } else {
             console.warn('❌ No phone number found');
-            Dialogs.warningBox(`No phone number found`, 'No phone number found');
           }
         }
       }
     } catch (err) {
       console.warn(`⚠️ Phone handling error: ${err.message}`);
+      return null
     }
 
-    return phone;
+    return null
 
   }
 
 
-  static async saveAsMhtml(page, filePath) {
-    if (!page || page.isClosed()) return;
+  static async saveAsMhtml(filePath) {
     try {
       console.info("🧩 Capturing MHTML snapshot...");
-      const cdp = await page.createCDPSession();
+      const cdp = await globalThis.page.createCDPSession();
       await cdp.send("Page.enable");
 
       // Wait a bit to let dynamic content settle
@@ -341,49 +313,42 @@ export class Puppe {
         console.info(`💾 Saved (MHTML): ${filePath}`);
       } catch (mhtmlErr) {
         // More specific error handling for MHTML capture
+
+
         if (
           mhtmlErr.message &&
           mhtmlErr.message.includes("Protocol error (Page.captureSnapshot): Failed  to generate MHTML")
         ) {
           console.error(
-            `❌ Failed to capture MHTML for ${page.url()}: The page may contain resources or frames that prevent MHTML generation.`
+            `❌ Failed to capture MHTML for ${globalThis.page.url()}: The page may contain resources or frames that prevent MHTML generation.`
           );
         } else {
-          console.error(`â ï¸ Failed to capture MHTML for ${page.url()}: ${mhtmlErr.message}`);
+          console.error(`â ï¸ Failed to capture MHTML for ${globalThis.page.url()}: ${mhtmlErr.message}`);
         }
+
+
       }
     } catch (err) {
-      console.error(`⚠️ Unexpected error during MHTML capture for ${page.url()}: ${err.message}`);
+      console.error(`⚠️ Unexpected error during MHTML capture for ${globalThis.page.url()}: ${err.message}`);
     }
   }
 
 
   static async scrapeOffers(url) {
 
+
+    console.info(`➡️ Loading Olx Post scrapeOffers: ${url}`);
+
+    await Chromes.pageGo(url, { waitUntil: "networkidle2" });
+
+    await Puppe.humanScroll();
+    console.info(`networkidle2`);
+
     const slugApp = url.match(/\/obyavlenie\/([^\/]+)-ID/i);
     const slug = slugApp?.[1];
     console.info(`Safe Name: ${slug}`);
 
-    const offerURLPath = path.join(globalThis.saveDirAzk, `${slug}.url`);
-    console.info(`Offer URL Path: ${offerURLPath}`);
-
-    if (fs.existsSync(offerURLPath)) {
-      console.info(`⚠️ Offer already exists: ${offerURLPath}`);
-      return;
-    }
-
-    await Dates.sleep(1000)
-
-    Chromes.saveUrlFile(offerURLPath, url);
-
-
-    console.info(`➡️ Loading Olx Post: ${url}`);
-    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
-
-    await Puppe.humanScroll(globalThis.page);
-    console.info(`networkidle2`);
-
-    const { href, match } = await Puppe.extractUserId(globalThis.page);
+    const { href, match } = await Puppe.extractUserId();
 
     if (!match)
       Dialogs.warningBox(
@@ -394,7 +359,7 @@ export class Puppe {
     const userIdPath = path.join(globalThis.saveDir, match);
     console.info(`User ID Path: ${userIdPath}`);
 
-    const title = await Puppe.pageTitle(page);
+    const title = await Puppe.pageTitle();
     if (!title)
       title = slug
 
@@ -416,7 +381,7 @@ export class Puppe {
     if (content) {
       fs.writeFileSync(filePathContent, content);
 
-      const phones = await Puppe.extractUzbekPhones(content);
+      const phones = Phone.extractUzbekPhones(content);
       if (phones) {
         for (const phone of phones) {
           const phoneApp = Dates.normalizeUzAccordingToRule(phone);
@@ -452,70 +417,85 @@ export class Puppe {
     }
 
     const filePathMhtml = path.join(offerPath, `ALL.mhtml`);
-    if (!fs.existsSync(filePathMhtml)) {
-      console.info(`Saving ${filePathMhtml}`);
-      await Puppe.saveAsMhtml(page, filePathMhtml);
-    }
+    console.info(`Saving ${filePathMhtml}`);
+    await Puppe.saveAsMhtml(filePathMhtml);
+
+    const offerMhtmlPath = path.join(globalThis.saveDirMht, `${title}.mhtml`);
+    console.info(`Copying to ${offerMhtmlPath}`);
+    fs.copyFileSync(filePathMhtml, offerMhtmlPath);
+
+    const offerUrlPath = path.join(globalThis.saveDirUrl, `${slug}.url`);
+    console.info(`Saving ${offerUrlPath}`);
+    Chromes.saveUrlFileFromMht(offerMhtmlPath, offerUrlPath);
 
     await Puppe.scrapeUser(href, userIdPath, match)
 
+    if (fs.existsSync(offerMhtmlPath))
+      return true;
+
+    return false;
 
   }
 
 
   static async scrapePhone(url, userIdPath) {
 
-    console.info(`➡️ Loading Olx Post: ${url}`);
+    console.info(`➡️ Loading Olx Post scrapePhone: ${url}`);
 
-    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
-    await Dates.sleep(500)
+    await Chromes.pageGo(url, { waitUntil: "networkidle2" });
 
-    await Puppe.humanScroll(globalThis.page);
+    await Puppe.humanScroll();
 
-    const phone = await Puppe.showPhone(globalThis.page);
+    const phone = await Puppe.showPhone();
     console.info(`Phone: ${phone}`);
 
-    if (phone) {
-      const phoneApp = Dates.normalizeUzAccordingToRule(phone);
-      console.info(`Phone App: ${phoneApp}`);
+    switch (phone) {
+      case false:
+        return false
 
-      const phoneError = path.join(userIdPath, `#PhoneError.txt`);
+      case null:
+        Files.saveInfoToFile(userIdPath, '#PhoneError');
+        await Dates.sleep(500)
+        await Chromes.runBrowser(true, false)
+        await Puppe.scrapePhone(url, userIdPath)
+        return false
 
-      // remove previous phone error
-      if (fs.existsSync(phoneError)) {
-        fs.unlinkSync(phoneError);
-        console.info(`Removed previous phone error: ${phoneError}`);
-      }
+      default:
+        const phoneApp = Dates.normalizeUzAccordingToRule(phone);
+        console.info(`Phone App: ${phoneApp}`);
 
-      Files.saveInfoToFile(userIdPath, '#PhoneOK');
-      Files.saveInfoToFile(userIdPath, phoneApp);
+        const phoneError = path.join(userIdPath, `#PhoneError.txt`);
 
-      const patternsPhone = [
-        //    '[data-testid="other-contacts"] ul li:nth-child(1) p a',
-        //    '[data-testid="other-contacts"] ul li:nth-child(2) p a',
-        //    '[data-testid="other-contacts"] ul li:nth-child(3) p a',
-        //    '[data-testid="other-contacts"] ul li:nth-child(4) p a',
-        '[data-testid="phones-container"] div div a:nth-child(1)',
-        '[data-testid="phones-container"] div div a:nth-child(2)',
-        '[data-testid="phones-container"] div div a:nth-child(3)',
-        '[data-testid="phones-container"] div div a:nth-child(4)',
-      ]
-
-      for (const pattern of patternsPhone) {
-        const text = await Puppe.extractAppPhone(pattern, globalThis.page);
-        if (text) {
-          const phoneApp = Dates.normalizeUzAccordingToRule(text);
-          Files.saveInfoToFile(userIdPath, phoneApp);
+        // remove previous phone error
+        if (fs.existsSync(phoneError)) {
+          fs.unlinkSync(phoneError);
+          console.info(`Removed previous phone error: ${phoneError}`);
         }
-      }
 
-      return true
+        Files.saveInfoToFile(userIdPath, '#PhoneOK');
+        Files.saveInfoToFile(userIdPath, phoneApp);
 
-    } else {
-      await Dates.sleep(1000)
-      await Chromes.runBrowser(true, false)
-      Files.saveInfoToFile(userIdPath, '#PhoneError');
-      return false
+        const patternsPhone = [
+          //    '[data-testid="other-contacts"] ul li:nth-child(1) p a',
+          //    '[data-testid="other-contacts"] ul li:nth-child(2) p a',
+          //    '[data-testid="other-contacts"] ul li:nth-child(3) p a',
+          //    '[data-testid="other-contacts"] ul li:nth-child(4) p a',
+          '[data-testid="phones-container"] div div a:nth-child(1)',
+          '[data-testid="phones-container"] div div a:nth-child(2)',
+          '[data-testid="phones-container"] div div a:nth-child(3)',
+          '[data-testid="phones-container"] div div a:nth-child(4)',
+        ]
+
+        for (const pattern of patternsPhone) {
+          const text = await Puppe.extractAppPhone(pattern, globalThis.page);
+          if (text) {
+            const phoneApp = Dates.normalizeUzAccordingToRule(text);
+            Files.saveInfoToFile(userIdPath, phoneApp);
+          }
+        }
+
+        return true
+
     }
 
 
@@ -533,11 +513,14 @@ export class Puppe {
     }
 
     console.info(`➡️ Loading Olx User: ${url}`);
-    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
+    await Chromes.pageGo(url, { waitUntil: "networkidle2" });
 
-    await Puppe.humanScroll(globalThis.page);
+    await Puppe.humanScroll();
 
-    Puppe.saveAsMhtml(globalThis.page, userIdALLMhtml);
+    await Puppe.saveAsMhtml(userIdALLMhtml);
+
+    // remove all files in userIdPath which end with .app
+    Files.removeFilesWithExtension(userIdPath, '.app');
 
     const filePathURL = path.join(userIdPath, `User ${match}.url`);
     Chromes.saveUrlFile(filePathURL, url);
@@ -567,7 +550,7 @@ export class Puppe {
 
   static async offersCount(fullPath) {
     // scan fullPath for folders using fs
-    let folders = Files.findPhonesRecFull(fullPath, function (file) {
+    let folders = Files.findRecursiveFull(fullPath, function (file) {
       return file.includes('Мы нашли') && file.includes('объявлений')
     });
     console.info(`Found ${folders.length} folders`, folders);
@@ -575,85 +558,35 @@ export class Puppe {
   }
 
 
-  static async actualizePhoneFolder(paths) {
-
-    // recursive scan for path. filter, include +998 and .app
-    // Recursively find all files under 'path' that include '+998' and '.app'
-
-    let results = Files.findPhonesRec(paths, function (file) {
-      return file.includes('+998') && file.includes('.app') && file.length === 21
-    });
-    console.info(`Found ${results.length} files`, results);
-
-    // remove duplicates
-    results = [...new Set(results)];
-    console.info(`Found ${results.length} files. After duplicates removal`, results);
-
-    let resultsFullPaths = Files.findPhonesRecFull(paths, function (file) {
-      return file.includes('+998') && file.includes('.app') && file.length === 21
-    });
-    console.info(`Found ${resultsFullPaths.length} files`, resultsFullPaths);
-
-    // copy all of these files to path 
-    for (const file of resultsFullPaths) {
-      // copy file to path
-      const fileName = path.basename(file);
-      const dest = path.join(paths, fileName);
-
-      if (!fs.existsSync(dest)) {
-        fs.copyFileSync(file, dest);
-        console.info(`Copied ${file} to ${dest}`);
-      }
-      else {
-        console.info(`File ${dest} already exists`);
-      }
-    }
-
-    // rename path to phoneFolder
-    const phoneFolder = Files.phoneToFolder(results);
-    console.info(`phoneFolder`, phoneFolder);
-
-    // get parent path of paths
-    const parentPath = path.dirname(paths);
-
-    const newPath = path.join(parentPath, phoneFolder);
-    if (!fs.existsSync(newPath)) {
-      fs.renameSync(paths, newPath);
-      console.info(`Renamed ${paths} to ${newPath}`);
-      return newPath;
-    }
-    else {
-      console.info(`File ${newPath} already exists`);
-      return paths;
-    }
-  }
-
   static async scrapePages(url) {
 
 
     console.info(`➡️ Loading Catalog: ${url}`);
-    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
+    await Chromes.pageGo(url, { waitUntil: "networkidle2" });
 
-    //  await Puppe.humanScroll(globalThis.page);
+    //  await Puppe.humanScroll();
 
     console.info(`networkidle2`);
 
-    const title = await Puppe.pageTitle(globalThis.page);
+    const title = await Puppe.pageTitle();
 
-    let adLinks = await Puppe.extractOffers(globalThis.page)
+    let adLinks = await Puppe.extractOffers()
     console.info(`adLinks`, adLinks)
 
     const filePathJson = path.join(globalThis.mhtmlDirData, `${title}.json`);
     Files.writeJson(filePathJson, adLinks)
 
     const filePathMhtml = path.join(globalThis.mhtmlDirPage, `${title}.mhtml`);
-    await Puppe.saveAsMhtml(page, filePathMhtml);
+    await Puppe.saveAsMhtml(filePathMhtml);
 
 
   }
 
 
   static async appSavePagination() {
+
+    await Chromes.runBrowser(false, false)
+
     console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
 
     Files.backupFolderZip(globalThis.mhtmlDirPage);
@@ -670,30 +603,27 @@ export class Puppe {
       const filePath = path.join(globalThis.mhtmlDir, file.name);
       const url = Chromes.getUrlFromMht(filePath);
       console.info(`URL: ${url}`);
-      await Puppe._appSavePaginationItem(url);
+      await Puppe.itemSavePagination(url);
 
     }
 
     Files.combineJsonFiles(globalThis.mhtmlDirPage);
 
-
-
   }
 
 
-  static async _appSavePaginationItem(url) {
+  static async itemSavePagination(url) {
 
 
     console.info(`📖 Загружаю главную страницу для получения пагинации: ${url}`);
 
-    await globalThis.page.setViewport({ width: 1280, height: 900 });
-    await globalThis.page.goto(url, { waitUntil: "networkidle2" });
+    await Chromes.pageGo(url, { waitUntil: "networkidle2" });
 
-    const title = await Puppe.pageTitle(globalThis.page);
+    const title = await Puppe.pageTitle();
     console.info(`Title: ${title}`);
 
     // Прокручиваем вниз для загрузки пагинации
-    await Puppe.humanScroll(globalThis.page);
+    await Puppe.humanScroll();
 
     // Wait for pagination elements to load
     await globalThis.page.waitForSelector('ul.pagination-list', { timeout: 10000 }).catch(() => { });
@@ -798,6 +728,7 @@ export class Puppe {
 
   static async appSavePages() {
 
+    await Chromes.runBrowser(false, false)
 
     Files.backupFolderZip(globalThis.mhtmlDirData);
 
@@ -821,260 +752,19 @@ export class Puppe {
 
   }
 
-  static async appMergePhones() {
 
-    console.info(`Scanning ${globalThis.saveDir} for folders`);
-
-    // scan appolxPathParent for folders, exclude - Theory and  ALL and App folders
-    const folders = fs.readdirSync(globalThis.saveDir).filter(file =>
-      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() &&
-      !file.includes('ALL') &&
-      !file.includes('App') &&
-      !file.includes('Azk') &&
-      !file.includes('@') &&
-      !file.includes('#') &&
-      file !== '- Theory'
-    );
-
-    for (const folder of folders) {
-
-      const userDir = path.join(globalThis.saveDir, folder);
-      console.info(`Scanning ${userDir} for folders`);
-
-      await Puppe._appMergePhonesItem(userDir, folder);
-
-    }
-
-  }
-
-
-  static async _appMergePhonesItem(userDir, folder) {
-
-    console.info(`Scanning ${userDir} for folders`);
-    console.info(`Folder: ${folder}`);
-
-
-    // scan in folder not recursive for +998.*.app files in not exists push this folder path to new array
-    // +998-33-212-95-20.app
-    const files = ES.getPhones(userDir);
-
-    let phoneExists = false
-
-    // iterate files as file, get phoneToFolderItem
-    for (const file of files) {
-
-      const phoneFolderItem = Files.phoneToFolderItem(file);
-      console.info(`phoneFolderItem IN`, phoneFolderItem);
-
-      // scan globalThis.saveDirApp for phoneFolderItem usibng readdirSync  
-
-      const found = fs.readdirSync(globalThis.saveDirApp).filter(file =>
-        fs.statSync(path.join(globalThis.saveDirApp, file)).isDirectory() &&
-        file.includes(phoneFolderItem)
-      );
-      console.info(`Found ${found.length} folders with such phone IN`, found);
-
-      if (found.length !== 0) {
-        const parentMovedFolder = path.join(globalThis.saveDirApp, found[0]);
-        console.info(`parentMovedFolder IN`, parentMovedFolder);
-        Files.mkdirIfNotExists(parentMovedFolder);
-
-        const movedFolderPath = path.join(parentMovedFolder, folder);
-        if (!fs.existsSync(userDir)) {
-          console.warn(`UserDir IN Not existsSync, ${userDir} to ${movedFolderPath}`);
-          continue
-        }
-
-        console.info(`Moving IN ${userDir} to ${movedFolderPath}`);
-
-        // move folder using fs
-
-        Files.moveWithCommas(userDir, movedFolderPath);
-        if (!fs.existsSync(movedFolderPath)) {
-          console.error(`Error IN with Move, ${userDir} to ${movedFolderPath}`);
-        }
-        else {
-          console.info(`Moved IN ${userDir} to ${movedFolderPath}`); // Changed from Moved to Moved IN
-          await Puppe.actualizePhoneFolder(parentMovedFolder);
-          phoneExists = true
-          continue
-        }
-
-      }
-
-
-    }
-
-    if (phoneExists) {
-      console.info(`phone Moved from ${userDir}`);
-      return false
-    }
-
-    if (!fs.existsSync(userDir)) {
-      console.warn(`UserDir Not existsSync, ${userDir} to ${movedFolderPath}`);
-      return false
-    }
-
-    const phoneFolder = Files.phoneToFolder(files);
-    console.info(`phoneFolder`, phoneFolder);
-    //+998-33-212-95-20.app
-    if (!phoneFolder) {
-      console.warn(`phoneFolder is null, ${userDir}`);
-      return false
-    }
-
-    const parentMovedFolder = path.join(globalThis.saveDirApp, phoneFolder);
-    console.info(`parentMovedFolder`, parentMovedFolder);
-    Files.mkdirIfNotExists(parentMovedFolder);
-
-    const movedFolderPath = path.join(parentMovedFolder, folder);
-    console.info(`Moving ${userDir} to ${movedFolderPath}`);
-
-    // move folder using fs
-    Files.moveWithCommas(userDir, movedFolderPath);
-    if (!fs.existsSync(movedFolderPath)) {
-      console.error(`Error with Move, ${userDir} to ${movedFolderPath}`);
-    }
-    else {
-      await Puppe.actualizePhoneFolder(parentMovedFolder);
-      console.info(`Moved ${userDir} to ${movedFolderPath}`);
-    }
-
-
-  }
-
-
-
-
-
-
-
-
-  static async appFindPhones() {
-
-    // get parent path of appolxPath
-
-    console.info(`Scanning ${globalThis.saveDir} for folders`);
-
-    // scan appolxPathParent for folders, exclude - Theory and  ALL and App folders
-    const folders = fs.readdirSync(globalThis.saveDir).filter(file =>
-      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() &&
-      !file.includes('ALL') &&
-      !file.includes('App') &&
-      !file.includes('Azk') &&
-      !file.includes('@') &&
-      !file.includes('#') &&
-      file !== '- Theory'
-    );
-
-    let foldersToScan = [];
-
-    for (const folder of folders) {
-
-      console.info(`\r\nFolder Name: ${folder}`);
-
-      const userDir = path.join(globalThis.saveDir, folder);
-      console.info(`Scanning ${userDir} for folders`);
-
-      let clones = ES.find(folder)
-      //  console.info(`Found ${clones.length} clones`, clones);
-
-      clones = clones.filter(clone => clone.toLowerCase() !== userDir.toLowerCase());
-      console.info(`Filtered ${clones.length} clones`, clones);
-
-      if (clones.length === 0) {
-        console.info(`⚠️ Folder ${folder} has no clones`);
-        continue
-      }
-
-      // iterate clones
-      for (const clone of clones) {
-        console.info(`Clone Name: ${clone}`);
-        const files = ES.getPhones(clone, true);
-
-        if (files.length === 0) {
-          console.info(`⚠️ Folder ${folder} has no phone files`);
-          continue
-        }
-
-        console.info(`Found ${files.length} phone files`, files);
-        // copy all files into userDir
-        for (const file of files) {
-          const fileName = path.basename(file);
-          const dest = path.join(userDir, fileName);
-          console.info(`Dest File:  ${file} to ${dest}`);
-          if (!fs.existsSync(dest)) {
-            fs.copyFileSync(file, dest);
-            console.info(`Copied ${file} to ${dest}`);
-          }
-          else {
-            console.info(`File ${dest} already exists`);
-          }
-        }
-
-
-      }
-
-
-
-    }
-
-
-
-  }
-
-  static async getNoPhones() {
-    // get parent path of appolxPath
-
-    console.info(`Scanning ${globalThis.saveDir} for folders`);
-
-    // scan appolxPathParent for folders, exclude - Theory and  ALL and App folders
-    const folders = fs.readdirSync(globalThis.saveDir).filter(file =>
-      fs.statSync(path.join(globalThis.saveDir, file)).isDirectory() &&
-      !file.includes('ALL') &&
-      !file.includes('App') &&
-      !file.includes('Azk') &&
-      !file.includes('@') &&
-      !file.includes('#') &&
-      file !== '- Theory'
-    );
-
-    let foldersToScan = [];
-
-    for (const folder of folders) {
-
-      const userDir = path.join(globalThis.saveDir, folder);
-      console.info(`Scanning ${userDir} for folders`);
-
-      // scan in folder not recursive for +998.*.app files in not exists push this folder path to new array
-      const files = ES.getPhones(userDir);
-      if (files.length !== 0) {
-        console.info(`⚠️ Folder ${folder} already has phone number`);
-      } else {
-        console.info(`➡️ Adding Olx Appolx Folder: ${folder}`);
-
-        foldersToScan.push(path.join(globalThis.saveDir, folder));
-      }
-
-    }
-
-    const noPhoneJson = path.join(globalThis.mhtmlDir, 'NoPhone.json');
-    console.info(`NoPhoneJson: ${noPhoneJson}`);
-
-    Files.writeJson(noPhoneJson, foldersToScan)
-
-    console.info(`Scanned ${foldersToScan.length} folders for +998.*.app files`);
-    console.info(`Folders to scan: ${foldersToScan}`);
-    return noPhoneJson
-  }
 
   static async appSavePhones() {
 
-    const noPhoneJson = await Puppe.getNoPhones();
-    const foldersToScan = Files.readJson(noPhoneJson);
+    const foldersToScan = Phone.getNoPhones();
 
-    console.info(`Scanned ${foldersToScan.length} folders for +998.*.app files`);
-    console.info(`Folders to scan: ${foldersToScan}`);
+    if (foldersToScan.length === 0) {
+      console.warn(`⚠️ No folders to scan`);
+      return;
+    }
+
+    await Chromes.runBrowser(true, false)
+
 
     // iterate through foldersToScan. scan for folders inside folder
     for (const folderToScan of foldersToScan) {
@@ -1082,6 +772,8 @@ export class Puppe {
       let folderApp;
       // scan folder for folders
       const folders = fs.readdirSync(folderToScan).filter(file => fs.statSync(path.join(folderToScan, file)).isDirectory());
+      console.info(`OLX Offer Folders: ${folders.length}`, folders);
+
       for (const folder of folders) {
         console.info(`OLX Offer Folder found: ${folder}`);
         folderApp = path.join(folderToScan, folder);
@@ -1108,12 +800,12 @@ export class Puppe {
 
       const isPhone = await Puppe.scrapePhone(url, folderToScan);
       if (isPhone) {
-        await Puppe.saveAsMhtml(globalThis.page, path.join(folderApp, `ALL.mhtml`));
+        await Puppe.saveAsMhtml(path.join(folderApp, `ALL.mhtml`));
       }
-      await Dates.sleep(1000)
+      Phone.getNoPhones();
+      await Dates.sleep(500)
     }
 
-    await Puppe.getNoPhones();
 
   }
 
@@ -1128,19 +820,30 @@ export class Puppe {
       if (fs.existsSync(globalThis.mhtmlDirDataAllJson)) {
 
         // read this json. globalThis.mhtmlDirPageAllJson iterate through all pages and save them as mhtml files
-        let mhtmlDirDataAllJson = JSON.parse(fs.readFileSync(globalThis.mhtmlDirDataAllJson, 'utf8'));
+
+        let mhtmlDirDataAllJson = Files.readJson(globalThis.mhtmlDirDataAllJson);
+
+        if (mhtmlDirDataAllJson.length === 0) {
+          console.info(`No pages found in ${globalThis.mhtmlDirDataAllJson}`);
+          return;
+        }
+
+        await Chromes.runBrowser(false, false)
 
         for (const pageUrl of mhtmlDirDataAllJson) {
-          console.info(`➡️ Loading Olx Post: ${pageUrl}`);
-          await Puppe.scrapeOffers(pageUrl);
+          const status = await Puppe.scrapeOffers(pageUrl);
 
-          // remove pageUrl from mhtmlDirDataAllJson
-          mhtmlDirDataAllJson = mhtmlDirDataAllJson.filter(url => url !== pageUrl);
+          if (status) {
+            // remove pageUrl from mhtmlDirDataAllJson
+            mhtmlDirDataAllJson = mhtmlDirDataAllJson.filter(url => url !== pageUrl);
+
+            console.info(`Remaining pages: ${mhtmlDirDataAllJson.length}`);
+            Files.backupFile(globalThis.mhtmlDirDataAllJson);
+            Files.writeJson(globalThis.mhtmlDirDataAllJson, mhtmlDirDataAllJson);
+          }
 
         }
-        console.info(`Remaining pages: ${mhtmlDirDataAllJson.length}`);
-        Files.backupFile(globalThis.mhtmlDirDataAllJson);
-        Files.writeJson(globalThis.mhtmlDirDataAllJson, mhtmlDirDataAllJson);
+
 
       }
     } catch (error) {
@@ -1149,9 +852,9 @@ export class Puppe {
       console.info(`⚠️ Code: ${error.code} Message: ${error.message}`);
       //    Dialogs.messageBoxAx(`⚠️ Code: ${error.code} Message: ${error.message}`, 'Error');
 
-      await Dates.sleep(20000)
+      await Dates.sleep(500)
 
-      await Chromes.runBrowser(true, false, false)
+      await Chromes.runBrowser(false, false)
 
       await this.appSaveOffers();
     }
@@ -1160,10 +863,9 @@ export class Puppe {
   }
 
 
-  static async pageTitle(page) {
-    if (!page || page.isClosed()) return;
+  static async pageTitle() {
     // Safe file naming
-    let title = await page.title();
+    let title = await globalThis.page.title();
 
     title = Files.cleanupFileName(title);
 
@@ -1174,38 +876,37 @@ export class Puppe {
   }
 
 
-  static async scrollAds(page) {
-    if (!page || page.isClosed()) return;
+  static async scrollAds() {
     const Wait_Min = process.env.Wait_Min || 5;
     const Wait_Max = process.env.Wait_Max || 30;
     const Scroll_Count_Min = process.env.Scroll_Count_Min || 2;
     const Scroll_Count_Max = process.env.Scroll_Count_Max || 5;
 
     // Random waiting and scrolling to simulate human behavior
-    const waitTime = Chromes.getRandomInt(parseInt(Wait_Min), parseInt(Wait_Max));
-    const scrollCount = Chromes.getRandomInt(parseInt(Scroll_Count_Min), parseInt(Scroll_Count_Max));
+    const waitTime = Chromes.randomInt(parseInt(Wait_Min), parseInt(Wait_Max));
+    const scrollCount = Chromes.randomInt(parseInt(Scroll_Count_Min), parseInt(Scroll_Count_Max));
 
     console.info(`⏳ Waiting for ${waitTime}s with ${scrollCount} random scrolls...`);
 
     const timePerScroll = waitTime / (scrollCount + 1);
-    const pageHeight = await page.evaluate(() => document.body.scrollHeight);
-    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    const pageHeight = await globalThis.page.evaluate(() => document.body.scrollHeight);
+    const viewportHeight = await globalThis.page.evaluate(() => window.innerHeight);
     const maxScroll = pageHeight - viewportHeight;
 
     // Initial wait before first scroll
     await new Promise(resolve => setTimeout(resolve, timePerScroll * 1000));
 
     for (let i = 0; i < scrollCount; i++) {
-      const scrollPosition = Chromes.getRandomInt(0, maxScroll);
+      const scrollPosition = Chromes.randomInt(0, maxScroll);
       console.info(`🖱️ Scroll ${i + 1}/${scrollCount}: Scrolling to ${scrollPosition}px...`);
-      await page.evaluate(pos => window.scrollTo(0, pos), scrollPosition);
+      await globalThis.page.evaluate(pos => window.scrollTo(0, pos), scrollPosition);
       const scrollDelay = Chromes.getRandomFloat(0.5, 2.5);
       await new Promise(resolve => setTimeout(resolve, scrollDelay * 1000));
     }
 
-    const finalScrollPosition = Chromes.getRandomInt(0, maxScroll);
+    const finalScrollPosition = Chromes.randomInt(0, maxScroll);
     console.info(`🖱️ Final scroll to ${finalScrollPosition}px before checking phone...`);
-    await page.evaluate(pos => window.scrollTo(0, pos), finalScrollPosition);
+    await globalThis.page.evaluate(pos => window.scrollTo(0, pos), finalScrollPosition);
 
 
   }

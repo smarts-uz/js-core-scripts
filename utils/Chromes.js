@@ -8,7 +8,21 @@ import UserAgent from 'user-agents';
 import { readFileSync } from 'fs';
 import { Files } from './Files.js';
 import { exec } from 'child_process';
+import { Dialogs } from './Dialogs.js';
+import { Yamls } from './Yamls.js';
 
+
+
+export const Duration = {
+  Unlimited: 0,
+  noCache: -1,
+  OneHour: 60 * 60,
+  OneHour10: 60 * 60 * 10,
+  OneDay: 24 * 60 * 60,
+  OneWeek: 7 * 24 * 60 * 60,
+  OneMonth: 30 * 24 * 60 * 60,
+  OneYear: 365 * 24 * 60 * 60,
+}
 
 export class Chromes {
 
@@ -21,7 +35,113 @@ export class Chromes {
   }
 
 
-  static async initFolders(app) {
+
+
+
+
+  static async fetch(url, options, duration = Duration.OneHour10, replace = [], owner = null) {
+
+    console.info(`Chrome fetch. URL ${url}, Options: `, options)
+
+
+    console.info('url', url);
+    if (!url) Dialogs.warningBox('No url', 'Warning fetch');
+
+    console.info('options', options);
+    if (!options) Dialogs.warningBox('No options', 'Warning fetch');
+
+    console.info('duration', duration);
+    console.info('replace', replace);
+
+    // get domain from url
+    const domain = url.split('/')[2];
+    console.info(domain, 'domain');
+    let domainPath;
+
+
+    const cacheDir = Yamls.getConfig('Cache.Directory');
+
+    if (owner) {
+      domainPath = path.join(cacheDir, owner, domain);
+    } else {
+      domainPath = path.join(cacheDir, domain);
+    }
+    Files.mkdirIfNotExists(domainPath);
+
+    let urlForPath = url
+      .replace(domain, '')
+      .replace('https', '')
+      .replace('http', '')
+
+    replace.forEach((item) => {
+      urlForPath = urlForPath.replace(item, '');
+    })
+
+    console.info(urlForPath, 'urlForPath');
+
+    const fileName = Files.cleanupFileName(urlForPath, '  ');
+    console.info(fileName, 'fileName');
+
+    const cacheFile = path.join(domainPath, `${fileName}.json`);
+
+
+
+    if (existsSync(cacheFile) && duration !== Duration.noCache) {
+
+      // get file changed date
+      const fileStats = fs.statSync(cacheFile);
+      const fileChangedDate = fileStats.mtime;
+      console.info(fileChangedDate, 'fileChangedDate');
+
+      // compare file changed date with current date
+      const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
+      console.info(fileChangedDateInSec, 'fileChangedDateInSec');
+
+      if (fileChangedDateInSec < duration || duration === Duration.Unlimited) {
+        const cacheData = Files.readJson(cacheFile);
+
+        // get size of cacheData
+        console.info('Fetching from Cache: ')
+        const cacheLength = JSON.stringify(cacheData).length;
+        console.info('Request body length from Cache: ', cacheLength);
+        return cacheData;
+      } else {
+        console.info('Fetching from Internet Cache Outdated:'); 
+        Files.backupFile(cacheFile, true)
+      }
+
+    }
+
+
+    try {
+
+      console.info('Fetching from Internet:')
+      const response = await fetch(url, options);
+
+      if (!response.ok)
+        return Dialogs.warningBox(`Response error! status: ${response.status}. statusText: ${response.statusText}`, 'Warning fetch !response.ok');
+
+      const body = await response.json();
+
+      // get body length
+      const bodyLength = JSON.stringify(body).length;
+      console.info('Request body length from Internet: ', bodyLength);
+
+      if (duration !== Duration.noCache)
+        Files.writeJson(cacheFile, body);
+
+      return body;
+
+    } catch (error) {
+      return Dialogs.errorBox(error, 'Error catch (error)');
+    }
+
+
+  }
+
+
+
+  static initFolders(app) {
 
     globalThis.app = app;
     console.info(globalThis.app, 'app globalThis');
@@ -32,6 +152,7 @@ export class Chromes {
     globalThis.mhtmlDir = path.join(globalThis.saveDir, '- Theory');
     console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
 
+    Files.mkdirIfNotExists(Yamls.getConfig('Cache.Directory'));
 
     globalThis.mhtmlDirPage = path.join(globalThis.mhtmlDir, 'Page');
     console.info(globalThis.mhtmlDirPage, 'mhtmlDirPage globalThis');
@@ -49,23 +170,96 @@ export class Chromes {
     console.info(globalThis.mhtmlDirDataAllJson, 'mhtmlDirDataAllJson globalThis');
 
 
-    globalThis.saveDirApp = path.join(globalThis.saveDir, 'App');
+    globalThis.mhtmlDirPhone = path.join(globalThis.mhtmlDir, 'Phon');
+    console.info(globalThis.mhtmlDirPhone, 'mhtmlDirPhone globalThis');
+    Files.mkdirIfNotExists(globalThis.mhtmlDirPhone);
+
+    globalThis.mhtmlDirPhoneHasJson = path.join(globalThis.mhtmlDirPhone, 'HasPhone.json');
+    console.info(globalThis.mhtmlDirPhoneHasJson, 'mhtmlDirPhoneHasJson globalThis');
+
+    globalThis.mhtmlDirPhoneHasNotJson = path.join(globalThis.mhtmlDirPhone, 'HasNotPhone.json');
+    console.info(globalThis.mhtmlDirPhoneHasNotJson, 'mhtmlDirPhoneHasNotJson globalThis');
+
+
+    globalThis.saveDirApp = path.join(globalThis.saveDir, '#APP');
     console.info(globalThis.saveDirApp, 'saveDirApp globalThis');
     Files.mkdirIfNotExists(globalThis.saveDirApp);
 
-    globalThis.saveDirAzk = path.join(globalThis.saveDir, 'Azk');
-    console.info(globalThis.saveDirAzk, 'saveDirAzk globalThis');
-    Files.mkdirIfNotExists(globalThis.saveDirAzk);
+    globalThis.saveDirMht = path.join(globalThis.saveDir, '#MHT');
+    console.info(globalThis.saveDirMht, 'saveDirMht globalThis');
+    Files.mkdirIfNotExists(globalThis.saveDirMht);
+
+    globalThis.saveDirUrl = path.join(globalThis.saveDir, '#URL');
+    console.info(globalThis.saveDirUrl, 'saveDirUrl globalThis');
+    Files.mkdirIfNotExists(globalThis.saveDirUrl);
 
   }
 
 
+  static async finish() {
+    await Chromes.closeBrowsers();
+    console.log('2️⃣ End');
+  }
+
   static async runBrowser(isCmdGo = false, hideChrome = false) {
 
-    await Chromes.closeBrowsers();
+    console.log('1️⃣ Run browser. isCmdGo: ', isCmdGo);
+    globalThis.isCmdGo = isCmdGo;
+    globalThis.hideChrome = hideChrome;
+
+    if (isCmdGo) {
+      await Chromes.closeBrowsers();
+    } else {
+      if (globalThis.browser) {
+        return;
+      }
+    }
 
     globalThis.browser = await Chromes.runIxbrowser(isCmdGo);
-    globalThis.page = await globalThis.browser.newPage();
+
+    if (process.env.pageCloseBeforeGo !== "true") {
+
+      globalThis.page = await globalThis.browser.newPage();
+      await Chromes.pageSetup();
+
+      if (hideChrome || process.env.hideChrome === 'true')
+        await Chromes.hideChrome();
+    }
+
+  }
+
+
+  static async pageGo(url, params = { waitUntil: "networkidle2" }, hideChrome = false) {
+
+    if (!globalThis.browser) {
+      await Chromes.runBrowser(globalThis.isCmdGo, hideChrome);
+    }
+
+    if (process.env.pageCloseBeforeGo === "true") {
+
+      if (globalThis.page) {
+        console.log('Close existing page', globalThis.page.url());
+        await globalThis.page.close();
+      }
+
+      globalThis.page = await globalThis.browser.newPage();
+      await Chromes.pageSetup();
+    }
+
+    try {
+      await globalThis.page.goto(url, params);
+    } catch (error) {
+      console.error('Error going to URL:', error);
+      await Chromes.runBrowser(globalThis.isCmdGo, hideChrome);
+    }
+
+    if (process.env.pageCloseBeforeGo === "true" && (hideChrome || process.env.hideChrome === 'true'))
+      await Chromes.hideChrome();
+
+  }
+
+
+  static async pageSetup() {
     globalThis.page.setViewport({ width: 1280, height: 900 });
     globalThis.page.setDefaultTimeout(Number(process.env.setDefaultTimeout));
     globalThis.page.setDefaultNavigationTimeout(Number(process.env.setDefaultNavigationTimeout));
@@ -76,8 +270,34 @@ export class Chromes {
       globalThis.page.on('requestfailed', r => console.log('REQUEST NO:', r.url(), r.failure && r.failure().errorText));
     }
 
-    if (hideChrome || process.env.hideChrome === 'true')
-      await Chromes.hideChrome();
+  }
+
+
+  static async cleanCache() {
+    const client = await globalThis.page.target().createCDPSession();
+    await client.send("Network.clearBrowserCache");
+    await client.send("Storage.clearDataForOrigin", {
+      origin: globalThis.page.url(),
+      storageTypes: "all"
+    });
+
+    /*
+
+    await client.send("Network.enable");
+    await client.send("Network.setCacheDisabled", { cacheDisabled: true });
+
+    await client.send("Network.disable");
+    await client.send("Network.setCacheDisabled", { cacheDisabled: false });
+    */
+
+
+  }
+
+
+  static async pageMetrics() {
+
+    const metrics = await globalThis.page.metrics();
+    console.log(metrics);
   }
 
   static async closeBrowsers() {
@@ -89,6 +309,8 @@ export class Chromes {
        }
   
     */
+    console.warn('1️⃣ Close browsers');
+
     if (globalThis.browser) {
       await globalThis.browser.close();
     }
@@ -207,7 +429,19 @@ URL=${url}`;
 
   }
 
-  static getRandomInt(min, max) {
+
+  static saveUrlFileFromMht(mhtPath, filePath) {
+
+    const url = Chromes.getUrlFromMht(mhtPath);
+    const urlFileContent = `[InternetShortcut]
+URL=${url}`;
+    console.log(`Saving URL to file: ${filePath}. URL: ${url}`);
+
+    fs.writeFileSync(filePath, urlFileContent);
+
+  }
+
+  static randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
@@ -268,21 +502,21 @@ URL=${url}`;
       `--disable-extensions-except=${extPath}`,
       `--load-extension=${extPath}`,
       '--no-sandbox',
+      '--no-zygote',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      /*  '--renderer-process-limit=3',
-       '--js-flags=--max-old-space-size=12536',
-       '--disable-gpu',
-       '--single-process',
-       '--disk-cache-size=0',
-       '--media-cache-size=0',
-       '--disable-background-networking',
-       '--disable-background-timer-throttling',
-       '--disable-renderer-backgrounding',
-       '--disable-software-rasterizer',
-       '--mute-audio', */
+      '--ignore-certificate-errors',
+      '--disable-blink-features=AutomationControlled',
+      '--js-flags=--max-old-space-size=20000',
+      '--enable-gpu',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-software-rasterizer',
+      '--mute-audio',
+      '--disable-features=site-per-process',
       '--no-first-run',
-      '--no-zygote',
       ...filteredArgs.filter(a => !a.startsWith("--load-extension"))
     ]
     console.info("⚙️ Chrome argsApp:", argsApp);
@@ -292,11 +526,13 @@ URL=${url}`;
     const browser = await puppeteerCore.launch({
       executablePath,
       headless: headless,
+      enableExtensions: true,
+      ignoreDefaultArgs: ['--enable-automation'],
       args: argsApp,
       protocolTimeout: Number(process.env.protocolTimeout)
     })
 
-    console.info("✅ Puppeteer ishga tushdi! CmdGo", isCmdGo);
+    console.info("✅ Puppeteer ishga tushdi! isCmdGo:", isCmdGo);
 
     return browser;
 

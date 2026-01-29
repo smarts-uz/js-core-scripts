@@ -8,61 +8,94 @@ import notifier from "node-notifier";
 import { fileURLToPath } from "url";
 
 
+export const Buttons = {
+
+  /**
+   * 
+   * v 0
+
+Show OK button.
+
+1
+
+Show OK and Cancel buttons.
+
+2
+
+Show Abort, Retry, and Ignore buttons.
+
+3
+
+Show Yes, No, and Cancel buttons.
+
+4
+
+Show Yes and No buttons.
+
+5
+
+Show Retry and Cancel buttons.
+   */
+
+
+  OK: 0,
+  OKCancel: 1,
+  AbortRetryIgnore: 2,
+  YesNoCancel: 3,
+  YesNo: 4,
+  RetryCancel: 5
+
+}
+
+export const Icons = {
+  /**
+   * 
+   * 16
+   * Show "Stop Mark" icon.
+   * 32
+   * Show "Question Mark" icon.
+   * 48
+   * Show "Exclamation Mark" icon.
+   * 64
+   * Show "Information Mark" icon.
+   */
+
+  Stop: 16,
+  Question: 32,
+  Exclamation: 48,
+  Information: 64
+
+
+}
+
 export class Dialogs {
 
 
-  // windows notification function
-  static notify(message, title = "Message") {
-    try {
-
-
-      // __dirname workaround for ESM
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-
-      notifier.notify(
-        {
-          title: title,
-          message: message,
-          icon: null,  // Absolute path
-          sound: true,
-          wait: true
-        },
-        (err, response, metadata) => {
-          // Response from notification
-          // metadata: activationType, activationAt, deliveredAt
-        }
-      );
-
-      // Events
-      notifier.on("click", (notifierObject, options, event) => {
-        // Fires when user clicks (with wait: true)
-      });
-
-      notifier.on("timeout", (notifierObject, options) => {
-        // Fires when notification closes (with wait: true)
-      });
-
-    } catch (err) {
-      console.error(err);
-      this.messageBox(message, title);
-    }
-  }
-
-
-  static warningBox(message, title, type = 16) {
-    console.error(message);
-    this.messageBoxAx(message, title, type);
-    throw new Error(message);
-
-  }
-
-
+  
   // === MessageBox Helper (native Windows via WinAX) ===
-  static messageBoxAx(msg, title = "Message", type = 64) {
+  static messageBoxAx(msg, title = "Message", icon = Icons.Information, buttons = Buttons.OK) {
     const shell = new winax.Object("WScript.Shell");
-    return shell.Popup(msg, 0, title, type);
+    return shell.Popup(msg, 0, title, icon + buttons);
   }
+
+
+  static warningBox(message, title = "Warning", icon = Icons.Exclamation, buttons = Buttons.OK, stop = false) {
+    console.warn(title, message);
+    this.messageBoxAx(message, title, icon, buttons);
+    if (stop) throw new Error(message);
+    return null
+  }
+
+  
+  static errorBox(message, title = "Error", icon = Icons.Stop, buttons = Buttons.OK, stop = false) {
+    console.error(title, message);
+    this.messageBoxAx(message, title, icon, buttons);
+    if (stop) throw new Error(message);
+    return null
+  }
+
+
+  
 
   // create messagebox for windows
   static messageBox(message, title = 'Message') {
