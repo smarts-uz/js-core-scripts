@@ -9,6 +9,7 @@ import { Dates } from "./Dates.js";
 import { ES } from "./ES.js";
 import { exit } from "process";
 import { Phone } from "./Phone.js";
+import { Yamls } from "./Yamls.js";
 
 export class Puppe {
   constructor(parameters) {
@@ -25,14 +26,14 @@ export class Puppe {
 
   static async humanScroll() {
 
-    const humanScrollStep = parseInt(process.env.humanScrollStep);
+    const humanScrollStep = parseInt(Yamls.getConfig('humanScrollStep'));
     console.info('humanScrollStep', humanScrollStep);
 
     for (let i = 0; i < humanScrollStep; i++) {
 
       try {
 
-        const humanScrollDeltaY = parseInt(process.env.humanScrollDeltaY);
+        const humanScrollDeltaY = parseInt(Yamls.getConfig('humanScrollDeltaY'));
         console.info('humanScrollDeltaY', humanScrollDeltaY);
 
         const deltaY = Dates.randomIntOne(humanScrollDeltaY);
@@ -197,13 +198,15 @@ export class Puppe {
 
   static async extractApp(pattern, page) {
 
+    console.info('extractApp pattern: ', pattern);
+
     try {
       const username = await globalThis.page.$eval(
         pattern,
         el => el.textContent.trim()
       );
 
-      console.log(username); // "ibrohim"
+      console.info('extractApp Extracted:', username);
 
       return username;
     } catch (error) {
@@ -271,7 +274,7 @@ export class Puppe {
           console.info('📞 Found visible phone button, clicking...');
           await btn.click();
 
-          const timeout = Number(process.env.phoneClickTimeout) || 5000;
+          const timeout = Number(Yamls.getConfig('phoneClickTimeout')) || 5000;
           console.info(`Waiting for phone number to appear (${timeout}ms)...`);
 
           await globalThis.page.waitForSelector('[data-testid="contact-phone"]', { timeout: timeout });
@@ -401,6 +404,8 @@ export class Puppe {
       '[data-testid="ad-price-container"] h3',
       '[data-testid="ad-price-container"] p',
       '[data-cy="offer_title"] h4',
+      '[data-nx-name="P2"] span',
+      '[data-testid="distance-field"]',
       '[data-cy="ad-posted-at"]',
       '.header-content div section div:nth-child(1) div p:nth-child(1)',
       '.header-content div section div:nth-child(1) div p:nth-child(2)',
@@ -877,10 +882,10 @@ export class Puppe {
 
 
   static async scrollAds() {
-    const Wait_Min = process.env.Wait_Min || 5;
-    const Wait_Max = process.env.Wait_Max || 30;
-    const Scroll_Count_Min = process.env.Scroll_Count_Min || 2;
-    const Scroll_Count_Max = process.env.Scroll_Count_Max || 5;
+    const Wait_Min = Yamls.getConfig('Wait_Min') || 5;
+    const Wait_Max = Yamls.getConfig('Wait_Max') || 30;
+    const Scroll_Count_Min = Yamls.getConfig('Scroll_Count_Min') || 2;
+    const Scroll_Count_Max = Yamls.getConfig('Scroll_Count_Max') || 5;
 
     // Random waiting and scrolling to simulate human behavior
     const waitTime = Chromes.randomInt(parseInt(Wait_Min), parseInt(Wait_Max));

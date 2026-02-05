@@ -70,7 +70,7 @@ export class IjaraSoliq {
         try {
             const url = `https://ijara.soliq.uz/api/rent/client/contract/get-list/by-params?myRentType=${rentType}&state=${state}&page=${page}&size=${size}`;
 
-            const body = await Chromes.fetch(url, options, 10 * 60 * 60, [
+            const body = await Chromes.fetcher(url, options, Chromes.Duration.Min5, [
                 'api/rent/client/contract/get-list/by-params',
             ], owner)
 

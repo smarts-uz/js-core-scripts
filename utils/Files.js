@@ -524,19 +524,7 @@ export class Files {
     return currentDir;
   }
 
-  static dotenv() {
 
-    const envPath = path.join(Files.currentDir(), ".env");
-    console.log(envPath, 'envPath dotenv');
-
-    if (!fs.existsSync(envPath)) {
-      return Dialogs.warningBox(`.env file not found: ${envPath}`, 'Env File not found');;
-    }
-
-    // Append .env to current path
-    dotenv.config({ path: envPath });
-
-  }
 
   static cleanPath(p) {
     return p.replace(/\\\\+/g, "\\").replace(/\\/g, "/");
@@ -742,7 +730,6 @@ export class Files {
 
   static saveInfoToFile(folder, filename) {
 
-
     if (Files.isEmpty(filename))
       return null;
 
@@ -751,15 +738,39 @@ export class Files {
     filename = Files.cleanupFileName(filename);
 
     console.log('saveInfoToFile', filename);
-
+    
     const filePathTxt = path.join(folder, `${filename}.txt`);
     Files.removeFile(filePathTxt);
-
+    
     const filePath = path.join(folder, `${filename}.app`);
     fs.writeFileSync(filePath, 'App', 'utf8');
     console.log(`Info saved to ${filePath}`);
     return filePath;
   }
+  
+  static deleteInfo(folder, filename) {
+    
+    if (Files.isEmpty(filename))
+      return null;
+    
+    filename = Files.cleanupFileName(filename);
+    console.log('deleteInfo', filename);
+    
+
+    // search all files in folder with filename pattern
+    const files = fs.readdirSync(folder).filter(file => file.toLowerCase().includes(filename.toLowerCase()));
+    if (files.length === 0) {
+      console.warn('No', filename, 'files found in folder:', folder);
+      return null;
+    }
+
+    files.forEach(file => {
+      const filePathTxt = path.join(folder, file);
+      Files.removeFile(filePathTxt);
+    });
+    
+  }
+
 
   static removeFile(file) {
     if (fs.existsSync(file)) {

@@ -13,7 +13,7 @@ import { Yamls } from "./Yamls.js";
 
 export class Didox {
 
-   
+
 
     static saveMeasures() {
         const myHeaders = new Headers();
@@ -489,18 +489,24 @@ export class Didox {
             Files.saveInfoToFile(person, returns.personalNum);
             Files.saveInfoToFile(person, returns.tin);
 
-        //    await this.carInfoByPinfl(tin)
+            //    await this.carInfoByPinfl(tin)
 
         } else {
 
-            Files.saveInfoToFile(globalThis.folderCompan, returns.address);
+  
+            switch (true) {
+                case returns.address.includes('Anorzor'):
+                    returns.AddressType = 'Anorzor';
+                    break;
+                case returns.address.includes('Adolat MFY'):
+                    returns.AddressType = 'Adolat';
+                    break;
 
-            if (returns.address.includes('Anorzor')) {
-                Files.saveInfoToFile(globalThis.folderALL, '#Anor');
-                returns.IsAnorzor = 'Да';
+                default:
+                    returns.AddressType = 'Others';
+                    break;
             }
-            else
-                returns.IsAnorzor = 'Нет';
+
         }
 
         return returns;

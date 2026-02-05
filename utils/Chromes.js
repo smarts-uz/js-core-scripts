@@ -10,38 +10,51 @@ import { Files } from './Files.js';
 import { exec } from 'child_process';
 import { Dialogs } from './Dialogs.js';
 import { Yamls } from './Yamls.js';
+import dns from 'dns';
+import { fetch, Agent } from 'undici';
 
 
-
-export const Duration = {
-  Unlimited: 0,
-  noCache: -1,
-  OneHour: 60 * 60,
-  OneHour10: 60 * 60 * 10,
-  OneDay: 24 * 60 * 60,
-  OneWeek: 7 * 24 * 60 * 60,
-  OneMonth: 30 * 24 * 60 * 60,
-  OneYear: 365 * 24 * 60 * 60,
-}
 
 export class Chromes {
 
-  constructor(chromeVersion = process.env.CHROME_VERSION) {
-    if (!chromeVersion) {
-      throw new Error('❌ CHROME_VERSION belgilanmagan (env orqali).');
-    }
-    this.chromeVersion = chromeVersion;
-    this.win = path.win32;
+  static Duration = {
+    Unlimited: 0,
+    noCache: -1,
+    Min1: 60,
+    Min5: 60 * 5,
+    Min10: 60 * 10,
+    Min15: 60 * 15,
+    Min20: 60 * 20,
+    Min30: 60 * 30,
+    Hour1: 60 * 60,
+    Hour2: 60 * 60 * 2,
+    Hour10: 60 * 60 * 10,
+    Day1: 24 * 60 * 60,
+    Day7: 7 * 24 * 60 * 60,
+    Month1: 30 * 24 * 60 * 60,
+    Year1: 365 * 24 * 60 * 60,
   }
 
 
+  static async initFetcher() {
+
+    const agent = new Agent({
+      connect: {
+        timeout: 30000 // 30 seconds
+      }
+    });
+    
+    setGlobalDispatcher(agent);
+
+  }
 
 
-
-
-  static async fetch(url, options, duration = Duration.OneHour10, replace = [], owner = null) {
+  static async fetcher(url, options, duration = this.Duration.Hour10, replace = [], owner = null) {
 
     console.info(`Chrome fetch. URL ${url}, Options: `, options)
+
+    dns.setDefaultResultOrder('ipv4first');
+
 
 
     console.info('url', url);
@@ -58,11 +71,10 @@ export class Chromes {
     console.info(domain, 'domain');
     let domainPath;
 
-
     const cacheDir = Yamls.getConfig('Cache.Directory');
 
     if (owner) {
-      domainPath = path.join(cacheDir, owner, domain);
+      domainPath = path.join(cacheDir, domain, owner);
     } else {
       domainPath = path.join(cacheDir, domain);
     }
@@ -106,7 +118,7 @@ export class Chromes {
         console.info('Request body length from Cache: ', cacheLength);
         return cacheData;
       } else {
-        console.info('Fetching from Internet Cache Outdated:'); 
+        console.info('Fetching from Internet Cache Outdated:');
         Files.backupFile(cacheFile, true)
       }
 
@@ -151,8 +163,6 @@ export class Chromes {
 
     globalThis.mhtmlDir = path.join(globalThis.saveDir, '- Theory');
     console.info(globalThis.mhtmlDir, 'mhtmlDir globalThis');
-
-    Files.mkdirIfNotExists(Yamls.getConfig('Cache.Directory'));
 
     globalThis.mhtmlDirPage = path.join(globalThis.mhtmlDir, 'Page');
     console.info(globalThis.mhtmlDirPage, 'mhtmlDirPage globalThis');
@@ -217,12 +227,12 @@ export class Chromes {
 
     globalThis.browser = await Chromes.runIxbrowser(isCmdGo);
 
-    if (process.env.pageCloseBeforeGo !== "true") {
+    if (Yamls.getConfig('pageCloseBeforeGo') !== "true") {
 
       globalThis.page = await globalThis.browser.newPage();
       await Chromes.pageSetup();
 
-      if (hideChrome || process.env.hideChrome === 'true')
+      if (hideChrome || Yamls.getConfig('hideChrome') === 'true')
         await Chromes.hideChrome();
     }
 
@@ -235,7 +245,7 @@ export class Chromes {
       await Chromes.runBrowser(globalThis.isCmdGo, hideChrome);
     }
 
-    if (process.env.pageCloseBeforeGo === "true") {
+    if (Yamls.getConfig('pageCloseBeforeGo') === "true") {
 
       if (globalThis.page) {
         console.log('Close existing page', globalThis.page.url());
@@ -253,7 +263,7 @@ export class Chromes {
       await Chromes.runBrowser(globalThis.isCmdGo, hideChrome);
     }
 
-    if (process.env.pageCloseBeforeGo === "true" && (hideChrome || process.env.hideChrome === 'true'))
+    if (Yamls.getConfig('pageCloseBeforeGo') === "true" && (hideChrome || Yamls.getConfig('hideChrome') === 'true'))
       await Chromes.hideChrome();
 
   }
@@ -261,10 +271,10 @@ export class Chromes {
 
   static async pageSetup() {
     globalThis.page.setViewport({ width: 1280, height: 900 });
-    globalThis.page.setDefaultTimeout(Number(process.env.setDefaultTimeout));
-    globalThis.page.setDefaultNavigationTimeout(Number(process.env.setDefaultNavigationTimeout));
+    globalThis.page.setDefaultTimeout(Number(Yamls.getConfig('setDefaultTimeout')));
+    globalThis.page.setDefaultNavigationTimeout(Number(Yamls.getConfig('setDefaultNavigationTimeout')));
 
-    if (process.env.debugMode === "true") {
+    if (Yamls.getConfig('debugMode') === "true") {
       globalThis.page.on('console', m => console.log('PAGE:', m.text()));
       globalThis.page.on('pageerror', e => console.error('PAGE ERROR:', e));
       globalThis.page.on('requestfailed', r => console.log('REQUEST NO:', r.url(), r.failure && r.failure().errorText));
@@ -521,7 +531,7 @@ URL=${url}`;
     ]
     console.info("⚙️ Chrome argsApp:", argsApp);
 
-    const headless = (isCmdGo) ? process.env.HeadlessGo === 'true' : process.env.Headless === 'true';
+    const headless = (isCmdGo) ? Yamls.getConfig('HeadlessGo') === 'true' : Yamls.getConfig('Headless') === 'true';
 
     const browser = await puppeteerCore.launch({
       executablePath,
@@ -529,7 +539,7 @@ URL=${url}`;
       enableExtensions: true,
       ignoreDefaultArgs: ['--enable-automation'],
       args: argsApp,
-      protocolTimeout: Number(process.env.protocolTimeout)
+      protocolTimeout: Number(Yamls.getConfig('protocolTimeout'))
     })
 
     console.info("✅ Puppeteer ishga tushdi! isCmdGo:", isCmdGo);

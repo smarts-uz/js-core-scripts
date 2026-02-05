@@ -55,6 +55,10 @@ export class Phone {
     return file.includes('#PhoneOK') || file.includes('#PhoneError');
   }
 
+  static isRegion(file) {
+    return file.includes('район');
+  }
+
   static getPhones(userDir, fullPath = false) {
     let files = fs.readdirSync(userDir).filter(file => Phone.isPhone(file));
 
@@ -72,6 +76,21 @@ export class Phone {
     let files = fs.readdirSync(userDir).filter(file => Phone.isPhoneStatus(file));
 
     console.info(`Found ${files.length} phone status`, files);
+
+    if (fullPath) {
+      files = files.map(file => `${userDir}\\${file}`)
+    }
+
+    return files
+
+  }
+
+
+
+  static getRegions(userDir, fullPath = false) {
+    let files = fs.readdirSync(userDir).filter(file => Phone.isRegion(file));
+
+    console.info(`Found ${files.length} regions`, files);
 
     if (fullPath) {
       files = files.map(file => `${userDir}\\${file}`)
@@ -229,10 +248,12 @@ export class Phone {
         const phone = Phone.getPhones(clone, true);
         const phoneParent = Phone.getPhones(path.dirname(clone), true);
         const phoneStatus = Phone.getPhoneStatus(clone, true);
+        const regions = Phone.getRegions(clone, true);
 
         console.info(`Phone: ${phone}`);
         console.info(`Phone Parent: ${phoneParent}`);
         console.info(`Phone Status: ${phoneStatus}`);
+        console.info(`Regions: ${regions}`);
 
         const files = [...phone, ...phoneParent, ...phoneStatus];
 
@@ -328,25 +349,44 @@ export class Phone {
       fs.statSync(path.join(globalThis.saveDirApp, file)).isDirectory()
     );
 
-    for (const folder of folders) {
+    for (const name of folders) {
+
+      // if is absolute path name
+      let folder;
+      if (!path.isAbsolute(name)) {
+        folder = path.join(globalThis.saveDirApp, name);
+      } else {
+        folder = name;
+      }
+
       Phone.itemCalculateCountOnline(folder);
+      Phone.collectRegions(folder);
     }
 
   }
 
-  static itemCalculateCountOnline(name) {
+  static collectRegions(folder) {
+    console.info(`Collect regions: ${folder}`);
 
-    console.info(`Calculate count online: ${name}`);
+    let regions = Files.findRecursiveFull(folder, function (file) {
+      return file.includes('район');
+    }, );
 
-    // if is absolute path name
-    let folder;
-    if (!path.isAbsolute(name)) {
-      folder = path.join(globalThis.saveDirApp, name);
-    } else {
-      folder = name;
+    console.info(`Regions: ${regions.length}`);
+
+    for (const region of regions) {
+      console.info(`Region: ${region}`);
+      // copy them to folder
+      const dest = path.join(folder, path.basename(region));
+
+      fs.copyFileSync(region, dest);
+      console.info(`Copied ${region} to ${dest}`);
     }
+  }
 
-    console.info(`Folder: ${folder}`);
+  static itemCalculateCountOnline(folder) {
+
+    console.info(`Calculate count online: ${folder}`);
 
     let offerCounts = Files.findRecursive(folder, function (file) {
       return file.includes('Мы нашли');
@@ -367,6 +407,8 @@ export class Phone {
 
       console.info(`Sum: ${sum}`);
       Files.saveInfoToFile(folder, `#OfferCount ${sum}`);
+
+
     }
 
     let lastSeens = Files.findRecursive(folder, function (file) {

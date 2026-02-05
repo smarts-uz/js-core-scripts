@@ -42,13 +42,12 @@ export class Dates {
     console.log("addYearsGetLastDate dateStr", dateStr, "years", years);
 
     const date = this.parseDMY(dateStr);
-    const newDate = new Date(date.getFullYear() + years, 12, 31);
+    const newDate = new Date(date.getFullYear() + years, 11, 31);
     
     const formatted = new Intl.DateTimeFormat("ru-RU", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-      timeZone: "UTC"
     }).format(newDate);
 
     console.log("addYearsGetLastDate formatted", formatted);
@@ -69,7 +68,6 @@ export class Dates {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-      timeZone: "UTC"
     }).format(newDate);
 
     console.log("addDays formatted", formatted);
@@ -102,7 +100,6 @@ export class Dates {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-      timeZone: "UTC"
     }).format(futureDate);
 
     return formatted;
