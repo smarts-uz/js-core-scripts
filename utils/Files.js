@@ -716,13 +716,19 @@ export class Files {
 
     console.info("cleanupFileName Before:", filename);
     filename = filename
-      .replace(/[<>:"/\\|?*\:]+/g, replaceWith)
+      .replace(/[<>:"|?*\:]+/g, replaceWith)
       .trim()
       .substring(0, 100);
 
     filename = filename.replace(/\s+|&/g, replaceWith);
     // replace \ / to empty
-    filename = filename.replace(/\\|\//g, "");
+    filename = filename.replace(/\\|\//g, replaceWith);
+
+    // trim multiple spaces
+    filename = filename.replace(/\s+/g, replaceWith);
+
+    // trim leading and trailing spaces
+    filename = filename.trim();
 
     console.info("cleanupFileName After:", filename);
     return filename;

@@ -414,7 +414,7 @@ export class Didox {
 
             return body;
         } catch (error) {
-            return Dialogs.errorBox(error.message, 'Error fetching contracts');
+            return Dialogs.errorBox(error, 'Error fetching contracts');
         }
 
     }

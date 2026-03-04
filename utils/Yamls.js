@@ -14,20 +14,12 @@ import { Dialogs } from "./Dialogs.js";
 import LinesAndColumns from "lines-and-columns";
 
 
-export const Owner = {
-    SRental: 'SRental',
-    WorkSpace: 'WorkSpace',
-    Zakirov: 'Zakirov',
-    Ruaz: 'Ruaz',
-    Smarts: 'Smarts',
-    YaTT: 'YaTT',
-}
 
 export class Yamls {
 
 
 
-    static getConfig(keyPath) {
+    static getConfig(keyPath, type = null, defaultValue = null) {
         const config = Files.currentDir() + '\\config.yml';
         if (!fs.existsSync(config)) {
             throw new Error(`YAML Core Config file not found: ${config}`);
@@ -37,11 +29,30 @@ export class Yamls {
             throw new Error(`Key path is required`);
         }
 
-        const value = this.getYamlValue(config, keyPath)
+        const value = this.getYamlValue(config, keyPath, defaultValue)
 
         console.log(`Key: ${keyPath}, Value: ${value}`);
 
-        return value
+        if (Files.isEmpty(value)) {
+            console.warn(`Key: ${keyPath}, Value is Empty: ${value}`);
+            return defaultValue;
+        }
+
+        switch (type) {
+            case 'string':
+                return value.toString();
+            case 'number':
+                return Number(value);
+            case 'boolean':
+                return Boolean(value);
+            case 'array':
+                return Array.isArray(value) ? value : [value];
+            case 'object':
+                return typeof value === 'object' && !Array.isArray(value) ? value : {};
+            default:
+                return value;
+        }
+
     }
 
     /**
@@ -359,7 +370,7 @@ export class Yamls {
 
         Files.deleteInfo(globalThis.folderCompan, `-kv`)
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.Area}-kv`)
-                                                                                                                                                
+
         Files.writeJson(path.join(globalThis.folderRestAPI, `ALL.json`), companyInfo)
 
         Yamls.replaceYaml(globalThis.ymlFile, yamlData, companyInfo);
@@ -407,12 +418,63 @@ export class Yamls {
             console.info('yamlData.ComDateIjara', yamlData.ComDateIjara);
         }
 
-        if (Files.isEmpty(yamlData.ComDateEnd)) {
-            const addDays = Yamls.getConfig('Contract.AddDays');
-            console.log(`addDays from Yaml: ${addDays}`);
-            yamlData.ComDateEnd = Dates.addDays(yamlData.ComDate, addDays)
-            console.info('yamlData.ComDateEnd', yamlData.ComDateEnd);
+        const addDays = Yamls.getConfig('Contract.AddDays');
+        console.log(`addDays from Yaml: ${addDays}`);
+        yamlData.ComDateEnd = Dates.addDays(yamlData.ComDate, addDays)
+        console.info('yamlData.ComDateEnd', yamlData.ComDateEnd);
+
+
+        const comDate = Contracts.extractDate(yamlData.ComDate);
+        yamlData.Day = comDate.day;
+        yamlData.Month = comDate.month;
+        yamlData.Year = comDate.year;
+
+        const comDateEnd = Contracts.extractDate(yamlData.ComDateEnd);
+        yamlData.DayEnd = comDateEnd.day;
+        yamlData.MonthEnd = comDateEnd.month;
+        yamlData.YearEnd = comDateEnd.year;
+
+        const comDateIjara = Contracts.extractDate(yamlData.ComDateIjara);
+        yamlData.DayIjara = comDateIjara.day;
+        yamlData.MonthIjara = comDateIjara.month;
+        yamlData.YearIjara = comDateIjara.year;
+
+
+        yamlData.ActDateExcel = Dates.didoxToExcel(yamlData.ActDate);
+        yamlData.ActDateEndExcel = Dates.didoxToExcel(yamlData.ActDateEnd);
+
+        yamlData.ComDateExcel = Dates.didoxToExcel(yamlData.ComDate);
+        yamlData.ComDateEndExcel = Dates.didoxToExcel(yamlData.ComDateEnd);
+        yamlData.ComDateIjaraExcel = Dates.didoxToExcel(yamlData.ComDateIjara);
+
+        if (!yamlData.ActDate) {
+            yamlData.StartDateExcel = yamlData.ComDateExcel
+            console.log('StartDateExcel from ComDateExcel', yamlData.StartDateExcel);
         }
+        else {
+            yamlData.StartDateExcel = Dates.didoxToExcel(yamlData.ActDate)
+            console.log('StartDateExcel from ActDate', yamlData.StartDateExcel);
+        }
+
+
+        const prepayMonth = Yamls.getPrepayMonth(yamlData);
+        console.log(prepayMonth, 'prepayMonth');
+
+        if (!yamlData.ActDateEnd) {
+            yamlData.FutureDateExcel = Dates.futureDateByMonth(prepayMonth, false)
+            console.log('FutureDateExcel from prepayMonth', yamlData.FutureDateExcel);
+        }
+        else {
+            yamlData.FutureDateExcel = Dates.didoxToExcel(yamlData.ActDateEnd)
+            console.log('FutureDateExcel from ActDateEnd', yamlData.FutureDateExcel);
+        }
+
+        yamlData.FutureDateAppExcel = Dates.getMinusOneDay(yamlData.FutureDateExcel)
+        console.log(yamlData.FutureDateAppExcel, 'yamlData.FutureDateAppExcel');
+
+
+
+
 
         // if ymlFileparh contains @ Weak folder - yamldata.ComCategory = Weak
         switch (true) {
@@ -452,58 +514,6 @@ export class Yamls {
         yamlData.ComNameLong = companyInfo.name
         yamlData.ComNameShort = companyInfo.shortName
 
-        const comDate = Contracts.extractDate(yamlData.ComDate);
-        yamlData.Day = comDate.day;
-        yamlData.Month = comDate.month;
-        yamlData.Year = comDate.year;
-
-
-        if (yamlData.ComDateEnd) {
-            const comDateEnd = Contracts.extractDate(yamlData.ComDateEnd);
-            yamlData.DayEnd = comDateEnd.day;
-            yamlData.MonthEnd = comDateEnd.month;
-            yamlData.YearEnd = comDateEnd.year;
-        }
-
-        if (yamlData.ComDateIjara) {
-            const comDateIjara = Contracts.extractDate(yamlData.ComDateIjara);
-            yamlData.DayIjara = comDateIjara.day;
-            yamlData.MonthIjara = comDateIjara.month;
-            yamlData.YearIjara = comDateIjara.year;
-        }
-
-
-        yamlData.ActDateExcel = Dates.didoxToExcel(yamlData.ActDate);
-        yamlData.ActDateEndExcel = Dates.didoxToExcel(yamlData.ActDateEnd);
-
-        yamlData.ComDateExcel = Dates.didoxToExcel(yamlData.ComDate);
-        yamlData.ComDateEndExcel = Dates.didoxToExcel(yamlData.ComDateEnd);
-        yamlData.ComDateIjaraExcel = Dates.didoxToExcel(yamlData.ComDateIjara);
-
-        if (!yamlData.ActDate) {
-            yamlData.StartDateExcel = yamlData.ComDateExcel
-            console.log('StartDateExcel from ComDateExcel', yamlData.StartDateExcel);
-        }
-        else {
-            yamlData.StartDateExcel = Dates.didoxToExcel(yamlData.ActDate)
-            console.log('StartDateExcel from ActDate', yamlData.StartDateExcel);
-        }
-
-
-        const prepayMonth = Yamls.getPrepayMonth(yamlData);
-        console.log(prepayMonth, 'prepayMonth');
-
-        if (!yamlData.ActDateEnd) {
-            yamlData.FutureDateExcel = Dates.futureDateByMonth(prepayMonth, false)
-            console.log('FutureDateExcel from prepayMonth', yamlData.FutureDateExcel);
-        }
-        else {
-            yamlData.FutureDateExcel = Dates.didoxToExcel(yamlData.ActDateEnd)
-            console.log('FutureDateExcel from ActDateEnd', yamlData.FutureDateExcel);
-        }
-
-        yamlData.FutureDateAppExcel = Dates.getMinusOneDay(yamlData.FutureDateExcel)
-        console.log(yamlData.FutureDateAppExcel, 'yamlData.FutureDateAppExcel');
 
         if (!yamlData.ContractNumber)
             yamlData.ContractNum = Contracts.contractNumFromFormat(yamlData);
@@ -518,7 +528,7 @@ export class Yamls {
 
         Files.deleteInfo(globalThis.folderCompan, `${yamlData.ComAddressType}`)
         Files.saveInfoToFile(globalThis.folderCompan, yamlData.ComAddress);
-        
+
         Files.deleteInfo(globalThis.folderCompan, `#Addr-`)
         Files.saveInfoToFile(globalThis.folderALL, `#Addr-${yamlData.ComAddressType}`);
 
@@ -736,10 +746,10 @@ export class Yamls {
             yamlData.ComVATUpdatedAt = companyInfo?.soliqYatt?.vatRegDate ?? '';
             yamlData.ComVATStatementId = companyInfo?.soliqYatt?.certificateDocNumber ?? '';
         }
-        
-        
+
+
         Files.deleteInfo(globalThis.folderALL, '#VAT')
-        
+
         const ComDate = Dates.parseDMY(yamlData.ComDate);
         const ComVATDateReg = Dates.parseDMY(yamlData.ComVATDateReg);
 
@@ -757,7 +767,7 @@ export class Yamls {
         }
 
         yamlData.ComTaxModeVAT = yamlData.ComTaxMode === 1 ? 'Yes' : 'No'
-        
+
 
         if (yamlData.ComTaxModeVAT === 'Yes' && Files.isEmpty(yamlData.ComVATRegCode)) {
             yamlData.ComCandidateVAT = 'Yes'

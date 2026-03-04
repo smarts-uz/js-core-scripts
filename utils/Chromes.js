@@ -11,7 +11,8 @@ import { exec } from 'child_process';
 import { Dialogs } from './Dialogs.js';
 import { Yamls } from './Yamls.js';
 import dns from 'dns';
-import { fetch, Agent } from 'undici';
+import { request, fetch, Agent, setGlobalDispatcher } from 'undici';
+
 
 
 
@@ -20,6 +21,11 @@ export class Chromes {
   static Duration = {
     Unlimited: 0,
     noCache: -1,
+    Sec1: 1,
+    Sec5: 5,
+    Sec10: 10,
+    Sec15: 15,
+    Sec30: 30,
     Min1: 60,
     Min5: 60 * 5,
     Min10: 60 * 10,
@@ -31,40 +37,34 @@ export class Chromes {
     Hour10: 60 * 60 * 10,
     Day1: 24 * 60 * 60,
     Day7: 7 * 24 * 60 * 60,
+    Week1: 7 * 24 * 60 * 60,
+    Week2: 14 * 24 * 60 * 60,
+    Week4: 28 * 24 * 60 * 60,
     Month1: 30 * 24 * 60 * 60,
+    Month2: 60 * 24 * 60 * 60,
+    Month3: 90 * 24 * 60 * 60,
+    Month6: 180 * 24 * 60 * 60,
     Year1: 365 * 24 * 60 * 60,
+    Year2: 730 * 24 * 60 * 60,
   }
 
 
-  static async initFetcher() {
 
-    const agent = new Agent({
-      connect: {
-        timeout: 30000 // 30 seconds
-      }
-    });
-    
-    setGlobalDispatcher(agent);
-
-  }
-
-
-  static async fetcher(url, options, duration = this.Duration.Hour10, replace = [], owner = null) {
+  static async fetcher(url, options, owner, duration = this.Duration.Hour10, replace = []) {
 
     console.info(`Chrome fetch. URL ${url}, Options: `, options)
 
-    dns.setDefaultResultOrder('ipv4first');
-
-
-
-    console.info('url', url);
+    console.info('url:', url);
     if (!url) Dialogs.warningBox('No url', 'Warning fetch');
 
-    console.info('options', options);
+    console.info('options:', options);
     if (!options) Dialogs.warningBox('No options', 'Warning fetch');
 
-    console.info('duration', duration);
-    console.info('replace', replace);
+    console.info('owner:', owner);
+    if (!owner) Dialogs.warningBox('No owner', 'Warning fetch');
+
+    console.info('duration:', duration);
+    console.info('replace:', replace);
 
     // get domain from url
     const domain = url.split('/')[2];
@@ -73,11 +73,7 @@ export class Chromes {
 
     const cacheDir = Yamls.getConfig('Cache.Directory');
 
-    if (owner) {
-      domainPath = path.join(cacheDir, domain, owner);
-    } else {
-      domainPath = path.join(cacheDir, domain);
-    }
+    domainPath = path.join(cacheDir, domain, owner);
     Files.mkdirIfNotExists(domainPath);
 
     let urlForPath = url
@@ -96,9 +92,7 @@ export class Chromes {
 
     const cacheFile = path.join(domainPath, `${fileName}.json`);
 
-
-
-    if (existsSync(cacheFile) && duration !== Duration.noCache) {
+    if (existsSync(cacheFile) && duration !== this.Duration.noCache) {
 
       // get file changed date
       const fileStats = fs.statSync(cacheFile);
@@ -109,11 +103,11 @@ export class Chromes {
       const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
       console.info(fileChangedDateInSec, 'fileChangedDateInSec');
 
-      if (fileChangedDateInSec < duration || duration === Duration.Unlimited) {
+      if (fileChangedDateInSec < duration || duration === this.Duration.Unlimited) {
         const cacheData = Files.readJson(cacheFile);
 
         // get size of cacheData
-        console.info('Fetching from Cache: ')
+        console.info('Fetching from Cache >> ', cacheFile)
         const cacheLength = JSON.stringify(cacheData).length;
         console.info('Request body length from Cache: ', cacheLength);
         return cacheData;
@@ -127,7 +121,19 @@ export class Chromes {
 
     try {
 
-      console.info('Fetching from Internet:')
+      console.info('Fetching from Internet >>', url)
+
+
+      dns.setDefaultResultOrder('ipv4first');
+
+      const agent = new Agent({
+        connect: {
+          timeout: Yamls.getConfig('Cache.FetchTimeout')
+        }
+      });
+
+      setGlobalDispatcher(agent);
+
       const response = await fetch(url, options);
 
       if (!response.ok)
@@ -139,8 +145,11 @@ export class Chromes {
       const bodyLength = JSON.stringify(body).length;
       console.info('Request body length from Internet: ', bodyLength);
 
-      if (duration !== Duration.noCache)
+      if (duration !== this.Duration.noCache) {
+        console.info('Writing to Cache: ', cacheFile)
         Files.writeJson(cacheFile, body);
+
+      }
 
       return body;
 
@@ -150,6 +159,121 @@ export class Chromes {
 
 
   }
+
+
+
+  static async download(url, options, owner, fileType, duration = this.Duration.Hour10, replace = []) {
+
+    console.info(`Chrome fetch. URL ${url}, Options: `, options)
+
+    console.info('url', url);
+    if (!url) Dialogs.warningBox('No url', 'Warning fetch');
+
+    console.info('options', options);
+    if (!options) Dialogs.warningBox('No options', 'Warning fetch');
+
+    console.info('owner', owner);
+    if (!owner) Dialogs.warningBox('No owner', 'Warning fetch');
+
+    console.info('fileType', fileType);
+    if (!fileType) Dialogs.warningBox('No fileType', 'Warning fetch');
+
+    console.info('duration', duration);
+    console.info('replace', replace);
+
+    // get domain from url
+    const domain = url.split('/')[2];
+    console.info(domain, 'domain');
+    let domainPath;
+
+    const cacheDir = Yamls.getConfig('Cache.Directory');
+
+    domainPath = path.join(cacheDir, domain, owner);
+    Files.mkdirIfNotExists(domainPath);
+
+    let urlForPath = url
+      .replace(domain, '')
+      .replace('https', '')
+      .replace('http', '')
+
+    replace.forEach((item) => {
+      urlForPath = urlForPath.replace(item, '');
+    })
+
+    console.info(urlForPath, 'urlForPath');
+
+    const fileName = Files.cleanupFileName(urlForPath, '  ');
+    console.info(fileName, 'fileName');
+
+    const cacheFile = path.join(domainPath, `${fileName}.${fileType}`);
+
+    if (existsSync(cacheFile) && duration !== this.Duration.noCache) {
+
+      // get file changed date
+      const fileStats = fs.statSync(cacheFile);
+      const fileChangedDate = fileStats.mtime;
+      console.info(fileChangedDate, 'fileChangedDate');
+
+      // compare file changed date with current date
+      const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
+      console.info(fileChangedDateInSec, 'fileChangedDateInSec');
+
+      if (fileChangedDateInSec < duration || duration === this.Duration.Unlimited) {
+
+        // get size of cacheData
+        console.info('Fetching from Cache >> ', cacheFile)
+        const cacheLength = fs.statSync(cacheFile).size;
+        console.info('File size from Cache: ', cacheLength);
+        return cacheFile;
+      } else {
+        console.info('Fetching from Internet Cache Outdated:');
+        Files.backupFile(cacheFile, true)
+      }
+
+    }
+
+
+    try {
+
+      console.info('Fetching from Internet >>', url)
+
+
+      dns.setDefaultResultOrder('ipv4first');
+
+      const agent = new Agent({
+        connect: {
+          timeout: Yamls.getConfig('Cache.FetchTimeout')
+        }
+      });
+
+      setGlobalDispatcher(agent);
+
+
+      const response = await fetch(url, options);
+
+      if (!response.ok)
+        return Dialogs.warningBox(response.statusText, 'Failed to download file', 'Warning');
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      if (buffer.length === 0)
+        return Dialogs.warningBox('Downloaded file is empty', 'Warning');
+
+      console.info('Request body length from Internet: ', buffer.length);
+
+      console.info('Writing to Cache: ', cacheFile)
+      fs.writeFileSync(cacheFile, buffer);
+
+      return cacheFile;
+
+    } catch (error) {
+      return Dialogs.errorBox(error, 'Error catch (error)');
+    }
+
+
+  }
+
 
 
 

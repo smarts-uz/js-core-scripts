@@ -8,86 +8,88 @@ import notifier from "node-notifier";
 import { fileURLToPath } from "url";
 
 
-export const Buttons = {
-
-  /**
-   * 
-   * v 0
-
-Show OK button.
-
-1
-
-Show OK and Cancel buttons.
-
-2
-
-Show Abort, Retry, and Ignore buttons.
-
-3
-
-Show Yes, No, and Cancel buttons.
-
-4
-
-Show Yes and No buttons.
-
-5
-
-Show Retry and Cancel buttons.
-   */
-
-
-  OK: 0,
-  OKCancel: 1,
-  AbortRetryIgnore: 2,
-  YesNoCancel: 3,
-  YesNo: 4,
-  RetryCancel: 5
-
-}
-
-export const Icons = {
-  /**
-   * 
-   * 16
-   * Show "Stop Mark" icon.
-   * 32
-   * Show "Question Mark" icon.
-   * 48
-   * Show "Exclamation Mark" icon.
-   * 64
-   * Show "Information Mark" icon.
-   */
-
-  Stop: 16,
-  Question: 32,
-  Exclamation: 48,
-  Information: 64
-
-
-}
 
 export class Dialogs {
 
 
+  static Buttons = {
+
+    /**
+     * 
+     * v 0
   
-  // === MessageBox Helper (native Windows via WinAX) ===
-  static messageBoxAx(msg, title = "Message", icon = Icons.Information, buttons = Buttons.OK) {
-    const shell = new winax.Object("WScript.Shell");
-    return shell.Popup(msg, 0, title, icon + buttons);
+  Show OK button.
+  1
+  
+  Show OK and Cancel buttons.
+  2
+  
+  Show Abort, Retry, and Ignore buttons.
+  3
+  
+  Show Yes, No, and Cancel buttons.
+  4
+  
+  Show Yes and No buttons.
+  5
+  
+  Show Retry and Cancel buttons.
+     */
+
+    OK: 0,
+    OKCancel: 1,
+    AbortRetryIgnore: 2,
+    YesNoCancel: 3,
+    YesNo: 4,
+    RetryCancel: 5
+
+  }
+
+  static Icons = {
+    /**
+     * 
+     * 16
+     * Show "Stop Mark" icon.
+     * 32
+     * Show "Question Mark" icon.
+     * 48
+     * Show "Exclamation Mark" icon.
+     * 64
+     * Show "Information Mark" icon.
+     */
+
+    Stop: 16,
+    Question: 32,
+    Exclamation: 48,
+    Information: 64
+
+
   }
 
 
-  static warningBox(message, title = "Warning", icon = Icons.Exclamation, buttons = Buttons.OK, stop = false) {
+static messageBoxAx(
+  msg,
+  title = "Message",
+  icon = this.Icons.Information,
+  buttons = this.Buttons.OK
+) {
+  const shell = new winax.Object("WScript.Shell");
+
+  const btnAndIcon = Number(icon) | Number(buttons);
+
+  return shell.Popup(String(msg), 0, String(title), btnAndIcon);
+}
+
+
+  static warningBox(message, title = "Warning", icon = this.Icons.Exclamation, buttons = this.Buttons.OK, stop = false) {
     console.warn(title, message);
     this.messageBoxAx(message, title, icon, buttons);
     if (stop) throw new Error(message);
     return null
   }
 
-  
-  static errorBox(message, title = "Error", icon = Icons.Stop, buttons = Buttons.OK, stop = false) {
+
+  static errorBox(message, title = "Error", icon = this.Icons.Stop, buttons = this.Buttons.OK, stop = false) {
     console.error(title, message);
     this.messageBoxAx(message, title, icon, buttons);
     if (stop) throw new Error(message);
@@ -95,7 +97,7 @@ export class Dialogs {
   }
 
 
-  
+
 
   // create messagebox for windows
   static messageBox(message, title = 'Message') {

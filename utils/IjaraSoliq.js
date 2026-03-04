@@ -7,7 +7,7 @@ import { Contracts } from './Contracts.js';
 import { Dialogs } from "./Dialogs.js";
 import { File } from "buffer";
 import { Chromes } from "./Chromes.js";
-import { Owner, Yamls } from "./Yamls.js";
+import { Yamls } from "./Yamls.js";
 
 export const RentType = {
     IN: 2,
@@ -25,13 +25,24 @@ export const IjaraState = {
 
 export class IjaraSoliq {
 
+    static Owner = {
+        SRental: 'SRental',
+        WorkSpace: 'WorkSpace',
+        Zakirov: 'Zakirov',
+        Ruaz: 'Ruaz',
+        Smarts: 'Smarts',
+        YaTT: 'YaTT',
+    }
+
+
     static async testing() {
         console.log('testing');
 
         //   IjaraSoliq.contracts(RentType.IN, IjaraState.Confirmed, Owner.SRental)
-        IjaraSoliq.contracts(Owner.SRental, RentType.IN, IjaraState.Confirmed)
+        IjaraSoliq.contracts(this.Owner.SRental, RentType.Out, IjaraState.Confirmed)
 
-        // IjaraSoliq.download(Owner.SRental, 3617512, '09.01.2026', '31.12.2028')
+        //    IjaraSoliq.download(Owner.SRental, 3617512, '09.01.2026', '31.12.2028')
+        IjaraSoliq.download(this.Owner.SRental, 3754678, '01.02.2026', '31.12.2028')
 
         // 3617512 / 09.01.2026 / 31.12.2028 ? tin = 30707906750015
 
@@ -40,7 +51,7 @@ export class IjaraSoliq {
 
 
 
-    static async contracts(owner, rentType, state, page = 0, size = 1000) {
+    static async contracts(owner = Owner.SRental, rentType = RentType.Out, state = IjaraState.Confirmed, page = 0, size = 1000) {
 
         console.log(owner, 'owner');
         if (!owner) return Dialogs.warningBox('No owner', 'Warning');
@@ -70,20 +81,20 @@ export class IjaraSoliq {
         try {
             const url = `https://ijara.soliq.uz/api/rent/client/contract/get-list/by-params?myRentType=${rentType}&state=${state}&page=${page}&size=${size}`;
 
-            const body = await Chromes.fetcher(url, options, Chromes.Duration.Min5, [
+            const body = await Chromes.fetcher(url, options, owner, Chromes.Duration.Sec1, [
                 'api/rent/client/contract/get-list/by-params',
-            ], owner)
+            ])
 
             if (!body) return Dialogs.warningBox('No body in response', 'Warning');
 
             return body;
         } catch (error) {
-            return Dialogs.errorBox(error.message, 'Error fetching contracts');
+            return Dialogs.errorBox(error, 'Error fetching contracts');
         }
 
     }
 
-    static async download(owner, docId, startDate, endDate) {
+    static async download(owner = Owner.SRental, docId, startDate, endDate) {
 
         console.log(owner, 'owner');
         if (!owner) return Dialogs.warningBox('No owner', 'Warning');
@@ -106,25 +117,14 @@ export class IjaraSoliq {
             const url = `https://ijara.soliq.uz/api/rent/client/file/download-file/${docId}/${startDate}/${endDate}`;
             console.log(url, 'url');
 
-            const response = await fetch(url, options);
+            const filePath = await Chromes.download(url, options, owner, 'pdf', Chromes.Duration.Sec10, [
+                'api/rent/client/file/download-file',
+            ])
 
-            if (!response.ok)
-                return Dialogs.warningBox(response.statusText, 'Failed to download file', 'Warning');
+            // description first in console log
+            console.log('filePath: ', filePath);
 
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-
-            if (buffer.length === 0)
-                return Dialogs.warningBox('Downloaded file is empty', 'Warning');
-
-            const pdfFolder = path.join(Yamls.getConfig('Cache.Directory'), 'ijara.soliq.uz PDF', tin);
-            Files.mkdirIfNotExists(pdfFolder);
-
-            const fileName = `${docId}  ${startDate}  ${endDate}.pdf`;
-            const filePath = path.join(pdfFolder, fileName);
-
-            fs.writeFileSync(filePath, buffer);
-            console.log('File saved successfully:', filePath);
+            if (!filePath) return Dialogs.warningBox('No filePath in response', 'Warning');
 
             return filePath;
         } catch (error) {
@@ -133,6 +133,7 @@ export class IjaraSoliq {
         }
 
     }
+
 
 
 
