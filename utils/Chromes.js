@@ -534,13 +534,42 @@ export class Chromes {
 
   }
 
+  // add function to get url from mht file using getUrlFromMht and clean it
+  static getUrlFromMhtClean(filePath) {
+    let url = this.getUrlFromMht(filePath);
+    url = url
+      .replace('https://', '')
+      .replace('http://', '')
+      .replace('www.', '')
+
+    // remove last / if exists
+    if (url.endsWith('/')) {
+      url = url.slice(0, -1);
+    }
+
+    url = Files.cleanUrl(url);
+
+    return url;
+  }
+
+
 
   static getUrlFromMht(filePath) {
 
     // Read MHTML file and extract URL
     const mhtmlContent = fs.readFileSync(filePath, "utf-8");
     const urlMatch = mhtmlContent.match(/Snapshot-Content-Location:\s*(.*)/i);
-    const extractedUrl = urlMatch ? urlMatch[1].trim() : null;
+    let extractedUrl = urlMatch ? urlMatch[1].trim() : null;
+
+    // if extractedurl is null, use Content-Location
+    if (!extractedUrl) {
+      const contentLocationMatch = mhtmlContent.match(/Content-Location:\s*(.*)/i);
+      extractedUrl = contentLocationMatch ? contentLocationMatch[1].trim() : null;
+    }
+
+    extractedUrl = extractedUrl
+      .replace('<!--', '')
+      .replace('-->', '');
 
     if (!extractedUrl) {
       console.error("Could not extract URL from MHTML file.");

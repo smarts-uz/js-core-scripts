@@ -546,13 +546,9 @@ export class Yamls {
         const bank = Didox.bankByCode(companyInfo.bankCode);
         console.log(bank, 'bank');
 
-        if (!bank) {
-            console.warn(`Bank not found for code: ${companyInfo.bankCode}`)
-            Files.backupFolder(globalThis.folderRestAPI, true);
-            Dialogs.warningBox(`Bank not found for code: ${companyInfo.bankCode}`, yamlData.ComNameShort, 64)
+        if (bank) {
+            yamlData.ComBank = bank.name
         }
-
-        yamlData.ComBank = bank.name
 
         yamlData.ComNs10Code = companyInfo.ns10Code
         const region = Didox.regionsByCode(companyInfo.ns10Code)
