@@ -449,81 +449,289 @@ export class Excels {
   }
   }
 
+  static replaceFormula2(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+    const absPath = path.resolve(filePath);
 
-  static replaceStandart(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
-  const absPath = path.resolve(filePath);
-
-  if (!fs.existsSync(absPath)) {
-    throw new Error(`replaceStandart: File not found: ${absPath}`);
-  }
-
-  const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
-  console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
-
-  this.checkWinax('replaceStandart');
-  const excelApp = new winax.Object('Excel.Application');
-  excelApp.Visible = false;
-  excelApp.DisplayAlerts = false;
-  excelApp.ScreenUpdating = false;
-  excelApp.EnableEvents = false;
-
-  try {
-    const workbook = excelApp.Workbooks.Open(absPath);
-    const sheetCount = workbook.Sheets.Count;
-
-    console.log(`📄 Total sheets: ${sheetCount}`);
-
-    const toProcess = [];
-    const toSkip = [];
-
-    for (let i = 1; i <= sheetCount; i++) {
-      const name = workbook.Sheets(i).Name;
-      if (sheetFilter && name !== sheetFilter) toSkip.push(name);
-      else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
-      else toProcess.push(name);
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`replaceFormula2: File not found: ${absPath}`);
     }
 
-    console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
-    console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
+    const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+    console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
-    for (let i = 1; i <= sheetCount; i++) {
-      const sheet = workbook.Sheets(i);
-      const sheetName = sheet.Name;
+    this.checkWinax('replaceFormula2');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
 
-      if (sheetFilter && sheetName !== sheetFilter) {
-        continue;
-      } else if (!sheetFilter && exclusions.includes(sheetName)) {
-        continue;
+    try {
+      const workbook = excelApp.Workbooks.Open(absPath);
+      const sheetCount = workbook.Sheets.Count;
+
+      console.log(`📄 Total sheets: ${sheetCount}`);
+
+      const toProcess = [];
+      const toSkip = [];
+
+      for (let i = 1; i <= sheetCount; i++) {
+        const name = workbook.Sheets(i).Name;
+        if (sheetFilter && name !== sheetFilter) toSkip.push(name);
+        else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
+        else toProcess.push(name);
       }
 
-      console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+      console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
+      console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
 
-      const replaced = sheet.Cells.Replace(
-        searchStr,   // What
-        replaceStr,    // Replacement
-        1,     // LookAt: xlPart
-        1,     // SearchOrder: xlByRows
-        false, // MatchCase
-        false, // MatchByte
-        false  // SearchFormat
-      );
+      let totalChanged = 0;
 
-      if (replaced) {
-        console.log(`✅ Replace completed in "${sheetName}"`);
-      } else {
-        console.log(`ℹ️  No "${searchStr}" found in "${sheetName}"`);
+      for (let i = 1; i <= sheetCount; i++) {
+        const sheet = workbook.Sheets(i);
+        const sheetName = sheet.Name;
+
+        if (sheetFilter && sheetName !== sheetFilter) {
+          continue;
+        } else if (!sheetFilter && exclusions.includes(sheetName)) {
+          continue;
+        }
+
+        console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+
+        let formulaCells;
+        try {
+          formulaCells = sheet.UsedRange.SpecialCells(-4123); // xlCellTypeFormulas
+        } catch (_) {
+          console.log(`ℹ️  No formula cells in sheet "${sheetName}"`);
+          continue;
+        }
+
+        const count = formulaCells.Count;
+        let changedInSheet = 0;
+
+        for (let c = 1; c <= count; c++) {
+          if (c % 10 === 0 || c === count) {
+            process.stdout.write(`\r      ⏳ Evaluating cells: ${c}/${count} (${Math.round((c / count) * 100)}%)`);
+          }
+
+          const cell = formulaCells.Item(c);
+          
+          let formula = "";
+          try {
+            // Use Formula2 to reliably see the "@" (Implicit Intersection Operator)
+            formula = cell.Formula2;
+          } catch (e) {
+            formula = cell.Formula;
+          }
+
+          if (typeof formula === 'string' && formula.includes(searchStr)) {
+            const newFormula = formula.split(searchStr).join(replaceStr);
+            if (newFormula !== formula) {
+              try {
+                cell.Formula2 = newFormula;
+              } catch (e) {
+                cell.Formula = newFormula;
+              }
+              changedInSheet++;
+            }
+          }
+        }
+
+        if (count > 0) process.stdout.write('\n');
+
+        totalChanged += changedInSheet;
+
+        if (changedInSheet > 0) {
+          console.log(`✅ Updated ${changedInSheet} formula cell(s) in "${sheetName}"`);
+        } else {
+          console.log(`ℹ️  No "${searchStr}" found in formulas on "${sheetName}"`);
+        }
       }
+
+      if (recalc) excelApp.CalculateFull();
+      const newPath = Files.incrementFileName(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`\n💾 Workbook saved as: ${newPath}`);
+      workbook.Close(false);
+      console.log(`📊 Total updated formula cells: ${totalChanged}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+    static replaceStandart(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+    const absPath = path.resolve(filePath);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`replaceStandart: File not found: ${absPath}`);
     }
 
-    if (recalc) excelApp.CalculateFull();
-    const newPath = Files.incrementFileName(absPath);
-    workbook.SaveAs(newPath, 51);
-    console.log(`\n💾 Workbook saved as: ${newPath}`);
-    workbook.Close(false);
-  } finally {
-    try { excelApp.Quit(); } catch (_) {}
-    try { winax.release(excelApp); } catch (_) {}
-  }
+    const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+    console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
+
+    this.checkWinax('replaceStandart');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
+
+    try {
+      const workbook = excelApp.Workbooks.Open(absPath);
+      const sheetCount = workbook.Sheets.Count;
+
+      console.log(`📄 Total sheets: ${sheetCount}`);
+
+      const toProcess = [];
+      const toSkip = [];
+
+      for (let i = 1; i <= sheetCount; i++) {
+        const name = workbook.Sheets(i).Name;
+        if (sheetFilter && name !== sheetFilter) toSkip.push(name);
+        else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
+        else toProcess.push(name);
+      }
+
+      console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
+      console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
+
+      for (let i = 1; i <= sheetCount; i++) {
+        const sheet = workbook.Sheets(i);
+        const sheetName = sheet.Name;
+
+        if (sheetFilter && sheetName !== sheetFilter) {
+          continue;
+        } else if (!sheetFilter && exclusions.includes(sheetName)) {
+          continue;
+        }
+
+        console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+
+        const replaced = sheet.Cells.Replace(
+          searchStr,   // What
+          replaceStr,    // Replacement
+          1,     // LookAt: xlPart
+          1,     // SearchOrder: xlByRows
+          false, // MatchCase
+          false, // MatchByte
+          false  // SearchFormat
+        );
+
+        if (replaced) {
+          console.log(`✅ Replace completed in "${sheetName}"`);
+        } else {
+          console.log(`ℹ️  No "${searchStr}" found in "${sheetName}"`);
+        }
+      }
+
+      if (recalc) excelApp.CalculateFull();
+      const newPath = Files.incrementFileName(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`\n💾 Workbook saved as: ${newPath}`);
+      workbook.Close(false);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+    }
+
+  static replaceFormulaAll(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+    const absPath = path.resolve(filePath);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`replaceFormulaAll: File not found: ${absPath}`);
+    }
+
+    const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+    console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
+
+    this.checkWinax('replaceFormulaAll');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
+
+    try {
+      const workbook = excelApp.Workbooks.Open(absPath);
+      const sheetCount = workbook.Sheets.Count;
+
+      console.log(`📄 Total sheets: ${sheetCount}`);
+
+      const toProcess = [];
+      const toSkip = [];
+
+      for (let i = 1; i <= sheetCount; i++) {
+        const name = workbook.Sheets(i).Name;
+        if (sheetFilter && name !== sheetFilter) toSkip.push(name);
+        else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
+        else toProcess.push(name);
+      }
+
+      console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
+      console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
+
+      let totalChanged = 0;
+
+      for (let i = 1; i <= sheetCount; i++) {
+        const sheet = workbook.Sheets(i);
+        const sheetName = sheet.Name;
+
+        if (sheetFilter && sheetName !== sheetFilter) continue;
+        else if (!sheetFilter && exclusions.includes(sheetName)) continue;
+
+        console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+
+        let changedInSheet = 0;
+
+        let formulaCells;
+        try {
+          formulaCells = sheet.UsedRange.SpecialCells(23); // xlCellTypeFormulas = 23
+        } catch (_) {
+          formulaCells = null; // no formula cells on this sheet
+        }
+
+        if (formulaCells) {
+          const areas = formulaCells.Areas;
+          const areaCount = areas.Count;
+          for (let a = 1; a <= areaCount; a++) {
+            const area = areas(a);
+            const cellCount = area.Count;
+            for (let ci = 1; ci <= cellCount; ci++) {
+              const cell = area.Item(ci);
+              const formula = cell.Formula ? String(cell.Formula) : '';
+              if (formula.startsWith('=') && formula.includes(searchStr)) {
+                const newFormula = formula.split(searchStr).join(replaceStr);
+                if (newFormula !== formula) {
+                  cell.Formula = newFormula;
+                  changedInSheet++;
+                }
+              }
+            }
+          }
+        }
+
+        totalChanged += changedInSheet;
+
+        if (changedInSheet > 0) {
+          console.log(`✅ Updated ${changedInSheet} formula cell(s) in "${sheetName}"`);
+        } else {
+          console.log(`ℹ️  No "${searchStr}" found in formulas on "${sheetName}"`);
+        }
+      }
+
+      if (recalc) excelApp.CalculateFull();
+      const newPath = Files.incrementFileName(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`\n💾 Workbook saved as: ${newPath}`);
+      workbook.Close(false);
+      console.log(`📊 Total updated formula cells: ${totalChanged}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
   }
 
   static recalculate(filePath, sheetFilter = '') {
