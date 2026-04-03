@@ -1,9 +1,5 @@
 import { execSync } from 'child_process';
-import TelegramBot from 'node-telegram-bot-api';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import bunyan from "bunyan";
 import RotatingFileStream from 'bunyan-rotating-file-stream';

@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { Files } from "./Files.js";
 import { ES } from "./ES.js";
-import { Puppe } from "./Puppe.js";
 
 
 

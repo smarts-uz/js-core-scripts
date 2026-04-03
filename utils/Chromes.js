@@ -1,5 +1,4 @@
 import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { existsSync } from 'fs';
 import puppeteer from 'puppeteer';

@@ -1,7 +1,6 @@
 import fs, { existsSync } from 'fs';
 import path from 'path';
-import { exec, execSync } from "child_process";
-import dotenv from 'dotenv';
+import { exec } from "child_process";
 import { Dialogs } from './Dialogs.js';
 import { access, copyFile, constants } from 'node:fs/promises';
 import AdmZip from 'adm-zip';

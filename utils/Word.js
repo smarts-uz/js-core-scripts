@@ -1,6 +1,11 @@
 import fs, { existsSync } from 'fs';
 import path from 'path';
-import winax from 'winax';
+let winax;
+try {
+  winax = (await import('winax')).default;
+} catch (e) {
+  // winax not available (likely binary not built)
+}
 import pkg from 'number-to-words-ru';
 const { convert } = pkg;
 
@@ -9,6 +14,13 @@ import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
 
 export class Word {
+
+  static checkWinax(methodName) {
+    if (!winax) {
+      throw new Error(`${methodName}: Native automation (winax) is not available. Please ensure Node-ActiveX is built for your Node.js version.`);
+    }
+  }
+
   static merge(filePaths) {
     if (!filePaths || filePaths.length === 0) {
       throw new Error('No files provided to merge.');
@@ -32,6 +44,7 @@ export class Word {
     fs.copyFileSync(templatePath, targetPath);
 
     console.log('Word Application starting...');
+    this.checkWinax('merge');
     const wordApp = new winax.Object('Word.Application');
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0; // wdAlertsNone
@@ -255,6 +268,7 @@ export class Word {
   }
 
   static wordReplace(data, templatePath, outputDocxPath, outputPdfPath) {
+    this.checkWinax('wordReplace');
     const word = new winax.Object("Word.Application");
     word.Visible = false;
 

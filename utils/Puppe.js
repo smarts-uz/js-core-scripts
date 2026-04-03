@@ -1,5 +1,5 @@
 
-import puppeteer, { Dialog } from "puppeteer";
+import puppeteer from "puppeteer";
 import { Files } from "./Files.js";
 import path from "path";
 import fs from "fs";
@@ -7,7 +7,6 @@ import { Chromes } from "./Chromes.js";
 import { Dialogs } from "./Dialogs.js";
 import { Dates } from "./Dates.js";
 import { ES } from "./ES.js";
-import { exit } from "process";
 import { Phone } from "./Phone.js";
 import { Yamls } from "./Yamls.js";
 

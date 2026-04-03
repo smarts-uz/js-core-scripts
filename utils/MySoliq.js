@@ -5,7 +5,6 @@ import path from "path";
 import { Files } from './Files.js';
 import { Word } from './Word.js';
 import { Dialogs } from "./Dialogs.js";
-import { File } from "buffer";
 import { Yamls } from "./Yamls.js";
 
 export class MySoliq {

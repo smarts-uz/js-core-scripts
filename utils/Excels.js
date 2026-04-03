@@ -14,8 +14,14 @@ import { Dialogs } from './Dialogs.js';
 import { Dates } from './Dates.js';
 import { Word } from './Word.js';
 
-
 export class Excels {
+
+  static checkWinax(methodName) {
+    if (!winax) {
+      throw new Error(`${methodName}: Native automation (winax) is not available. This is often due to a Node.js version mismatch (Node 24 vs 22) or missing build tools. Please use the ExcelJS runner as an alternative.`);
+    }
+  }
+
   constructor(parameters) {
     // Constructor left empty as all methods are static
   }
@@ -352,6 +358,7 @@ export class Excels {
   const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
   console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
+  this.checkWinax('replaceFormula');
   const excelApp = new winax.Object('Excel.Application');
   excelApp.Visible = false;
   excelApp.DisplayAlerts = false;
@@ -453,6 +460,7 @@ export class Excels {
   const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
   console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
+  this.checkWinax('replaceStandart');
   const excelApp = new winax.Object('Excel.Application');
   excelApp.Visible = false;
   excelApp.DisplayAlerts = false;
@@ -525,10 +533,7 @@ export class Excels {
       throw new Error(`recalculate: File not found: ${absPath}`);
     }
 
-    if (!winax) {
-      throw new Error('recalculate: winax binary not found/unbuilt. Ensure OLE/COM components are installed and built.');
-    }
-
+    this.checkWinax('recalculate');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;

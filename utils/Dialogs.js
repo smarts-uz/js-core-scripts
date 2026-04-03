@@ -1,9 +1,4 @@
-import fs, { existsSync } from 'fs';
-import path from 'path';
-import { exec, execSync } from "child_process";
-import dotenv from 'dotenv';
-import notifier from "node-notifier";
-import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 
 
