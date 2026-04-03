@@ -2,8 +2,6 @@ import fs, { existsSync } from 'fs';
 import path from 'path';
 import { exec, execSync } from "child_process";
 import dotenv from 'dotenv';
-import winax from 'winax';
-import { execFileSync } from "child_process";
 import notifier from "node-notifier";
 import { fileURLToPath } from "url";
 
@@ -67,23 +65,9 @@ export class Dialogs {
   }
 
 
-static messageBoxAx(
-  msg,
-  title = "Message",
-  icon = this.Icons.Information,
-  buttons = this.Buttons.OK
-) {
-  const shell = new winax.Object("WScript.Shell");
-
-  const btnAndIcon = Number(icon) | Number(buttons);
-
-  return shell.Popup(String(msg), 0, String(title), btnAndIcon);
-}
-
-
   static warningBox(message, title = "Warning", icon = this.Icons.Exclamation, buttons = this.Buttons.OK, stop = false) {
     console.warn(title, message);
-    this.messageBoxAx(message, title, icon, buttons);
+    this.messageBox(message, title);
     if (stop) throw new Error(message);
     return null
   }
@@ -91,7 +75,7 @@ static messageBoxAx(
 
   static errorBox(message, title = "Error", icon = this.Icons.Stop, buttons = this.Buttons.OK, stop = false) {
     console.error(title, message);
-    this.messageBoxAx(message, title, icon, buttons);
+    this.messageBox(message, title);
     if (stop) throw new Error(message);
     return null
   }

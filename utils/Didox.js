@@ -465,13 +465,13 @@ export class Didox {
                 } else {
                     returns = null
                     console.error(`Error infoByTinPinfl for ${tin}: ${response.status}, ${response.statusText}`);
-                    Dialogs.messageBoxAx(`Error infoByTinPinfl for ${tin}`, 'Error', 16);
+                    Dialogs.messageBox(`Error infoByTinPinfl for ${tin}`, 'Error');
                 }
 
 
             } catch (error) {
                 console.error(`Error infoByTinPinfl for ${tin}`, error);
-                Dialogs.messageBoxAx(`Error infoByTinPinfl for ${tin}`, 'Error', 16);
+                Dialogs.messageBox(`Error infoByTinPinfl for ${tin}`, 'Error', 16);
                 returns = null
             }
 
@@ -562,7 +562,7 @@ export class Didox {
                 } else {
                     returns = null
                     console.error(`Error carInfoByPinfl for ${tin}: ${response.status}, ${response.statusText}`);
-                    Dialogs.messageBoxAx(`Error carInfoByPinfl for ${tin}`, 'Error', 16);
+                    Dialogs.messageBox(`Error carInfoByPinfl for ${tin}`, 'Error');
 
                 }
 
@@ -570,7 +570,7 @@ export class Didox {
             } catch (error) {
                 console.error(`Error carInfoByPinfl for ${tin}`, error);
                 returns = null
-                Dialogs.messageBoxAx(`Error carInfoByPinfl for ${tin}`, 'Error', 16);
+                Dialogs.messageBox(`Error carInfoByPinfl for ${tin}`, 'Error', 16);
             }
 
         }

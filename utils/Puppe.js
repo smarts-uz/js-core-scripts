@@ -855,7 +855,7 @@ export class Puppe {
       console.error(error);
 
       console.info(`⚠️ Code: ${error.code} Message: ${error.message}`);
-      //    Dialogs.messageBoxAx(`⚠️ Code: ${error.code} Message: ${error.message}`, 'Error');
+      //    Dialogs.messageBox(`⚠️ Code: ${error.code} Message: ${error.message}`, 'Error');
 
       await Dates.sleep(500)
 

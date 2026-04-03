@@ -3,7 +3,7 @@
 import fs from "fs";
 import path from "path";
 import { Files } from './Files.js';
-import { Contracts } from './Contracts.js';
+import { Word } from './Word.js';
 import { Dialogs } from "./Dialogs.js";
 import { File } from "buffer";
 import { Yamls } from "./Yamls.js";
@@ -43,14 +43,14 @@ export class MySoliq {
 
             } else {
                 console.warn(`Warning entrepreneurInfoAPI for ${pinfl}: ${response.status}, ${response.statusText}`);
-                Dialogs.messageBoxAx(`Warning entrepreneurInfoAPI for ${pinfl}: ${response.status}, ${response.statusText}`, 'Warning');
+                Dialogs.messageBox(`Warning entrepreneurInfoAPI for ${pinfl}: ${response.status}, ${response.statusText}`, 'Warning');
                 return null;
             }
 
 
         } catch (error) {
             console.error(`Error entrepreneurInfoAPI for ${pinfl}`, error);
-            Dialogs.messageBoxAx(`Error entrepreneurInfoAPI for ${pinfl}`, 'Error');
+            Dialogs.messageBox(`Error entrepreneurInfoAPI for ${pinfl}`, 'Error');
             return null;
         }
 
@@ -163,14 +163,14 @@ export class MySoliq {
 
             } else {
                 console.error(`Error vatInfo for ${tin}: ${response.status}, ${response.statusText}`);
-                Dialogs.messageBoxAx(`Error vatInfo for ${tin}: ${response.status}, ${response.statusText}`, 'Error');
+                Dialogs.messageBox(`Error vatInfo for ${tin}: ${response.status}, ${response.statusText}`, 'Error');
                 return null;
             }
 
 
         } catch (error) {
             console.error(`Error vatInfo for ${tin}`, error);
-            Dialogs.messageBoxAx(`Error vatInfo for ${tin}`, 'Error');
+            Dialogs.messageBox(`Error vatInfo for ${tin}`, 'Error');
             return null;
         }
     }
@@ -206,14 +206,14 @@ export class MySoliq {
 
             } else {
                 console.warn(`Warning companyInfoAPI for ${tin}: ${response.status}, ${response.statusText}`);
-                Dialogs.messageBoxAx(`Warning companyInfoAPI for ${tin}: ${response.status}, ${response.statusText}`, 'Warning');
+                Dialogs.messageBox(`Warning companyInfoAPI for ${tin}: ${response.status}, ${response.statusText}`, 'Warning');
                 return null;
             }
 
 
         } catch (error) {
             console.error(`Error companyInfoAPI for ${tin}`, error);
-            Dialogs.messageBoxAx(`Error companyInfoAPI for ${tin}`, 'Error');
+            Dialogs.messageBox(`Error companyInfoAPI for ${tin}`, 'Error');
             return null;
         }
 
@@ -252,14 +252,14 @@ export class MySoliq {
 
             } else {
                 console.warn(`Warning entrepreneurInfoAPI for ${pinfl}: ${response.status}, ${response.statusText}`);
-                Dialogs.messageBoxAx(`Warning entrepreneurInfoAPI for ${pinfl}: ${response.status}, ${response.statusText}`, 'Warning');
+                Dialogs.messageBox(`Warning entrepreneurInfoAPI for ${pinfl}: ${response.status}, ${response.statusText}`, 'Warning');
                 return null;
             }
 
 
         } catch (error) {
             console.error(`Error entrepreneurInfoAPI for ${pinfl}`, error);
-            Dialogs.messageBoxAx(`Error entrepreneurInfoAPI for ${pinfl}`, 'Error');
+            Dialogs.messageBox(`Error entrepreneurInfoAPI for ${pinfl}`, 'Error');
             return null;
         }
 
@@ -299,7 +299,7 @@ export class MySoliq {
             console.log(returns, 'returns IN vatInfo');
             if (returns) {
 
-                Files.saveInfoToFile(globalThis.folderForNDS, Contracts.cleanCompanyName(returns.companyName));
+                Files.saveInfoToFile(globalThis.folderForNDS, Word.cleanCompanyName(returns.companyName));
                 Files.saveInfoToFile(globalThis.folderForNDS, returns.address);
                 Files.saveInfoToFile(globalThis.folderForNDS, String(returns.id));
                 Files.saveInfoToFile(globalThis.folderForNDS, returns.stateNameLat);

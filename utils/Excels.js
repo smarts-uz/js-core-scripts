@@ -1,14 +1,18 @@
 // utils.js
 import fs, { existsSync } from 'fs';
 import path from 'path';
-import winax from 'winax';
+let winax;
+try {
+  winax = (await import('winax')).default;
+} catch (e) {
+  // winax not available (likely binary not built)
+}
 import { execSync } from 'child_process';
 import { Files } from './Files.js';
 import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
 import { Dates } from './Dates.js';
-import { Contracts } from './Contracts.js';
-import * as XLSX from 'xlsx';
+import { Word } from './Word.js';
 
 
 export class Excels {
@@ -438,56 +442,6 @@ export class Excels {
   }
   }
 
-  static replaceFormulaXlsx(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
-    const absPath = path.resolve(filePath);
-    if (!fs.existsSync(absPath)) {
-      throw new Error(`replaceFormulaXlsx: File not found: ${absPath}`);
-    }
-
-    console.log(`📂 Reading Workbook (XLSX): ${absPath}`);
-    const workbook = XLSX.readFile(absPath, { cellFormula: true });
-    const sheetNames = workbook.SheetNames;
-    const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
-
-    let totalUpdated = 0;
-
-    for (const sheetName of sheetNames) {
-      if (sheetFilter && sheetName !== sheetFilter) continue;
-      if (!sheetFilter && exclusions.includes(sheetName)) continue;
-
-      console.log(`🔍 Processing sheet (XLSX): "${sheetName}"`);
-      const ws = workbook.Sheets[sheetName];
-      let sheetUpdated = 0;
-
-      for (const cellAddr in ws) {
-        if (cellAddr.startsWith('!')) continue;
-        const cell = ws[cellAddr];
-        if (cell && cell.f) {
-          const oldFormula = cell.f;
-          cell.f = cell.f.replace(searchStr, replaceStr);
-          if (oldFormula !== cell.f) {
-            sheetUpdated++;
-          }
-        }
-      }
-      totalUpdated += sheetUpdated;
-      if (sheetUpdated > 0) {
-        console.log(`✅ Updated ${sheetUpdated} formulas in "${sheetName}"`);
-      }
-    }
-
-    const newPath = Files.incrementFileName(absPath);
-    XLSX.writeFile(workbook, newPath);
-    console.log(`\n💾 Workbook saved as (XLSX): ${newPath}`);
-    console.log(`📊 Total updated formulas: ${totalUpdated}`);
-
-    if (recalc) {
-      console.log(`🔄 Recalculating...`);
-      this.recalculate(newPath);
-    }
-
-    return newPath;
-  }
 
   static replaceStandart(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
   const absPath = path.resolve(filePath);
@@ -571,6 +525,10 @@ export class Excels {
       throw new Error(`recalculate: File not found: ${absPath}`);
     }
 
+    if (!winax) {
+      throw new Error('recalculate: winax binary not found/unbuilt. Ensure OLE/COM components are installed and built.');
+    }
+
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -602,7 +560,7 @@ export class Excels {
 
   static generate(ymlFile) {
 
-    Contracts.initFolders(ymlFile)
+    Word.initFolders(ymlFile)
 
     Files.mkdirIfNotExists(globalThis.folderActReco);
 

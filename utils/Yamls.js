@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import yaml from "js-yaml";
 import path from "path";
 import { Files } from "./Files.js";
-import { Contracts } from "./Contracts.js";
+import { Word } from "./Word.js";
 import { Didox } from "./didox.js";
 import { MySoliq } from "./MySoliq.js";
 import { Dates } from "./Dates.js";
@@ -286,7 +286,7 @@ export class Yamls {
             return;
         }
 
-        if (!Contracts.initFolders(ymlFile))
+        if (!Word.initFolders(ymlFile))
             return false;
 
         let oldYaml = Files.backupFile(ymlFile, true);
@@ -315,7 +315,7 @@ export class Yamls {
             return;
         }
 
-        if (!Contracts.initFolders(ymlFile))
+        if (!Word.initFolders(ymlFile))
             return null;
 
         if (backup) Files.backupFile(ymlFile, false);
@@ -467,17 +467,17 @@ export class Yamls {
         console.info('yamlData.ComDateEnd', yamlData.ComDateEnd);
 
 
-        const comDate = Contracts.extractDate(yamlData.ComDate);
+        const comDate = Word.extractDate(yamlData.ComDate);
         yamlData.Day = comDate.day;
         yamlData.Month = comDate.month;
         yamlData.Year = comDate.year;
 
-        const comDateEnd = Contracts.extractDate(yamlData.ComDateEnd);
+        const comDateEnd = Word.extractDate(yamlData.ComDateEnd);
         yamlData.DayEnd = comDateEnd.day;
         yamlData.MonthEnd = comDateEnd.month;
         yamlData.YearEnd = comDateEnd.year;
 
-        const comDateIjara = Contracts.extractDate(yamlData.ComDateIjara);
+        const comDateIjara = Word.extractDate(yamlData.ComDateIjara);
         yamlData.DayIjara = comDateIjara.day;
         yamlData.MonthIjara = comDateIjara.month;
         yamlData.YearIjara = comDateIjara.year;
@@ -551,7 +551,7 @@ export class Yamls {
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.SurPINFL}`)
         Files.saveInfoToFile(globalThis.folderCompan, `${price}`)
 
-        yamlData.ComName = Contracts.cleanCompanyName(companyInfo.shortName)
+        yamlData.ComName = Word.cleanCompanyName(companyInfo.shortName)
         yamlData.IsYatt = companyInfo.isYatt
 
         yamlData.ComNameLong = companyInfo.name
@@ -559,7 +559,7 @@ export class Yamls {
 
 
         if (!yamlData.ContractNumber)
-            yamlData.ContractNum = Contracts.contractNumFromFormat(yamlData);
+            yamlData.ContractNum = Word.contractNumFromFormat(yamlData);
         else
             yamlData.ContractNum = yamlData.ContractNumber;
 
@@ -614,7 +614,7 @@ export class Yamls {
         if (!Files.isEmpty(yamlData.DirPINFL) && yamlData.DirPINFL !== companyInfo.directorPinfl) {
             Files.saveInfoToFile(globalThis.folderALL, `#CEO-Changed`)
             console.warn(`DirPINFL changed to: ${yamlData.DirPINFL}`)
-            Dialogs.messageBoxAx(`DirPINFL changed to: ${yamlData.DirPINFL}`, yamlData.ComNameShort, 64)
+            Dialogs.messageBox(`DirPINFL changed to: ${yamlData.DirPINFL}`, yamlData.ComNameShort);
         }
 
         yamlData.DirPINFL = companyInfo.directorPinfl

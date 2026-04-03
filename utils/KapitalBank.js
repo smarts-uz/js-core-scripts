@@ -3,7 +3,7 @@
 import fs from "fs";
 import path from "path";
 import { Files } from './Files.js';
-import { Contracts } from './Contracts.js';
+
 import { Dialogs } from "./Dialogs.js";
 import { File } from "buffer";
 import { Chromes } from "./Chromes.js";

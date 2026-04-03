@@ -340,10 +340,9 @@ export class Files {
 
         if (attempt === maxRetries) {
           console.error(`❌ Failed to copy file after ${maxRetries} attempts`);
-          Dialogs.messageBoxAx(
+          Dialogs.messageBox(
             `Failed to copy Excel file. The file might be open in Excel or another application.\n\nError: ${err.message}`,
-            "File Copy Error",
-            16
+            "File Copy Error"
           );
           process.exit(1);
         }
