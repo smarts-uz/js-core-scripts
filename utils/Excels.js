@@ -438,7 +438,7 @@ export class Excels {
   }
   }
 
-  static replaceFormulaXlsx(filePath, sheetFilter = '') {
+  static replaceFormulaXlsx(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
     const absPath = path.resolve(filePath);
     if (!fs.existsSync(absPath)) {
       throw new Error(`replaceFormulaXlsx: File not found: ${absPath}`);
@@ -464,7 +464,7 @@ export class Excels {
         const cell = ws[cellAddr];
         if (cell && cell.f) {
           const oldFormula = cell.f;
-          cell.f = cell.f.replace(/@(?=[A-Za-z])/g, '');
+          cell.f = cell.f.replace(searchStr, replaceStr);
           if (oldFormula !== cell.f) {
             sheetUpdated++;
           }
@@ -480,6 +480,12 @@ export class Excels {
     XLSX.writeFile(workbook, newPath);
     console.log(`\n💾 Workbook saved as (XLSX): ${newPath}`);
     console.log(`📊 Total updated formulas: ${totalUpdated}`);
+
+    if (recalc) {
+      console.log(`🔄 Recalculating...`);
+      this.recalculate(newPath);
+    }
+
     return newPath;
   }
 
