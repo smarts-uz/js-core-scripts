@@ -606,7 +606,7 @@ export class Puppe {
     for (const file of files) {
       console.info(`File: ${file.name}`);
       const filePath = path.join(globalThis.mhtmlDir, file.name);
-      const url = Chromes.getUrlFromMht(filePath);
+      const url = Chromes.getUrlFromFile(filePath);
       console.info(`URL: ${url}`);
       await Puppe.itemSavePagination(url);
 
@@ -800,7 +800,7 @@ export class Puppe {
 
       console.info(`OLX Offer MHTML found: ${mainMhtml}`);
 
-      const url = await Chromes.getUrlFromMht(mainMhtml);
+      const url = await Chromes.getUrlFromFile(mainMhtml);
       console.info(`OLX Offer URL found: ${url}`);
 
       const isPhone = await Puppe.scrapePhone(url, folderToScan);

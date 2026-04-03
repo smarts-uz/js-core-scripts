@@ -181,23 +181,66 @@ export class Yamls {
 
         const ymlRaw = fs.readFileSync(ymlFile, 'utf8');
 
+        const seenKeys = new Set();
+        let skipMode = false;
+
         const ymlPatched = ymlRaw.split('\n').map(line => {
+            const isTopLevel = /^[^\s]/.test(line);
+
+            // Handle duplicate root-level mapping keys within the SAME file
+            // When found, enter skipMode to comment out the entire duplicate block
+            if (isTopLevel && line.includes(':') && !line.trim().startsWith('#')) {
+                const idx = line.indexOf(':');
+                let key = line.slice(0, idx);
+                let cleanKey = key.trim();
+
+                if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
+                    cleanKey = cleanKey.slice(1, -1);
+                }
+
+                if (seenKeys.has(cleanKey)) {
+                    skipMode = true;
+                    return `# [SKIPPED DUPLICATE] ${line}`;
+                } else {
+                    seenKeys.add(cleanKey);
+                    skipMode = false;
+                }
+            }
+
+            if (skipMode) {
+                return `# [SKIPPED] ${line}`;
+            }
+
             if (!line.includes(':') || line.trim().startsWith('#')) return line;
 
             const idx = line.indexOf(':');
-            const key = line.slice(0, idx);
+            let key = line.slice(0, idx);
             let value = line.slice(idx + 1).trim();
 
-            if (
-                (value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'")) ||
-                value === 'null' || value === 'true' || value === 'false'
-            ) {
-                return line;
+            let finalLine = line;
+
+            if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+                let inner = value.slice(1, -1);
+                // Clean already escaped to avoid double-escaping
+                inner = inner.replace(/\\"/g, '"');
+                // Escape all inner double quotes
+                inner = inner.replace(/"/g, '\\"');
+                return `${key}: "${inner}"`;
+            }
+
+            if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
+                let inner = value.slice(1, -1);
+                inner = inner.replace(/\\'/g, "'");
+                inner = inner.replace(/'/g, "\\'");
+                return `${key}: '${inner}'`;
+            }
+
+            if (value === 'null' || value === 'true' || value === 'false') {
+                return finalLine;
             }
 
             if (value === '' || value.startsWith('#')) {
-                return line;
+                return finalLine;
             }
 
             if (/^\d{1,}$/.test(value)) {
@@ -210,7 +253,7 @@ export class Yamls {
                 return `${key}: "${safeValue}"`;
             }
 
-            return line;
+            return finalLine;
         }).join('\n');
 
         const data = yaml.load(ymlPatched, yamlOptions);
@@ -787,6 +830,93 @@ export class Yamls {
 
     }
 
+    static mergeYamlsInFolder(folderPath) {
+        if (!fs.existsSync(folderPath)) {
+            console.warn(`Folder not found: ${folderPath}`);
+            return;
+        }
 
+        const appFolder = path.join(folderPath, 'App');
+        if (!fs.existsSync(appFolder)) {
+            fs.mkdirSync(appFolder, { recursive: true });
+        }
+
+        const yamlFiles = Files.findRecursiveFull(
+            folderPath,
+            (name) => {
+                const ext = path.extname(name).toLowerCase();
+                return ext === '.yaml' || ext === '.yml';
+            },
+            (name, fullPath) => {
+                const lowerName = name.toLowerCase();
+                // We use path.resolve to compare paths accurately, or just check string equality on fullPath
+                if (path.resolve(fullPath) === path.resolve(appFolder)) return true;
+
+                if (
+                    lowerName === '- theory' ||
+                    lowerName === 'all' ||
+                    lowerName === 'app' ||
+                    lowerName === 'add'
+                ) return true;
+                if (name.startsWith('@') || name.startsWith('_')) return true;
+                return false;
+            }
+        );
+
+        if (yamlFiles.length === 0) {
+            console.warn('No YAML/YML files found to merge.');
+            return;
+        }
+
+        let mergedData = null;
+
+        for (const file of yamlFiles) {
+            try {
+                const data = Yamls.loadAndParseYaml(file);
+
+                if (data === undefined || data === null) continue;
+
+                if (mergedData === null) {
+                    mergedData = Array.isArray(data) ? [] : {};
+                }
+
+                const isDataArray = Array.isArray(data);
+                const isMergedArray = Array.isArray(mergedData);
+
+                switch (true) {
+                    case isDataArray && isMergedArray:
+                        mergedData = mergedData.concat(data);
+                        break;
+                    case !isDataArray && !isMergedArray && typeof data === 'object':
+                        for (const [key, value] of Object.entries(data)) {
+                            if (key in mergedData) {
+                                console.warn(`⏭️ Skipped duplicate key "${key}" from file: ${file}`);
+                                continue; // Skip all next values, do not stop action
+                            }
+                            mergedData[key] = value;
+                        }
+                        break;
+                    default:
+                        console.warn(`Type mismatch or unsupported data in ${file}.`);
+                        break;
+                }
+            } catch (err) {
+                console.error(`Error parsing ${file}: ${err.message}`);
+                Dialogs.warningBox(`Error parsing ${file}:\n${err.message}`, "YAML Parse Error");
+                return; // Stop on parse errors too
+            }
+        }
+
+        if (mergedData) {
+            const dumpStr = yaml.dump(mergedData, { lineWidth: -1 });
+            const baseFolder = path.basename(path.resolve(folderPath));
+            const outPath = path.join(appFolder, `${baseFolder}.yml`);
+            const finalOutPath = Files.incrementFileName(outPath);
+            fs.writeFileSync(finalOutPath, dumpStr, 'utf8');
+            console.log(`✅ Merged ${yamlFiles.length} files into ${finalOutPath}`);
+        } else {
+            console.log(`No valid YAML data found to merge.`);
+        }
+    }
 
 }

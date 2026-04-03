@@ -8,7 +8,7 @@ import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
 import { Dates } from './Dates.js';
 import { Contracts } from './Contracts.js';
-
+import * as XLSX from 'xlsx';
 
 
 export class Excels {
@@ -26,6 +26,59 @@ export class Excels {
     } catch (error) {
       throw new Error(`Failed to open Excel file: ${error.message}`);
     }
+  }
+
+
+
+  // === CONVERT .XLTX TO .XLSX ===
+  /**
+   * Convert a .xltx template file to a .xlsx workbook.
+   * @param {string} inputPath  - Full path to the source .xltx file
+   * @param {string} outputPath - Full path for the output .xlsx file
+   * @returns {string} The resolved output path
+   */
+  static convertXltxToXlsx(inputPath, outputPath) {
+    const absInput  = path.resolve(inputPath);
+    const absOutput = path.resolve(outputPath);
+
+    if (!fs.existsSync(absInput))
+      throw new Error(`convertXltxToXlsx: Input file not found: ${absInput}`);
+
+    console.log(`📂 Opening template: ${absInput}`);
+
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible        = false;
+    excelApp.DisplayAlerts  = false;
+
+    try {
+      // Open the .xltx — Excel opens it as a new unsaved workbook based on the template
+      const workbook = excelApp.Workbooks.Open(absInput);
+
+      // xlOpenXMLWorkbook = 51  (.xlsx)
+      workbook.SaveAs(absOutput, 51);
+      console.log(`✅ Saved .xlsx to: ${absOutput}`);
+
+      workbook.Close(false);
+    } finally {
+      excelApp.Quit();
+      try { winax.release(excelApp); } catch (_) {}
+    }
+
+    return absOutput;
+  }
+
+  /**
+   * Convert a .xltx template to .xlsx, placing the output beside the input
+   * with the same base name but .xlsx extension.
+   * @param {string} inputPath - Full path to the source .xltx file
+   * @returns {string} The resolved output path
+   */
+  static convertXltxToXlsxAuto(inputPath) {
+    const absInput  = path.resolve(inputPath);
+    const dir       = path.dirname(absInput);
+    const base      = path.basename(absInput, path.extname(absInput));
+    const absOutput = path.join(dir, `${base}.xlsx`);
+    return this.convertXltxToXlsx(absInput, absOutput);
   }
 
 
@@ -283,6 +336,263 @@ export class Excels {
       console.warn(`Failed to kill Excel PID ${globalThis.excelPid}:`, err.message);
     }
   }
+
+
+  static replaceFormula(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+  const absPath = path.resolve(filePath);
+
+  if (!fs.existsSync(absPath)) {
+    throw new Error(`replaceFormula_ByFormulaCells: File not found: ${absPath}`);
+  }
+
+  const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+  console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
+
+  const excelApp = new winax.Object('Excel.Application');
+  excelApp.Visible = false;
+  excelApp.DisplayAlerts = false;
+  excelApp.ScreenUpdating = false;
+  excelApp.EnableEvents = false;
+
+  try {
+    const workbook = excelApp.Workbooks.Open(absPath);
+    const sheetCount = workbook.Sheets.Count;
+
+    console.log(`📄 Total sheets: ${sheetCount}`);
+
+    const toProcess = [];
+    const toSkip = [];
+
+    for (let i = 1; i <= sheetCount; i++) {
+      const name = workbook.Sheets(i).Name;
+      if (sheetFilter && name !== sheetFilter) toSkip.push(name);
+      else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
+      else toProcess.push(name);
+    }
+
+    console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
+    console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
+
+    let totalChanged = 0;
+
+    for (let i = 1; i <= sheetCount; i++) {
+      const sheet = workbook.Sheets(i);
+      const sheetName = sheet.Name;
+
+      if (sheetFilter && sheetName !== sheetFilter) {
+        continue;
+      } else if (!sheetFilter && exclusions.includes(sheetName)) {
+        continue;
+      }
+
+      console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+
+      let formulaCells;
+      try {
+        formulaCells = sheet.UsedRange.SpecialCells(-4123); // xlCellTypeFormulas
+      } catch (_) {
+        console.log(`ℹ️  No formula cells in sheet "${sheetName}"`);
+        continue;
+      }
+
+      const count = formulaCells.Count;
+      let changedInSheet = 0;
+
+      for (let c = 1; c <= count; c++) {
+        if (c % 10 === 0 || c === count) {
+          process.stdout.write(`\r      ⏳ Evaluating cells: ${c}/${count} (${Math.round((c / count) * 100)}%)`);
+        }
+
+        const cell = formulaCells.Item(c);
+        const formula = cell.Formula;
+
+        if (typeof formula === 'string' && formula.includes(searchStr)) {
+          const newFormula = formula.split(searchStr).join(replaceStr);
+          if (newFormula !== formula) {
+            cell.Formula = newFormula;
+            changedInSheet++;
+          }
+        }
+      }
+      
+      if (count > 0) process.stdout.write('\n');
+
+      totalChanged += changedInSheet;
+
+      if (changedInSheet > 0) {
+        console.log(`✅ Updated ${changedInSheet} formula cell(s) in "${sheetName}"`);
+      } else {
+        console.log(`ℹ️  No "${searchStr}" found in formulas on "${sheetName}"`);
+      }
+    }
+
+    if (recalc) excelApp.CalculateFull();
+    const newPath = Files.incrementFileName(absPath);
+    workbook.SaveAs(newPath, 51);
+    console.log(`\n💾 Workbook saved as: ${newPath}`);
+    workbook.Close(false);
+    console.log(`📊 Total updated formula cells: ${totalChanged}`);
+  } finally {
+    try { excelApp.Quit(); } catch (_) {}
+    try { winax.release(excelApp); } catch (_) {}
+  }
+  }
+
+  static replaceFormulaXlsx(filePath, sheetFilter = '') {
+    const absPath = path.resolve(filePath);
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`replaceFormulaXlsx: File not found: ${absPath}`);
+    }
+
+    console.log(`📂 Reading Workbook (XLSX): ${absPath}`);
+    const workbook = XLSX.readFile(absPath, { cellFormula: true });
+    const sheetNames = workbook.SheetNames;
+    const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+
+    let totalUpdated = 0;
+
+    for (const sheetName of sheetNames) {
+      if (sheetFilter && sheetName !== sheetFilter) continue;
+      if (!sheetFilter && exclusions.includes(sheetName)) continue;
+
+      console.log(`🔍 Processing sheet (XLSX): "${sheetName}"`);
+      const ws = workbook.Sheets[sheetName];
+      let sheetUpdated = 0;
+
+      for (const cellAddr in ws) {
+        if (cellAddr.startsWith('!')) continue;
+        const cell = ws[cellAddr];
+        if (cell && cell.f) {
+          const oldFormula = cell.f;
+          cell.f = cell.f.replace(/@(?=[A-Za-z])/g, '');
+          if (oldFormula !== cell.f) {
+            sheetUpdated++;
+          }
+        }
+      }
+      totalUpdated += sheetUpdated;
+      if (sheetUpdated > 0) {
+        console.log(`✅ Updated ${sheetUpdated} formulas in "${sheetName}"`);
+      }
+    }
+
+    const newPath = Files.incrementFileName(absPath);
+    XLSX.writeFile(workbook, newPath);
+    console.log(`\n💾 Workbook saved as (XLSX): ${newPath}`);
+    console.log(`📊 Total updated formulas: ${totalUpdated}`);
+    return newPath;
+  }
+
+  static replaceStandart(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+  const absPath = path.resolve(filePath);
+
+  if (!fs.existsSync(absPath)) {
+    throw new Error(`replaceStandart: File not found: ${absPath}`);
+  }
+
+  const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+  console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
+
+  const excelApp = new winax.Object('Excel.Application');
+  excelApp.Visible = false;
+  excelApp.DisplayAlerts = false;
+  excelApp.ScreenUpdating = false;
+  excelApp.EnableEvents = false;
+
+  try {
+    const workbook = excelApp.Workbooks.Open(absPath);
+    const sheetCount = workbook.Sheets.Count;
+
+    console.log(`📄 Total sheets: ${sheetCount}`);
+
+    const toProcess = [];
+    const toSkip = [];
+
+    for (let i = 1; i <= sheetCount; i++) {
+      const name = workbook.Sheets(i).Name;
+      if (sheetFilter && name !== sheetFilter) toSkip.push(name);
+      else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
+      else toProcess.push(name);
+    }
+
+    console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
+    console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
+
+    for (let i = 1; i <= sheetCount; i++) {
+      const sheet = workbook.Sheets(i);
+      const sheetName = sheet.Name;
+
+      if (sheetFilter && sheetName !== sheetFilter) {
+        continue;
+      } else if (!sheetFilter && exclusions.includes(sheetName)) {
+        continue;
+      }
+
+      console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+
+      const replaced = sheet.Cells.Replace(
+        searchStr,   // What
+        replaceStr,    // Replacement
+        1,     // LookAt: xlPart
+        1,     // SearchOrder: xlByRows
+        false, // MatchCase
+        false, // MatchByte
+        false  // SearchFormat
+      );
+
+      if (replaced) {
+        console.log(`✅ Replace completed in "${sheetName}"`);
+      } else {
+        console.log(`ℹ️  No "${searchStr}" found in "${sheetName}"`);
+      }
+    }
+
+    if (recalc) excelApp.CalculateFull();
+    const newPath = Files.incrementFileName(absPath);
+    workbook.SaveAs(newPath, 51);
+    console.log(`\n💾 Workbook saved as: ${newPath}`);
+    workbook.Close(false);
+  } finally {
+    try { excelApp.Quit(); } catch (_) {}
+    try { winax.release(excelApp); } catch (_) {}
+  }
+  }
+
+  static recalculate(filePath, sheetFilter = '') {
+    const absPath = path.resolve(filePath);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`recalculate: File not found: ${absPath}`);
+    }
+
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
+
+    try {
+      console.log(`📂 Opening workbook for Recalc: ${absPath}`);
+      const workbook = excelApp.Workbooks.Open(absPath);
+
+      if (sheetFilter) {
+        console.log(`🔄 Recalculating Sheet: "${sheetFilter}"...`);
+        workbook.Sheets(sheetFilter).Calculate();
+      } else {
+        console.log(`🔄 Recalculating Full...`);
+        excelApp.CalculateFull();
+      }
+
+      const newPath = Files.incrementFileName(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`\n💾 Workbook saved as: ${newPath}`);
+      workbook.Close(false);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
 
   static generate(ymlFile) {
 

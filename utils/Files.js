@@ -67,6 +67,34 @@ export class Files {
 
 
   /**
+   * Increments a file name if it already exists (e.g., file.yml -> file 1.yml)
+   * @param {string} filePath - Path to the desired file
+   * @returns {string} - Available file path
+   */
+  static incrementFileName(filePath) {
+    if (!fs.existsSync(filePath)) return filePath;
+    
+    const parsed = path.parse(filePath);
+    let baseName = parsed.name;
+    let counter = 1;
+    
+    const match = baseName.match(/^(.*?)\s+(\d+)$/);
+    if (match) {
+      baseName = match[1];
+      counter = parseInt(match[2], 10);
+    }
+    
+    let newPath = filePath;
+    
+    while (fs.existsSync(newPath)) {
+      newPath = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
+      counter++;
+    }
+    
+    return newPath;
+  }
+
+  /**
    * Checks if a URL already exists in any relevant directory
    * @param {string} url - The URL to check
    * @param {string} currentSaveDir - The current save directory to exclude from checking
@@ -681,13 +709,17 @@ export class Files {
   }
 
 
-  static findRecursiveFull(dir, condition) {
+  static findRecursiveFull(dir, condition, ignoreFolderCondition = null) {
     let results = [];
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        results = results.concat(Files.findRecursiveFull(fullPath, condition));
+        if (ignoreFolderCondition && ignoreFolderCondition(entry.name, fullPath)) {
+          // console.log(`Skipping ignored folder: ${entry.name}`);
+          continue;
+        }
+        results = results.concat(Files.findRecursiveFull(fullPath, condition, ignoreFolderCondition));
       } else if (condition(entry.name)) {
         results.push(fullPath);
       }

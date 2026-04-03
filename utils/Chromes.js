@@ -534,9 +534,9 @@ export class Chromes {
 
   }
 
-  // add function to get url from mht file using getUrlFromMht and clean it
-  static getUrlFromMhtClean(filePath) {
-    let url = this.getUrlFromMht(filePath);
+  // add function to get url from mht file using getUrlFromFile and clean it
+  static getUrlFromFileClean(filePath) {
+    let url = this.getUrlFromFile(filePath);
     url = url
       .replace('https://', '')
       .replace('http://', '')
@@ -552,35 +552,310 @@ export class Chromes {
     return url;
   }
 
+    
 
 
-  static getUrlFromMht(filePath) {
+  static getUrlFromFile(filePath) {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const urlMatch = content.match(/Snapshot-Content-Location:\s*(.*)/i);
+    let url = urlMatch ? urlMatch[1].trim() : null;
 
-    // Read MHTML file and extract URL
-    const mhtmlContent = fs.readFileSync(filePath, "utf-8");
-    const urlMatch = mhtmlContent.match(/Snapshot-Content-Location:\s*(.*)/i);
-    let extractedUrl = urlMatch ? urlMatch[1].trim() : null;
-
-    // if extractedurl is null, use Content-Location
-    if (!extractedUrl) {
-      const contentLocationMatch = mhtmlContent.match(/Content-Location:\s*(.*)/i);
-      extractedUrl = contentLocationMatch ? contentLocationMatch[1].trim() : null;
+    if (!url) {
+      const contentLocationMatch = content.match(/Content-Location:\s*(.*)/i);
+      url = contentLocationMatch ? contentLocationMatch[1].trim() : null;
     }
 
-    extractedUrl = extractedUrl
-      .replace('<!--', '')
-      .replace('-->', '');
+    if (url) {
+      url = url.replace('<!--', '').replace('-->', '').trim();
+    }
 
-    if (!extractedUrl) {
-      console.error("Could not extract URL from MHTML file.");
+    if (!url) {
+      console.error(`Could not extract URL from: ${filePath}`);
       return null;
-    } else {
-      return extractedUrl;
     }
+    return url;
   }
 
 
 
+  static async processPathsToClipboard(paths) {
+    if (!Array.isArray(paths)) {
+      paths = [paths];
+    }
+
+    const isMhtmlHtml = (name) => {
+      const ext = path.extname(name).toLowerCase();
+      return ['.mhtml', '.mht', '.html', '.htm'].includes(ext);
+    };
+
+    let allFiles = [];
+
+    for (const p of paths) {
+      if (!fs.existsSync(p)) {
+        console.warn(`Path not found: ${p}`);
+        continue;
+      }
+
+      const stats = fs.statSync(p);
+      if (stats.isDirectory()) {
+        console.log(`📂 Scanning folder for URLs: ${p}`);
+        const filesInFolder = Files.findRecursiveFull(
+          p, 
+          isMhtmlHtml,
+          (name) => name === '- Theory' || name.startsWith('@')
+        );
+        allFiles = allFiles.concat(filesInFolder);
+      } else if (isMhtmlHtml(p)) {
+        allFiles.push(p);
+      }
+    }
+
+    if (allFiles.length === 0) {
+      Dialogs.warningBox("No MHTML or HTML files found in selection.", "URL to Clipboard Error");
+      return;
+    }
+
+    const urls = [];
+    for (const filePath of allFiles) {
+      const url = this.getUrlFromFile(filePath);
+      if (url) urls.push(url);
+    }
+
+    if (urls.length === 0) {
+      Dialogs.warningBox("No URLs found.", "URL to Clipboard Error");
+      return;
+    }
+
+    const textToCopy = urls.join('\n');
+    
+    try {
+      const { spawnSync } = await import('child_process');
+      spawnSync('clip', { input: textToCopy });
+      console.log(`✅ Copied ${urls.length} URL(s) to clipboard.`);
+    } catch (err) {
+      console.error("❌ Failed to copy to clipboard:", err);
+      Dialogs.warningBox("Failed to copy to clipboard:\n" + err.message, "URL to Clipboard Error");
+    }
+  }
+
+  static async saveHtmlFromMht(mhtPath, deleteMht = true) {
+    if (!fs.existsSync(mhtPath)) {
+        Dialogs.warningBox(`MHTML file not found:\n${mhtPath}`, 'mhtmls Error');
+        return null;
+    }
+
+    const url = this.getUrlFromFile(mhtPath);
+    if (!url) {
+      console.warn("No URL found in MHT: " + mhtPath);
+      return null;
+    }
+
+    let htmlPath = mhtPath;
+    if (htmlPath.toLowerCase().endsWith('.mhtml')) {
+        htmlPath = htmlPath.slice(0, -6) + '.html';
+    } else if (htmlPath.toLowerCase().endsWith('.mht')) {
+        htmlPath = htmlPath.slice(0, -4) + '.html';
+    } else {
+        htmlPath += '.html';
+    }
+
+    // Download using fetch (urllib is not available in package.json)
+    console.info("Downloading HTML from: " + url);
+    
+    const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+    let htmlText = await response.text();
+
+    if (htmlText.includes('Incapsula')) {
+        Dialogs.warningBox(`Access blocked by Incapsula WAF!\n\nURL: ${url}`, 'Incapsula Block Detected');
+        return null;
+    }
+
+    // The first line of HTML file should be <!-- Content-Location: {PageURL} -->
+    htmlText = `<!-- Content-Location: ${url} -->\n` + htmlText;
+
+    const parsedUrl = new URL(url);
+    const originBase = parsedUrl.origin + '/';
+    const fullBase = url;
+
+    // 1. img src="..." -> prepend hostname (origin)
+    htmlText = htmlText.replace(/<img\s[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
+        if (p1.startsWith('data:') || p1.startsWith('http://') || p1.startsWith('https://')) return match;
+        try {
+            const absUrl = new URL(p1, originBase).href;
+            return match.replace(p1, absUrl);
+        } catch (e) { return match; }
+    });
+
+    // 2. css url("...") -> prepend hostname (origin)
+    htmlText = htmlText.replace(/url\((['"]?)([^'"()]+)\1\)/gi, (match, quote, p2) => {
+        if (p2.startsWith('data:') || p2.startsWith('http://') || p2.startsWith('https://')) return match;
+        try {
+            const absUrl = new URL(p2, originBase).href;
+            return `url(${quote}${absUrl}${quote})`;
+        } catch (e) { return match; }
+    });
+
+    // 3. a href="..." -> prepend URL Path (fullBase)
+    htmlText = htmlText.replace(/<a\s[^>]*href=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
+        if (p1.startsWith('javascript:') || p1.startsWith('mailto:') || p1.startsWith('tel:') || p1.startsWith('#') || p1.startsWith('http://') || p1.startsWith('https://')) return match;
+        try {
+            const absUrl = new URL(p1, fullBase).href;
+            return match.replace(p1, absUrl);
+        } catch (e) { return match; }
+    });
+
+    fs.writeFileSync(htmlPath, htmlText, 'utf-8');
+    console.log(`✅ HTML saved to ${htmlPath}`);
+
+    if (deleteMht) {
+        if (fs.existsSync(htmlPath) && fs.statSync(htmlPath).size > 1024) {
+            fs.unlinkSync(mhtPath);
+            console.log(`🗑️ Deleted source MHT: ${mhtPath}`);
+        }
+    }
+
+    return htmlPath;
+  }
+
+  static async mhtToHtmConvert(mhtPath, deleteMht = true) {
+    if (!fs.existsSync(mhtPath)) {
+        Dialogs.warningBox(`MHTML file not found:\n${mhtPath}`, 'mhtmls Error');
+        return null;
+    }
+
+    const url = this.getUrlFromFile(mhtPath);
+
+    let htmlPath = mhtPath;
+    if (htmlPath.toLowerCase().endsWith('.mhtml')) {
+        htmlPath = htmlPath.slice(0, -6) + '.html';
+    } else if (htmlPath.toLowerCase().endsWith('.mht')) {
+        htmlPath = htmlPath.slice(0, -4) + '.html';
+    } else {
+        htmlPath += '.html';
+    }
+
+    // Read as binary so we can safely decode quoted-printable bytes
+    const mhtmlContent = fs.readFileSync(mhtPath, "binary");
+
+    // Extract boundary string
+    const boundaryMatch = mhtmlContent.match(/boundary="?([^"\r\n]+)"?/i);
+    if (!boundaryMatch) {
+       console.warn("Could not find boundary in MHTML: " + mhtPath);
+       return null;
+    }
+    const boundary = boundaryMatch[1];
+    
+    // Split by boundary
+    const parts = mhtmlContent.split(new RegExp(`--${boundary}`));
+    
+    let htmlPart = null;
+    let encoding = null;
+
+    for (const part of parts) {
+        if (part.includes('Content-Type: text/html')) {
+            htmlPart = part;
+            const encMatch = part.match(/Content-Transfer-Encoding:\s*([^\r\n]+)/i);
+            if (encMatch) encoding = encMatch[1].trim().toLowerCase();
+            break;
+        }
+    }
+
+    if (!htmlPart) {
+       console.warn("Could not find HTML part in MHTML: " + mhtPath);
+       return null;
+    }
+
+    // Separate headers from body
+    const headerSplit = htmlPart.split(/\r?\n\r?\n/);
+    headerSplit.shift(); // remove the headers part
+    let rawHtml = headerSplit.join('\n\n'); 
+    // remove trailing boundary hyphens or empty lines
+    rawHtml = rawHtml.replace(/\s*--\s*$/, '');
+
+    let decodedHtml = rawHtml;
+    if (encoding === 'quoted-printable') {
+        decodedHtml = decodedHtml.replace(/=\r?\n/g, '');
+        const buffer = Buffer.alloc(decodedHtml.length);
+        let bufIndex = 0;
+        for (let i = 0; i < decodedHtml.length; i++) {
+            if (decodedHtml[i] === '=' && i + 2 < decodedHtml.length && /^[0-9a-fA-F]{2}$/.test(decodedHtml.substring(i+1, i+3))) {
+                buffer[bufIndex++] = parseInt(decodedHtml.substring(i+1, i+3), 16);
+                i += 2;
+            } else {
+                buffer[bufIndex++] = decodedHtml.charCodeAt(i) & 0xff;
+            }
+        }
+        decodedHtml = buffer.slice(0, bufIndex).toString('utf8');
+    } else if (encoding === 'base64') {
+        decodedHtml = Buffer.from(decodedHtml, 'base64').toString('utf8');
+    } else {
+        // utf-8 or 8bit
+        decodedHtml = Buffer.from(decodedHtml, 'binary').toString('utf8');
+    }
+
+    let htmlText = decodedHtml;
+
+    if (url) {
+        htmlText = `<!-- Content-Location: ${url} -->\n` + htmlText;
+
+        const parsedUrl = new URL(url);
+        const originBase = parsedUrl.origin + '/';
+        const fullBase = url;
+
+        htmlText = htmlText.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
+            if (p1.startsWith('data:') || p1.startsWith('http://') || p1.startsWith('https://') || p1.startsWith('cid:')) return match;
+            try { return match.replace(p1, new URL(p1, originBase).href); } catch (e) { return match; }
+        });
+
+        htmlText = htmlText.replace(/url\((['"]?)([^'"()]+)\1\)/gi, (match, quote, p2) => {
+            if (p2.startsWith('data:') || p2.startsWith('http://') || p2.startsWith('https://') || p2.startsWith('cid:')) return match;
+            try { return `url(${quote}${new URL(p2, originBase).href}${quote})`; } catch (e) { return match; }
+        });
+
+        htmlText = htmlText.replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
+            if (p1.startsWith('javascript:') || p1.startsWith('mailto:') || p1.startsWith('tel:') || p1.startsWith('#') || p1.startsWith('http://') || p1.startsWith('https://') || p1.startsWith('cid:')) return match;
+            try { return match.replace(p1, new URL(p1, fullBase).href); } catch (e) { return match; }
+        });
+    }
+
+    fs.writeFileSync(htmlPath, htmlText, 'utf-8');
+    console.log(`✅ Offline HTML saved to ${htmlPath}`);
+
+    if (deleteMht) {
+        if (fs.existsSync(htmlPath) && fs.statSync(htmlPath).size > 1024) {
+            fs.unlinkSync(mhtPath);
+            console.log(`🗑️ Deleted source MHT: ${mhtPath}`);
+        }
+    }
+
+    return htmlPath;
+  }
+
+  static async convertFolderMhtToHtm(folderPath, deleteMht = true) {
+    if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+      Dialogs.warningBox(`Folder not found or is not a directory:\n${folderPath}`, 'mhtmls Error');
+      return;
+    }
+
+    console.log(`📂 Scanning folder for MHTML files: ${folderPath}`);
+    const mhtmlFiles = Files.findRecursiveFull(
+      folderPath, 
+      (name) => name.toLowerCase().endsWith('.mhtml')
+    );
+    
+    console.log(`🔍 Found ${mhtmlFiles.length} MHTML files.`);
+
+    for (const mhtmlPath of mhtmlFiles) {
+      console.log(`🔄 Converting: ${mhtmlPath}`);
+      try {
+        await this.mhtToHtmConvert(mhtmlPath, deleteMht);
+      } catch (err) {
+        console.error(`❌ Failed to convert ${mhtmlPath}:`, err.message);
+      }
+    }
+
+    console.log(`✅ Folder conversion done.`);
+  }
 
   static saveUrlFile(filePath, url) {
 
@@ -595,7 +870,7 @@ URL=${url}`;
 
   static saveUrlFileFromMht(mhtPath, filePath) {
 
-    const url = Chromes.getUrlFromMht(mhtPath);
+    const url = Chromes.getUrlFromFile(mhtPath);
     const urlFileContent = `[InternetShortcut]
 URL=${url}`;
     console.log(`Saving URL to file: ${filePath}. URL: ${url}`);
