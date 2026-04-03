@@ -349,117 +349,16 @@ export class Excels {
 
 
   static replaceFormula(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
-  const absPath = path.resolve(filePath);
-
-  if (!fs.existsSync(absPath)) {
-    throw new Error(`replaceFormula_ByFormulaCells: File not found: ${absPath}`);
-  }
-
-  const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
-  console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
-
-  this.checkWinax('replaceFormula');
-  const excelApp = new winax.Object('Excel.Application');
-  excelApp.Visible = false;
-  excelApp.DisplayAlerts = false;
-  excelApp.ScreenUpdating = false;
-  excelApp.EnableEvents = false;
-
-  try {
-    const workbook = excelApp.Workbooks.Open(absPath);
-    const sheetCount = workbook.Sheets.Count;
-
-    console.log(`📄 Total sheets: ${sheetCount}`);
-
-    const toProcess = [];
-    const toSkip = [];
-
-    for (let i = 1; i <= sheetCount; i++) {
-      const name = workbook.Sheets(i).Name;
-      if (sheetFilter && name !== sheetFilter) toSkip.push(name);
-      else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
-      else toProcess.push(name);
-    }
-
-    console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
-    console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
-
-    let totalChanged = 0;
-
-    for (let i = 1; i <= sheetCount; i++) {
-      const sheet = workbook.Sheets(i);
-      const sheetName = sheet.Name;
-
-      if (sheetFilter && sheetName !== sheetFilter) {
-        continue;
-      } else if (!sheetFilter && exclusions.includes(sheetName)) {
-        continue;
-      }
-
-      console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
-
-      let formulaCells;
-      try {
-        formulaCells = sheet.UsedRange.SpecialCells(-4123); // xlCellTypeFormulas
-      } catch (_) {
-        console.log(`ℹ️  No formula cells in sheet "${sheetName}"`);
-        continue;
-      }
-
-      const count = formulaCells.Count;
-      let changedInSheet = 0;
-
-      for (let c = 1; c <= count; c++) {
-        if (c % 10 === 0 || c === count) {
-          process.stdout.write(`\r      ⏳ Evaluating cells: ${c}/${count} (${Math.round((c / count) * 100)}%)`);
-        }
-
-        const cell = formulaCells.Item(c);
-        const formula = cell.Formula;
-
-        if (typeof formula === 'string' && formula.includes(searchStr)) {
-          const newFormula = formula.split(searchStr).join(replaceStr);
-          if (newFormula !== formula) {
-            cell.Formula = newFormula;
-            changedInSheet++;
-          }
-        }
-      }
-      
-      if (count > 0) process.stdout.write('\n');
-
-      totalChanged += changedInSheet;
-
-      if (changedInSheet > 0) {
-        console.log(`✅ Updated ${changedInSheet} formula cell(s) in "${sheetName}"`);
-      } else {
-        console.log(`ℹ️  No "${searchStr}" found in formulas on "${sheetName}"`);
-      }
-    }
-
-    if (recalc) excelApp.CalculateFull();
-    const newPath = Files.incrementFileName(absPath);
-    workbook.SaveAs(newPath, 51);
-    console.log(`\n💾 Workbook saved as: ${newPath}`);
-    workbook.Close(false);
-    console.log(`📊 Total updated formula cells: ${totalChanged}`);
-  } finally {
-    try { excelApp.Quit(); } catch (_) {}
-    try { winax.release(excelApp); } catch (_) {}
-  }
-  }
-
-  static replaceFormula2(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
     const absPath = path.resolve(filePath);
 
     if (!fs.existsSync(absPath)) {
-      throw new Error(`replaceFormula2: File not found: ${absPath}`);
+      throw new Error(`replaceFormula: File not found: ${absPath}`);
     }
 
     const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
     console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
-    this.checkWinax('replaceFormula2');
+    this.checkWinax('replaceFormula');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
