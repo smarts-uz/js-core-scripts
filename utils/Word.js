@@ -21,22 +21,21 @@ export class Word {
     }
   }
 
-  static merge(filePaths) {
+  static merge(filePaths, pageBreak = true, targetDir = null) {
     if (!filePaths || filePaths.length === 0) {
       throw new Error('No files provided to merge.');
     }
 
-    const templatePath = Yamls.getConfig('Templates.Word');
+    const templatePath = Yamls.getConfig('Templates.WordPhD');
     if (!templatePath || !fs.existsSync(templatePath)) {
       throw new Error(`Word template not found at: ${templatePath}`);
     }
 
-    const firstFile = path.resolve(filePaths[0]);
-    const parentDir = path.dirname(firstFile);
-    const parentDirName = path.basename(parentDir);
+    const resolvedTargetDir = targetDir ? path.resolve(targetDir) : path.dirname(path.resolve(filePaths[0]));
+    const parentDirName = path.basename(resolvedTargetDir);
 
     const proposedName = `${parentDirName}${path.extname(templatePath)}`;
-    const baseTargetPath = path.join(parentDir, proposedName);
+    const baseTargetPath = path.join(resolvedTargetDir, proposedName);
     
     const targetPath = Files.incrementFileName(baseTargetPath);
 
@@ -64,6 +63,10 @@ export class Word {
         console.log(`📌 Inserting file ${i+1}/${filePaths.length}: ${sourceFile}`);
         selection.EndKey(6); // wdStory
         selection.InsertFile(sourceFile);
+
+        if (pageBreak && i < filePaths.length - 1) {
+          selection.InsertBreak(7); // wdPageBreak
+        }
       }
 
       console.log(`🔄 Updating Tables of Contents...`);
@@ -82,7 +85,7 @@ export class Word {
     }
   }
 
-  static mergeFolder(folderPaths) {
+  static mergeFolder(folderPaths, pageBreak = true) {
     if (!folderPaths || folderPaths.length === 0) {
       throw new Error('No folders provided to mergeFolder.');
     }
@@ -125,7 +128,9 @@ export class Word {
     }
 
     console.log(`📑 Found ${latestFiles.length} latest files to merge:\n${latestFiles.join('\n')}`);
-    return this.merge(latestFiles);
+    const lastFolder = path.resolve(folderPaths[folderPaths.length - 1]);
+    const lastFolderParent = path.dirname(lastFolder);
+    return this.merge(latestFiles, pageBreak, lastFolderParent);
   }
 
   static initFolders(ymlFile) {
