@@ -14,8 +14,8 @@ export default {
   transform: {},
 
   // Only our own *.test.js files under tests/ are test suites; everything else
-  // (helpers, fixtures, setup) is ignored as a suite.
-  roots: ['<rootDir>/tests'],
+  // (helpers, fixtures, setup) is ignored as a suite. roots is left at its
+  // default (<rootDir>) so relative module resolution from utils/ is unaffected.
   testMatch: ['<rootDir>/tests/**/*.test.js'],
 
   // jest-extended adds ~100 matchers (toBeArray, toBeString, toBeOneOf,
