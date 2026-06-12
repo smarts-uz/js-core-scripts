@@ -366,12 +366,12 @@ export class Files {
           process.exit(1);
         }
 
-        // Wait before retry
+        // Wait before retry — Atomics.wait blocks synchronously WITHOUT pinning
+        // the CPU (the previous busy-loop spun a core at 100%). p-retry is not an
+        // option here: the sole caller (Excels.repairToFile) invokes this method
+        // synchronously and uses the copied file immediately afterward.
         console.log(`Waiting ${delay}ms before retry...`);
-        const start = Date.now();
-        while (Date.now() - start < delay) {
-          // Busy wait
-        }
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
       }
     }
     return false;
