@@ -11,6 +11,7 @@ import { Dialogs } from './Dialogs.js';
 import { Yamls } from './Yamls.js';
 import dns from 'dns';
 import { request, fetch, Agent, setGlobalDispatcher } from 'undici';
+import { decode as decodeQP } from 'libqp';
 
 
 
@@ -50,6 +51,7 @@ export class Chromes {
 
 
   static async fetcher(url, options, owner, duration = this.Duration.Hour10, replace = []) {
+      console.info(`[Chromes.fetcher] 🟢 Starting...`);
 
     console.info(`Chrome fetch. URL ${url}, Options: `, options)
 
@@ -162,6 +164,7 @@ export class Chromes {
 
 
   static async download(url, options, owner, fileType, duration = this.Duration.Hour10, replace = []) {
+      console.info(`[Chromes.download] 🟢 Starting...`);
 
     console.info(`Chrome fetch. URL ${url}, Options: `, options)
 
@@ -277,6 +280,7 @@ export class Chromes {
 
 
   static initFolders(app) {
+      console.info(`[Chromes.initFolders] 🟢 Starting...`);
 
     globalThis.app = app;
     console.info(globalThis.app, 'app globalThis');
@@ -330,11 +334,13 @@ export class Chromes {
 
 
   static async finish() {
+      console.info(`[Chromes.finish] 🟢 Starting...`);
     await Chromes.closeBrowsers();
     console.log('2️⃣ End');
   }
 
   static async runBrowser(isCmdGo = false, hideChrome = false) {
+      console.info(`[Chromes.runBrowser] 🟢 Starting...`);
 
     console.log('1️⃣ Run browser. isCmdGo: ', isCmdGo);
     globalThis.isCmdGo = isCmdGo;
@@ -363,6 +369,7 @@ export class Chromes {
 
 
   static async pageGo(url, params = { waitUntil: "networkidle2" }, hideChrome = false) {
+    console.info(`[Chromes.pageGo] 🟢 Starting...`);
 
     if (!globalThis.browser) {
       await Chromes.runBrowser(globalThis.isCmdGo, hideChrome);
@@ -393,6 +400,7 @@ export class Chromes {
 
 
   static async pageSetup() {
+    console.info(`[Chromes.pageSetup] 🟢 Starting...`);
     globalThis.page.setViewport({ width: 1280, height: 900 });
     globalThis.page.setDefaultTimeout(Number(Yamls.getConfig('setDefaultTimeout')));
     globalThis.page.setDefaultNavigationTimeout(Number(Yamls.getConfig('setDefaultNavigationTimeout')));
@@ -407,6 +415,7 @@ export class Chromes {
 
 
   static async cleanCache() {
+    console.info(`[Chromes.cleanCache] 🟢 Starting...`);
     const client = await globalThis.page.target().createCDPSession();
     await client.send("Network.clearBrowserCache");
     await client.send("Storage.clearDataForOrigin", {
@@ -428,12 +437,14 @@ export class Chromes {
 
 
   static async pageMetrics() {
+      console.info(`[Chromes.pageMetrics] 🟢 Starting...`);
 
     const metrics = await globalThis.page.metrics();
     console.log(metrics);
   }
 
   static async closeBrowsers() {
+    console.info(`[Chromes.closeBrowsers] 🟢 Starting...`);
 
     // close all pages
     /*    
@@ -453,6 +464,7 @@ export class Chromes {
 
 
   static async killChrome() {
+      console.info(`[Chromes.killChrome] 🟢 Starting...`);
 
     const commandKill = `nircmd win kill ititle "chromium"`;
     console.log(`Executing command commandKill: ${commandKill}`);
@@ -470,6 +482,7 @@ export class Chromes {
 
 
   static async closeChrome() {
+      console.info(`[Chromes.closeChrome] 🟢 Starting...`);
 
     const commandClose = `nircmd win close ititle "chromium"`;
     console.log(`Executing command: ${commandClose}`);
@@ -488,6 +501,7 @@ export class Chromes {
 
 
   static async hideChrome() {
+    console.info(`[Chromes.hideChrome] 🟢 Starting...`);
 
     // execute this command nircmd win hide ititle "Chromium"
     const command = `nircmd win hide ititle "Chromium"`;
@@ -507,6 +521,7 @@ export class Chromes {
 
 
   static async showChrome() {
+    console.info(`[Chromes.showChrome] 🟢 Starting...`);
 
     // execute this command nircmd win hide ititle "Chromium"
     const command = `nircmd win show ititle "Chromium"`;
@@ -526,6 +541,7 @@ export class Chromes {
 
 
   static userAgent() {
+    console.info(`[Chromes.userAgent] 🟢 Starting...`);
 
     const userAgent = new UserAgent([/Chrome/, { deviceCategory: 'desktop' }]);
     console.info(userAgent.toString());
@@ -535,6 +551,7 @@ export class Chromes {
 
   // add function to get url from mht file using getUrlFromFile and clean it
   static getUrlFromFileClean(filePath) {
+    console.info(`[Chromes.getUrlFromFileClean] 🟢 Starting...`);
     let url = this.getUrlFromFile(filePath);
     url = url
       .replace('https://', '')
@@ -555,6 +572,7 @@ export class Chromes {
 
 
   static getUrlFromFile(filePath) {
+    console.info(`[Chromes.getUrlFromFile] 🟢 Starting...`);
     const content = fs.readFileSync(filePath, "utf-8");
     const urlMatch = content.match(/Snapshot-Content-Location:\s*(.*)/i);
     let url = urlMatch ? urlMatch[1].trim() : null;
@@ -578,6 +596,7 @@ export class Chromes {
 
 
   static async processPathsToClipboard(paths) {
+    console.info(`[Chromes.processPathsToClipboard] 🟢 Starting...`);
     if (!Array.isArray(paths)) {
       paths = [paths];
     }
@@ -638,6 +657,7 @@ export class Chromes {
   }
 
   static async saveHtmlFromMht(mhtPath, deleteMht = true) {
+    console.info(`[Chromes.saveHtmlFromMht] 🟢 Starting...`);
     if (!fs.existsSync(mhtPath)) {
         Dialogs.warningBox(`MHTML file not found:\n${mhtPath}`, 'mhtmls Error');
         return null;
@@ -717,6 +737,7 @@ export class Chromes {
   }
 
   static async mhtToHtmConvert(mhtPath, deleteMht = true) {
+    console.info(`[Chromes.mhtToHtmConvert] 🟢 Starting...`);
     if (!fs.existsSync(mhtPath)) {
         Dialogs.warningBox(`MHTML file not found:\n${mhtPath}`, 'mhtmls Error');
         return null;
@@ -773,18 +794,9 @@ export class Chromes {
 
     let decodedHtml = rawHtml;
     if (encoding === 'quoted-printable') {
-        decodedHtml = decodedHtml.replace(/=\r?\n/g, '');
-        const buffer = Buffer.alloc(decodedHtml.length);
-        let bufIndex = 0;
-        for (let i = 0; i < decodedHtml.length; i++) {
-            if (decodedHtml[i] === '=' && i + 2 < decodedHtml.length && /^[0-9a-fA-F]{2}$/.test(decodedHtml.substring(i+1, i+3))) {
-                buffer[bufIndex++] = parseInt(decodedHtml.substring(i+1, i+3), 16);
-                i += 2;
-            } else {
-                buffer[bufIndex++] = decodedHtml.charCodeAt(i) & 0xff;
-            }
-        }
-        decodedHtml = buffer.slice(0, bufIndex).toString('utf8');
+        // libqp (nodemailer's RFC 2045 codec) decodes soft line breaks and =HH
+        // hex escapes, including trailing-byte edge cases the manual loop missed.
+        decodedHtml = decodeQP(decodedHtml).toString('utf8');
     } else if (encoding === 'base64') {
         decodedHtml = Buffer.from(decodedHtml, 'base64').toString('utf8');
     } else {
@@ -831,6 +843,7 @@ export class Chromes {
   }
 
   static async convertFolderMhtToHtm(folderPath, deleteMht = true) {
+    console.info(`[Chromes.convertFolderMhtToHtm] 🟢 Starting...`);
     if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
       Dialogs.warningBox(`Folder not found or is not a directory:\n${folderPath}`, 'mhtmls Error');
       return;
@@ -857,6 +870,7 @@ export class Chromes {
   }
 
   static saveUrlFile(filePath, url) {
+      console.info(`[Chromes.saveUrlFile] 🟢 Starting...`);
 
     const urlFileContent = `[InternetShortcut]
 URL=${url}`;
@@ -868,6 +882,7 @@ URL=${url}`;
 
 
   static saveUrlFileFromMht(mhtPath, filePath) {
+    console.info(`[Chromes.saveUrlFileFromMht] 🟢 Starting...`);
 
     const url = Chromes.getUrlFromFile(mhtPath);
     const urlFileContent = `[InternetShortcut]
@@ -879,10 +894,12 @@ URL=${url}`;
   }
 
   static randomInt(min, max) {
+    console.info(`[Chromes.randomInt] 🟢 Starting...`);
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
   static getRandomFloat(min, max) {
+    console.info(`[Chromes.getRandomFloat] 🟢 Starting...`);
     return Math.random() * (max - min) + min;
   }
 
@@ -891,6 +908,7 @@ URL=${url}`;
 
 
   static async runIxbrowser(isCmdGo = false) {
+    console.info(`[Chromes.runIxbrowser] 🟢 Starting...`);
 
     const suffix = (isCmdGo) ? "cmdGo" : "cmd";
 
