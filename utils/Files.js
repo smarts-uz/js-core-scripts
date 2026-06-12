@@ -4,6 +4,8 @@ import { exec } from "child_process";
 import { Dialogs } from './Dialogs.js';
 import { access, copyFile, constants } from 'node:fs/promises';
 import AdmZip from 'adm-zip';
+import fse from 'fs-extra';
+import open from 'open';
 import { Phone } from "./Phone.js";
 
 export class Files {
@@ -15,6 +17,7 @@ export class Files {
    * @returns {string[]} - Array of paths to directories
    */
   static findRelevantDirectories(rootDir) {
+    console.info(`[Files.findRelevantDirectories] 🟢 Starting...`);
     const dirs = [];
 
     // Check main directory and subdirectories
@@ -35,6 +38,7 @@ export class Files {
    * Reads .url files from directory
    */
   static readUrlsFromDirectory(dirPath) {
+    console.info(`[Files.readUrlsFromDirectory] 🟢 Starting...`);
     const urls = [];
     const files = fs.readdirSync(dirPath);
 
@@ -55,6 +59,7 @@ export class Files {
    * Reads profile directories from text file
    */
   static readProfilesFromFile(filePath) {
+    console.info(`[Files.readProfilesFromFile] 🟢 Starting...`);
     if (!fs.existsSync(filePath)) {
       throw new Error(`Profile list file not found: ${filePath}`);
     }
@@ -71,8 +76,13 @@ export class Files {
    * @returns {string} - Available file path
    */
   static incrementFileName(filePath) {
-    if (!fs.existsSync(filePath)) return filePath;
+      console.info(`[Files.incrementFileName] 🟢 Starting...`);
+    if (!fs.existsSync(filePath)) {
+      console.info(`[Files.incrementFileName] File path is available: ${filePath}`);
+      return filePath;
+    }
     
+    console.log(`[Files.incrementFileName] File exists, incrementing name: ${filePath}`);
     const parsed = path.parse(filePath);
     let baseName = parsed.name;
     let counter = 1;
@@ -90,6 +100,7 @@ export class Files {
       counter++;
     }
     
+    console.info(`[Files.incrementFileName] Incremented file name determined: ${newPath}`);
     return newPath;
   }
 
@@ -100,6 +111,7 @@ export class Files {
    * @returns {boolean} - True if URL exists, false otherwise
    */
   static urlExistsInDirectories(url, currentSaveDir) {
+    console.info(`[Files.urlExistsInDirectories] 🟢 Starting...`);
     const directories = Files.findRelevantDirectories(currentSaveDir);
     // Check each directory
     for (const dir of directories) {
@@ -133,6 +145,7 @@ export class Files {
   }
 
   static findAllContractFiles(dir) {
+    console.info(`[Files.findAllContractFiles] 🟢 Starting...`);
 
     // if dir is file - get parent folder of file
     if (fs.lstatSync(dir).isFile()) {
@@ -165,6 +178,7 @@ export class Files {
 
 
   static isEmpty(value) {
+    console.info(`[Files.isEmpty] 🟢 Starting...`);
     // Check for null or undefined
     if (value === null || value === undefined) return true;
 
@@ -226,6 +240,7 @@ export class Files {
 
 
   static removeFilesWithExtension(dir, extension) {
+      console.info(`[Files.removeFilesWithExtension] 🟢 Starting...`);
     console.info(`Removing files with extension ${extension} from ${dir}`);
     const files = fs.readdirSync(dir);
     files.forEach(file => {
@@ -236,6 +251,7 @@ export class Files {
   }
 
   static backupFolder(folderPath, deletes = true) {
+    console.info(`[Files.backupFolder] 🟢 Starting...`);
     const backupDir = path.join(path.dirname(folderPath), '- Theory');
     this.mkdirIfNotExists(backupDir);
 
@@ -261,6 +277,7 @@ export class Files {
 
 
   static backupFolderZip(folderPath, deletes = true) {
+    console.info(`[Files.backupFolderZip] 🟢 Starting...`);
     const backupDir = path.join(path.dirname(folderPath), '- Theory');
     this.mkdirIfNotExists(backupDir);
 
@@ -285,6 +302,7 @@ export class Files {
 
 
   static async exists(path) {
+    console.info(`[Files.exists] 🟢 Starting...`);
     try {
       await fs.access(path);
       return true;   // file exists and is accessible
@@ -300,6 +318,7 @@ export class Files {
    * @returns {string[]} Array of lines.
    */
   static readLines(filePath) {
+    console.info(`[Files.readLines] 🟢 Starting...`);
     const content = fs.readFileSync(filePath, 'utf8');
     return content
       .split(/\r?\n/)
@@ -312,6 +331,7 @@ export class Files {
 
   // Function to attempt file copy with retries
   static copyFileWithRetry(source, destination, maxRetries = 1, delay = 1000) {
+      console.info(`[Files.copyFileWithRetry] 🟢 Starting...`);
 
     if (!fs.existsSync(source)) {
       console.error(`Source file does not exist: ${source}`);
@@ -360,6 +380,7 @@ export class Files {
 
 
   static async safeCopy(src, dest) {
+    console.info(`[Files.safeCopy] 🟢 Starting...`);
     try {
       await access(src, constants.R_OK);
       await copyFile(src, dest);
@@ -371,62 +392,49 @@ export class Files {
 
 
   static copyFolderRecursiveSync(source, target) {
+    console.info(`[Files.copyFolderRecursiveSync] 🟢 Starting...`);
     // Check if source exists
     if (!fs.existsSync(source)) {
       console.warn(`Source does not exist: ${source}`);
       return;
     }
 
-    const sourceStat = fs.lstatSync(source);
-
-    if (sourceStat.isDirectory()) {
-      // If source is a directory, create target directory if it doesn't exist
-      if (!fs.existsSync(target)) {
-        fs.mkdirSync(target, { recursive: true });
-      }
-
-      // Copy all contents of the directory
-      const files = fs.readdirSync(source);
-      files.forEach((file) => {
-        const sourcePath = path.join(source, file);
-        const targetPath = path.join(target, file);
-
-        if (fs.lstatSync(sourcePath).isDirectory()) {
-          this.copyFolderRecursiveSync(sourcePath, targetPath);
-        } else {
-          fs.copyFileSync(sourcePath, targetPath);
-        }
-      });
-    } else if (sourceStat.isFile()) {
-      // If source is a file, copy it directly
-      // Ensure target directory exists
-      const targetDir = path.dirname(target);
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-      fs.copyFileSync(source, target);
-    }
+    // fs-extra copySync handles both file and directory sources: it creates any
+    // missing intermediate target directories and copies the whole tree
+    // recursively — replacing the hand-rolled lstat/readdir/copyFileSync walk.
+    fse.copySync(source, target);
+    console.log(`Copied: ${source} → ${target}`);
   }
 
 
 
 
   static mkdirIfNotExists(dirPath) {
+      console.info(`[Files.mkdirIfNotExists] 🟢 Starting...`);
+    console.info(`[Files.mkdirIfNotExists] 🔍 Checking if directory exists: ${dirPath}`);
     if (!fs.existsSync(dirPath)) {
-      console.log(`Directory does not exist: ${dirPath}`);
-      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`[Files.mkdirIfNotExists] 🏗️ Directory does not exist. Creating: ${dirPath}`);
+      try {
+        fs.mkdirSync(dirPath, { recursive: true });
 
-      if (fs.existsSync(dirPath)) {
-        console.log(`Directory created: ${dirPath}`);
+        if (fs.existsSync(dirPath)) {
+          console.info(`[Files.mkdirIfNotExists] ✅ Directory successfully created: ${dirPath}`);
+        } else {
+          console.warn(`[Files.mkdirIfNotExists] ⚠️ Directory creation failed silently: ${dirPath}`);
+        }
+      } catch (err) {
+        console.error(`[Files.mkdirIfNotExists] ❌ Error creating directory:`, err.message);
+        throw err;
       }
     } else {
-      console.log(`Directory already exists: ${dirPath}`);
+      console.log(`[Files.mkdirIfNotExists] ⏩ Directory already exists: ${dirPath}`);
     }
   }
 
 
 
   static getDateFromTXT(folderCompan) {
+    console.info(`[Files.getDateFromTXT] 🟢 Starting...`);
     const files = fs.readdirSync(folderCompan);
     let fileName = null;
 
@@ -463,6 +471,7 @@ export class Files {
 
 
   static getTINFromTXT(folderCompan) {
+    console.info(`[Files.getTINFromTXT] 🟢 Starting...`);
     const files = fs.readdirSync(folderCompan);
     let fileName = null;
     for (const file of files) {
@@ -498,6 +507,7 @@ export class Files {
 
 
   static getPINFLFromTXT(folderCompan) {
+    console.info(`[Files.getPINFLFromTXT] 🟢 Starting...`);
     const files = fs.readdirSync(folderCompan);
     let fileName = null;
     for (const file of files) {
@@ -532,14 +542,19 @@ export class Files {
 
 
   static getBaseName(filePath, ext) {
-    return path.basename(filePath, ext);
+      console.info(`[Files.getBaseName] 🟢 Starting...`);
+    const base = path.basename(filePath, ext);
+    console.info(`[Files.getBaseName] Extracted base name: ${base} from ${filePath}`);
+    return base;
   }
 
   static getDirName(filePath) {
+    console.info(`[Files.getDirName] 🟢 Starting...`);
     return path.dirname(path.resolve(filePath));
   }
 
   static currentDir() {
+    console.info(`[Files.currentDir] 🟢 Starting...`);
 
     // Get parent path for current file
     const currentFilePath = process.argv[1];
@@ -553,6 +568,7 @@ export class Files {
 
 
   static cleanPath(p) {
+    console.info(`[Files.cleanPath] 🟢 Starting...`);
     return p.replace(/\\\\+/g, "\\").replace(/\\/g, "/");
   }
 
@@ -567,6 +583,7 @@ export class Files {
    * 
    */
   static archiveFolder(folder, fileName) {
+    console.info(`[Files.archiveFolder] 🟢 Starting...`);
     const zip = new AdmZip();
     // get parent of folder
     const parentFolder = path.dirname(folder);
@@ -600,6 +617,7 @@ export class Files {
 
   // scan all json files in folder except ALL.json and return array of json objects. combine arrays from all jsons. remove duplicates. save result array to ALL.json. folder as argument
   static combineJsonFiles(folder, fileName = 'ALL') {
+      console.info(`[Files.combineJsonFiles] 🟢 Starting...`);
 
     console.log(`Combining JSON files in ${folder}`);
     console.info(`Filename: ${fileName}`);
@@ -628,6 +646,7 @@ export class Files {
 
 
   static writeJson(filePath, data) {
+    console.info(`[Files.writeJson] 🟢 Starting...`);
 
     // get parent
     const parent = path.dirname(filePath);
@@ -643,6 +662,7 @@ export class Files {
   }
 
   static readJson(filePath) {
+    console.info(`[Files.readJson] 🟢 Starting...`);
     const jsonData = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(jsonData);
   }
@@ -650,11 +670,13 @@ export class Files {
 
 
   static readTextFile(filePath) {
+    console.info(`[Files.readTextFile] 🟢 Starting...`);
     const data = fs.readFileSync(filePath, 'utf8');
     return data;
   }
 
   static moveFolder(src, dest, rename = false) {
+    console.info(`[Files.moveFolder] 🟢 Starting...`);
     // dest = d:\...\App\200013314, 339999699\zZQ8V
 
     // Source borligini tekshirish
@@ -693,6 +715,7 @@ export class Files {
 
 
   static findRecursive(dir, condition) {
+    console.info(`[Files.findRecursive] 🟢 Starting...`);
     let results = [];
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
@@ -708,6 +731,7 @@ export class Files {
 
 
   static findRecursiveFull(dir, condition, ignoreFolderCondition = null) {
+    console.info(`[Files.findRecursiveFull] 🟢 Starting...`);
     let results = [];
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
@@ -730,6 +754,7 @@ export class Files {
   // static function pick random file inside folder and return its path
 
   static pickRandomFile(folder, extension) {
+    console.info(`[Files.pickRandomFile] 🟢 Starting...`);
     const files = fs.readdirSync(folder).filter(file => path.extname(file).toLowerCase() === extension);
     if (files.length === 0) {
       console.warn('No', extension, 'files found in folder:', folder);
@@ -743,6 +768,7 @@ export class Files {
 
 
   static cleanupFileName(filename, replaceWith = ' ') {
+      console.info(`[Files.cleanupFileName] 🟢 Starting...`);
 
     console.info("cleanupFileName Before:", filename);
     filename = filename
@@ -765,6 +791,7 @@ export class Files {
   }
 
   static saveInfoToFile(folder, filename) {
+    console.info(`[Files.saveInfoToFile] 🟢 Starting...`);
 
     if (Files.isEmpty(filename))
       return null;
@@ -785,6 +812,7 @@ export class Files {
   }
   
   static deleteInfo(folder, filename) {
+    console.info(`[Files.deleteInfo] 🟢 Starting...`);
     
     if (Files.isEmpty(filename))
       return null;
@@ -809,6 +837,7 @@ export class Files {
 
 
   static removeFile(file) {
+    console.info(`[Files.removeFile] 🟢 Starting...`);
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
@@ -816,6 +845,7 @@ export class Files {
 
 
   static openFile(file) {
+      console.info(`[Files.openFile] 🟢 Starting...`);
     console.info("Opening file:", file);
 
     if (!existsSync(file)) {
@@ -823,16 +853,13 @@ export class Files {
       return;
     }
 
-    if (process.platform === 'win32') {
-      exec(`start "" "${file}"`);
-    } else if (process.platform === 'darwin') {
-      exec(`open "${file}"`);
-    } else {
-      console.warn('Platformani qo\'llab-quvvatlanmaydi:', process.platform);
-    }
+    // `open` resolves the OS default handler on win32/macOS/Linux, removing the
+    // manual start/open shelling and the previously-unsupported Linux branch.
+    open(file).catch(err => console.error("Failed to open file:", err.message));
   }
 
   static openFileQoder(file) {
+      console.info(`[Files.openFileQoder] 🟢 Starting...`);
     console.info("Opening file with openFileQoder:", file);
 
     if (process.platform === 'win32') {
