@@ -1,33 +1,31 @@
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat.js';
+dayjs.extend(customParseFormat);
 
 export class Dates {
 
   static parseDMY(dateStr) {
+    console.info(`[Dates.parseDMY] 🟢 Starting...`);
     const [day, month, year] = dateStr.split('.').map(Number);
     return new Date(year, month - 1, day);
   }
 
   static parseDMYExcel(dateStr) {
+    console.info(`[Dates.parseDMYExcel] 🟢 Starting...`);
     const [year, month, day] = dateStr.split('-').map(Number);
     return new Date(year, month - 1, day);
   }
 
   static getMinusOneDay(dateStr) {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const prevMonth = new Date(year, month - 1, 0);
-    let date = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), prevMonth.getDate());
-
-    // convert to 2023-08-10 format
-    // return date.toISOString().slice(0, 10); // convert to 2023-08-10 format
-    //
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-
-    return `${y}-${m}-${d}`;
-
+    console.info(`[Dates.getMinusOneDay] 🟢 Starting...`);
+    // Last day of the month preceding dateStr's month (e.g. 2025-11-06 → 2025-10-31).
+    const result = dayjs(dateStr, 'YYYY-MM-DD').startOf('month').subtract(1, 'day').format('YYYY-MM-DD');
+    console.log("getMinusOneDay result", result);
+    return result;
   }
 
   static didoxToExcel(date) {
+    console.info(`[Dates.didoxToExcel] 🟢 Starting...`);
     if (!date) return "";
     // convert 10.08.2023 format to 2023-08-10 format
     return date.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1');
@@ -35,16 +33,10 @@ export class Dates {
 
   // add 2 years to current date. get last date (31 dec) of this year
   static addYearsGetLastDate(dateStr, years) {
+      console.info(`[Dates.addYearsGetLastDate] 🟢 Starting...`);
     console.log("addYearsGetLastDate dateStr", dateStr, "years", years);
 
-    const date = this.parseDMY(dateStr);
-    const newDate = new Date(date.getFullYear() + years, 11, 31);
-    
-    const formatted = new Intl.DateTimeFormat("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(newDate);
+    const formatted = dayjs(dateStr, 'DD.MM.YYYY').add(years, 'year').endOf('year').format('DD.MM.YYYY');
 
     console.log("addYearsGetLastDate formatted", formatted);
     return formatted;
@@ -53,18 +45,11 @@ export class Dates {
 
   // add 363 days into date
   static addDays(dateStr, days) {
+      console.info(`[Dates.addDays] 🟢 Starting...`);
 
     console.log("addDays dateStr", dateStr, "days", days);
 
-    const date = this.parseDMY(dateStr);
-    const newDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-    // convert "2027-01-10T19:00:00.000Z" to 10.01.2027
-
-    const formatted = new Intl.DateTimeFormat("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(newDate);
+    const formatted = dayjs(dateStr, 'DD.MM.YYYY').add(days, 'day').format('DD.MM.YYYY');
 
     console.log("addDays formatted", formatted);
 
@@ -72,6 +57,7 @@ export class Dates {
   }
 
   static excelToDidox(date) {
+    console.info(`[Dates.excelToDidox] 🟢 Starting...`);
     if (!date) return "";
     // convert 2023-08-10 format to 10.08.2023 format
     return date.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3.$2.$1');
@@ -80,29 +66,20 @@ export class Dates {
 
   // static func get date of last day of future moths
   static futureDateByMonth(months, prevMonthLastDate = false) {
+      console.info(`[Dates.futureDateByMonth] 🟢 Starting...`);
 
     console.log("futureDateByMonth", months);
     months = parseInt(months);
-    const today = new Date();
-    let futureDate
-    if (prevMonthLastDate) {
-      futureDate = new Date(today.getFullYear(), today.getMonth() + months, 0);
-    } else {
-      futureDate = new Date(today.getFullYear(), today.getMonth() + months, 1);
-    }
-    // return in format 2025-11-06
-    //  return futureDate.toISOString().slice(0, 10); // return in format 2025-11-06
-    const formatted = new Intl.DateTimeFormat("en-CA", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(futureDate);
-
+    // First day of the month `months` ahead, or the last day of the month before it.
+    const base = dayjs().add(months, 'month').startOf('month');
+    const formatted = (prevMonthLastDate ? base.subtract(1, 'day') : base).format('YYYY-MM-DD');
+    console.log("futureDateByMonth formatted", formatted);
     return formatted;
   }
 
 
   static sleepSync(ms) {
+      console.info(`[Dates.sleepSync] 🟢 Starting...`);
 
     console.log(`Sleeping for ${ms} milliseconds...`);
     setTimeout(() => {
@@ -121,6 +98,7 @@ export class Dates {
  * @returns {number} Tasodifiy butun son.
  */
   static randomInt(min, max) {
+    console.info(`[Dates.randomInt] 🟢 Starting...`);
     // Argumentlarning butun son ekanligini ta'minlash
     min = Math.ceil(min);
     max = Math.floor(max);
@@ -134,6 +112,7 @@ export class Dates {
   }
 
   static randomIntOne(value) {
+    console.info(`[Dates.randomIntOne] 🟢 Starting...`);
     const half = Math.floor(value * 3 / 4);
     const random = this.randomInt(half, value);
     console.log(`random: ${random}`);
@@ -143,6 +122,7 @@ export class Dates {
 
 
   static async sleep(ms, random = true) {
+      console.info(`[Dates.sleep] 🟢 Starting...`);
 
     if (random) {
       ms = this.randomIntOne(ms);
@@ -158,6 +138,7 @@ export class Dates {
 
 
   static normalizeUzAccordingToRule(raw) {
+    console.info(`[Dates.normalizeUzAccordingToRule] 🟢 Starting...`);
     if (!raw || typeof raw !== "string") return raw;
     let digits = raw.replace(/\D/g, "");
     if (digits.length < 9) return raw; // juda qisqa -> rad
@@ -203,12 +184,14 @@ export class Dates {
 
 
   static compareDatesDMY(a, b) {
+    console.info(`[Dates.compareDatesDMY] 🟢 Starting...`);
     const da = this.parseDMY(a);
     const db = this.parseDMY(b);
     return da.getTime() - db.getTime(); // <0 = before, 0 = equal, >0 = after
   }
 
   static run() {
+    console.info(`[Dates.run] 🟢 Starting...`);
 
     const d1 = Dates.parseDMY("03.11.2011");
     const d2 = Dates.parseDMY("28.12.2018");
