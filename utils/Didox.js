@@ -6,9 +6,21 @@ import regions from "../data/regions.json" with { type: "json" };
 
 import fs from "fs";
 import path from "path";
+import { ofetch } from "ofetch";
 import { Files } from './Files.js';
 import { Dialogs } from "./Dialogs.js";
 import { Yamls } from "./Yamls.js";
+
+// Shared client for the Didox Partner API: one place for the base URL and the
+// auth headers that every reference-data call below previously rebuilt by hand
+// (a `new Headers()` + two appends + a requestOptions object, repeated ~15x).
+const didoxApi = ofetch.create({
+    baseURL: "https://api-partners.didox.uz",
+    headers: {
+        "user-key": "d8cb70db-5e17-4b57-80dc-2786ff800372",
+        "Partner-Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw",
+    },
+});
 
 
 export class Didox {
@@ -16,328 +28,153 @@ export class Didox {
 
 
     static saveMeasures() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/measures/all", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.saveMeasures] 🟢 Starting...`);
+        didoxApi("/v1/measures/all", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
 
     static getRegionInfo() {
-
-
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/utils/waybills/districts?regionId=6", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.getRegionInfo] 🟢 Starting...`);
+        didoxApi("/v1/utils/waybills/districts?regionId=6", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
 
     static saveDistricts() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/districts/all", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.saveDistricts] 🟢 Starting...`);
+        didoxApi("/v1/districts/all", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
     static saveRegions() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/regions/all", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.saveRegions] 🟢 Starting...`);
+        didoxApi("/v1/regions/all", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
     static saveBanks() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/banks/all", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.saveBanks] 🟢 Starting...`);
+        didoxApi("/v1/banks/all", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
+
     static saveRegionsTTN() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/utils/waybills/regions", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.saveRegionsTTN] 🟢 Starting...`);
+        didoxApi("/v1/utils/waybills/regions", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
 
     static saveRailwayStations() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/utils/stations", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.saveRailwayStations] 🟢 Starting...`);
+        didoxApi("/v1/utils/stations", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
 
 
     static fraudsByTin(tin) {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/utils/non-conformity-goods-companies/ru?tin=311506035", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.fraudsByTin] 🟢 Starting...`);
+        didoxApi("/v1/utils/non-conformity-goods-companies/ru?tin=311506035", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
 
     static frauds() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/utils/non-conformity-goods-companies/ru?page=1&size=100&tin", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.frauds] 🟢 Starting...`);
+        didoxApi("/v1/utils/non-conformity-goods-companies/ru?page=1&size=100&tin", { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
 
     static profileIKPUCodes() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Content-Type", "application/json");
-        myHeaders.append("Accept-Language", "ru");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/profile/productClassCodes/ru?page=&size=&search=", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.profileIKPUCodes] 🟢 Starting...`);
+        didoxApi("/v1/profile/productClassCodes/ru?page=&size=&search=", {
+            responseType: "text",
+            headers: { "Content-Type": "application/json", "Accept-Language": "ru" },
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
 
     static documentList() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Accept-Language", "ru");
-        myHeaders.append("Content-Type", "application/json");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v2/documents?page=1&size=100&doctype=000,010&partner=312261753&owner=1", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.documentList] 🟢 Starting...`);
+        didoxApi("/v2/documents?page=1&size=100&doctype=000,010&partner=312261753&owner=1", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
     static documentPDF(docId) {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch(`https://api-partners.didox.uz/v1/documents/view/${docId}/pdf/ru`, requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.documentPDF] 🟢 Starting...`);
+        didoxApi(`/v1/documents/view/${docId}/pdf/ru`, { responseType: "text" })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
     static searchIKPUCode(text) {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Accept-Language", "ru");
-        myHeaders.append("Content-Type", "application/json");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/profile/productClasses/search?text=Лапша&lang=uz", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.searchIKPUCode] 🟢 Starting...`);
+        didoxApi("/v1/profile/productClasses/search?text=Лапша&lang=uz", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
-
 
 
     static profileInfo() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Content-Type", "application/json");
-        myHeaders.append("Accept-Language", "ru");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/profile/", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.profileInfo] 🟢 Starting...`);
+        didoxApi("/v1/profile/", {
+            responseType: "text",
+            headers: { "Content-Type": "application/json", "Accept-Language": "ru" },
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
     static vatRegStatus(tin, date) {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Accept-Language", "ru");
-        myHeaders.append("Content-Type", "application/json");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/profile/vatRegStatus/312261753?document_date=13.01.2024", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.vatRegStatus] 🟢 Starting...`);
+        didoxApi("/v1/profile/vatRegStatus/312261753?document_date=13.01.2024", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
-
     }
 
     static getTaxpayerType() {
-        const myHeaders = new Headers();
-        myHeaders.append("user-key", "d8cb70db-5e17-4b57-80dc-2786ff800372");
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Accept-Language", "ru");
-        myHeaders.append("Content-Type", "application/json");
-
-        const requestOptions = {
-            method: "GET",
-            headers: myHeaders,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/profile/taxpayerType/312261753/uz?date=", requestOptions)
-            .then((response) => response.text())
+    console.info(`[Didox.getTaxpayerType] 🟢 Starting...`);
+        didoxApi("/v1/profile/taxpayerType/312261753/uz?date=", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
 
 
     static login() {
-        const myHeaders = new Headers();
-        myHeaders.append("Partner-Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw");
-        myHeaders.append("Content-Type", "application/json");
-        myHeaders.append("Accept-Language", "ru");
-
-        const raw = JSON.stringify({
-            "password": "4beruniave"
-        });
-
-        const requestOptions = {
+    console.info(`[Didox.login] 🟢 Starting...`);
+        didoxApi("/v1/auth/311958304/password/ru", {
             method: "POST",
-            headers: myHeaders,
-            body: raw,
-            redirect: "follow"
-        };
-
-        fetch("https://api-partners.didox.uz/v1/auth/311958304/password/ru", requestOptions)
-            .then((response) => response.text())
+            body: { password: "4beruniave" },
+            headers: { "Accept-Language": "ru" },
+            responseType: "text",
+        })
             .then((result) => console.log(result))
             .catch((error) => console.error(error));
     }
     static bankByCode(code) {
+    console.info(`[Didox.bankByCode] 🟢 Starting...`);
         if (!code) return null;
         try {
             const bank = banks.find(b => String(b.bankId) === String(code));
@@ -350,6 +187,7 @@ export class Didox {
     }
 
     static regionsByCode(code) {
+    console.info(`[Didox.regionsByCode] 🟢 Starting...`);
         if (!code) return null;
         try {
             const region = regions.find(r => String(r.regionId) === String(code));
@@ -362,6 +200,7 @@ export class Didox {
     }
 
     static districtsByCode(regionId, districtCode) {
+    console.info(`[Didox.districtsByCode] 🟢 Starting...`);
         if (!regionId) return null;
         if (!districtCode) return null;
 
@@ -377,6 +216,7 @@ export class Didox {
 
 
     static async contracts(owner, rentType, state, page = 0, size = 1000) {
+        console.info(`[Didox.contracts] 🟢 Starting...`);
 
         console.log(owner, 'owner');
         if (!owner) return Dialogs.warningBox('No owner', 'Warning');
@@ -420,6 +260,7 @@ export class Didox {
     }
 
     static async infoByTinPinfl(tin, personFolder = globalThis.folderDirector) {
+    console.info(`[Didox.infoByTinPinfl] 🟢 Starting...`);
 
         if (!tin) return null;
 
@@ -493,7 +334,7 @@ export class Didox {
 
         } else {
 
-  
+
             switch (true) {
                 case returns.address.includes('Anorzor'):
                     returns.AddressType = 'Anorzor';
@@ -515,6 +356,7 @@ export class Didox {
 
 
     static async carInfoByPinfl(tin) {
+    console.info(`[Didox.carInfoByPinfl] 🟢 Starting...`);
 
         if (!tin) return null;
 
