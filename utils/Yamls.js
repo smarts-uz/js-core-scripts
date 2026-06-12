@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 
 import yaml from "js-yaml";
 import path from "path";
+import { getProperty, setProperty } from "dot-prop";
 import { Files } from "./Files.js";
 import { Word } from "./Word.js";
 import { Didox } from "./didox.js";
@@ -17,6 +18,7 @@ export class Yamls {
 
 
     static getConfig(keyPath, type = null, defaultValue = null) {
+    console.info(`[Yamls.getConfig] 🟢 Starting...`);
         const config = Files.currentDir() + '\\config.yml';
         if (!fs.existsSync(config)) {
             throw new Error(`YAML Core Config file not found: ${config}`);
@@ -59,19 +61,21 @@ export class Yamls {
      * @param {*} defaultValue - optional fallback
      */
     static getYamlValue(filePath, keyPath, defaultValue = undefined) {
+    console.info(`[Yamls.getYamlValue] 🟢 Starting...`);
         if (!fs.existsSync(filePath)) {
             throw new Error(`YAML file not found: ${filePath}`);
         }
 
         const doc = yaml.load(fs.readFileSync(filePath, "utf8"));
 
-        return keyPath
-            .split(".")
-            .reduce((obj, key) => obj?.[key], doc) ?? defaultValue;
+        // dot-prop resolves the nested dot-path (e.g. "Contract.Format"); the
+        // ?? keeps the original fallback for both missing and null values.
+        return getProperty(doc, keyPath) ?? defaultValue;
     }
 
     // Read text file and find text line which contains the given text
     static findTextLine(filePath, text) {
+    console.info(`[Yamls.findTextLine] 🟢 Starting...`);
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const lines = fileContent.split('\n');
 
@@ -86,6 +90,7 @@ export class Yamls {
 
     // Replace found line with new text
     static replaceTextLine(filePath, key, value) {
+        console.info(`[Yamls.replaceTextLine] 🟢 Starting...`);
 
         if (Files.isEmpty(value)) {
             console.log('null value', key, value);
@@ -125,6 +130,7 @@ export class Yamls {
     }
 
     static loadYamlWithDeps(ymlFile) {
+        console.info(`[Yamls.loadYamlWithDeps] 🟢 Starting...`);
 
         console.log("Using ymlFile", ymlFile);
         let data = Yamls.loadAndParseYaml(ymlFile);
@@ -171,6 +177,7 @@ export class Yamls {
 
     // Load and parse YAML file with custom preprocessing
     static loadAndParseYaml(ymlFile) {
+    console.info(`[Yamls.loadAndParseYaml] 🟢 Starting...`);
         const yamlOptions = {
             schema: yaml.JSON_SCHEMA,
             onWarning: (e) => { console.warn('YAML ogohlantirishi:', e); }
@@ -267,6 +274,7 @@ export class Yamls {
 
 
     static extractFirstNumber(str) {
+    console.info(`[Yamls.extractFirstNumber] 🟢 Starting...`);
         const match = str.match(/^(\d+)/);
         return match ? match[1] : null;
     }
@@ -274,6 +282,7 @@ export class Yamls {
 
 
     static async update(ymlFile) {
+    console.info(`[Yamls.update] 🟢 Starting...`);
         const template = path.resolve(Yamls.getConfig('Templates.Yaml'));
 
         console.log("Using template", template);
@@ -299,13 +308,14 @@ export class Yamls {
         await fs.promises.copyFile(template, ymlFile);
 
         if (existsSync(ymlFile))
-            await this.fillYamlWithInfo(ymlFile, yamlData, false);
+            await this.fillYamlWithInfo(ymlFile, yamlData, false, true); // rewrite=true: backupFolder RestAPI ni o'chirdi, cache yo'q
         else
             Dialogs.warningBox(`ymlFile file not found: ${ymlFile}`, "Error");
 
     }
 
-    static async fillYamlWithInfo(ymlFile, yamlData = null, backup = true) {
+    static async fillYamlWithInfo(ymlFile, yamlData = null, backup = true, rewrite = true) {
+    console.info(`[Yamls.fillYamlWithInfo] 🟢 Starting... rewrite=${rewrite}`);
 
         if (!ymlFile) {
             Dialogs.warningBox(`ymlFile is empty for TIN: ${ymlFile}`, ymlFile);
@@ -320,86 +330,110 @@ export class Yamls {
         if (!yamlData) yamlData = Yamls.loadYamlWithDeps(ymlFile);
         console.log(yamlData, 'yamlData');
 
+        const jsonCachePath = path.join(globalThis.folderRestAPI, `ALL.json`);
+        const cacheExists = existsSync(jsonCachePath);
 
-        let comTIN = Files.getTINFromTXT(globalThis.folderCompan);
-        console.info("comTIN:", comTIN);
+        let companyInfo;
 
-        let isYatt = false;
+        if (!rewrite && cacheExists) {
+            // ⚡ Cache rejimi: API chaqiriqlarini o'tkazib yuborish
+            console.info(`[Yamls.fillYamlWithInfo] ⚡ rewrite=false, cache mavjud — API dan o'tkazib JSON cache o'qilmoqda: ${jsonCachePath}`);
+            const raw = fs.readFileSync(jsonCachePath, 'utf8');
+            companyInfo = JSON.parse(raw);
+            console.log(companyInfo, 'companyInfo (from cache)');
 
-        if (!comTIN) {
-            comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
-            console.info("comTIN ComPINFL:", comTIN);
-        }
-
-        if (!comTIN) {
-            Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
-            return null;
-        }
-
-        if (comTIN.length === 14) {
-            Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
-            isYatt = true;
-        }
-
-        let companyInfo = await Didox.infoByTinPinfl(comTIN);
-        console.log(companyInfo, 'companyInfo');
-
-        if (!companyInfo) {
-            Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
-            return null;
-        }
-
-        console.info("Core isYatt:", isYatt);
-        companyInfo.isYatt = isYatt;
-
-        if (isYatt)
-            companyInfo.directorPinfl = comTIN;
-
-        let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl, globalThis.folderDirector);
-        console.log(ceo, 'ceo');
-
-        if (ceo) {
-            const person = path.join(globalThis.folderDirector, ceo.name);
-            Files.saveInfoToFile(person, '#Director');
-
-            companyInfo.ceo = ceo
-        }
-
-        if (companyInfo.directorPinfl) {
-            if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
-                console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
-                yamlData.SurPINFL = companyInfo.directorPinfl
-                companyInfo.surety = ceo
-            } else {
-                console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
-                let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
-                console.log(surety, 'surety');
-
-                if (surety) {
-                    companyInfo.surety = surety
-                }
+            if (!companyInfo) {
+                Dialogs.warningBox(`companyInfo cache bo'sh: ${jsonCachePath}`, jsonCachePath);
+                return null;
             }
         } else {
-            console.warn(`directorPinfl is empty for TIN: ${comTIN}`)
-        }
+            // 🌐 API rejimi: yangi ma'lumot olish va JSON ga yozish
+            if (!rewrite && !cacheExists)
+                console.warn(`[Yamls.fillYamlWithInfo] ⚠️ rewrite=false lekin cache topilmadi — API dan olinmoqda.`);
 
-        if (!Files.isEmpty(yamlData.RepPINFL)) {
-            let reps = await Didox.infoByTinPinfl(yamlData.RepPINFL, globalThis.folderPartners)
-            console.log(reps, 'surety');
-            companyInfo.reps = reps
-        }
+            let comTIN = Files.getTINFromTXT(globalThis.folderCompan);
+            console.info("comTIN:", comTIN);
 
-        if (!isYatt) {
-            companyInfo.soliq = await MySoliq.companyInfo(comTIN);
-            console.log(companyInfo.soliq, 'soliq');
+            let isYatt = false;
 
-            //     let vatInfo = await MySoliq.vatInfo(comTIN);
-            //     console.log(vatInfo, 'vatInfo');
-            //     companyInfo.vat = vatInfo
+            if (!comTIN) {
+                comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
+                console.info("comTIN ComPINFL:", comTIN);
+            }
 
-        } else {
-            companyInfo.soliqYatt = await MySoliq.entrepreneurInfo(comTIN, yamlData.SurPassportSerial, yamlData.SurPassportNumber);
-            console.log(companyInfo.soliqYatt, 'soliqYatt');
+            if (!comTIN) {
+                Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
+                return null;
+            }
+
+            if (comTIN.length === 14) {
+                Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
+                isYatt = true;
+            }
+
+            companyInfo = await Didox.infoByTinPinfl(comTIN);
+            console.log(companyInfo, 'companyInfo');
+
+            if (!companyInfo) {
+                Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
+                return null;
+            }
+
+            console.info("Core isYatt:", isYatt);
+            companyInfo.isYatt = isYatt;
+
+            if (isYatt)
+                companyInfo.directorPinfl = comTIN;
+
+            let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl, globalThis.folderDirector);
+            console.log(ceo, 'ceo');
+
+            if (ceo) {
+                const person = path.join(globalThis.folderDirector, ceo.name);
+                Files.saveInfoToFile(person, '#Director');
+
+                companyInfo.ceo = ceo
+            }
+
+            if (companyInfo.directorPinfl) {
+                if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
+                    console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
+                    yamlData.SurPINFL = companyInfo.directorPinfl
+                    companyInfo.surety = ceo
+                } else {
+                    console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
+                    let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
+                    console.log(surety, 'surety');
+
+                    if (surety) {
+                        companyInfo.surety = surety
+                    }
+                }
+            } else {
+                console.warn(`directorPinfl is empty for TIN: ${comTIN}`)
+            }
+
+            if (!Files.isEmpty(yamlData.RepPINFL)) {
+                let reps = await Didox.infoByTinPinfl(yamlData.RepPINFL, globalThis.folderPartners)
+                console.log(reps, 'surety');
+                companyInfo.reps = reps
+            }
+
+            if (!isYatt) {
+                companyInfo.soliq = await MySoliq.companyInfo(comTIN);
+                console.log(companyInfo.soliq, 'soliq');
+
+                //     let vatInfo = await MySoliq.vatInfo(comTIN);
+                //     console.log(vatInfo, 'vatInfo');
+                //     companyInfo.vat = vatInfo
+
+            } else {
+                companyInfo.soliqYatt = await MySoliq.entrepreneurInfo(comTIN, yamlData.SurPassportSerial, yamlData.SurPassportNumber);
+                console.log(companyInfo.soliqYatt, 'soliqYatt');
+            }
+
+            Files.writeJson(jsonCachePath, companyInfo)
+            console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
         }
 
         Files.deleteInfo(globalThis.folderALL, `#From-`)
@@ -411,22 +445,21 @@ export class Yamls {
         Files.deleteInfo(globalThis.folderCompan, `-kv`)
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.Area}-kv`)
 
-        Files.writeJson(path.join(globalThis.folderRestAPI, `ALL.json`), companyInfo)
-
         Yamls.replaceYaml(globalThis.ymlFile, yamlData, companyInfo);
     }
 
 
     static getPrepayMonth(yamlData) {
+    console.info(`[Yamls.getPrepayMonth] 🟢 Starting...`);
         let prepay
 
-        if (Files.isEmpty(yamlData.prepayMonth)) {
+        if (Files.isEmpty(yamlData.PrepayMonth)) {
             prepay = Yamls.getConfig('Contract.PrepayMonth')
             console.log(`prepayMonth from Yaml: ${prepay}`);
         }
         else {
-            prepay = yamlData.prepayMonth
-            console.log(`prepayMonth from ENV: ${prepay}`);
+            prepay = yamlData.PrepayMonth
+            console.log(`prepayMonth from Main .Contract file: ${prepay}`);
         }
 
         return prepay;
@@ -434,6 +467,7 @@ export class Yamls {
     }
 
     static replaceYaml(ymlFile, yamlData, companyInfo) {
+        console.info(`[Yamls.replaceYaml] 🟢 Starting...`);
         console.log(ymlFile, 'ymlFile');
 
         if (!yamlData || !companyInfo)
@@ -828,6 +862,7 @@ export class Yamls {
     }
 
     static mergeYamlsInFolder(folderPath) {
+        console.info(`[Yamls.mergeYamlsInFolder] 🟢 Starting...`);
         if (!fs.existsSync(folderPath)) {
             console.warn(`Folder not found: ${folderPath}`);
             return;
@@ -914,6 +949,30 @@ export class Yamls {
         } else {
             console.log(`No valid YAML data found to merge.`);
         }
+    }
+
+    /**
+     * Write a value at a nested dot-path into config.yml.
+     * e.g. setConfig('ChoosedChars.Word', 'ABCabc')
+     * Preserves all other keys in the file.
+     *
+     * @param {string} keyPath - Dot-notated key path, e.g. 'ChoosedChars.Word'
+     * @param {*} value - Value to set
+     */
+    static setConfig(keyPath, value) {
+    console.info(`[Yamls.setConfig] 🟢 Starting...`);
+        const configPath = Files.currentDir() + '\\config.yml';
+        if (!fs.existsSync(configPath)) {
+            throw new Error(`Config file not found: ${configPath}`);
+        }
+
+        const doc = yaml.load(fs.readFileSync(configPath, 'utf8')) ?? {};
+
+        // dot-prop sets the nested dot-path, auto-creating intermediate objects.
+        setProperty(doc, keyPath, value);
+
+        fs.writeFileSync(configPath, yaml.dump(doc, { lineWidth: -1, quotingType: '"' }), 'utf8');
+        console.log(`✅ setConfig: ${keyPath} = ${value}`);
     }
 
 }
