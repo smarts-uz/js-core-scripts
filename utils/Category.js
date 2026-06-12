@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import fse from 'fs-extra';
 import { Chromes } from './Chromes.js';
 import { Dialogs } from './Dialogs.js';
 
@@ -30,6 +31,7 @@ export class Category {
    * Returns a timestamp string in YYYY-MM-DD_HH-MM format.
    */
   static timestamp() {
+    console.info(`[Category.timestamp] 🟢 Starting...`);
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm   = String(now.getMonth() + 1).padStart(2, '0');
@@ -43,6 +45,7 @@ export class Category {
    * Reads and parses a YAML file.
    */
   static loadYaml(filePath, tag) {
+    console.info(`[Category.loadYaml] 🟢 Starting...`);
     if (!fs.existsSync(filePath)) {
       console.warn(`[${tag}] WARNING: YAML file not found: ${filePath}`);
       return null;
@@ -80,8 +83,9 @@ export class Category {
    * Ensures a directory exists, creating it recursively if needed.
    */
   static ensureDir(dirPath, tag) {
+    console.info(`[Category.ensureDir] 🟢 Starting...`);
     if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
+      fse.ensureDirSync(dirPath);
       console.log(`[${tag}] Created directory: ${dirPath}`);
     }
   }
@@ -92,6 +96,7 @@ export class Category {
    * Returns true on success, false if src not found.
    */
   static moveFile(src, dest, tag) {
+    console.info(`[Category.moveFile] 🟢 Starting...`);
     if (!fs.existsSync(src)) {
       console.warn(`[${tag}] WARNING: Source file not found, skipping: ${src}`);
       return false;
@@ -104,7 +109,10 @@ export class Category {
       fs.renameSync(dest, renamed);
       console.log(`[${tag}] Renamed existing file to: ${renamed}`);
     }
-    fs.renameSync(src, dest);
+    // moveSync (unlike fs.renameSync) works across drives/volumes — no EXDEV
+    // error when source and destination live on different disks (common on
+    // Windows). The colliding dest was already renamed above, so overwrite:false.
+    fse.moveSync(src, dest, { overwrite: false });
     console.log(`[${tag}] Moved: ${src} → ${dest}`);
     return true;
   }
@@ -114,6 +122,7 @@ export class Category {
    * stopping at limitPath (exclusive).
    */
   static removeEmptyDirs(dirPath, limitPath, tag) {
+    console.info(`[Category.removeEmptyDirs] 🟢 Starting...`);
     let current     = path.normalize(dirPath);
     const limit     = limitPath ? path.normalize(limitPath) : null;
 
@@ -134,6 +143,7 @@ export class Category {
    * Finds a file by name recursively in a directory. Returns full path or null.
    */
   static findFileRecursively(dir, filename) {
+    console.info(`[Category.findFileRecursively] 🟢 Starting...`);
     if (!fs.existsSync(dir)) return null;
     for (const file of fs.readdirSync(dir)) {
       const fullPath = path.join(dir, file);
@@ -153,6 +163,7 @@ export class Category {
    *                         {domain_name}, {SourceFolder}, and any entry field key.
    */
   static resolveTargetPath(template, target, fields, SourceFolder, domain_name) {
+    console.info(`[Category.resolveTargetPath] 🟢 Starting...`);
     let resolved = template
       .replace(/{source_file}/g, target)
       .replace(/{SourceFolder}/g, SourceFolder || '');
@@ -187,6 +198,7 @@ export class Category {
    * Prefers relative_path + target if SourceFolder is absent.
    */
   static displayPath(target, fields, SourceFolder, absolutePath) {
+    console.info(`[Category.displayPath] 🟢 Starting...`);
     if (SourceFolder && absolutePath) {
       return path.relative(SourceFolder, absolutePath).replace(/\\/g, '/');
     }
@@ -201,6 +213,7 @@ export class Category {
    * Requires TargetPath in YAML — shows Windows error dialog and exits if missing.
    */
   static run(yamlPath) {
+    console.info(`[Category.run] 🟢 Starting...`);
     const tag = 'Organizer';
     console.log(`[${tag}] Starting pipeline for: ${yamlPath}`);
 
@@ -302,6 +315,7 @@ export class Category {
    * Requires TargetPath in YAML — shows Windows error dialog and exits if missing.
    */
   static revert(yamlPath) {
+    console.info(`[Category.revert] 🟢 Starting...`);
     const tag = 'Reverter';
     console.log(`[${tag}] Starting revert for: ${yamlPath}`);
 
