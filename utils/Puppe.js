@@ -9,6 +9,7 @@ import { Dates } from "./Dates.js";
 import { ES } from "./ES.js";
 import { Phone } from "./Phone.js";
 import { Yamls } from "./Yamls.js";
+import pRetry from "p-retry";
 
 export class Puppe {
   constructor(parameters) {
@@ -24,6 +25,7 @@ export class Puppe {
 
 
   static async humanScroll() {
+    console.info(`[Puppe.humanScroll] 🟢 Starting...`);
 
     const humanScrollStep = parseInt(Yamls.getConfig('humanScrollStep'));
     console.info('humanScrollStep', humanScrollStep);
@@ -52,6 +54,7 @@ export class Puppe {
 
 
   static async autoScroll(step = 400, delay = 150) {
+    console.info(`[Puppe.autoScroll] 🟢 Starting...`);
 
     await globalThis.page.evaluate(
       async (step, delay) => {
@@ -83,6 +86,7 @@ export class Puppe {
       maxScrolls = 30
     } = {}
   ) {
+    console.info(`[Puppe.scrollUntilSelector] 🟢 Starting...`);
     for (let i = 0; i < maxScrolls; i++) {
       const found = await globalThis.page.$(selector);
       if (found) return true;
@@ -101,6 +105,7 @@ export class Puppe {
    * Saves all ads from a search page, including pagination
    */
   static async extractOffers() {
+    console.info(`[Puppe.extractOffers] 🟢 Starting...`);
 
     let adLinks = await globalThis.page.$$eval(
       'a[href*="/obyavlenie/"], a[href*="/offer/"]',
@@ -134,6 +139,7 @@ export class Puppe {
 
 
   static async extractUserId() {
+    console.info(`[Puppe.extractUserId] 🟢 Starting...`);
     const selector = 'a[data-testid="user-profile-link"]'
 
     let matches = await globalThis.page.$eval(selector, a => {
@@ -178,6 +184,7 @@ export class Puppe {
 
 
   static async extractContent(page) {
+    console.info(`[Puppe.extractContent] 🟢 Starting...`);
 
     const description = await globalThis.page.$eval(
       '[data-cy="ad_description"] > div:last-child',
@@ -196,6 +203,7 @@ export class Puppe {
 
 
   static async extractApp(pattern, page) {
+      console.info(`[Puppe.extractApp] 🟢 Starting...`);
 
     console.info('extractApp pattern: ', pattern);
 
@@ -215,6 +223,7 @@ export class Puppe {
   }
 
   static async extractAppPhone(pattern, page) {
+    console.info(`[Puppe.extractAppPhone] 🟢 Starting...`);
 
     try {
       const username = await globalThis.page.$eval(
@@ -233,6 +242,7 @@ export class Puppe {
 
 
   static async extractID(page) {
+    console.info(`[Puppe.extractID] 🟢 Starting...`);
 
     let id = await globalThis.page.$eval(
       '[data-testid="ad-footer-bar-section"]',
@@ -252,6 +262,7 @@ export class Puppe {
 
 
   static async showPhone() {
+    console.info(`[Puppe.showPhone] 🟢 Starting...`);
     // await Puppe.scrollAds(page);
 
 
@@ -301,6 +312,7 @@ export class Puppe {
 
 
   static async saveAsMhtml(filePath) {
+      console.info(`[Puppe.saveAsMhtml] 🟢 Starting...`);
     try {
       console.info("🧩 Capturing MHTML snapshot...");
       const cdp = await globalThis.page.createCDPSession();
@@ -337,6 +349,7 @@ export class Puppe {
 
 
   static async scrapeOffers(url) {
+      console.info(`[Puppe.scrapeOffers] 🟢 Starting...`);
 
 
     console.info(`➡️ Loading Olx Post scrapeOffers: ${url}`);
@@ -443,28 +456,39 @@ export class Puppe {
 
 
   static async scrapePhone(url, userIdPath) {
+      console.info(`[Puppe.scrapePhone] 🟢 Starting...`);
 
     console.info(`➡️ Loading Olx Post scrapePhone: ${url}`);
 
-    await Chromes.pageGo(url, { waitUntil: "networkidle2" });
+    let phone;
+    try {
+      // Bounded retry replaces the previous unbounded self-recursion: a null
+      // result (phone panel never rendered) is retriable; once the retries are
+      // exhausted p-retry rethrows and we fall back to "no phone" (false).
+      phone = await pRetry(async () => {
+        await Chromes.pageGo(url, { waitUntil: "networkidle2" });
+        await Puppe.humanScroll();
+        const p = await Puppe.showPhone();
+        console.info(`Phone: ${p}`);
+        if (p === null) throw new Error('Phone panel not shown');
+        return p;
+      }, {
+        retries: 3,
+        onFailedAttempt: async (error) => {
+          console.warn(`⚠️ scrapePhone attempt ${error.attemptNumber} failed (${error.retriesLeft} left)`);
+          Files.saveInfoToFile(userIdPath, '#PhoneError');
+          await Dates.sleep(500)
+          await Chromes.runBrowser(true, false)
+        },
+      });
+    } catch (error) {
+      console.error(`scrapePhone gave up for ${url}: ${error.message}`);
+      return false;
+    }
 
-    await Puppe.humanScroll();
+    if (phone === false) return false;
 
-    const phone = await Puppe.showPhone();
-    console.info(`Phone: ${phone}`);
-
-    switch (phone) {
-      case false:
-        return false
-
-      case null:
-        Files.saveInfoToFile(userIdPath, '#PhoneError');
-        await Dates.sleep(500)
-        await Chromes.runBrowser(true, false)
-        await Puppe.scrapePhone(url, userIdPath)
-        return false
-
-      default:
+    {
         const phoneApp = Dates.normalizeUzAccordingToRule(phone);
         console.info(`Phone App: ${phoneApp}`);
 
@@ -507,6 +531,7 @@ export class Puppe {
 
 
   static async scrapeUser(url, userIdPath, match) {
+    console.info(`[Puppe.scrapeUser] 🟢 Starting...`);
 
     const userIdALLMhtml = path.join(userIdPath, `User ${match}.mhtml`);
     console.info(`User Id ALL Mhtml: ${userIdALLMhtml}`);
@@ -553,8 +578,10 @@ export class Puppe {
   }
 
   static async offersCount(fullPath) {
+    console.info(`[Puppe.offersCount] 🟢 Starting...`);
     // scan fullPath for folders using fs
     let folders = Files.findRecursiveFull(fullPath, function (file) {
+    console.info(`[Puppe.findRecursiveFull] 🟢 Starting...`);
       return file.includes('Мы нашли') && file.includes('объявлений')
     });
     console.info(`Found ${folders.length} folders`, folders);
@@ -563,6 +590,7 @@ export class Puppe {
 
 
   static async scrapePages(url) {
+      console.info(`[Puppe.scrapePages] 🟢 Starting...`);
 
 
     console.info(`➡️ Loading Catalog: ${url}`);
@@ -588,6 +616,7 @@ export class Puppe {
 
 
   static async appSavePagination() {
+      console.info(`[Puppe.appSavePagination] 🟢 Starting...`);
 
     await Chromes.runBrowser(false, false)
 
@@ -617,6 +646,7 @@ export class Puppe {
 
 
   static async itemSavePagination(url) {
+      console.info(`[Puppe.itemSavePagination] 🟢 Starting...`);
 
 
     console.info(`📖 Загружаю главную страницу для получения пагинации: ${url}`);
@@ -731,6 +761,7 @@ export class Puppe {
 
 
   static async appSavePages() {
+    console.info(`[Puppe.appSavePages] 🟢 Starting...`);
 
     await Chromes.runBrowser(false, false)
 
@@ -759,6 +790,7 @@ export class Puppe {
 
 
   static async appSavePhones() {
+    console.info(`[Puppe.appSavePhones] 🟢 Starting...`);
 
     const foldersToScan = Phone.getNoPhones();
 
@@ -817,57 +849,55 @@ export class Puppe {
 
 
   static async appSaveOffers() {
+      console.info(`[Puppe.appSaveOffers] 🟢 Starting...`);
 
     console.info(globalThis.mhtmlDirDataAllJson, 'mhtmlDirDataAllJson globalThis');
 
-    try {
-      if (fs.existsSync(globalThis.mhtmlDirDataAllJson)) {
+    // Bounded retry (was an unbounded self-recursion that could loop forever and
+    // grow the stack on every failure). Each failed attempt restarts the browser
+    // and waits; once the retries are exhausted p-retry rethrows so the run ends.
+    const run = async () => {
+      if (!fs.existsSync(globalThis.mhtmlDirDataAllJson)) return;
 
-        // read this json. globalThis.mhtmlDirPageAllJson iterate through all pages and save them as mhtml files
+      let mhtmlDirDataAllJson = Files.readJson(globalThis.mhtmlDirDataAllJson);
 
-        let mhtmlDirDataAllJson = Files.readJson(globalThis.mhtmlDirDataAllJson);
-
-        if (mhtmlDirDataAllJson.length === 0) {
-          console.info(`No pages found in ${globalThis.mhtmlDirDataAllJson}`);
-          return;
-        }
-
-        await Chromes.runBrowser(false, false)
-
-        for (const pageUrl of mhtmlDirDataAllJson) {
-          const status = await Puppe.scrapeOffers(pageUrl);
-
-          if (status) {
-            // remove pageUrl from mhtmlDirDataAllJson
-            mhtmlDirDataAllJson = mhtmlDirDataAllJson.filter(url => url !== pageUrl);
-
-            console.info(`Remaining pages: ${mhtmlDirDataAllJson.length}`);
-            Files.backupFile(globalThis.mhtmlDirDataAllJson);
-            Files.writeJson(globalThis.mhtmlDirDataAllJson, mhtmlDirDataAllJson);
-          }
-
-        }
-
-
+      if (mhtmlDirDataAllJson.length === 0) {
+        console.info(`No pages found in ${globalThis.mhtmlDirDataAllJson}`);
+        return;
       }
-    } catch (error) {
-      console.error(error);
-
-      console.info(`⚠️ Code: ${error.code} Message: ${error.message}`);
-      //    Dialogs.messageBox(`⚠️ Code: ${error.code} Message: ${error.message}`, 'Error');
-
-      await Dates.sleep(500)
 
       await Chromes.runBrowser(false, false)
 
-      await this.appSaveOffers();
-    }
+      for (const pageUrl of mhtmlDirDataAllJson) {
+        const status = await Puppe.scrapeOffers(pageUrl);
+
+        if (status) {
+          // remove pageUrl from mhtmlDirDataAllJson
+          mhtmlDirDataAllJson = mhtmlDirDataAllJson.filter(url => url !== pageUrl);
+
+          console.info(`Remaining pages: ${mhtmlDirDataAllJson.length}`);
+          Files.backupFile(globalThis.mhtmlDirDataAllJson);
+          Files.writeJson(globalThis.mhtmlDirDataAllJson, mhtmlDirDataAllJson);
+        }
+      }
+    };
+
+    await pRetry(run, {
+      retries: 5,
+      onFailedAttempt: async (error) => {
+        console.error(error);
+        console.info(`⚠️ Attempt ${error.attemptNumber} failed (${error.retriesLeft} left). Code: ${error.code} Message: ${error.message}`);
+        await Dates.sleep(500)
+        await Chromes.runBrowser(false, false)
+      },
+    });
 
 
   }
 
 
   static async pageTitle() {
+    console.info(`[Puppe.pageTitle] 🟢 Starting...`);
     // Safe file naming
     let title = await globalThis.page.title();
 
@@ -881,6 +911,7 @@ export class Puppe {
 
 
   static async scrollAds() {
+    console.info(`[Puppe.scrollAds] 🟢 Starting...`);
     const Wait_Min = Yamls.getConfig('Wait_Min') || 5;
     const Wait_Max = Yamls.getConfig('Wait_Max') || 30;
     const Scroll_Count_Min = Yamls.getConfig('Scroll_Count_Min') || 2;
