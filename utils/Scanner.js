@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import yaml from 'js-yaml';
 import { Yamls } from './Yamls.js';
 
 export class Scanner {
@@ -10,12 +11,14 @@ export class Scanner {
     ];
 
     static isExcluded(name, exclusions) {
+    console.info(`[Scanner.isExcluded] 🟢 Starting...`);
         if (exclusions.includes(name)) return true;
         if (name.startsWith("_") || name.startsWith("@")) return true;
         return false;
     }
 
     static getTimestamp() {
+    console.info(`[Scanner.getTimestamp] 🟢 Starting...`);
         const now = new Date();
         const YYYY = now.getFullYear();
         const MM = String(now.getMonth() + 1).padStart(2, '0');
@@ -26,6 +29,7 @@ export class Scanner {
     }
 
     static notify(message, title, timeoutSeconds, type = 64) {
+    console.info(`[Scanner.notify] 🟢 Starting...`);
         // type 64 = Information, 16 = Error
         const command = `powershell -Command "$notification = New-Object -ComObject WScript.Shell; $notification.Popup('${message.replace(/'/g, "''")}', ${timeoutSeconds}, '${title.replace(/'/g, "''")}', ${type})"`;
         try {
@@ -36,6 +40,7 @@ export class Scanner {
     }
 
     static safeWriteFile(filePath, content, aicFolder) {
+    console.info(`[Scanner.safeWriteFile] 🟢 Starting...`);
         const fileName = path.basename(filePath);
         const dir = path.dirname(filePath);
         
@@ -68,6 +73,7 @@ export class Scanner {
     }
 
     static scanRecursive(currentPath, depth, maxDepth, exclusions) {
+    console.info(`[Scanner.scanRecursive] 🟢 Starting...`);
         if (depth > maxDepth) return {};
 
         let entries;
@@ -92,33 +98,21 @@ export class Scanner {
     }
 
     static toYaml(obj, indent = 0) {
-        let str = "";
-        if (!obj) return str;
-        const keys = Object.keys(obj).sort();
-        for (const key of keys) {
-            const escape = (s) => {
-                if (!s) return '""';
-                s = String(s);
-                if (/[:#\[\]{},*&!|>?%@\`\-"' ]|^\s|\s$/.test(s)) {
-                    return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-                }
-                return s;
-            };
-
-            const value = obj[key];
-            const hasChildren = value && Object.keys(value).length > 0;
-            
-            if (hasChildren) {
-                str += "  ".repeat(indent) + `${escape(key)}:\n`;
-                str += this.toYaml(value, indent + 1);
-            } else {
-                str += "  ".repeat(indent) + `${escape(key)}: ""\n`;
-            }
-        }
-        return str;
+    console.info(`[Scanner.toYaml] 🟢 Starting...`);
+        // Empty leaf folders become empty strings so js-yaml emits `name: ''`,
+        // delegating all key escaping/quoting to the standard serializer instead
+        // of the previous hand-rolled (and buggy) escape + indentation logic.
+        const normalize = (node) =>
+            (node && typeof node === 'object' && Object.keys(node).length > 0)
+                ? Object.fromEntries(Object.keys(node).sort().map((k) => [k, normalize(node[k])]))
+                : '';
+        const normalized = normalize(obj);
+        if (typeof normalized !== 'object') return '';
+        return yaml.dump(normalized, { lineWidth: -1, sortKeys: true });
     }
 
     static getIncrementedPath(dir, baseName, extension) {
+    console.info(`[Scanner.getIncrementedPath] 🟢 Starting...`);
         let counter = 1;
         let filePath;
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -130,6 +124,7 @@ export class Scanner {
     }
 
     static flattenTreeForTable(tree, currentPath = "", list = []) {
+    console.info(`[Scanner.flattenTreeForTable] 🟢 Starting...`);
         if (!tree) return list;
         const keys = Object.keys(tree).sort();
         for (const key of keys) {
@@ -141,6 +136,7 @@ export class Scanner {
     }
 
     static generateTreeMarkdown(tree, indent = 0) {
+    console.info(`[Scanner.generateTreeMarkdown] 🟢 Starting...`);
         let str = "";
         if (!tree) return str;
         const keys = Object.keys(tree).sort();
@@ -160,6 +156,7 @@ export class Scanner {
      * @param {string[]} [options.exclusions] The list of folder names to exclude
      */
     static run({ sourceFolder, aicFolder, maxLevel = 5, exclusions = null }) {
+    console.info(`[Scanner.run] 🟢 Starting...`);
         if (!aicFolder) aicFolder = path.join(sourceFolder, "AIC");
         const mdFolder = path.join(aicFolder, "MD");
 
