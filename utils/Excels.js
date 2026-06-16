@@ -17,6 +17,7 @@ import { Word } from './Word.js';
 export class Excels {
 
   static checkWinax(methodName) {
+    console.info(`[Excels.checkWinax] 🟢 Starting...`);
     if (!winax) {
       throw new Error(`${methodName}: Native automation (winax) is not available. This is often due to a Node.js version mismatch (Node 24 vs 22) or missing build tools. Please use the ExcelJS runner as an alternative.`);
     }
@@ -28,13 +29,122 @@ export class Excels {
 
   // === START EXCEL ===
   static openExcel(filePath) {
+    console.info(`[Excels.openExcel] 🟢 Starting...`);
     try {
       const excel = new winax.Object('Excel.Application');
       excel.Visible = false;
-      const workbook = excel.Workbooks.Open(filePath);
+      excel.DisplayAlerts = false;
+      excel.AutomationSecurity = 1;
+      const workbook = this.openWorkbookSafely(excel, filePath);
       return { excel, workbook };
     } catch (error) {
       throw new Error(`Failed to open Excel file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Open a workbook, silently falling back to Excel's repair/extract-data
+   * recovery modes when the file has problematic content (the same modes
+   * Excel's "We found a problem… recover?" dialog offers).
+   *
+   * CorruptLoad: 0 = xlNormalLoad, 1 = xlRepairFile, 2 = xlExtractData.
+   */
+  static openWorkbookSafely(excelApp, filePath, { updateLinks = 0, readOnly = false } = {}) {
+    console.info(`[Excels.openWorkbookSafely] 🟢 Starting...`);
+    const absPath = path.resolve(filePath);
+
+    // Mode 1 — plain open. Same 3-arg form the codebase has been using
+    // successfully. Keep it short: winax/OLE does not always accept
+    // `undefined` in the middle of a positional argument list.
+    try {
+      return excelApp.Workbooks.Open(absPath, updateLinks, readOnly);
+    } catch (err) {
+      console.warn(`↩️  Normal open failed: ${err.message}. Trying repair mode…`);
+    }
+
+    // Modes 2 & 3 — CorruptLoad fallback. Pass `null` (VT_NULL) for the
+    // optional params winax accepts; `undefined` tends to surface as
+    // "Open method of Workbooks class failed".
+    //   CorruptLoad: 1 = xlRepairFile, 2 = xlExtractData.
+    const callWithCorruptLoad = (corruptLoad) => excelApp.Workbooks.Open(
+      absPath,
+      updateLinks,   // UpdateLinks
+      readOnly,      // ReadOnly
+      null,          // Format
+      null,          // Password
+      null,          // WriteResPassword
+      true,          // IgnoreReadOnlyRecommended
+      null,          // Origin
+      null,          // Delimiter
+      null,          // Editable
+      false,         // Notify
+      null,          // Converter
+      false,         // AddToMru
+      null,          // Local
+      corruptLoad    // CorruptLoad
+    );
+
+    try {
+      const wb = callWithCorruptLoad(1);
+      console.warn(`⚠️  Opened "${absPath}" in repair mode (CorruptLoad=1).`);
+      return wb;
+    } catch (err) {
+      console.warn(`↩️  Repair-mode open failed: ${err.message}. Trying extract-data mode…`);
+    }
+
+    try {
+      const wb = callWithCorruptLoad(2);
+      console.warn(`⚠️  Opened "${absPath}" in extract-data mode (CorruptLoad=2).`);
+      return wb;
+    } catch (err) {
+      throw new Error(`openWorkbookSafely: Unable to open "${absPath}" even with repair/extract-data modes. Last error: ${err.message}`);
+    }
+  }
+
+  static getProtectedPath(filename) {
+    console.info(`[Excels.getProtectedPath] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+    const ext = path.extname(absPath);
+    const stem = path.basename(absPath, ext);
+    const protectSuffix = Yamls.getConfig('Excel.ProtectSuffix') || '';
+    
+    if (protectSuffix && stem.includes(protectSuffix)) {
+      return absPath;
+    }
+    
+    let newPath = path.join(path.dirname(absPath), `${stem}${protectSuffix}${ext}`);
+    return Files.incrementFileName(newPath);
+  }
+
+  /**
+   * Open a problem-content workbook via Excel COM in repair mode and
+   * SaveAs a clean .xlsx to outputPath. Used as a fallback when other
+   * parsers (e.g. SheetJS) can't read the original file.
+   */
+  static repairToFile(inputPath, outputPath) {
+    console.info(`[Excels.repairToFile] 🟢 Starting...`);
+    this.checkWinax('repairToFile');
+    const absInput  = path.resolve(inputPath);
+    const absOutput = path.resolve(outputPath);
+
+    if (!fs.existsSync(absInput)) {
+      throw new Error(`repairToFile: File not found: ${absInput}`);
+    }
+
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      const workbook = this.openWorkbookSafely(excelApp, absInput);
+      workbook.SaveAs(absOutput, 51); // xlOpenXMLWorkbook
+      workbook.Close(false);
+      console.log(`💾 Repaired copy saved: ${absOutput}`);
+      return absOutput;
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
     }
   }
 
@@ -48,6 +158,7 @@ export class Excels {
    * @returns {string} The resolved output path
    */
   static convertXltxToXlsx(inputPath, outputPath) {
+    console.info(`[Excels.convertXltxToXlsx] 🟢 Starting...`);
     const absInput  = path.resolve(inputPath);
     const absOutput = path.resolve(outputPath);
 
@@ -59,10 +170,11 @@ export class Excels {
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible        = false;
     excelApp.DisplayAlerts  = false;
+    excelApp.AutomationSecurity = 1;
 
     try {
       // Open the .xltx — Excel opens it as a new unsaved workbook based on the template
-      const workbook = excelApp.Workbooks.Open(absInput);
+      const workbook = this.openWorkbookSafely(excelApp, absInput);
 
       // xlOpenXMLWorkbook = 51  (.xlsx)
       workbook.SaveAs(absOutput, 51);
@@ -84,6 +196,7 @@ export class Excels {
    * @returns {string} The resolved output path
    */
   static convertXltxToXlsxAuto(inputPath) {
+    console.info(`[Excels.convertXltxToXlsxAuto] 🟢 Starting...`);
     const absInput  = path.resolve(inputPath);
     const dir       = path.dirname(absInput);
     const base      = path.basename(absInput, path.extname(absInput));
@@ -95,6 +208,7 @@ export class Excels {
 
   // === SCAN SUBFOLDERS OR TXT FILES ===
   static scanSubFolder(folderPath) {
+    console.info(`[Excels.scanSubFolder] 🟢 Starting...`);
 
 
     // Check if folder exists and is a directory
@@ -109,6 +223,7 @@ export class Excels {
 
   // === SCAN SUBFOLDERS OR TXT FILES ===
   static scanSubFilesTxt(folderPath) {
+    console.info(`[Excels.scanSubFilesTxt] 🟢 Starting...`);
 
 
     // Check if folder exists and is a directory
@@ -122,6 +237,7 @@ export class Excels {
   }
 
   static processPricing(yamlData) {
+    console.info(`[Excels.processPricing] 🟢 Starting...`);
     const found = this.findColumn('Pricings');
     let row = found.Row;
 
@@ -205,6 +321,7 @@ export class Excels {
 
   // === PROCESS FOLDERS AND WRITE DATA ===
   static processFolders(folder, found) {
+    console.info(`[Excels.processFolders] 🟢 Starting...`);
     let row = found.Row;
 
     const folderPath = path.join(globalThis.folderALL, folder);
@@ -239,6 +356,7 @@ export class Excels {
 
 
   static replaceInSheet(search, replace) {
+    console.info(`[Excels.replaceInSheet] 🟢 Starting...`);
     let found = globalThis.excelSheet.Cells.Replace(
       search,          // What to find
       replace,                   // Replacement text
@@ -260,6 +378,7 @@ export class Excels {
 
 
   static findColumn(search) {
+      console.info(`[failed.findColumn] 🟢 Starting...`);
     console.log(`🔍 Searching for "${search}" in Excel...`);
 
     const found = globalThis.excelSheet.Cells.Find(search);
@@ -281,6 +400,7 @@ export class Excels {
 
 
   static fileOpen(fileName) {
+    console.info(`[Excels.fileOpen] 🟢 Starting...`);
 
     if (!fs.existsSync(fileName)) {
       Dialogs.warningBox(`File "${fileName}" not found.`, 'File Error');
@@ -295,7 +415,7 @@ export class Excels {
     console.log('Excel PID:', globalThis.excelPid);
 
     try {
-      globalThis.excelWorkbook = globalThis.excelApp.Workbooks.Open(fileName);
+      globalThis.excelWorkbook = Excels.openWorkbookSafely(globalThis.excelApp, fileName);
       globalThis.excelSheet = globalThis.excelWorkbook.Sheets('App');
     } catch (err) {
 
@@ -307,6 +427,7 @@ export class Excels {
   }
 
   static fileSave() {
+    console.info(`[Excels.fileSave] 🟢 Starting...`);
 
     globalThis.excelApp.CalculateFull();
 
@@ -321,6 +442,7 @@ export class Excels {
 
 
   static fileClose() {
+    console.info(`[Excels.fileClose] 🟢 Starting...`);
 
     this.fileSave();
 
@@ -348,25 +470,33 @@ export class Excels {
   }
 
 
-  static replaceFormula(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+  // Shared driver: walks all formula cells and reads/writes via the requested
+  // Excel API (`apiName` = "Formula" | "Formula2" | "FormulaArray").
+  static _replaceFormulaWith(apiName, filePath, searchStr, replaceStr, recalc, sheetFilter) {
+    console.info(`[Excels._replaceFormulaWith] 🟢 Starting...`);
     const absPath = path.resolve(filePath);
+    const label = `replace${apiName}`;
 
     if (!fs.existsSync(absPath)) {
-      throw new Error(`replaceFormula: File not found: ${absPath}`);
+      throw new Error(`${label}: File not found: ${absPath}`);
     }
 
     const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
     console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
-    this.checkWinax('replaceFormula');
+    this.checkWinax(label);
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
     excelApp.ScreenUpdating = false;
     excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1;
+
+    // FormulaArray's getter doesn't expose the raw "@"; read via Formula2 for detection.
+    const readApi = apiName === 'FormulaArray' ? 'Formula2' : apiName;
 
     try {
-      const workbook = excelApp.Workbooks.Open(absPath);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
       const sheetCount = workbook.Sheets.Count;
 
       console.log(`📄 Total sheets: ${sheetCount}`);
@@ -385,18 +515,17 @@ export class Excels {
       console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
 
       let totalChanged = 0;
+      let processedIdx = 0;
 
       for (let i = 1; i <= sheetCount; i++) {
         const sheet = workbook.Sheets(i);
         const sheetName = sheet.Name;
 
-        if (sheetFilter && sheetName !== sheetFilter) {
-          continue;
-        } else if (!sheetFilter && exclusions.includes(sheetName)) {
-          continue;
-        }
+        if (sheetFilter && sheetName !== sheetFilter) continue;
+        else if (!sheetFilter && exclusions.includes(sheetName)) continue;
 
-        console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+        processedIdx++;
+        console.log(`\n🔍 [${processedIdx}/${toProcess.length}] Processing sheet: "${sheetName}" via ${apiName}`);
 
         let formulaCells;
         try {
@@ -415,24 +544,20 @@ export class Excels {
           }
 
           const cell = formulaCells.Item(c);
-          
-          let formula = "";
-          try {
-            // Use Formula2 to reliably see the "@" (Implicit Intersection Operator)
-            formula = cell.Formula2;
-          } catch (e) {
-            formula = cell.Formula;
-          }
+
+          let formula = '';
+          try { formula = cell[readApi]; }
+          catch (_) { try { formula = cell.Formula; } catch (__) {} }
 
           if (typeof formula === 'string' && formula.includes(searchStr)) {
             const newFormula = formula.split(searchStr).join(replaceStr);
             if (newFormula !== formula) {
               try {
-                cell.Formula2 = newFormula;
+                cell[apiName] = newFormula;
+                changedInSheet++;
               } catch (e) {
-                cell.Formula = newFormula;
+                console.warn(`\n⚠️  ${apiName} write failed at ${sheetName}!${cell.Address}: ${e.message}`);
               }
-              changedInSheet++;
             }
           }
         }
@@ -460,7 +585,29 @@ export class Excels {
     }
   }
 
+  // Legacy single-cell formula API. Excel auto-inserts "@" (implicit intersection)
+  // when a range reference appears in scalar context.
+  static replaceFormula(filePath, searchStr = '@', replaceStr = '', recalc = false, sheetFilter = '') {
+    console.info(`[Excels.replaceFormula] 🟢 Starting...`);
+    return this._replaceFormulaWith('Formula', filePath, searchStr, replaceStr, recalc, sheetFilter);
+  }
+
+  // Dynamic-array-aware API. Preserves "@" you write literally, but Excel may still
+  // re-render "@" at recalc/display time for non-array cells in scalar context.
+  static replaceFormula2(filePath, searchStr = '@', replaceStr = '', recalc = false, sheetFilter = '') {
+    console.info(`[Excels.replaceFormula2] 🟢 Starting...`);
+    return this._replaceFormulaWith('Formula2', filePath, searchStr, replaceStr, recalc, sheetFilter);
+  }
+
+  // Writes as a true CSE/array formula (<f t="array" ref="..."/>). Use when you
+  // need to strip "@" and have the cell evaluate in array context.
+  static replaceFormulaArray(filePath, searchStr = '@', replaceStr = '', recalc = false, sheetFilter = '') {
+    console.info(`[Excels.replaceFormulaArray] 🟢 Starting...`);
+    return this._replaceFormulaWith('FormulaArray', filePath, searchStr, replaceStr, recalc, sheetFilter);
+  }
+
     static replaceStandart(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+    console.info(`[Excels.replaceStandart] 🟢 Starting...`);
     const absPath = path.resolve(filePath);
 
     if (!fs.existsSync(absPath)) {
@@ -476,9 +623,10 @@ export class Excels {
     excelApp.DisplayAlerts = false;
     excelApp.ScreenUpdating = false;
     excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1; // msoAutomationSecurityLow — bypass Protected View
 
     try {
-      const workbook = excelApp.Workbooks.Open(absPath);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
       const sheetCount = workbook.Sheets.Count;
 
       console.log(`📄 Total sheets: ${sheetCount}`);
@@ -496,6 +644,8 @@ export class Excels {
       console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
       console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
 
+      let processedIdx = 0;
+
       for (let i = 1; i <= sheetCount; i++) {
         const sheet = workbook.Sheets(i);
         const sheetName = sheet.Name;
@@ -506,7 +656,8 @@ export class Excels {
           continue;
         }
 
-        console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+        processedIdx++;
+        console.log(`\n🔍 [${processedIdx}/${toProcess.length}] Processing sheet: "${sheetName}"`);
 
         const replaced = sheet.Cells.Replace(
           searchStr,   // What
@@ -537,6 +688,7 @@ export class Excels {
     }
 
   static replaceFormulaAll(filePath, searchStr = '@', replaceStr = '', recalc = true, sheetFilter = '') {
+    console.info(`[Excels.replaceFormulaAll] 🟢 Starting...`);
     const absPath = path.resolve(filePath);
 
     if (!fs.existsSync(absPath)) {
@@ -552,9 +704,10 @@ export class Excels {
     excelApp.DisplayAlerts = false;
     excelApp.ScreenUpdating = false;
     excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1; // msoAutomationSecurityLow — bypass Protected View
 
     try {
-      const workbook = excelApp.Workbooks.Open(absPath);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
       const sheetCount = workbook.Sheets.Count;
 
       console.log(`📄 Total sheets: ${sheetCount}`);
@@ -573,6 +726,7 @@ export class Excels {
       console.log(`⏭️  Will skip    (${toSkip.length}): ${toSkip.join(', ')}`);
 
       let totalChanged = 0;
+      let processedIdx = 0;
 
       for (let i = 1; i <= sheetCount; i++) {
         const sheet = workbook.Sheets(i);
@@ -581,7 +735,8 @@ export class Excels {
         if (sheetFilter && sheetName !== sheetFilter) continue;
         else if (!sheetFilter && exclusions.includes(sheetName)) continue;
 
-        console.log(`\n🔍 [${i}/${sheetCount}] Processing sheet: "${sheetName}"`);
+        processedIdx++;
+        console.log(`\n🔍 [${processedIdx}/${toProcess.length}] Processing sheet: "${sheetName}"`);
 
         let changedInSheet = 0;
 
@@ -634,6 +789,7 @@ export class Excels {
   }
 
   static recalculate(filePath, sheetFilter = '') {
+    console.info(`[Excels.recalculate] 🟢 Starting...`);
     const absPath = path.resolve(filePath);
 
     if (!fs.existsSync(absPath)) {
@@ -646,10 +802,11 @@ export class Excels {
     excelApp.DisplayAlerts = false;
     excelApp.ScreenUpdating = false;
     excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1; // msoAutomationSecurityLow — bypass Protected View
 
     try {
       console.log(`📂 Opening workbook for Recalc: ${absPath}`);
-      const workbook = excelApp.Workbooks.Open(absPath);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
 
       if (sheetFilter) {
         console.log(`🔄 Recalculating Sheet: "${sheetFilter}"...`);
@@ -669,8 +826,49 @@ export class Excels {
     }
   }
 
+  static changeFont(filePath, fontName = 'Arial', sheetFilter = '') {
+    console.info(`[Excels.changeFont] 🟢 Starting...`);
+    const absPath = path.resolve(filePath);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`changeFont: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('changeFont');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1; // msoAutomationSecurityLow — bypass Protected View
+
+    try {
+      console.log(`📂 Opening workbook for changing font: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
+
+      if (sheetFilter) {
+        console.log(`🔄 Changing font to "${fontName}" in Sheet: "${sheetFilter}"...`);
+        workbook.Sheets(sheetFilter).Cells.Font.Name = fontName;
+      } else {
+        console.log(`🔄 Changing font to "${fontName}" in all sheets...`);
+        const sheetCount = workbook.Sheets.Count;
+        for (let i = 1; i <= sheetCount; i++) {
+          workbook.Sheets(i).Cells.Font.Name = fontName;
+        }
+      }
+
+      const newPath = Files.incrementFileName(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`\n💾 Workbook saved as: ${newPath}`);
+      workbook.Close(false);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
 
   static generate(ymlFile) {
+    console.info(`[Excels.generate] 🟢 Starting...`);
 
     Word.initFolders(ymlFile)
 
@@ -736,5 +934,739 @@ export class Excels {
 
     this.fileClose();
 
+  }
+
+  static protectFile(filename, password) {
+    console.info(`[Excels.protectFile] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`protectFile: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('protectFile');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening workbook for protection: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
+
+      if (workbook.HasPassword) {
+        console.warn(`⚠️ Workbook is already protected: ${absPath}. Skipping.`);
+        workbook.Close(false);
+        return absPath;
+      }
+
+      console.log(`🔒 Protecting workbook with password...`);
+      workbook.Password = password;
+
+      const newPath = this.getProtectedPath(absPath);
+      workbook.SaveAs(newPath, 51); // 51 = xlOpenXMLWorkbook (.xlsx)
+      console.log(`💾 Protected workbook saved as: ${newPath}`);
+      workbook.Close(false);
+
+      return newPath;
+    } catch (error) {
+      throw new Error(`protectFile failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  static unProtectFile(filename, password) {
+    console.info(`[Excels.unProtectFile] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`unProtectFile: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('unProtectFile');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening protected workbook: ${absPath}`);
+      // 5th argument of Workbooks.Open is the password
+      const workbook = excelApp.Workbooks.Open(absPath, 0, false, null, password);
+
+      if (!workbook.HasPassword) {
+        console.warn(`⚠️ Workbook is not protected: ${absPath}.`);
+        Dialogs.warningBox('File is not protected', 'Unprotect File');
+        workbook.Close(false);
+        return;
+      }
+
+      console.log(`🔓 Unprotecting workbook...`);
+      // Clearing the password unprotects the workbook
+      workbook.Password = '';
+
+      workbook.Save();
+      console.log(`💾 Unprotected workbook saved: ${absPath}`);
+      workbook.Close(false);
+    } catch (error) {
+      throw new Error(`unProtectFile failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  /**
+   * Prompt the user for a password then protect the workbook.
+   * @param {string} filename - Path to the .xlsx file.
+   */
+  static protectFileAsk(filename) {
+    console.info(`[Excels.protectFileAsk] 🟢 Starting...`);
+    const password = Dialogs.inputBox('Enter password to protect the workbook:', 'Protect Workbook');
+    if (password === null) {
+      console.log('protectFileAsk: cancelled by user.');
+      return;
+    }
+    this.protectFile(filename, password);
+  }
+
+  /**
+   * Prompt the user for a password then unprotect the workbook.
+   * @param {string} filename - Path to the .xlsx file.
+   */
+  static unProtectFileAsk(filename) {
+    console.info(`[Excels.unProtectFileAsk] 🟢 Starting...`);
+    const password = Dialogs.inputBox('Enter password to unprotect the workbook:', 'Unprotect Workbook');
+    if (password === null) {
+      console.log('unProtectFileAsk: cancelled by user.');
+      return;
+    }
+    this.unProtectFile(filename, password);
+  }
+
+  static protectSheet(filename, password) {
+    console.info(`[Excels.protectSheet] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`protectSheet: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('protectSheet');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening workbook for sheet protection: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
+
+      let alreadyProtected = false;
+      const sheetCount = workbook.Worksheets.Count;
+      for (let i = 1; i <= sheetCount; i++) {
+        if (workbook.Worksheets(i).ProtectContents) {
+          alreadyProtected = true;
+          break;
+        }
+      }
+
+      if (alreadyProtected) {
+        console.warn(`⚠️ Worksheet is already protected: ${absPath}. Skipping.`);
+        workbook.Close(false);
+        return absPath;
+      }
+
+      console.log(`🔒 Protecting all worksheets with password...`);
+      for (let i = 1; i <= sheetCount; i++) {
+        const sheet = workbook.Worksheets(i);
+        // Protect(Password, DrawingObjects, Contents, Scenarios, UserInterfaceOnly, 
+        //         AllowFormattingCells, AllowFormattingColumns, AllowFormattingRows, 
+        //         AllowInsertingColumns, AllowInsertingRows, AllowInsertingHyperlinks, 
+        //         AllowDeletingColumns, AllowDeletingRows, AllowSorting, AllowFiltering, 
+        //         AllowUsingPivotTables)
+        sheet.Protect(
+          password, // Password
+          true,     // DrawingObjects
+          true,     // Contents
+          true,     // Scenarios
+          false,    // UserInterfaceOnly
+          false,    // AllowFormattingCells
+          false,    // AllowFormattingColumns
+          false,    // AllowFormattingRows
+          false,    // AllowInsertingColumns
+          false,    // AllowInsertingRows
+          false,    // AllowInsertingHyperlinks
+          false,    // AllowDeletingColumns
+          false,    // AllowDeletingRows
+          true,     // AllowSorting
+          true,     // AllowFiltering
+          true      // AllowUsingPivotTables
+        );
+      }
+
+      const newPath = this.getProtectedPath(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`💾 Protected worksheets saved as: ${newPath}`);
+      workbook.Close(false);
+
+      return newPath;
+    } catch (error) {
+      throw new Error(`protectSheet failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  static unProtectSheet(filename, password) {
+    console.info(`[Excels.unProtectSheet] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`unProtectSheet: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('unProtectSheet');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    // Worksheets.Unprotect does not take password via Workbooks.Open since the workbook isn't necessarily protected.
+    // We open it normally, then unprotect sheets
+    try {
+      console.log(`📂 Opening workbook to unprotect sheets: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
+
+      let anyProtected = false;
+      const sheetCount = workbook.Worksheets.Count;
+      for (let i = 1; i <= sheetCount; i++) {
+        if (workbook.Worksheets(i).ProtectContents) {
+          anyProtected = true;
+          break;
+        }
+      }
+
+      if (!anyProtected) {
+        console.warn(`⚠️ Worksheets are not protected: ${absPath}.`);
+        Dialogs.warningBox('File is not protected', 'Unprotect Worksheets');
+        workbook.Close(false);
+        return;
+      }
+
+      console.log(`🔓 Unprotecting all worksheets...`);
+      for (let i = 1; i <= sheetCount; i++) {
+        const sheet = workbook.Worksheets(i);
+        sheet.Unprotect(password);
+      }
+
+      workbook.Save();
+      console.log(`💾 Unprotected worksheets saved: ${absPath}`);
+      workbook.Close(false);
+    } catch (error) {
+      throw new Error(`unProtectSheet failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  /**
+   * Prompt the user for a password then protect all worksheets.
+   * @param {string} filename - Path to the .xlsx file.
+   */
+  static protectSheetAsk(filename) {
+    console.info(`[Excels.protectSheetAsk] 🟢 Starting...`);
+    const password = Dialogs.inputBox('Enter password to protect all worksheets:', 'Protect Worksheets');
+    if (password === null) {
+      console.log('protectSheetAsk: cancelled by user.');
+      return;
+    }
+    this.protectSheet(filename, password);
+  }
+
+  /**
+   * Prompt the user for a password then unprotect all worksheets.
+   * @param {string} filename - Path to the .xlsx file.
+   */
+  static unProtectSheetAsk(filename) {
+    console.info(`[Excels.unProtectSheetAsk] 🟢 Starting...`);
+    const password = Dialogs.inputBox('Enter password to unprotect all worksheets:', 'Unprotect Worksheets');
+    if (password === null) {
+      console.log('unProtectSheetAsk: cancelled by user.');
+      return;
+    }
+    this.unProtectSheet(filename, password);
+  }
+
+  static mergeFiles(files, mergedName) {
+    console.info(`[Excels.mergeFiles] 🟢 Starting...`);
+    if (!files || files.length === 0) {
+      throw new Error(`mergeFiles: No input files provided.`);
+    }
+
+    this.checkWinax('mergeFiles');
+
+    // 1. Determine target file name
+    const firstFileDir = path.dirname(path.resolve(files[0]));
+    let finalMergedPath;
+
+    if (mergedName) {
+       if (path.isAbsolute(mergedName)) {
+           finalMergedPath = mergedName;
+       } else {
+           finalMergedPath = path.join(firstFileDir, mergedName.endsWith('.xlsx') ? mergedName : mergedName + '.xlsx');
+       }
+    } else {
+       const parentFolderName = path.basename(firstFileDir);
+       finalMergedPath = path.join(firstFileDir, parentFolderName + '.xlsx');
+    }
+
+    finalMergedPath = Files.incrementFileName(finalMergedPath);
+
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Creating merged file: ${finalMergedPath}`);
+      const targetWb = excelApp.Workbooks.Add();
+      const initialSheetCount = targetWb.Sheets.Count;
+
+      const existingSheetNames = new Set();
+      // Record initial sheets to prevent conflict, we will delete them later
+      for (let i = 1; i <= initialSheetCount; i++) {
+         existingSheetNames.add(targetWb.Sheets(i).Name);
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const file = path.resolve(files[i]);
+        if (!fs.existsSync(file)) {
+            console.warn(`⚠️ mergeFiles: File not found, skipping: ${file}`);
+            continue;
+        }
+
+        console.log(`📄 Merging ${i + 1}/${files.length}: ${file}`);
+        const sourceWb = this.openWorkbookSafely(excelApp, file, { updateLinks: 0, readOnly: true });
+
+        try {
+          const sheetCount = sourceWb.Sheets.Count;
+          for (let s = 1; s <= sheetCount; s++) {
+             const sheet = sourceWb.Sheets(s);
+             let baseName = sheet.Name;
+             let finalName = baseName;
+             let suffix = 1;
+
+             while (existingSheetNames.has(finalName)) {
+               const suffixStr = `_${suffix}`;
+               const allowedBaseLen = 31 - suffixStr.length;
+               finalName = baseName.substring(0, allowedBaseLen) + suffixStr;
+               suffix++;
+             }
+
+             existingSheetNames.add(finalName);
+             
+             // Copy after the last sheet in targetWb
+             sheet.Copy(null, targetWb.Sheets(targetWb.Sheets.Count));
+             
+             const newlyCopiedSheet = targetWb.Sheets(targetWb.Sheets.Count);
+             newlyCopiedSheet.Name = finalName;
+          }
+        } catch (err) {
+          console.warn(`❌ Error copying sheets from ${file}: ${err.message}`);
+        } finally {
+          sourceWb.Close(false);
+        }
+      }
+
+      // Delete initial blank sheets
+      for (let i = 1; i <= initialSheetCount; i++) {
+         targetWb.Sheets(1).Delete();
+      }
+
+      targetWb.SaveAs(finalMergedPath, 51);
+      console.log(`\n✅ Merged workbook saved successfully as: ${finalMergedPath}`);
+      targetWb.Close(false);
+
+      return finalMergedPath;
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  // Excel Visible constants:
+  //   -1 = xlSheetVisible
+  //    0 = xlSheetHidden      (hidden, but user can show via right-click)
+  //    2 = xlSheetVeryHidden  (hidden, cannot be shown via UI — only programmatically)
+
+  /**
+   * Hide a worksheet in the given workbook file.
+   * @param {string} filename    - Path to the .xlsx file.
+   * @param {string} sheetName   - Name of the sheet to hide.
+   * @param {boolean} veryHidden - true → xlSheetVeryHidden (2), false → xlSheetHidden (0).
+   */
+  static hide(filename, sheetName = ['ALL'], veryHidden = true) {
+    console.info(`[Excels.hide] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`hide: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('hide');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening workbook for hide: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
+
+      const sheetsToHide = Array.isArray(sheetName) ? sheetName : [sheetName];
+
+      for (const name of sheetsToHide) {
+        const sheet = workbook.Sheets(name);
+        if (!sheet) {
+          console.warn(`⚠️ hide: Sheet "${name}" not found in ${absPath}. Skipping.`);
+          continue;
+        }
+
+        // xlSheetVeryHidden = 2, xlSheetHidden = 0
+        const visibleValue = veryHidden ? 2 : 0;
+        sheet.Visible = visibleValue;
+
+        const label = veryHidden ? 'xlSheetVeryHidden' : 'xlSheetHidden';
+        console.log(`🙈 Sheet "${name}" hidden as ${label}`);
+      }
+
+      const newPath = this.getProtectedPath(absPath);
+      workbook.SaveAs(newPath, 51);
+      console.log(`💾 Saved: ${newPath}`);
+      workbook.Close(false);
+      return newPath;
+    } catch (error) {
+      throw new Error(`hide failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  /**
+   * Unhide (make visible) a worksheet in the given workbook file.
+   * @param {string} filename  - Path to the .xlsx file.
+   * @param {string} sheetName - Name of the sheet to unhide.
+   */
+  static unhide(filename, sheetName = ['ALL']) {
+    console.info(`[Excels.unhide] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`unhide: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('unhide');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening workbook for unhide: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: false });
+
+      const sheetsToUnhide = Array.isArray(sheetName) ? sheetName : [sheetName];
+
+      for (const name of sheetsToUnhide) {
+        const sheet = workbook.Sheets(name);
+        if (!sheet) {
+          console.warn(`⚠️ unhide: Sheet "${name}" not found in ${absPath}. Skipping.`);
+          continue;
+        }
+
+        // xlSheetVisible = -1
+        sheet.Visible = -1;
+        console.log(`👁️  Sheet "${name}" is now visible`);
+      }
+
+      workbook.Save();
+      console.log(`💾 Saved: ${absPath}`);
+      workbook.Close(false);
+    } catch (error) {
+      throw new Error(`unhide failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  /**
+   * Check whether a worksheet is hidden (or very-hidden).
+   * @param {string} filename  - Path to the .xlsx file.
+   * @param {string} sheetName - Name of the sheet to inspect.
+   * @returns {'visible'|'hidden'|'veryHidden'} Visibility state.
+   */
+  static isHidden(filename, sheetName) {
+    console.info(`[Excels.isHidden] 🟢 Starting...`);
+    const absPath = path.resolve(filename);
+
+    if (!fs.existsSync(absPath)) {
+      throw new Error(`isHidden: File not found: ${absPath}`);
+    }
+
+    this.checkWinax('isHidden');
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening workbook for isHidden: ${absPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, absPath, { updateLinks: 0, readOnly: true });
+
+      const sheet = workbook.Sheets(sheetName);
+      if (!sheet) {
+        throw new Error(`isHidden: Sheet "${sheetName}" not found in ${absPath}`);
+      }
+
+      const visibleValue = sheet.Visible;
+      workbook.Close(false);
+
+      // -1 = xlSheetVisible, 0 = xlSheetHidden, 2 = xlSheetVeryHidden
+      if (visibleValue === -1) {
+        console.log(`👁️  Sheet "${sheetName}" → visible`);
+        return 'visible';
+      } else if (visibleValue === 2) {
+        console.log(`🙈 Sheet "${sheetName}" → veryHidden`);
+        return 'veryHidden';
+      } else {
+        console.log(`🙈 Sheet "${sheetName}" → hidden`);
+        return 'hidden';
+      }
+    } catch (error) {
+      throw new Error(`isHidden failed: ${error.message}`);
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  /**
+   * Hide a worksheet and then protect all worksheets.
+   * @param {string} filename    - Path to the .xlsx file.
+   * @param {string} password    - Password to protect the worksheets.
+   * @param {string|string[]} sheetName   - Name(s) of the sheet(s) to hide.
+   * @param {boolean} veryHidden - true → xlSheetVeryHidden (2), false → xlSheetHidden (0).
+   * @returns {string} The path to the protected file.
+   */
+  static hideProtectSheet(filename, password, sheetName = ['ALL'], veryHidden = true) {
+    console.info(`[Excels.hideProtectSheet] 🟢 Starting...`);
+    const hiddenFile = this.hide(filename, sheetName, veryHidden);
+    return this.protectSheet(hiddenFile, password);
+  }
+
+  /**
+   * Prompt the user for password, then hide and protect.
+   * @param {string} filename - Path to the .xlsx file.
+   * @param {string|string[]} sheetName - Name(s) of the sheet(s) to hide.
+   */
+  static hideProtectSheetAsk(filename, sheetName = ['ALL']) {
+    console.info(`[Excels.hideProtectSheetAsk] 🟢 Starting...`);
+    const sheetsStr = Array.isArray(sheetName) ? sheetName.join(', ') : sheetName;
+    const password = Dialogs.inputBox(`Enter password to protect all worksheets (hiding "${sheetsStr}"):`, 'Protect Worksheets');
+    if (password === null) {
+      console.log('hideProtectSheetAsk: cancelled by user (password).');
+      return;
+    }
+    return this.hideProtectSheet(filename, password, sheetName);
+  }
+
+  /**
+   * Unprotect all worksheets and then unhide a worksheet.
+   * @param {string} filename  - Path to the .xlsx file.
+   * @param {string} password  - Password to unprotect the worksheets.
+   * @param {string|string[]} sheetName - Name(s) of the sheet(s) to unhide.
+   */
+  static unHideUnProtectSheet(filename, password, sheetName = ['ALL']) {
+    console.info(`[Excels.unHideUnProtectSheet] 🟢 Starting...`);
+    this.unhide(filename, sheetName);
+    this.unProtectSheet(filename, password);
+  }
+
+  /**
+   * Prompt the user for password, then unprotect and unhide.
+   * @param {string} filename - Path to the .xlsx file.
+   * @param {string|string[]} sheetName - Name(s) of the sheet(s) to unhide.
+   */
+  static unHideUnProtectSheetAsk(filename, sheetName = ['ALL']) {
+    console.info(`[Excels.unHideUnProtectSheetAsk] 🟢 Starting...`);
+    const sheetsStr = Array.isArray(sheetName) ? sheetName.join(', ') : sheetName;
+    const password = Dialogs.inputBox(`Enter password to unprotect all worksheets (unhiding "${sheetsStr}"):`, 'Unprotect & Unhide');
+    if (password === null) {
+      console.log('unHideUnProtectSheetAsk: cancelled by user (password).');
+      return;
+    }
+    this.unHideUnProtectSheet(filename, password, sheetName);
+  }
+
+  /**
+   * Replaces Latin characters in all text cells of an Excel workbook with
+   * visually identical Cyrillic homoglyphs (PERFECT_STEALTH map from Word).
+   * Iterates every non-excluded sheet's used range and rewrites cell values
+   * containing the mapped characters.
+   *
+   * @param {string} fileName - Path to the source .xlsx file.
+   * @param {string|null} chars - If null, all mapped chars are replaced.
+   *   If a string (e.g. "STy"), only those chars present in the map are used.
+   * @returns {string|undefined} Path to the saved output file.
+   */
+  static homoglyph(fileName, chars = null) {
+    console.info(`[Excels.homoglyph] 🟢 Starting...`);
+    this.checkWinax('Excels.homoglyph');
+
+    const absPath = path.resolve(fileName);
+    if (!fs.existsSync(absPath)) {
+      Dialogs.warningBox(`File not found: ${absPath}`, 'Error');
+      return;
+    }
+
+    const replaceMap = Word.buildHomoglyphMap(chars);
+    if (Object.keys(replaceMap).length === 0) {
+      console.warn('⚠️ Excels.homoglyph: No valid replacement characters found. Nothing to do.');
+      return;
+    }
+
+    const entries = Object.entries(replaceMap);
+    const exclusions = Yamls.getConfig('Excel.ExcludedSheets', 'array', []);
+    console.log(`🚫 Excluded sheets: ${exclusions.join(', ') || '(none)'}`);
+
+    // Build output path: "<basename> Norm.xlsx", auto-incremented
+    const ext = path.extname(absPath);
+    const baseName = path.basename(absPath, ext);
+    const dir = path.dirname(absPath);
+    const homoglyphSuffix = Yamls.getConfig('Excel.HomoglyphSuffix', null, ' Norm') || ' Norm';
+    const baseOutputPath = path.join(dir, `${baseName}${homoglyphSuffix}${ext}`);
+    const outputPath = Files.incrementFileName(baseOutputPath);
+
+    fs.copyFileSync(absPath, outputPath);
+    console.log(`📋 Copied to: ${outputPath}`);
+
+    const excelApp = new winax.Object('Excel.Application');
+    excelApp.Visible = false;
+    excelApp.DisplayAlerts = false;
+    excelApp.ScreenUpdating = false;
+    excelApp.EnableEvents = false;
+    excelApp.AutomationSecurity = 1;
+
+    try {
+      console.log(`📂 Opening: ${outputPath}`);
+      const workbook = this.openWorkbookSafely(excelApp, outputPath, { updateLinks: 0, readOnly: false });
+      const sheetCount = workbook.Sheets.Count;
+
+      let totalChanged = 0;
+
+      for (let si = 1; si <= sheetCount; si++) {
+        const sheet = workbook.Sheets(si);
+        const sheetName = sheet.Name;
+
+        if (exclusions.includes(sheetName)) {
+          console.log(`⏭️  Skipping excluded sheet: "${sheetName}"`);
+          continue;
+        }
+
+        console.log(`\n🔍 Processing sheet: "${sheetName}"`);
+        let changedInSheet = 0;
+
+        let usedRange;
+        try {
+          usedRange = sheet.UsedRange;
+        } catch (_) {
+          console.log(`ℹ️  No used range in sheet "${sheetName}"`);
+          continue;
+        }
+
+        const rowCount = usedRange.Rows.Count;
+        const colCount = usedRange.Columns.Count;
+
+        for (let r = 1; r <= rowCount; r++) {
+          for (let c = 1; c <= colCount; c++) {
+            const cell = usedRange.Cells(r, c);
+            let val;
+            try { val = cell.Value; } catch (_) { continue; }
+            if (typeof val !== 'string' || val.length === 0) continue;
+
+            let newVal = val;
+            for (const [latin, cyrillic] of entries) {
+              if (newVal.includes(latin)) {
+                newVal = newVal.split(latin).join(cyrillic);
+              }
+            }
+
+            if (newVal !== val) {
+              cell.Value = newVal;
+              changedInSheet++;
+            }
+          }
+        }
+
+        totalChanged += changedInSheet;
+        console.log(changedInSheet > 0
+          ? `✅ Updated ${changedInSheet} cell(s) in "${sheetName}"`
+          : `ℹ️  No changes in "${sheetName}"`
+        );
+      }
+
+      workbook.Save();
+      workbook.Close(false);
+      console.log(`\n💾 Total cells changed: ${totalChanged}`);
+      console.log(`✅ Excel homoglyph saved: ${outputPath}`);
+      return outputPath;
+    } catch (e) {
+      console.error(e);
+      Dialogs.warningBox(`Error in Excels.homoglyph: ${e.message}`, 'Error');
+    } finally {
+      try { excelApp.Quit(); } catch (_) {}
+      try { winax.release(excelApp); } catch (_) {}
+    }
+  }
+
+  /**
+   * Prompts the user with an input box containing all PERFECT_STEALTH keys.
+   * The user can remove characters, but adding new ones will be ignored.
+   * Calls homoglyph with the selected characters.
+   *
+   * @param {string} fileName - Path to the source .xlsx file.
+   * @returns {string|undefined} Path to the saved output file.
+   */
+  static homoglyphAsk(fileName) {
+    console.info(`[Excels.homoglyphAsk] 🟢 Starting...`);
+    const allChars = Object.keys(Word.buildHomoglyphMap()).join('');
+    const defaultChars = Yamls.getConfig('ChoosedChars.Excel', null, allChars) || allChars;
+
+    const selectedChars = Dialogs.inputBox(
+      'Leave only the characters you want to replace (adding new symbols is prohibited):',
+      'Select Homoglyph Characters',
+      defaultChars
+    );
+
+    if (selectedChars === null) {
+      console.log('homoglyphAsk: Cancelled by user.');
+      return;
+    }
+
+    const validChars = selectedChars.split('').filter(ch => allChars.includes(ch)).join('');
+
+    // Persist the user's choice for next time
+    Yamls.setConfig('ChoosedChars.Excel', validChars);
+
+    return this.homoglyph(fileName, validChars);
   }
 }

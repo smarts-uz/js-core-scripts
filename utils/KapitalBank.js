@@ -18,6 +18,7 @@ export class KapitalBank {
     }
 
     static async testing() {
+        console.info(`[KapitalBank.testing] 🟢 Starting...`);
         console.log('testing');
 
         //      KapitalBank.payments(KapitalState.Conducted, 1, 10)
@@ -26,6 +27,7 @@ export class KapitalBank {
 
 
     static async payments(owner = IjaraSoliq.Owner.SRental, page = 1, size = 1000, state = this.KapitalState.Conducted) {
+        console.info(`[KapitalBank.payments] 🟢 Starting...`);
 
         console.log(owner, 'owner');
         if (!owner) return Dialogs.warningBox('No owner', 'Warning');

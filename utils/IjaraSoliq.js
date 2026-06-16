@@ -31,6 +31,7 @@ export class IjaraSoliq {
 
 
     static async testing() {
+        console.info(`[IjaraSoliq.testing] 🟢 Starting...`);
         console.log('testing');
 
         //   IjaraSoliq.contracts(RentType.IN, IjaraState.Confirmed, Owner.SRental)
@@ -47,6 +48,7 @@ export class IjaraSoliq {
 
 
     static async contracts(owner = Owner.SRental, rentType = RentType.Out, state = IjaraState.Confirmed, page = 0, size = 1000) {
+        console.info(`[IjaraSoliq.contracts] 🟢 Starting...`);
 
         console.log(owner, 'owner');
         if (!owner) return Dialogs.warningBox('No owner', 'Warning');
@@ -90,6 +92,7 @@ export class IjaraSoliq {
     }
 
     static async download(owner = Owner.SRental, docId, startDate, endDate) {
+        console.info(`[IjaraSoliq.download] 🟢 Starting...`);
 
         console.log(owner, 'owner');
         if (!owner) return Dialogs.warningBox('No owner', 'Warning');

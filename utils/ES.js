@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 export class ES {
 
     static find(name, instance = "One") {
+    console.info(`[ES.find] 🟢 Starting...`);
 
         // es.exe -instance "One" -regex "^Arty 3D Viewer$" -hide-empty-search-results -sort-descending -sort date-modified -whole-words -case -highlight -no-digit-grouping /ad
 
@@ -17,6 +18,7 @@ export class ES {
 
 
     static findIn(name, folder, instance = "One") {
+    console.info(`[ES.findIn] 🟢 Starting...`);
 
         // run and retunr array es.exe -instance "One" "D:\" -regex "^cursor.com$" -hide-empty-search-results -sort-descending -sort date-modified -whole-words -case -highlight -no-digit-grouping /ad
 
@@ -28,6 +30,7 @@ export class ES {
     }
 
     static execute(command) {
+    console.info(`[ES.execute] 🟢 Starting...`);
 
         try {
             // Execute the command and get the output

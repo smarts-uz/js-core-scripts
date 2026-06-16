@@ -13,6 +13,7 @@ export class MySoliq {
 
 
     static async entrepreneurInfoAPI(pinfl, passportSeries, passportNumber) {
+    console.info(`[MySoliq.entrepreneurInfoAPI] 🟢 Starting...`);
 
         const myHeaders = new Headers();
 
@@ -69,6 +70,7 @@ export class MySoliq {
 
 
     static async entrepreneurInfo(pinfl, passportSeries, passportNumber) {
+        console.info(`[MySoliq.entrepreneurInfo] 🟢 Starting...`);
 
         console.log(pinfl, passportSeries, passportNumber, 'entrepreneurInfo');
 
@@ -123,6 +125,7 @@ export class MySoliq {
 
 
     static async vatInfoAPI(tin) {
+    console.info(`[MySoliq.vatInfoAPI] 🟢 Starting...`);
         const myHeaders = new Headers();
 
         const { My3SRental } = process.env;
@@ -176,6 +179,7 @@ export class MySoliq {
 
 
     static async companyInfoAPI(tin) {
+    console.info(`[MySoliq.companyInfoAPI] 🟢 Starting...`);
 
         const myHeaders = new Headers();
 
@@ -222,6 +226,7 @@ export class MySoliq {
 
 
     static async entrepreneurInfoAPI(pinfl, passportSeries, passportNumber) {
+    console.info(`[MySoliq.entrepreneurInfoAPI] 🟢 Starting...`);
 
         const myHeaders = new Headers();
 
@@ -271,6 +276,7 @@ export class MySoliq {
     }
 
     static async vatInfo(tin) {
+    console.info(`[MySoliq.vatInfo] 🟢 Starting...`);
 
         const file = path.join(globalThis.folderRestAPI, 'INN VAT ' + tin + '.json');
 
@@ -316,6 +322,7 @@ export class MySoliq {
 
 
     static async companyInfo(tin) {
+    console.info(`[MySoliq.companyInfo] 🟢 Starting...`);
 
         const file = path.join(globalThis.folderRestAPI, 'INN Soliq ' + tin + '.json');
 
@@ -366,6 +373,7 @@ export class MySoliq {
 
 
     static async entrepreneurInfo(pinfl, passportSeries, passportNumber) {
+        console.info(`[MySoliq.entrepreneurInfo] 🟢 Starting...`);
 
         console.log(pinfl, passportSeries, passportNumber, 'entrepreneurInfo');
 

@@ -18,6 +18,7 @@ export class Phone {
 
 
   static phoneToFolder(phones) {
+    console.info(`[Phone.phoneToFolder] 🟢 Starting...`);
     // phones is an array of strings like ['+998-20-001-33-14.app', '+998-33-999-96-99.app']
 
     let cleanedPhones = phones.map(phone => {
@@ -31,6 +32,7 @@ export class Phone {
   }
 
   static phoneToFolderItem(phone) {
+    console.info(`[Phone.phoneToFolderItem] 🟢 Starting...`);
 
     /**
      * @typedef {String} phone
@@ -47,18 +49,22 @@ export class Phone {
 
 
   static isPhone(file) {
+    console.info(`[Phone.isPhone] 🟢 Starting...`);
     return file.includes('+998') && file.endsWith('.app') && file.length === 21;
   }
 
   static isPhoneStatus(file) {
+    console.info(`[Phone.isPhoneStatus] 🟢 Starting...`);
     return file.includes('#PhoneOK') || file.includes('#PhoneError');
   }
 
   static isRegion(file) {
+    console.info(`[Phone.isRegion] 🟢 Starting...`);
     return file.includes('район');
   }
 
   static getPhones(userDir, fullPath = false) {
+    console.info(`[Phone.getPhones] 🟢 Starting...`);
     let files = fs.readdirSync(userDir).filter(file => Phone.isPhone(file));
 
     console.info(`Found ${files.length} phones`, files);
@@ -72,6 +78,7 @@ export class Phone {
   }
 
   static getPhoneStatus(userDir, fullPath = false) {
+    console.info(`[Phone.getPhoneStatus] 🟢 Starting...`);
     let files = fs.readdirSync(userDir).filter(file => Phone.isPhoneStatus(file));
 
     console.info(`Found ${files.length} phone status`, files);
@@ -87,6 +94,7 @@ export class Phone {
 
 
   static getRegions(userDir, fullPath = false) {
+    console.info(`[Phone.getRegions] 🟢 Starting...`);
     let files = fs.readdirSync(userDir).filter(file => Phone.isRegion(file));
 
     console.info(`Found ${files.length} regions`, files);
@@ -100,6 +108,7 @@ export class Phone {
   }
 
   static actualizePhoneFolder(paths) {
+    console.info(`[Phone.actualizePhoneFolder] 🟢 Starting...`);
 
     // recursive scan for path. filter, include +998 and .app
     // Recursively find all files under 'path' that include '+998' and '.app'
@@ -154,6 +163,7 @@ export class Phone {
 
 
   static getNoPhones() {
+      console.info(`[Phone.getNoPhones] 🟢 Starting...`);
     // get parent path of appolxPath
 
     console.info(`Scanning ${globalThis.saveDir} for folders`);
@@ -202,6 +212,7 @@ export class Phone {
 
 
   static appFindPhones() {
+      console.info(`[Phone.appFindPhones] 🟢 Starting...`);
 
     // get parent path of appolxPath
 
@@ -289,6 +300,7 @@ export class Phone {
 
 
   static extractUzbekPhones(text) {
+    console.info(`[Phone.extractUzbekPhones] 🟢 Starting...`);
 
     const CANDIDATE_RE = /(?:\+?998|998|8|0)?[-.\s()]*\d{2}[-.\s()]*\d{3}[-.\s()]*\d{2}[-.\s()]*\d{2}|\b\d{9}\b/g;
 
@@ -311,6 +323,7 @@ export class Phone {
 
 
   static appMergePhones() {
+      console.info(`[Phone.appMergePhones] 🟢 Starting...`);
 
     console.info(`Scanning ${globalThis.saveDir} for folders`);
 
@@ -331,6 +344,7 @@ export class Phone {
 
 
   static appCalculateCountOnline() {
+    console.info(`[Phone.appCalculateCountOnline] 🟢 Starting...`);
 
     let results = Files.findRecursiveFull(globalThis.saveDirApp, function (file) {
       return file.includes('#OfferCount');
@@ -365,6 +379,7 @@ export class Phone {
   }
 
   static collectRegions(folder) {
+      console.info(`[Phone.collectRegions] 🟢 Starting...`);
     console.info(`Collect regions: ${folder}`);
 
     let regions = Files.findRecursiveFull(folder, function (file) {
@@ -384,10 +399,12 @@ export class Phone {
   }
 
   static itemCalculateCountOnline(folder) {
+      console.info(`[Phone.itemCalculateCountOnline] 🟢 Starting...`);
 
     console.info(`Calculate count online: ${folder}`);
 
     let offerCounts = Files.findRecursive(folder, function (file) {
+    console.info(`[Phone.findRecursive] 🟢 Starting...`);
       return file.includes('Мы нашли');
     });
 
@@ -411,6 +428,7 @@ export class Phone {
     }
 
     let lastSeens = Files.findRecursive(folder, function (file) {
+    console.info(`[Phone.findRecursive] 🟢 Starting...`);
       return file.includes('Онлайн');
     });
 
@@ -427,6 +445,7 @@ export class Phone {
 
 
   static itemRemoveCountOnline(name) {
+      console.info(`[Phone.itemRemoveCountOnline] 🟢 Starting...`);
     console.info(`Remove count online: ${name}`);
 
     // if is absolute path name
@@ -440,6 +459,7 @@ export class Phone {
     console.info(`Folder: ${folder}`);
 
     let results = Files.findRecursiveFull(folder, function (file) {
+    console.info(`[Phone.findRecursiveFull] 🟢 Starting...`);
       return file.includes('Мы нашли') || file.includes('Онлайн');
     });
     console.info(`Found ${results.length} files`, results);
@@ -458,6 +478,7 @@ export class Phone {
   }
 
   static itemMergePhones(folder) {
+      console.info(`[Phone.itemMergePhones] 🟢 Starting...`);
 
     console.info(`Folder: ${folder}`);
 
@@ -504,6 +525,7 @@ export class Phone {
   }
 
   static innerMovePhoneFolder(userDir, phoneFolder) {
+      console.info(`[Phone.innerMovePhoneFolder] 🟢 Starting...`);
 
     if (!fs.existsSync(userDir)) {
       console.warn(`UserDir Not existsSync, ${userDir}`);
