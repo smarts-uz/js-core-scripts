@@ -3,6 +3,7 @@
 import { Dialogs } from "./Dialogs.js";
 import { Chromes } from "./Chromes.js";
 import { Yamls } from "./Yamls.js";
+import { Secrets } from "./Secrets.js";
 
 export const RentType = {
     IN: 2,
@@ -59,7 +60,7 @@ export class IjaraSoliq {
         console.log(state, 'state');
         if (!state) return Dialogs.warningBox('No state', 'Warning');
 
-        let bearer = Yamls.getConfig('Ijara.' + owner);
+        let bearer = Secrets.get('Ijara', owner);
         if (!bearer) return Dialogs.warningBox('No bearer', 'Warning');
 
         const options = {

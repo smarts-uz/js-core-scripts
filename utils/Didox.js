@@ -10,15 +10,16 @@ import { ofetch } from "ofetch";
 import { Files } from './Files.js';
 import { Dialogs } from "./Dialogs.js";
 import { Yamls } from "./Yamls.js";
+import { Secrets } from "./Secrets.js";
 
 // Shared client for the Didox Partner API: one place for the base URL and the
 // auth headers that every reference-data call below previously rebuilt by hand
 // (a `new Headers()` + two appends + a requestOptions object, repeated ~15x).
 const didoxApi = ofetch.create({
-    baseURL: "https://api-partners.didox.uz",
+    baseURL: Secrets.env("DIDOX_BASE_URL") ?? "https://api-partners.didox.uz",
     headers: {
-        "user-key": "d8cb70db-5e17-4b57-80dc-2786ff800372",
-        "Partner-Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw",
+        "user-key": Secrets.env("DIDOX_USER_KEY") ?? "",
+        "Partner-Authorization": Secrets.env("DIDOX_PARTNER_AUTHORIZATION") ?? "",
     },
 });
 
@@ -166,7 +167,7 @@ export class Didox {
     console.info(`[Didox.login] 🟢 Starting...`);
         didoxApi("/v1/auth/311958304/password/ru", {
             method: "POST",
-            body: { password: "4beruniave" },
+            body: { password: Secrets.env("DIDOX_LOGIN_PASSWORD") ?? "" },
             headers: { "Accept-Language": "ru" },
             responseType: "text",
         })
@@ -227,7 +228,7 @@ export class Didox {
         console.log(state, 'state');
         if (!state) return Dialogs.warningBox('No state', 'Warning');
 
-        let bearer = Yamls.getConfig('Ijara.' + owner);
+        let bearer = Secrets.get('Ijara', owner);
         if (!bearer) return Dialogs.warningBox('No bearer', 'Warning');
 
         const options = {
@@ -274,7 +275,7 @@ export class Didox {
         }
 
         const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
-        const baseURL = Yamls.getConfig('Didox.BaseURL');
+        const baseURL = Secrets.get('Didox.BaseURL');
         let returns;
 
         if (fs.existsSync(file)) {
@@ -284,7 +285,7 @@ export class Didox {
             console.log(`infoByTinPinfl not exists in ${file}`);
 
             const myHeaders = new Headers();
-            myHeaders.append("Partner-Authorization", Yamls.getConfig('Didox.SRental'));
+            myHeaders.append("Partner-Authorization", Secrets.get('Didox', 'SRental'));
 
             const requestOptions = {
                 method: "GET",
@@ -366,6 +367,7 @@ export class Didox {
         prefix = 'CAR Didox ';
 
         const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
+        const baseURL = Secrets.get('Didox.BaseURL');
 
         let returns;
 
@@ -377,10 +379,8 @@ export class Didox {
 
             const myHeaders = new Headers();
 
-            const { PARTNER_AUTHORIZATION, USER_KEY, baseURL } = process.env;
-
-            myHeaders.append("user-key", USER_KEY);
-            myHeaders.append("Partner-Authorization", PARTNER_AUTHORIZATION);
+            myHeaders.append("user-key", Secrets.env("DIDOX_USER_KEY"));
+            myHeaders.append("Partner-Authorization", Secrets.env("DIDOX_PARTNER_AUTHORIZATION"));
 
             const requestOptions = {
                 method: "GET",

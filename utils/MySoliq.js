@@ -6,6 +6,7 @@ import { Files } from './Files.js';
 import { Word } from './Word.js';
 import { Dialogs } from "./Dialogs.js";
 import { Yamls } from "./Yamls.js";
+import { Secrets } from "./Secrets.js";
 
 export class MySoliq {
 
@@ -17,7 +18,7 @@ export class MySoliq {
 
         const myHeaders = new Headers();
 
-        myHeaders.append("X-API-KEY", Yamls.getConfig('My3Api.SRental'));
+        myHeaders.append("X-API-KEY", Secrets.get('My3Api', 'SRental'));
 
         const requestOptions = {
             method: "GET",
@@ -128,7 +129,7 @@ export class MySoliq {
     console.info(`[MySoliq.vatInfoAPI] 🟢 Starting...`);
         const myHeaders = new Headers();
 
-        const { My3SRental } = process.env;
+        const My3SRental = Secrets.get('My3', 'SRental');
 
         myHeaders.append("referer", "https://My3.soliq.uz/vat-payer-registration/vat-payers");
         myHeaders.append("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36");
@@ -183,7 +184,7 @@ export class MySoliq {
 
         const myHeaders = new Headers();
 
-        myHeaders.append("X-API-KEY", Yamls.getConfig('My3Api.SRental'));
+        myHeaders.append("X-API-KEY", Secrets.get('My3Api', 'SRental'));
 
         const requestOptions = {
             method: "GET",
@@ -230,7 +231,7 @@ export class MySoliq {
 
         const myHeaders = new Headers();
 
-        myHeaders.append("X-API-KEY", Yamls.getConfig('My3Api.SRental'));
+        myHeaders.append("X-API-KEY", Secrets.get('My3Api', 'SRental'));
 
         const requestOptions = {
             method: "GET",

@@ -3,6 +3,7 @@
 import { Dialogs } from "./Dialogs.js";
 import { Chromes } from "./Chromes.js";
 import { Yamls } from "./Yamls.js";
+import { Secrets } from "./Secrets.js";
 import { IjaraSoliq } from "./IjaraSoliq.js";
 
 
@@ -38,10 +39,10 @@ export class KapitalBank {
         console.log(size, 'size');
         if (!size) return Dialogs.warningBox('No size', 'Warning');
 
-        let bearer = Yamls.getConfig('Kapital.' + owner);
+        let bearer = Secrets.get('Kapital', owner);
         if (!bearer) return Dialogs.warningBox('No bearer', 'Warning');
 
-        let kapitalId = Yamls.getConfig('KapitalId.' + owner, 'string', '');
+        let kapitalId = Secrets.get('KapitalId', owner);
         if (!kapitalId) return Dialogs.warningBox('No kapitalId', 'Warning');
 
 
