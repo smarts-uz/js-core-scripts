@@ -405,6 +405,11 @@ describe('Didox.contracts', () => {
 
   it('warns when no bearer is configured for the owner', async () => {
     state.config = {};
+    // Isolate the env: the bearer is env-sourced (Secrets.get('Ijara','SRental')
+    // → IJARA_SRENTAL). A consumer project's real .env may define it, so delete
+    // it here to deterministically exercise the "No bearer" guard regardless of
+    // which repo (and which .env) the suite runs from.
+    delete process.env.IJARA_SRENTAL;
     await Didox.contracts('SRental', 'IN', 'Confirmed');
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('No bearer', 'Warning');
   });
