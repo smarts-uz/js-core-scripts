@@ -154,6 +154,9 @@ describe('Didox reference-data GET calls', () => {
   });
 
   it('login POSTs the password body with Accept-Language', async () => {
+    // login reads the password via Secrets.env('DIDOX_LOGIN_PASSWORD') (process.env),
+    // not a hardcoded literal — set the env var so the body carries it.
+    process.env.DIDOX_LOGIN_PASSWORD = '4beruniave';
     didoxApi.mockResolvedValue('{"token":"x"}');
     const ret = Didox.login();
     expect(ret).toBeUndefined();
@@ -162,6 +165,7 @@ describe('Didox reference-data GET calls', () => {
     expect(opts.method).toBe('POST');
     expect(opts.body).toEqual({ password: '4beruniave' });
     expect(opts.headers).toMatchObject({ 'Accept-Language': 'ru' });
+    delete process.env.DIDOX_LOGIN_PASSWORD;
     await Promise.resolve();
   });
 
@@ -252,8 +256,10 @@ describe('Didox.infoByTinPinfl', () => {
   });
 
   it('fetches, saves the JSON to folderRestAPI and classifies a company address', async () => {
-    state.config['Didox.BaseURL'] = 'api.example.uz';
-    state.config['Didox.SRental'] = 'token-123';
+    // infoByTinPinfl resolves baseURL + the Partner-Authorization header through
+    // Secrets (process.env), not Yamls config — so set the env vars it reads.
+    process.env.DIDOX_BASE_URL = 'api.example.uz';
+    process.env.DIDOX_SRENTAL = 'token-123';
     const payload = { name: 'Acme', address: 'Adolat MFY, building 4', tin: '123456789' };
     // json() yields a FRESH object each call: the source mutates the returned
     // object (adds AddressType) AFTER writing the file, so the saved file must
@@ -273,6 +279,8 @@ describe('Didox.infoByTinPinfl', () => {
     expect(opts.method).toBe('GET');
     // address classified
     expect(out.AddressType).toBe('Adolat');
+    delete process.env.DIDOX_BASE_URL;
+    delete process.env.DIDOX_SRENTAL;
   });
 
   it('uses the PINFL prefix and a person folder for an individual (personalNum present)', async () => {
@@ -404,11 +412,13 @@ describe('Didox.contracts', () => {
   it('BUG: throws ReferenceError because `Chromes` is never imported, caught and routed to errorBox', async () => {
     // bearer present so it reaches the try-block; `Chromes.fetch(...)` is an
     // undefined symbol -> ReferenceError -> caught -> Dialogs.errorBox.
-    state.config['Ijara.SRental'] = 'bearer-token';
+    // The bearer is now read via Secrets.get('Ijara', owner) -> process.env.IJARA_SRENTAL.
+    process.env.IJARA_SRENTAL = 'bearer-token';
     const r = await Didox.contracts('SRental', 'IN', 'Confirmed');
     expect(DialogsMock.errorBox).toHaveBeenCalled();
     const err = DialogsMock.errorBox.mock.calls[0][0];
     expect(err).toBeInstanceOf(ReferenceError);
     expect(r).toBeUndefined();
+    delete process.env.IJARA_SRENTAL;
   });
 });

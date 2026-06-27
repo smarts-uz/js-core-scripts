@@ -167,6 +167,24 @@ const FilesMock = {
     }
     return np;
   },
+  // Word.merge resolves its template via Files.getLatestMatchingFile(folder, ext)
+  // — the newest matching file in the folder. Mirror that with a real fs scan so
+  // the tests' on-disk template folder drives the COM merge for real.
+  getLatestMatchingFile: (folder, ext) => {
+    if (!folder || !fs.existsSync(folder)) return null;
+    let latest = null;
+    let latestTime = -1;
+    for (const name of fs.readdirSync(folder)) {
+      if (ext && !name.toLowerCase().endsWith(String(ext).toLowerCase())) continue;
+      const full = path.join(folder, name);
+      const st = fs.statSync(full);
+      if (st.isFile() && st.mtimeMs > latestTime) {
+        latestTime = st.mtimeMs;
+        latest = full;
+      }
+    }
+    return latest;
+  },
 };
 
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
@@ -436,10 +454,13 @@ describe('Word.checkWinax', () => {
 
 describe('Word.merge', () => {
   beforeEach(() => {
-    // a real template file so the existsSync guard passes and copyFileSync works
-    const template = path.join(workDir, 'template.docx');
-    fs.writeFileSync(template, 'TPL', 'utf8');
-    configStore['Templates.WordPhD'] = template;
+    // Templates.WordMerge is a FOLDER; merge picks the latest .docx inside it via
+    // Files.getLatestMatchingFile. Seed a template folder with one .docx so the
+    // existsSync guard passes and copyFileSync works.
+    const templateFolder = path.join(workDir, 'tpl-folder');
+    fs.mkdirSync(templateFolder, { recursive: true });
+    fs.writeFileSync(path.join(templateFolder, 'template.docx'), 'TPL', 'utf8');
+    configStore['Templates.WordMerge'] = templateFolder;
   });
 
   it('throws when no files are provided', () => {
@@ -447,11 +468,11 @@ describe('Word.merge', () => {
     expect(() => Word.merge(null)).toThrow(/No files provided/);
   });
 
-  it('throws when the configured template does not exist', () => {
-    configStore['Templates.WordPhD'] = path.join(workDir, 'missing.docx');
+  it('throws when the configured template folder does not exist', () => {
+    configStore['Templates.WordMerge'] = path.join(workDir, 'missing-folder');
     const src = path.join(workDir, 'a.docx');
     fs.writeFileSync(src, 'A', 'utf8');
-    expect(() => Word.merge([src])).toThrow(/template not found/i);
+    expect(() => Word.merge([src])).toThrow(/template folder not found/i);
   });
 
   it('copies the template, drives the COM merge and quits Word', () => {
@@ -487,9 +508,10 @@ describe('Word.merge', () => {
 
 describe('Word.mergeFolder', () => {
   beforeEach(() => {
-    const template = path.join(workDir, 'template.docx');
-    fs.writeFileSync(template, 'TPL', 'utf8');
-    configStore['Templates.WordPhD'] = template;
+    const templateFolder = path.join(workDir, 'tpl-folder');
+    fs.mkdirSync(templateFolder, { recursive: true });
+    fs.writeFileSync(path.join(templateFolder, 'template.docx'), 'TPL', 'utf8');
+    configStore['Templates.WordMerge'] = templateFolder;
   });
 
   it('throws when no folders are provided', () => {

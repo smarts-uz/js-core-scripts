@@ -43,6 +43,18 @@ const FilesMock = {
   }),
   getBaseName: jest.fn((filePath, ext) => path.basename(filePath, ext)),
   mkdirIfNotExists: jest.fn((d) => fs.mkdirSync(d, { recursive: true })),
+  // Folder mode: pick the latest "Basename N" file with the given ext from a
+  // folder. Mirrors the real Files.getLatestMatchingFile signature; tests only
+  // exercise the missing-folder path (template tests point the config at a
+  // non-existent path), so a not-found returns null like the real helper.
+  getLatestMatchingFile: jest.fn((folder, ext = null) => {
+    if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) return null;
+    const entries = fs.readdirSync(folder)
+      .filter((f) => (ext ? f.toLowerCase().endsWith(ext.toLowerCase()) : true))
+      .sort();
+    return entries.length ? path.join(folder, entries[entries.length - 1]) : null;
+  }),
+  currentDir: jest.fn(() => workDir),
 };
 
 const DialogsMock = {
@@ -69,13 +81,26 @@ jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMoc
 const { Markdown } = await import('../utils/Markdown.js');
 
 let workDir;
+let savedFetch;
 
 beforeEach(() => {
   workDir = makeTmpDir('md-test-');
   for (const k of Object.keys(config)) delete config[k];
+  // _postProcessHtml downloads every remote <img> via global fetch — a network
+  // boundary. Stub it to a non-ok response by default so no real request fires
+  // and _downloadImage returns null (keeping the original URL). Individual
+  // tests can override global.fetch for an ok response.
+  savedFetch = global.fetch;
+  global.fetch = jest.fn(async () => ({
+    ok: false,
+    status: 404,
+    headers: { get: () => '' },
+    arrayBuffer: async () => new ArrayBuffer(0),
+  }));
 });
 
 afterEach(() => {
+  global.fetch = savedFetch;
   cleanupAllTmpDirs();
   jest.clearAllMocks();
 });
@@ -88,10 +113,10 @@ function writeMd(name, content) {
 }
 
 describe('Markdown.convertToHtml', () => {
-  it('renders headings and lists to an HTML file under HTM/ and returns its path', () => {
+  it('renders headings and lists to an HTML file under HTM/ and returns its path', async () => {
     const md = writeMd('doc.md', '# Title\n\n## Sub\n\n- one\n- two\n\nText with **bold**.\n');
 
-    const out = Markdown.convertToHtml(md);
+    const out = await Markdown.convertToHtml(md);
 
     expect(out).toBe(path.join(workDir, 'HTM', 'doc.html'));
     expect(fs.existsSync(out)).toBe(true);
@@ -105,23 +130,27 @@ describe('Markdown.convertToHtml', () => {
     expect(html).toInclude('<strong>bold</strong>');
   });
 
-  it('rewrites a relative <img> src to an absolute path (post-processing)', () => {
+  it('rewrites a relative <img> src to an absolute path (post-processing)', async () => {
     const md = writeMd('img.md', '![pic](assets/pic.png)\n');
-    const out = Markdown.convertToHtml(md);
+    const out = await Markdown.convertToHtml(md);
     const html = fs.readFileSync(out, 'utf8');
     const expectedAbs = path.resolve(workDir, 'assets/pic.png');
     expect(html).toInclude(`src="${expectedAbs}"`);
   });
 
-  it('leaves an absolute http(s) <img> src untouched', () => {
+  it('leaves a remote http(s) <img> src untouched when the download fails', async () => {
+    // _postProcessHtml attempts to download every remote <img>; the stubbed
+    // fetch returns a non-ok response, so _downloadImage returns null and the
+    // original remote URL is preserved verbatim in the output.
     const md = writeMd('imgabs.md', '![pic](https://example.com/p.png)\n');
-    const out = Markdown.convertToHtml(md);
+    const out = await Markdown.convertToHtml(md);
     const html = fs.readFileSync(out, 'utf8');
+    expect(global.fetch).toHaveBeenCalledWith('https://example.com/p.png');
     expect(html).toInclude('src="https://example.com/p.png"');
   });
 
-  it('warns and returns the warningBox result when the file is missing', () => {
-    const out = Markdown.convertToHtml(path.join(workDir, 'nope.md'));
+  it('warns and returns the warningBox result when the file is missing', async () => {
+    const out = await Markdown.convertToHtml(path.join(workDir, 'nope.md'));
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledTimes(1);
     expect(DialogsMock.warningBox.mock.calls[0][1]).toBe('convertToHtml');
@@ -182,10 +211,10 @@ describe('Markdown.convertToWord', () => {
     config['Templates.WordMd'] = tpl;
   });
 
-  it('builds the .docx under DOC/, drives Word COM and returns the docx path', () => {
+  it('builds the .docx under DOC/, drives Word COM and returns the docx path', async () => {
     const md = writeMd('paper.md', '# Heading\n\nBody text.\n');
 
-    const out = Markdown.convertToWord(md, false); // skip PDF for this case
+    const out = await Markdown.convertToWord(md, false); // skip PDF for this case
 
     expect(out).toBe(path.join(workDir, 'DOC', 'paper.docx'));
     expect(fs.existsSync(out)).toBe(true);
@@ -194,24 +223,24 @@ describe('Markdown.convertToWord', () => {
     expect(leftover).toHaveLength(0);
   });
 
-  it('exports a PDF when genPdf is true (default), creating a PDF/ folder', () => {
+  it('exports a PDF when genPdf is true (default), creating a PDF/ folder', async () => {
     const md = writeMd('withpdf.md', '# H\n');
-    const out = Markdown.convertToWord(md); // genPdf defaults to true
+    const out = await Markdown.convertToWord(md); // genPdf defaults to true
     expect(out).toBe(path.join(workDir, 'DOC', 'withpdf.docx'));
     // _exportDocToPdf ensures the PDF directory exists
     expect(fs.existsSync(path.join(workDir, 'PDF'))).toBe(true);
   });
 
-  it('warns and returns null when the source markdown is missing', () => {
-    const out = Markdown.convertToWord(path.join(workDir, 'nope.md'));
+  it('warns and returns null when the source markdown is missing', async () => {
+    const out = await Markdown.convertToWord(path.join(workDir, 'nope.md'));
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledTimes(1);
   });
 
-  it('warns and returns null when the template is missing', () => {
+  it('warns and returns null when the template is missing', async () => {
     config['Templates.WordMd'] = path.join(workDir, 'no-template.docx');
     const md = writeMd('t.md', '# H\n');
-    const out = Markdown.convertToWord(md, false);
+    const out = await Markdown.convertToWord(md, false);
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
@@ -224,16 +253,16 @@ describe('Markdown.convertToWordTOC', () => {
     config['Templates.WordMdTOC'] = tpl;
   });
 
-  it('builds the .docx under DOC/ via the TOC template and returns its path', () => {
+  it('builds the .docx under DOC/ via the TOC template and returns its path', async () => {
     const md = writeMd('thesis.md', '# Chapter\n\nProse.\n');
 
-    const out = Markdown.convertToWordTOC(md, false);
+    const out = await Markdown.convertToWordTOC(md, false);
 
     expect(out).toBe(path.join(workDir, 'DOC', 'thesis.docx'));
     expect(fs.existsSync(out)).toBe(true);
   });
 
-  it('warns and returns null when the {Content} placeholder is not found', () => {
+  it('warns and returns null when the {Content} placeholder is not found', async () => {
     // Pin the NEXT Word.Application COM object so Selection.Find.Execute()
     // returns 0 (falsey) → the not-found branch closes the doc and warns.
     winaxMock.Object.mockImplementationOnce(() =>
@@ -246,23 +275,26 @@ describe('Markdown.convertToWordTOC', () => {
     );
     const md = writeMd('noph.md', '# H\n');
 
-    const out = Markdown.convertToWordTOC(md, false);
+    const out = await Markdown.convertToWordTOC(md, false);
 
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledTimes(1);
-    expect(DialogsMock.warningBox.mock.calls[0][0]).toInclude('{Content}');
+    // insertFn returns false (placeholder missing); _convertToWordCore surfaces
+    // a generic "Content insertion failed" dialog — the "{Content}" text only
+    // appears in the console.warn inside the insertFn, not the warningBox arg.
+    expect(DialogsMock.warningBox.mock.calls[0][0]).toInclude('Content insertion failed');
   });
 
-  it('warns and returns null when the TOC template is missing', () => {
+  it('warns and returns null when the TOC template is missing', async () => {
     config['Templates.WordMdTOC'] = path.join(workDir, 'missing.docx');
     const md = writeMd('m.md', '# H\n');
-    const out = Markdown.convertToWordTOC(md, false);
+    const out = await Markdown.convertToWordTOC(md, false);
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
 
-  it('warns and returns null when the source markdown is missing', () => {
-    const out = Markdown.convertToWordTOC(path.join(workDir, 'nope.md'));
+  it('warns and returns null when the source markdown is missing', async () => {
+    const out = await Markdown.convertToWordTOC(path.join(workDir, 'nope.md'));
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledTimes(1);
   });

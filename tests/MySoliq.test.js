@@ -75,7 +75,8 @@ function stubFetch(impl) {
 // ---------------------------------------------------------------------------
 describe('MySoliq.entrepreneurInfoAPI', () => {
   it('returns parsed JSON and sends X-API-KEY on a 200 response', async () => {
-    state.config['My3Api.SRental'] = 'apikey-1';
+    // Secrets.get('My3Api','SRental') -> process.env.MY3_API_SRENTAL
+    process.env.MY3_API_SRENTAL = 'apikey-1';
     const payload = { registrationDate: '2020-01-01' };
     const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
 
@@ -87,6 +88,7 @@ describe('MySoliq.entrepreneurInfoAPI', () => {
     expect(opts.method).toBe('GET');
     // header set via Headers().append("X-API-KEY", ...)
     expect(opts.headers.get('X-API-KEY')).toBe('apikey-1');
+    delete process.env.MY3_API_SRENTAL;
   });
 
   it('returns null and shows a dialog on a non-OK response', async () => {
@@ -160,7 +162,8 @@ describe('MySoliq.entrepreneurInfo', () => {
 // ---------------------------------------------------------------------------
 describe('MySoliq.vatInfoAPI', () => {
   it('returns result.data and sends a Bearer authorization from env on 200', async () => {
-    process.env.My3SRental = 'bearer-token';
+    // Secrets.get('My3','SRental') -> process.env.MY3_SRENTAL
+    process.env.MY3_SRENTAL = 'bearer-token';
     const data = [{ companyName: 'X', id: 7 }];
     const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ recordsTotal: 1, data }) }));
 
@@ -170,7 +173,7 @@ describe('MySoliq.vatInfoAPI', () => {
     const [url, opts] = f.mock.calls[0];
     expect(url).toBe('https://My3.soliq.uz/api/nds-api/api/certificate/grid?search=305&page=1');
     expect(opts.headers.get('Authorization')).toBe('Bearer bearer-token');
-    delete process.env.My3SRental;
+    delete process.env.MY3_SRENTAL;
   });
 
   it('still returns data (empty) and warns internally when recordsTotal is 0', async () => {
@@ -198,7 +201,8 @@ describe('MySoliq.vatInfoAPI', () => {
 // ---------------------------------------------------------------------------
 describe('MySoliq.companyInfoAPI', () => {
   it('returns parsed JSON and hits the company/info endpoint on 200', async () => {
-    state.config['My3Api.SRental'] = 'apikey-2';
+    // Secrets.get('My3Api','SRental') -> process.env.MY3_API_SRENTAL
+    process.env.MY3_API_SRENTAL = 'apikey-2';
     const payload = { company: { name: 'Acme' } };
     const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
 
@@ -207,6 +211,7 @@ describe('MySoliq.companyInfoAPI', () => {
     expect(out).toEqual(payload);
     expect(f.mock.calls[0][0]).toBe('https://My3.soliq.uz/api/remote-access-api/company/info/305000000?type=full');
     expect(f.mock.calls[0][1].headers.get('X-API-KEY')).toBe('apikey-2');
+    delete process.env.MY3_API_SRENTAL;
   });
 
   it('returns null and warns on a non-OK response', async () => {
