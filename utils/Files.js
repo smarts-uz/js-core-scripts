@@ -105,6 +105,72 @@ export class Files {
   }
 
   /**
+   * Finds the "latest" file inside a folder whose name matches the
+   * increment-versioning rule "Basename N" (e.g. "MD 5.docx", "MD TOC 12.docx").
+   *
+   * Matching rules (same regex family as incrementFileName):
+   *   - The basename (without extension) must end in " <number>" — `/^(.*?)\s+(\d+)$/`.
+   *   - When `ext` is given (e.g. ".docx"), only files with that extension qualify.
+   *   - Sub-folders and meta folders (e.g. "@ Other") are ignored — only files in
+   *     the folder's top level are considered.
+   * The file with the HIGHEST trailing number wins (latest version). On a tie the
+   * later-modified file wins.
+   *
+   * @param {string} folder - Folder to scan.
+   * @param {string|null} ext - Optional extension filter, e.g. ".docx" or ".md".
+   *   When null, any extension qualifies.
+   * @returns {string|null} Absolute path of the latest matching file, or null.
+   */
+  static getLatestMatchingFile(folder, ext = null) {
+    console.info(`[Files.getLatestMatchingFile] 🟢 Starting... folder=${folder}, ext=${ext}`);
+
+    if (!fs.existsSync(folder)) {
+      console.warn(`[Files.getLatestMatchingFile] Folder not found: ${folder}`);
+      return null;
+    }
+
+    const wantExt = ext ? ext.toLowerCase() : null;
+    const entries = fs.readdirSync(folder, { withFileTypes: true });
+
+    let best = null; // { path, num, mtimeMs }
+
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+
+      const parsed = path.parse(entry.name);
+      if (wantExt && parsed.ext.toLowerCase() !== wantExt) continue;
+
+      // Match the increment-versioning rule: basename ends with " <number>"
+      const match = parsed.name.match(/^(.*?)\s+(\d+)$/);
+      if (!match) {
+        console.log(`[Files.getLatestMatchingFile] ⏭️ Non-matching name skipped: ${entry.name}`);
+        continue;
+      }
+
+      const num = parseInt(match[2], 10);
+      const fullPath = path.join(folder, entry.name);
+      const mtimeMs = fs.statSync(fullPath).mtimeMs;
+      console.log(`[Files.getLatestMatchingFile] Candidate: ${entry.name} (num=${num})`);
+
+      if (
+        !best ||
+        num > best.num ||
+        (num === best.num && mtimeMs > best.mtimeMs)
+      ) {
+        best = { path: fullPath, num, mtimeMs };
+      }
+    }
+
+    if (!best) {
+      console.warn(`[Files.getLatestMatchingFile] No matching "Basename N" file found in: ${folder}`);
+      return null;
+    }
+
+    console.info(`[Files.getLatestMatchingFile] ✅ Latest matching file: ${best.path}`);
+    return best.path;
+  }
+
+  /**
    * Checks if a URL already exists in any relevant directory
    * @param {string} url - The URL to check
    * @param {string} currentSaveDir - The current save directory to exclude from checking

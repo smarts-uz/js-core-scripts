@@ -8,7 +8,7 @@
 // (app.Workbooks.Open(p).Sheets(1).Range(...)) run without a real Excel; we
 // then assert the OBSERVABLE CONTRACT by inspecting the recorded `__calls__` /
 // `__sets__` on the proxies and the mocked Open/SaveAs/Save/Close calls. Dialogs
-// (UI), Yamls (config), Word (homoglyph map / folders) and Dates are mocked;
+// (UI), Yamls (config), Word (folders) and Dates are mocked;
 // Files is a small real-fs-backed stub so incrementFileName collision logic and
 // path math run for real. Pure fs/path helpers (getProtectedPath, scanSubFolder,
 // scanSubFilesTxt) are tested against real temp dirs.
@@ -78,21 +78,10 @@ const YamlsMock = {
   getPrepayMonth: jest.fn(() => 1),
 };
 
-// Replicate the real Word.buildHomoglyphMap so homoglyph tests exercise genuine
-// map-driven replacement without pulling in Word.js (which loads winax itself).
-const PERFECT_STEALTH = {
-  A: 'А', a: 'а', C: 'С', c: 'с', E: 'Е', e: 'е', H: 'Н', I: 'І', i: 'і',
-  J: 'Ј', K: 'К', M: 'М', O: 'О', o: 'о', P: 'Р', p: 'р', S: 'Ѕ', T: 'Т',
-  X: 'Х', x: 'х', y: 'у',
-};
+// Word is mocked because Word.js loads winax itself; only the surfaces used by
+// the surviving Excels tests (initFolders) are stubbed.
 const WordMock = {
   initFolders: jest.fn(),
-  buildHomoglyphMap: jest.fn((chars = null) => {
-    if (chars === null) return { ...PERFECT_STEALTH };
-    const map = {};
-    for (const ch of chars.split('')) if (ch in PERFECT_STEALTH) map[ch] = PERFECT_STEALTH[ch];
-    return map;
-  }),
 };
 
 // Real Dates.parseDMYExcel (it parses YYYY-MM-DD into a Date).
@@ -1502,132 +1491,5 @@ describe('Excels.unHideUnProtectSheet (and Ask)', () => {
     Excels.unHideUnProtectSheetAsk(makeFile('UHA2.xlsx'));
 
     expect(wsUnprotect).toHaveBeenCalledWith('pw2');
-  });
-});
-
-// =============================================================================
-// homoglyph / homoglyphAsk
-// =============================================================================
-describe('Excels.homoglyph', () => {
-  /**
-   * Build a workbook whose single sheet's UsedRange is a `rows`×`cols` grid of
-   * the given cell values. Writes are recorded on `writes` keyed by Value sets.
-   */
-  function workbookWithGrid(values2d, writes, sheetName = 'Sheet1') {
-    const rows = values2d.length;
-    const cols = values2d[0].length;
-    const cellsFn = jest.fn((r, c) => {
-      const backing = { __v: values2d[r - 1][c - 1] };
-      return new Proxy(backing, {
-        get(t, prop) {
-          if (prop === 'Value') return backing.__v;
-          return makeComProxy({}, String(prop));
-        },
-        set(t, prop, v) { if (prop === 'Value') { backing.__v = v; writes.push(v); } return true; },
-      });
-    });
-    const usedRange = makeComProxy({
-      Rows: { Count: rows },
-      Columns: { Count: cols },
-      Cells: cellsFn,
-    }, 'UsedRange');
-    const sheet = makeComProxy({ Name: sheetName, UsedRange: usedRange }, 'Sheet');
-    const SheetsFn = jest.fn(() => sheet);
-    SheetsFn.Count = 1;
-    return makeComProxy({ Sheets: SheetsFn, Save: jest.fn(), Close: jest.fn() }, 'Workbook');
-  }
-
-  it('copies the file, replaces Latin chars with Cyrillic homoglyphs and returns out path', () => {
-    YamlsMock.getConfig.mockImplementation((key, type, def) =>
-      key === 'Excel.HomoglyphSuffix' ? ' Norm' : (key === 'Excel.ExcludedSheets' ? [] : def));
-    const writes = [];
-    const wb = workbookWithGrid([['CAT', 123]], writes); // 'CAT' has C and A in the map
-    installApp(wb);
-    const file = makeFile('Doc.xlsx', 'real-bytes');
-
-    const result = Excels.homoglyph(file);
-
-    expect(result).toBe(path.join(workDir, 'Doc Norm.xlsx'));
-    expect(fs.existsSync(result)).toBe(true); // real fs.copyFileSync happened
-    // 'CAT' → 'С' + 'А' + 'Т' (Cyrillic). The written value differs from original.
-    expect(writes).toHaveLength(1);
-    expect(writes[0]).not.toBe('CAT');
-    expect(wb.Save).toHaveBeenCalled();
-  });
-
-  it('returns undefined and warns when the file is missing', () => {
-    const result = Excels.homoglyph(path.join(workDir, 'gone.xlsx'));
-    expect(result).toBeUndefined();
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith(expect.stringContaining('File not found'), 'Error');
-  });
-
-  it('returns early (no copy) when the char selection yields an empty map', () => {
-    const file = makeFile('Empty.xlsx', 'b');
-    const result = Excels.homoglyph(file, '0123'); // none of these are in the map
-    expect(result).toBeUndefined();
-    // No " Norm" output created.
-    expect(fs.existsSync(path.join(workDir, 'Empty Norm.xlsx'))).toBe(false);
-  });
-
-  it('skips sheets listed in Excel.ExcludedSheets', () => {
-    YamlsMock.getConfig.mockImplementation((key, type, def) => {
-      if (key === 'Excel.ExcludedSheets') return ['Sheet1'];
-      if (key === 'Excel.HomoglyphSuffix') return ' Norm';
-      return def;
-    });
-    const writes = [];
-    const wb = workbookWithGrid([['CAT']], writes, 'Sheet1');
-    installApp(wb);
-
-    Excels.homoglyph(makeFile('Skip.xlsx', 'b'));
-
-    expect(writes).toHaveLength(0); // excluded sheet not processed
-  });
-});
-
-describe('Excels.homoglyphAsk', () => {
-  it('persists the validated selection and delegates to homoglyph', () => {
-    YamlsMock.getConfig.mockImplementation((key, type, def) => {
-      if (key === 'Excel.HomoglyphSuffix') return ' Norm';
-      if (key === 'Excel.ExcludedSheets') return [];
-      return def; // ChoosedChars.Excel default → allChars
-    });
-    DialogsMock.inputBox.mockReturnValue('CA9z'); // 9 invalid, others valid → "CAz"
-
-    const writes = [];
-    // single sheet single cell with mappable text
-    const cellsFn = jest.fn(() => {
-      const backing = { __v: 'CAR' };
-      return new Proxy(backing, {
-        get(t, p) { return p === 'Value' ? backing.__v : makeComProxy({}, String(p)); },
-        set(t, p, v) { if (p === 'Value') { backing.__v = v; writes.push(v); } return true; },
-      });
-    });
-    const usedRange = makeComProxy({ Rows: { Count: 1 }, Columns: { Count: 1 }, Cells: cellsFn }, 'UsedRange');
-    const sheet = makeComProxy({ Name: 'S', UsedRange: usedRange }, 'Sheet');
-    const SheetsFn = jest.fn(() => sheet);
-    SheetsFn.Count = 1;
-    const wb = makeComProxy({ Sheets: SheetsFn, Save: jest.fn(), Close: jest.fn() }, 'Workbook');
-    installApp(wb);
-
-    const file = makeFile('Ask.xlsx', 'b');
-    const result = Excels.homoglyphAsk(file);
-
-    expect(DialogsMock.inputBox).toHaveBeenCalled();
-    // Persisted only the valid characters (z is the only lowercase mapped? 'z' not
-    // in map → filtered; valid are 'C','A'). The exact stored string is the filter
-    // of the typed value against the map keys.
-    expect(YamlsMock.setConfig).toHaveBeenCalledWith('ChoosedChars.Excel', expect.any(String));
-    const stored = YamlsMock.setConfig.mock.calls[0][1];
-    expect(stored).toBe('CA'); // 'C','A' valid; '9' and 'z' dropped
-    expect(result).toBe(path.join(workDir, 'Ask Norm.xlsx'));
-  });
-
-  it('aborts (no setConfig, no homoglyph) when the user cancels', () => {
-    DialogsMock.inputBox.mockReturnValue(null);
-    const result = Excels.homoglyphAsk(makeFile('AskCancel.xlsx', 'b'));
-    expect(result).toBeUndefined();
-    expect(YamlsMock.setConfig).not.toHaveBeenCalled();
-    expect(winaxObject).not.toHaveBeenCalled();
   });
 });

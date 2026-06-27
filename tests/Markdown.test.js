@@ -1,5 +1,5 @@
 // Unit tests for utils/Markdown.js — public methods convertToWord,
-// convertToWordTOC, convertToHtml, homoglyph, homoglyphAsk, merge.
+// convertToWordTOC, convertToHtml, merge.
 //
 // Strategy (per tests/README.md):
 //  - `marked` is real (installed) and runs for real so we assert genuine HTML.
@@ -8,8 +8,7 @@
 //    extensions on the bare specifier — otherwise the module fails to import.
 //  - winax (Word COM) is mocked with makeWinaxMock(); we assert the boundary
 //    calls and the returned .docx path, never launching real Word.
-//  - Sibling utils are mocked at their absolute path: Word.js (real homoglyph
-//    map, but mocked to avoid pulling the uninstalled turndown dep), Yamls.js
+//  - Sibling utils are mocked at their absolute path: Yamls.js
 //    (config), Files.js (real fs helpers), Dialogs.js (UI spies).
 //  - fs runs for real against throwaway temp directories.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -18,20 +17,6 @@ import path from 'path';
 import { makeTmpDir, cleanupAllTmpDirs, writeTree, read, exists } from './helpers/tmp.js';
 import { makeWinaxMock, makeComProxy } from './helpers/mocks.js';
 import { utilsModule } from './helpers/esm.js';
-
-// --- the real PERFECT_STEALTH map (copied from Word.js) so homoglyph swaps are
-//     genuine while keeping the uninstalled turndown dep out of the graph. -----
-const PERFECT_STEALTH = {
-  A: 'А', a: 'а', C: 'С', c: 'с', E: 'Е', e: 'е', H: 'Н', I: 'І', i: 'і',
-  J: 'Ј', K: 'К', M: 'М', O: 'О', o: 'о', P: 'Р', p: 'р', S: 'Ѕ', T: 'Т',
-  X: 'Х', x: 'х', y: 'у',
-};
-function buildHomoglyphMap(chars = null) {
-  if (chars === null) return { ...PERFECT_STEALTH };
-  const out = {};
-  for (const ch of String(chars).split('')) if (ch in PERFECT_STEALTH) out[ch] = PERFECT_STEALTH[ch];
-  return out;
-}
 
 // --- config-backed mock store ------------------------------------------------
 const config = {};
@@ -60,8 +45,6 @@ const FilesMock = {
   mkdirIfNotExists: jest.fn((d) => fs.mkdirSync(d, { recursive: true })),
 };
 
-const WordMock = { buildHomoglyphMap: jest.fn(buildHomoglyphMap) };
-
 const DialogsMock = {
   // warningBox returns null like the real one (callers rely on that).
   warningBox: jest.fn(() => null),
@@ -81,7 +64,6 @@ const winaxMock = makeWinaxMock();
 jest.unstable_mockModule('winax', () => winaxMock);
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
-jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 
 const { Markdown } = await import('../utils/Markdown.js');
@@ -143,100 +125,6 @@ describe('Markdown.convertToHtml', () => {
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledTimes(1);
     expect(DialogsMock.warningBox.mock.calls[0][1]).toBe('convertToHtml');
-  });
-});
-
-describe('Markdown.homoglyph', () => {
-  it('substitutes every mapped Latin char with its Cyrillic homoglyph', () => {
-    const md = writeMd('src.md', 'Cat Hop Pie xy\n');
-    const out = Markdown.homoglyph(md);
-
-    expect(out).toBe(path.join(workDir, 'src Norm.md'));
-    // Only chars present in the map are swapped. Lowercase 't' has no mapping
-    // (only uppercase 'T' does), so it stays Latin:
-    //   C→С a→а t→t | H→Н o→о p→р | P→Р i→і e→е | x→х y→у
-    const result = read(workDir, 'src Norm.md');
-    expect(result).toBe('Саt Нор Ріе ху\n');
-    // the mapped Latin letters are gone, replaced by Cyrillic homoglyphs
-    expect(result).not.toInclude('C');
-    expect(result).not.toInclude('H');
-    expect(result).not.toInclude('P');
-  });
-
-  it('only replaces the requested subset when chars is given', () => {
-    const md = writeMd('subset.md', 'OoPp\n');
-    const out = Markdown.homoglyph(md, 'O'); // replace only capital O
-    const result = fs.readFileSync(out, 'utf8');
-    // O→О, but o/P/p untouched
-    expect(result).toBe('Оo' + 'Pp\n');
-    expect(WordMock.buildHomoglyphMap).toHaveBeenCalledWith('O');
-  });
-
-  it('honors a custom HomoglyphSuffix from config', () => {
-    config['Markdown.HomoglyphSuffix'] = ' Cyr';
-    const md = writeMd('cfg.md', 'A\n');
-    const out = Markdown.homoglyph(md);
-    expect(path.basename(out)).toBe('cfg Cyr.md');
-  });
-
-  it('auto-increments the output name when it already exists', () => {
-    writeMd('dup Norm.md', 'pre-existing');
-    const md = writeMd('dup.md', 'A\n');
-    const out = Markdown.homoglyph(md);
-    expect(path.basename(out)).toBe('dup Norm 1.md');
-  });
-
-  it('warns and returns undefined when the file is missing', () => {
-    const out = Markdown.homoglyph(path.join(workDir, 'gone.md'));
-    expect(out).toBeUndefined();
-    expect(DialogsMock.warningBox).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns undefined (nothing to do) when the replace map is empty', () => {
-    const md = writeMd('empty.md', 'hello\n');
-    const out = Markdown.homoglyph(md, '123'); // none of these are mapped
-    expect(out).toBeUndefined();
-    // no output file written
-    expect(exists(workDir, 'empty Norm.md')).toBe(false);
-  });
-});
-
-describe('Markdown.homoglyphAsk', () => {
-  it('asks the user, persists the filtered choice and delegates to homoglyph', () => {
-    const md = writeMd('ask.md', 'Cat\n');
-    // user keeps only C and a (plus an illegal char that must be filtered out)
-    DialogsMock.inputBox.mockReturnValue('Ca9');
-
-    const out = Markdown.homoglyphAsk(md);
-
-    expect(DialogsMock.inputBox).toHaveBeenCalledTimes(1);
-    // illegal '9' is filtered; only C and a persisted
-    expect(YamlsMock.setConfig).toHaveBeenCalledWith('ChoosedChars.Markdown', 'Ca');
-    // homoglyph ran with the validated subset → only C and a swapped; the
-    // unmapped lowercase 't' stays Latin.
-    expect(out).toBe(path.join(workDir, 'ask Norm.md'));
-    expect(read(workDir, 'ask Norm.md')).toBe('Саt\n');
-  });
-
-  it('seeds the input box with all map keys by default', () => {
-    const md = writeMd('seed.md', 'A\n');
-    DialogsMock.inputBox.mockReturnValue('A');
-    Markdown.homoglyphAsk(md);
-    const allKeys = Object.keys(PERFECT_STEALTH).join('');
-    expect(DialogsMock.inputBox).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(String),
-      allKeys,
-    );
-  });
-
-  it('returns undefined and does nothing when the user cancels (null)', () => {
-    const md = writeMd('cancel.md', 'A\n');
-    DialogsMock.inputBox.mockReturnValue(null);
-    const out = Markdown.homoglyphAsk(md);
-    expect(out).toBeUndefined();
-    expect(YamlsMock.setConfig).not.toHaveBeenCalled();
-    expect(exists(workDir, 'cancel Norm.md')).toBe(false);
   });
 });
 

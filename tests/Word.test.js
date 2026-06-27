@@ -3,9 +3,9 @@
 // Word is a MIX of pure helpers and winax-COM driven methods:
 //  - Pure / near-pure helpers (getNumberWordOnly, getRussianMonthName,
 //    getComNameInitials, cleanCompanyName, contractNumFromFormat, extractDate,
-//    buildHomoglyphMap, getProtectedPath, initFolders) are exercised for real.
+//    getProtectedPath, initFolders) are exercised for real.
 //  - COM methods (checkWinax, merge, mergeFolder, makeContract, wordReplace,
-//    wordToMD, homoglyph, protectFile, unProtectFile + their *Ask wrappers)
+//    wordToMD, protectFile, unProtectFile + their *Ask wrappers)
 //    mock the `winax` boundary (and Dialogs/Yamls/Files siblings) and assert the
 //    observable contract: COM object construction, boundary calls, return
 //    shaping and the documented error/empty branches.
@@ -351,40 +351,6 @@ describe('Word.extractDate', () => {
   });
 });
 
-describe('Word.buildHomoglyphMap', () => {
-  it('returns a copy of the full PERFECT_STEALTH map when called with null', () => {
-    const map = Word.buildHomoglyphMap(null);
-    expect(map).toBeObject();
-    // a few representative Latin→Cyrillic mappings
-    expect(map.A).toBe('А');
-    expect(map.a).toBe('а');
-    expect(map.O).toBe('О');
-    expect(map.p).toBe('р');
-    expect(map.y).toBe('у');
-    // returns a fresh object each call (spread copy)
-    expect(Word.buildHomoglyphMap(null)).not.toBe(map);
-    expect(Word.buildHomoglyphMap(null)).toEqual(map);
-  });
-
-  it('defaults to the full map when called with no argument', () => {
-    expect(Word.buildHomoglyphMap()).toContainAllKeys(Object.keys(Word.buildHomoglyphMap(null)));
-  });
-
-  it('filters to only the requested characters present in the map', () => {
-    const map = Word.buildHomoglyphMap('Ax');
-    expect(map).toEqual({ A: 'А', x: 'х' });
-  });
-
-  it('skips characters not in the map and warns', () => {
-    const map = Word.buildHomoglyphMap('AzQ'); // z and Q are not present
-    expect(map).toEqual({ A: 'А' });
-  });
-
-  it('returns an empty object when none of the chars are mappable', () => {
-    expect(Word.buildHomoglyphMap('zqwn')).toEqual({});
-  });
-});
-
 describe('Word.getProtectedPath', () => {
   it('appends the default " Protected" suffix before the extension', () => {
     const out = Word.getProtectedPath(path.join(workDir, 'report.docx'));
@@ -462,7 +428,7 @@ describe('Word.checkWinax', () => {
   // Note: winax is loaded once at module import and is present (mocked), so the
   // not-available branch cannot be re-triggered after import. The throwing
   // contract is covered indirectly: when winax.Object throws, the COM methods
-  // surface that error (see wordReplace / homoglyph error-branch tests).
+  // surface that error (see wordReplace error-branch tests).
   it('returns undefined on the success path', () => {
     expect(Word.checkWinax('x')).toBeUndefined();
   });
@@ -701,44 +667,6 @@ describe('Word.wordToMD', () => {
   });
 });
 
-describe('Word.homoglyph', () => {
-  it('warns and returns undefined when the file is missing', () => {
-    expect(Word.homoglyph(path.join(workDir, 'nope.docx'))).toBeUndefined();
-    expect(DialogsMock.warningBox).toHaveBeenCalled();
-    expect(winaxObject).not.toHaveBeenCalled();
-  });
-
-  it('returns undefined (no COM) when no replacement chars are valid', () => {
-    const src = path.join(workDir, 'doc.docx');
-    fs.writeFileSync(src, 'DOC', 'utf8');
-    // chars that are all absent from PERFECT_STEALTH → empty replaceMap
-    const result = Word.homoglyph(src, 'zqwn');
-    expect(result).toBeUndefined();
-    expect(winaxObject).not.toHaveBeenCalled();
-  });
-
-  it('copies to a suffixed output, runs find/replace and returns the output path', () => {
-    const src = path.join(workDir, 'doc.docx');
-    fs.writeFileSync(src, 'DOC', 'utf8');
-
-    const out = Word.homoglyph(src, 'A');
-
-    expect(out).toBe(path.join(workDir, 'doc Norm.docx'));
-    expect(fs.existsSync(out)).toBe(true); // physically copied
-    expect(winaxObject).toHaveBeenCalledWith('Word.Application');
-    expect(comState.openCalls).toContain(out);
-    expect(winaxRelease).toHaveBeenCalled();
-  });
-
-  it('honors a configured Word.HomoglyphSuffix', () => {
-    configStore['Word.HomoglyphSuffix'] = ' Cyr';
-    const src = path.join(workDir, 'd.docx');
-    fs.writeFileSync(src, 'DOC', 'utf8');
-    const out = Word.homoglyph(src, 'A');
-    expect(out).toBe(path.join(workDir, 'd Cyr.docx'));
-  });
-});
-
 describe('Word.protectFile', () => {
   it('throws when the file does not exist', () => {
     expect(() => Word.protectFile(path.join(workDir, 'no.docx'), 'pw')).toThrow(/File not found/);
@@ -844,44 +772,6 @@ describe('Word.unProtectFileAsk', () => {
     Word.unProtectFileAsk(file);
 
     expect(spy).toHaveBeenCalledWith(file, 'pw');
-    spy.mockRestore();
-  });
-});
-
-describe('Word.homoglyphAsk', () => {
-  it('returns undefined without converting when cancelled', () => {
-    DialogsMock.inputBox.mockReturnValue(null);
-    const spy = jest.spyOn(Word, 'homoglyph').mockReturnValue(undefined);
-    expect(Word.homoglyphAsk(path.join(workDir, 'a.docx'))).toBeUndefined();
-    expect(spy).not.toHaveBeenCalled();
-    spy.mockRestore();
-  });
-
-  it('filters the entered chars to valid ones, persists the choice and delegates', () => {
-    // user keeps "A" and "x" (valid) plus "Z" (invalid → filtered out)
-    DialogsMock.inputBox.mockReturnValue('AxZ');
-    const spy = jest.spyOn(Word, 'homoglyph').mockReturnValue('OUT');
-    const file = path.join(workDir, 'a.docx');
-
-    const out = Word.homoglyphAsk(file);
-
-    expect(out).toBe('OUT');
-    expect(spy).toHaveBeenCalledWith(file, 'Ax');
-    // persisted via Yamls.setConfig
-    expect(YamlsMock.setConfig).toHaveBeenCalledWith('ChoosedChars.Word', 'Ax');
-    spy.mockRestore();
-  });
-
-  it('pre-fills the input with all homoglyph keys by default', () => {
-    DialogsMock.inputBox.mockReturnValue('A');
-    const spy = jest.spyOn(Word, 'homoglyph').mockReturnValue('OUT');
-    Word.homoglyphAsk(path.join(workDir, 'a.docx'));
-    const allChars = Object.keys(Word.buildHomoglyphMap()).join('');
-    expect(DialogsMock.inputBox).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(String),
-      allChars,
-    );
     spy.mockRestore();
   });
 });

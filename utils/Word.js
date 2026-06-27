@@ -34,10 +34,18 @@ export class Word {
       throw new Error("No files provided to merge.");
     }
 
-    const templatePath = Yamls.getConfig("Templates.WordPhD");
-    if (!templatePath || !fs.existsSync(templatePath)) {
-      throw new Error(`Word template not found at: ${templatePath}`);
+    const templateFolder = Yamls.getConfig("Templates.WordMerge");
+    if (!templateFolder || !fs.existsSync(templateFolder)) {
+      throw new Error(`Word template folder not found at: ${templateFolder}`);
     }
+
+    const templatePath = Files.getLatestMatchingFile(templateFolder, ".docx");
+    if (!templatePath) {
+      throw new Error(
+        `No latest "Basename N" .docx template found in folder: ${templateFolder}`,
+      );
+    }
+    console.info(`[Word.merge] 📄 Using latest template: ${templatePath}`);
 
     const resolvedTargetDir = targetDir
       ? path.resolve(targetDir)
@@ -430,15 +438,266 @@ export class Word {
 
   static _processImages(htmlContent, htmlBase, targetBaseName) {
     console.log(`[Word._processImages] 🔄 Updating image paths in HTML...`);
-    const oldFolderRef = `${htmlBase}_files`;
     const newFolderRef = `${targetBaseName}_Files`;
-    // Replace occurrences in the HTML content
-    return htmlContent.replace(new RegExp(oldFolderRef, "g"), newFolderRef);
+
+    // Word URL-encodes spaces in src attributes (e.g. "Rich%20Source_temp_..._files"),
+    // while the on-disk folder name uses real spaces. Replace BOTH forms so the
+    // generated links point at the renamed "<base>_Files" folder. Escaping the base
+    // for regex avoids breaking on names with regex-special characters.
+    const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const rawRef = `${htmlBase}_files`;
+    const encodedRef = `${encodeURI(htmlBase)}_files`; // spaces → %20, etc.
+
+    let result = htmlContent.replace(new RegExp(escape(rawRef), "g"), newFolderRef);
+    if (encodedRef !== rawRef) {
+      result = result.replace(new RegExp(escape(encodedRef), "g"), newFolderRef);
+    }
+    return result;
+  }
+
+  /**
+   * Extracts every equation from an open Word document as LaTeX, returning a list
+   * of LaTeX strings in document order. Equations are linearized (UnicodeMath),
+   * then converted to LaTeX. An equation that yields no usable text becomes null
+   * so the caller can fall back to its exported image.
+   *
+   * NOTE: This mutates the in-memory document (Linearize), so it must run on a
+   * throwaway copy or before the HTML export — never on a doc that will be saved.
+   *
+   * @param {object} doc An open Word.Document COM object.
+   * @returns {(string|null)[]} LaTeX strings (or null) in equation order.
+   */
+  static _extractEquationsAsLatex(doc) {
+    console.info(`[Word._extractEquationsAsLatex] 🟢 Starting...`);
+    const latexList = [];
+    let count = 0;
+    try {
+      count = doc.OMaths.Count;
+    } catch (e) {
+      console.warn(`[Word._extractEquationsAsLatex] ⚠️ OMaths not accessible: ${e.message}`);
+      return latexList;
+    }
+    console.log(`[Word._extractEquationsAsLatex] 📐 Found ${count} equation(s).`);
+    if (count === 0) return latexList;
+
+    // Linearize converts every equation to its UnicodeMath linear form in-place.
+    try {
+      doc.OMaths.Linearize();
+    } catch (e) {
+      console.warn(`[Word._extractEquationsAsLatex] ⚠️ Linearize failed: ${e.message}`);
+    }
+
+    for (let i = 1; i <= count; i++) {
+      let linear = "";
+      try {
+        linear = String(doc.OMaths.Item(i).Range.Text || "");
+      } catch (e) {
+        console.warn(`[Word._extractEquationsAsLatex] ⚠️ eq ${i} read failed: ${e.message}`);
+      }
+      const latex = this._unicodeMathToLatex(linear);
+      console.info(`[Word._extractEquationsAsLatex] 🔢 eq ${i}: ${JSON.stringify(linear)} → ${JSON.stringify(latex)}`);
+      latexList.push(latex);
+    }
+    return latexList;
+  }
+
+  /**
+   * Converts a Word UnicodeMath linear string to a best-effort LaTeX string.
+   * Handles math-italic/bold Unicode letters, fractions (a)/(b), superscripts,
+   * subscripts, roots, and common operators/Greek letters. Returns null when the
+   * input has no meaningful content (so the caller can fall back to an image).
+   *
+   * @param {string} input UnicodeMath linear text from Word.
+   * @returns {string|null}
+   */
+  static _unicodeMathToLatex(input) {
+    if (!input) return null;
+
+    // Strip carriage returns/control chars Word injects between runs.
+    let s = input.replace(/[\r\n-]/g, "").trim();
+    if (!s || s === "Type equation here.") return null;
+
+    // 1. Normalize Mathematical-Alphanumeric Unicode letters/digits back to ASCII.
+    s = this._normalizeMathAlphanum(s);
+
+    // 2. Common Unicode math symbols → LaTeX.
+    const symbolMap = {
+      "≤": "\\le", "≥": "\\ge", "≠": "\\ne", "≈": "\\approx", "±": "\\pm",
+      "×": "\\times", "÷": "\\div", "⋅": "\\cdot", "∙": "\\cdot", "→": "\\to",
+      "∞": "\\infty", "∑": "\\sum", "∏": "\\prod", "∫": "\\int", "√": "\\sqrt",
+      "∂": "\\partial", "∇": "\\nabla", "∈": "\\in", "∉": "\\notin",
+      "α": "\\alpha", "β": "\\beta", "γ": "\\gamma", "δ": "\\delta",
+      "ε": "\\epsilon", "θ": "\\theta", "λ": "\\lambda", "μ": "\\mu",
+      "π": "\\pi", "ρ": "\\rho", "σ": "\\sigma", "τ": "\\tau", "φ": "\\phi",
+      "ω": "\\omega", "Δ": "\\Delta", "Σ": "\\Sigma", "Ω": "\\Omega",
+    };
+    for (const [u, tex] of Object.entries(symbolMap)) {
+      s = s.split(u).join(tex + " ");
+    }
+
+    // 3. Fractions: (numer)/(denom) → \frac{numer}{denom}; a/b → \frac{a}{b}.
+    s = this._convertFractions(s);
+
+    // 4. \sqrt(x) → \sqrt{x}; \sqrt x stays as-is.
+    s = s.replace(/\\sqrt\s*\(([^()]*)\)/g, "\\sqrt{$1}");
+
+    // 5. Superscripts/subscripts: ^(...) → ^{...}, ^ab → ^{ab} (multi-char).
+    s = s.replace(/\^\(([^()]*)\)/g, "^{$1}");
+    s = s.replace(/_\(([^()]*)\)/g, "_{$1}");
+    s = s.replace(/\^([A-Za-z0-9]{2,})/g, "^{$1}");
+    s = s.replace(/_([A-Za-z0-9]{2,})/g, "_{$1}");
+
+    // 6. Collapse repeated spaces.
+    s = s.replace(/\s{2,}/g, " ").trim();
+
+    return s.length ? s : null;
+  }
+
+  /**
+   * Maps Unicode Mathematical Alphanumeric Symbols (italic/bold/etc.) to ASCII.
+   * Word emits these for variables in linearized equations (e.g. 𝐸 → E).
+   */
+  static _normalizeMathAlphanum(s) {
+    let out = "";
+    for (const ch of s) {
+      const cp = ch.codePointAt(0);
+      let mapped = ch;
+      // Mathematical Alphanumeric Symbols block: U+1D400–U+1D7FF.
+      if (cp >= 0x1d400 && cp <= 0x1d7ff) {
+        const blocks = [
+          [0x1d400, 0x1d419, 0x41], [0x1d41a, 0x1d433, 0x61], // bold A-Z, a-z
+          [0x1d434, 0x1d44d, 0x41], [0x1d44e, 0x1d467, 0x61], // italic
+          [0x1d468, 0x1d481, 0x41], [0x1d482, 0x1d49b, 0x61], // bold italic
+          [0x1d49c, 0x1d4b5, 0x41], [0x1d4b6, 0x1d4cf, 0x61], // script
+          [0x1d4d0, 0x1d4e9, 0x41], [0x1d4ea, 0x1d503, 0x61], // bold script
+          [0x1d504, 0x1d51d, 0x41], [0x1d51e, 0x1d537, 0x61], // fraktur
+          [0x1d538, 0x1d551, 0x41], [0x1d552, 0x1d56b, 0x61], // double-struck
+          [0x1d56c, 0x1d585, 0x41], [0x1d586, 0x1d59f, 0x61], // bold fraktur
+          [0x1d5a0, 0x1d5b9, 0x41], [0x1d5ba, 0x1d5d3, 0x61], // sans-serif
+          [0x1d5d4, 0x1d5ed, 0x41], [0x1d5ee, 0x1d607, 0x61], // sans bold
+          [0x1d608, 0x1d621, 0x41], [0x1d622, 0x1d63b, 0x61], // sans italic
+          [0x1d63c, 0x1d655, 0x41], [0x1d656, 0x1d66f, 0x61], // sans bold italic
+          [0x1d670, 0x1d689, 0x41], [0x1d68a, 0x1d6a3, 0x61], // monospace
+        ];
+        for (const [lo, hi, base] of blocks) {
+          if (cp >= lo && cp <= hi) { mapped = String.fromCharCode(base + (cp - lo)); break; }
+        }
+        // Mathematical digits U+1D7CE–U+1D7FF map to 0-9 in groups of 10.
+        if (cp >= 0x1d7ce && cp <= 0x1d7ff) {
+          mapped = String.fromCharCode(0x30 + ((cp - 0x1d7ce) % 10));
+        }
+      }
+      out += mapped;
+    }
+    return out;
+  }
+
+  /**
+   * Converts UnicodeMath fraction syntax to LaTeX \frac{}{}.
+   * Supports (a)/(b) and simple token/token; nested groups are handled greedily
+   * for the common single-level case Word produces.
+   */
+  static _convertFractions(s) {
+    // (numer)/(denom)
+    let prev;
+    do {
+      prev = s;
+      s = s.replace(/\(([^()]*)\)\s*\/\s*\(([^()]*)\)/g, "\\frac{$1}{$2}");
+      s = s.replace(/\(([^()]*)\)\s*\/\s*([A-Za-z0-9]+)/g, "\\frac{$1}{$2}");
+      s = s.replace(/([A-Za-z0-9]+)\s*\/\s*\(([^()]*)\)/g, "\\frac{$1}{$2}");
+    } while (s !== prev);
+    return s;
+  }
+
+  /**
+   * Returns true when a <table> node contains any merged cell (colspan/rowspan > 1)
+   * or any cell with block-level/multi-paragraph content — i.e. a table GFM pipe
+   * syntax cannot faithfully represent.
+   */
+  static _isComplexTable(tableNode) {
+    // Turndown's DOM (domino) returns array-LIKE NodeLists that are not always
+    // iterable with for...of, so coerce every NodeList to a real array.
+    const toArr = (nl) => Array.prototype.slice.call(nl || []);
+    const cells = toArr(tableNode.querySelectorAll("td, th"));
+    for (const cell of cells) {
+      const cs = parseInt(cell.getAttribute("colspan") || "1", 10);
+      const rs = parseInt(cell.getAttribute("rowspan") || "1", 10);
+      if (cs > 1 || rs > 1) return true;
+      // More than one paragraph or a line break inside a cell breaks GFM rows.
+      if (toArr(cell.querySelectorAll("p")).length > 1) return true;
+      if (cell.querySelector("br")) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Produces clean, minimal HTML for a complex table: strips every Word `mso-*`
+   * style, class, width, and inline-style attribute, keeping only the structural
+   * colspan/rowspan and the cell text. The result is valid Markdown-embeddable HTML.
+   */
+  static _cleanTableHtml(tableNode) {
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const toArr = (nl) => Array.prototype.slice.call(nl || []);
+
+    // Extracts a node's text, turning every <br> into a sentinel that survives
+    // HTML-escaping so multi-line cells keep their breaks as <br> in the output.
+    const BR = "BR";
+    const innerText = (node) => {
+      let out = "";
+      const kids = toArr(node.childNodes);
+      for (const k of kids) {
+        if (k.nodeType === 3) out += k.nodeValue || ""; // text node
+        else if (k.nodeName === "BR") out += BR;
+        else out += innerText(k);
+      }
+      return out;
+    };
+
+    const rowsOut = [];
+    const rows = toArr(tableNode.querySelectorAll("tr"));
+    for (const row of rows) {
+      const cellsOut = [];
+      const cells = toArr(row.querySelectorAll("td, th"));
+      for (const cell of cells) {
+        const tag = cell.nodeName.toLowerCase();
+        const cs = parseInt(cell.getAttribute("colspan") || "1", 10);
+        const rs = parseInt(cell.getAttribute("rowspan") || "1", 10);
+        const attrs = [];
+        if (cs > 1) attrs.push(`colspan="${cs}"`);
+        if (rs > 1) attrs.push(`rowspan="${rs}"`);
+        // Join inner paragraphs with <br>; collapse whitespace and &nbsp;.
+        const paras = toArr(cell.querySelectorAll("p"));
+        const sources = paras.length ? paras : [cell];
+        const text = sources
+          .map((p) => innerText(p).replace(/ /g, " ").trim())
+          .filter((t) => t.length)
+          .join(BR);
+        const attrStr = attrs.length ? " " + attrs.join(" ") : "";
+        // Escape real text, then turn the sentinel into a literal <br>.
+        const cellHtml = text ? esc(text).split(BR).join("<br>") : "";
+        cellsOut.push(`<${tag}${attrStr}>${cellHtml}</${tag}>`);
+      }
+      rowsOut.push(`  <tr>${cellsOut.join("")}</tr>`);
+    }
+    return `<table>\n${rowsOut.join("\n")}\n</table>`;
   }
 
   static _processTurndownRules(turndownService) {
-    console.log(`[Word._processTurndownRules] ⚙️ Applying Turndown rules (GFM, PageBreaks, Colors, Footnotes)...`);
+    console.log(`[Word._processTurndownRules] ⚙️ Applying Turndown rules (GFM, Tables, PageBreaks, Colors, Footnotes)...`);
     turndownService.use(turndownPluginGfm.gfm);
+
+    // Complex tables (merged cells / multi-line cells): emit cleaned HTML so no
+    // data is lost. Must run BEFORE the GFM table rule, which would otherwise
+    // mangle them. Simple tables fall through to GFM for clean pipe syntax.
+    const self = this;
+    turndownService.addRule("complexTable", {
+      filter: function (node) {
+        return node.nodeName === "TABLE" && self._isComplexTable(node);
+      },
+      replacement: function (content, node) {
+        return "\n\n" + self._cleanTableHtml(node) + "\n\n";
+      },
+    });
 
     turndownService.addRule('pagebreak', {
       filter: function (node) {
@@ -508,6 +767,51 @@ export class Word {
     return turndownService.turndown(htmlContent);
   }
 
+  /**
+   * Replaces every equation in an OPEN document with a unique text placeholder
+   * (`@@WMDEQ{n}@@`) and returns the LaTeX captured for each, in order. The
+   * placeholder removes both the equation's rendered image and its text fallback
+   * from the exported HTML, leaving a single token we re-expand to `$latex$` after
+   * Markdown conversion. Equations whose LaTeX is null keep their image (no
+   * placeholder is written) so nothing is silently lost.
+   *
+   * Must run on the working copy that will be exported (it mutates the document).
+   *
+   * @param {object} doc Open Word.Document COM object.
+   * @returns {{token:string, latex:string}[]} Restorations to apply post-MD.
+   */
+  static _injectEquationPlaceholders(doc) {
+    console.info(`[Word._injectEquationPlaceholders] 🟢 Starting...`);
+    const latexList = this._extractEquationsAsLatex(doc);
+    const restorations = [];
+
+    // After Linearize(), OMaths still enumerates the same equations in order.
+    let count = 0;
+    try { count = doc.OMaths.Count; } catch (_) { count = 0; }
+
+    for (let i = 1; i <= count; i++) {
+      const latex = latexList[i - 1];
+      if (!latex) {
+        console.warn(`[Word._injectEquationPlaceholders] ⚠️ eq ${i} has no LaTeX — keeping image.`);
+        continue;
+      }
+      const token = `@@WMDEQ${i}@@`;
+      try {
+        // Replace the equation's range text with the token, then remove the OMath
+        // wrapper so no equation object (and thus no image) is exported.
+        const om = doc.OMaths.Item(i);
+        const rng = om.Range;
+        rng.Text = token;
+        try { om.Remove(); } catch (_) {} // unwrap the math zone if still present
+        restorations.push({ token, latex });
+        console.info(`[Word._injectEquationPlaceholders] 🔁 eq ${i} → ${token} = $${latex}$`);
+      } catch (e) {
+        console.warn(`[Word._injectEquationPlaceholders] ⚠️ eq ${i} placeholder failed: ${e.message}`);
+      }
+    }
+    return restorations;
+  }
+
   static wordToMD(filename) {
       console.info(`[Word.wordToMD] 🟢 Starting...`);
     console.info(`[Word.wordToMD] 🟢 Starting word to MD conversion for: ${filename}`);
@@ -537,16 +841,24 @@ export class Word {
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
 
+    // Hoisted so the finally block can always remove the temp HTML, even on error.
+    let htmlPath = null;
+
     try {
       console.log(`[Word.wordToMD] 📂 Opening document: ${resolvedFile}`);
       const doc = wordApp.Documents.Open(resolvedFile);
 
+      // Capture equations as LaTeX and swap them for text placeholders BEFORE the
+      // HTML export. This is mutation on the in-memory doc only — it is closed
+      // without saving, so the source .docx is untouched.
+      const equationRestores = this._injectEquationPlaceholders(doc);
+
       // Save as Filtered HTML
       const htmlBase = `${baseName}_temp_${Date.now()}`;
-      const htmlPath = path.join(mdDir, `${htmlBase}.html`);
+      htmlPath = path.join(mdDir, `${htmlBase}.html`);
       this._exportToHtml(doc, htmlPath);
-      
-      console.log(`[Word.wordToMD] 🏁 Closing document...`);
+
+      console.log(`[Word.wordToMD] 🏁 Closing document (no save — source preserved)...`);
       doc.Close(false);
 
       // Process Images folder
@@ -565,11 +877,13 @@ export class Word {
       // Convert to Markdown using Turndown + private methods for tables
       let mdContent = this._convertHtmlToMd(htmlContent);
 
+      // Restore equation placeholders as inline LaTeX ($...$).
+      for (const { token, latex } of equationRestores) {
+        mdContent = mdContent.split(token).join(`$${latex}$`);
+      }
+
       console.info(`[Word.wordToMD] 💾 Writing markdown content to: ${targetPath}`);
       fs.writeFileSync(targetPath, mdContent.trim() + "\n", "utf8");
-
-      // Cleanup temp HTML file
-      if (fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
 
       console.log(`[Word.wordToMD] ✅ Converted to MD successfully: ${targetPath}`);
       return targetPath;
@@ -577,6 +891,12 @@ export class Word {
       console.error(`[Word.wordToMD] ❌ Error converting to MD:`, e);
       Dialogs.warningBox(`Error converting to MD: ${e.message}`, "Error");
     } finally {
+      // Always remove the temp HTML, even when conversion threw mid-way.
+      try {
+        if (htmlPath && fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
+      } catch (_) {
+        console.warn(`[Word.wordToMD] ⚠️ Error removing temp HTML: ${htmlPath}`);
+      }
       console.log(`[Word.wordToMD] 🧹 Cleaning up COM resources...`);
       try {
         wordApp.Quit();
@@ -589,157 +909,6 @@ export class Word {
         console.warn(`[Word.wordToMD] ⚠️ Error releasing winax object.`);
       }
       console.info(`[Word.wordToMD] 🔴 Finished wordToMD execution.`);
-    }
-  }
-
-  /**
-   * Shared Latin→Cyrillic homoglyph map (PERFECT_STEALTH).
-   * Returns the full map when chars is null, or a filtered subset when chars
-   * is a string (each character is used as a lookup key).
-   * Characters not present in the map are skipped with a warning.
-   *
-   * @param {string|null} chars
-   * @returns {Record<string,string>}
-   */
-  static buildHomoglyphMap(chars = null) {
-    console.info(`[Word.buildHomoglyphMap] 🟢 Starting...`);
-    const PERFECT_STEALTH = {
-      A: "А",
-      a: "а",
-
-      C: "С",
-      c: "с",
-
-      E: "Е",
-      e: "е",
-
-      H: "Н",
-
-      I: "І",
-      i: "і",
-
-      J: "Ј",
-
-      K: "К",
-
-      M: "М",
-
-      O: "О",
-      o: "о",
-
-      P: "Р",
-      p: "р",
-
-      S: "Ѕ",
-
-      T: "Т",
-
-      X: "Х",
-      x: "х",
-
-      y: "у",
-    };
-
-    if (chars === null) {
-      return { ...PERFECT_STEALTH };
-    }
-
-    const replaceMap = {};
-    for (const ch of chars.split("")) {
-      if (ch in PERFECT_STEALTH) {
-        replaceMap[ch] = PERFECT_STEALTH[ch];
-      } else {
-        console.warn(
-          `⚠️ buildHomoglyphMap: '${ch}' not in PERFECT_STEALTH — skipped`,
-        );
-      }
-    }
-    return replaceMap;
-  }
-
-  /**
-   * Replaces Latin characters in a Word document with visually identical Cyrillic homoglyphs.
-   *
-   * @param {string} fileName - Path to the source .docx file.
-   * @param {string|null} chars - If null, all PERFECT_STEALTH keys are replaced.
-   *   If a string (e.g. "STy"), only those characters present in PERFECT_STEALTH are replaced.
-   * @returns {string|undefined} Path to the saved output file, or undefined on error.
-   */
-  static homoglyph(fileName, chars = null) {
-    console.info(`[Word.homoglyph] 🟢 Starting...`);
-    this.checkWinax("homoglyph");
-
-    if (!fileName || !fs.existsSync(fileName)) {
-      Dialogs.warningBox(`File not found: ${fileName}`, "Error");
-      return;
-    }
-
-    const replaceMap = this.buildHomoglyphMap(chars);
-
-    if (Object.keys(replaceMap).length === 0) {
-      console.warn(
-        "⚠️ homoglyph: No valid replacement characters found. Nothing to do.",
-      );
-      return;
-    }
-
-    // Build output path: "<basename> Norm<ext>", auto-incremented
-    const resolvedFile = path.resolve(fileName);
-    const ext = path.extname(resolvedFile);
-    const baseName = Files.getBaseName(resolvedFile, ext);
-    const dir = path.dirname(resolvedFile);
-    const homoglyphSuffix = Yamls.getConfig('Word.HomoglyphSuffix', null, ' Norm') || ' Norm';
-    const baseOutputPath = path.join(dir, `${baseName}${homoglyphSuffix}${ext}`);
-    const outputPath = Files.incrementFileName(baseOutputPath);
-
-    // Copy original → output so we operate on a fresh copy
-    fs.copyFileSync(resolvedFile, outputPath);
-    console.log(`📋 Copied to: ${outputPath}`);
-
-    const wordApp = new winax.Object("Word.Application");
-    wordApp.Visible = false;
-    wordApp.DisplayAlerts = 0;
-
-    try {
-      console.log(`📂 Opening: ${outputPath}`);
-      const doc = wordApp.Documents.Open(outputPath);
-      const find = doc.Content.Find;
-
-      for (const [latin, cyrillic] of Object.entries(replaceMap)) {
-        find.ClearFormatting();
-        find.Replacement.ClearFormatting();
-        find.Text = latin;
-        find.Replacement.Text = cyrillic;
-        find.Execute(
-          find.Text,
-          true, // MatchCase — keep case sensitivity for correct mapping
-          false,
-          false,
-          false,
-          false,
-          true,
-          1,
-          false,
-          find.Replacement.Text,
-          2, // wdReplaceAll
-        );
-        console.log(`🔄 '${latin}' → '${cyrillic}'`);
-      }
-
-      doc.Save();
-      doc.Close(false);
-      console.log(`✅ Homoglyph file saved: ${outputPath}`);
-      return outputPath;
-    } catch (e) {
-      console.error(e);
-      Dialogs.warningBox(`Error in homoglyph: ${e.message}`, "Error");
-    } finally {
-      try {
-        wordApp.Quit();
-      } catch (_) {}
-      try {
-        winax.release(wordApp);
-      } catch (_) {}
     }
   }
 
@@ -892,43 +1061,5 @@ export class Word {
       return;
     }
     this.unProtectFile(filename, password);
-  }
-
-
-  /**
-   * Prompts the user with an input box containing all PERFECT_STEALTH keys.
-   * The user can remove characters, but adding new ones will be ignored.
-   * Calls homoglyph with the selected characters.
-   *
-   * @param {string} fileName - Path to the source .docx file.
-   * @returns {string|undefined} Path to the saved output file.
-   */
-  static homoglyphAsk(fileName) {
-    console.info(`[Word.homoglyphAsk] 🟢 Starting...`);
-    const allChars = Object.keys(this.buildHomoglyphMap()).join("");
-    const defaultChars =
-      Yamls.getConfig("ChoosedChars.Word", null, allChars) || allChars;
-
-    const selectedChars = Dialogs.inputBox(
-      "Leave only the characters you want to replace (adding new symbols is prohibited):",
-      "Select Homoglyph Characters",
-      defaultChars,
-    );
-
-    if (selectedChars === null) {
-      console.log("homoglyphAsk: Cancelled by user.");
-      return;
-    }
-
-    // Filter out any characters not in PERFECT_STEALTH (adding new symbols is prohibited)
-    const validChars = selectedChars
-      .split("")
-      .filter((ch) => allChars.includes(ch))
-      .join("");
-
-    // Persist the user's choice for next time
-    Yamls.setConfig("ChoosedChars.Word", validChars);
-
-    return this.homoglyph(fileName, validChars);
   }
 }

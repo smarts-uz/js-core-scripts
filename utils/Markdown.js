@@ -10,7 +10,6 @@ marked.use(markedKatex({ throwOnError: false, output: 'mathml' }));
 import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
 import { Files } from './Files.js';
-import { Word } from './Word.js';
 
 let winax;
 try {
@@ -34,13 +33,17 @@ export class Markdown {
       return `<h${level}>${text}</h${level}>\n`;
     };
     
-    // Convert Mermaid code blocks to Kroki SVG images
-    renderer.code = ({ text, lang, escaped }) => {
+    // Convert Mermaid code blocks to a Kroki PNG image. PNG (not SVG) is used
+    // because Word embeds a raster image at its true pixel size, whereas a
+    // linked SVG arrives as a tiny 24x24 placeholder. The URL is downloaded to
+    // a local file later, in the async _postProcessHtml step, so the picture is
+    // EMBEDDED rather than linked (survives moving the .docx).
+    renderer.code = ({ text, lang }) => {
       if (lang === 'mermaid') {
         try {
           const compressed = zlib.deflateSync(Buffer.from(text, 'utf8'));
           const base64url = compressed.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-          const url = `https://kroki.io/mermaid/svg/${base64url}`;
+          const url = `https://kroki.io/mermaid/png/${base64url}`;
           return `<img src="${url}" alt="Mermaid diagram" />\n`;
         } catch(e) {
           console.error("Mermaid kroki render error:", e);
@@ -57,11 +60,65 @@ export class Markdown {
     return renderer;
   }
 
-  static _postProcessHtml(htmlContent, parsedDir) {
+  /**
+   * Downloads a remote image (e.g. a Kroki-rendered Mermaid PNG) to a local
+   * `_assets` folder and returns the absolute local path, so Word EMBEDS it
+   * instead of linking a remote URL. Returns null on any failure (the caller
+   * then keeps the original URL).
+   *
+   * @param {string} url       Remote http(s) image URL.
+   * @param {string} assetsDir Folder to save the downloaded file into.
+   * @param {number} index     Index used to build a stable unique filename.
+   * @returns {Promise<string|null>} Absolute local path, or null.
+   */
+  static async _downloadImage(url, assetsDir, index) {
+    console.info(`[Markdown._downloadImage] 🟢 Starting... url=${url}`);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.warn(`[Markdown._downloadImage] HTTP ${res.status} for ${url}`);
+        return null;
+      }
+      const contentType = res.headers.get('content-type') || '';
+      const ext = contentType.includes('png') ? '.png'
+        : contentType.includes('jpeg') || contentType.includes('jpg') ? '.jpg'
+        : contentType.includes('gif') ? '.gif'
+        : contentType.includes('svg') ? '.svg'
+        : '.png';
+      Markdown._ensureDir(assetsDir);
+      const buf = Buffer.from(await res.arrayBuffer());
+      const outPath = path.join(assetsDir, `remote_${index}${ext}`);
+      fs.writeFileSync(outPath, buf);
+      console.info(`[Markdown._downloadImage] ✅ Saved: ${outPath} (${buf.length} bytes)`);
+      return outPath;
+    } catch (e) {
+      console.error(`[Markdown._downloadImage] ❌ Failed for ${url}:`, e.message);
+      return null;
+    }
+  }
+
+  static async _postProcessHtml(htmlContent, parsedDir) {
     console.info(`[Markdown._postProcessHtml] 🟢 Starting...`);
-    
+
+    let processed = htmlContent;
+
+    // 0. Download every remote http(s) <img> (e.g. Kroki Mermaid PNG) to a local
+    //    file so Word embeds it at full size instead of linking a remote URL.
+    const assetsDir = path.join(parsedDir, '_assets');
+    const remoteSrcs = [...processed.matchAll(/<img[^>]+src="(https?:\/\/[^"]+)"/ig)].map(m => m[1]);
+    const uniqueRemote = [...new Set(remoteSrcs)];
+    console.log(`[Markdown._postProcessHtml] Remote images to download: ${uniqueRemote.length}`);
+    for (let i = 0; i < uniqueRemote.length; i++) {
+      const src = uniqueRemote[i];
+      const localPath = await Markdown._downloadImage(src, assetsDir, i);
+      if (localPath) {
+        // Replace every occurrence of this exact URL with the local absolute path.
+        processed = processed.split(`src="${src}"`).join(`src="${localPath}"`);
+      }
+    }
+
     // 1. Fix relative image paths so Word can resolve and embed them
-    let processed = htmlContent.replace(/<img[^>]+src="([^"]+)"/ig, (match, src) => {
+    processed = processed.replace(/<img[^>]+src="([^"]+)"/ig, (match, src) => {
       if (!src.match(/^(https?:\/\/|data:|file:\/\/\/)/i)) {
         const absolutePath = path.resolve(parsedDir, src);
         return match.replace(src, absolutePath);
@@ -72,18 +129,31 @@ export class Markdown {
     // 2. Convert <mark> to Word-compatible highlights
     processed = processed.replace(/<mark>([\s\S]*?)<\/mark>/gi, '<span style="background:yellow">$1</span>');
 
-    // 3. Convert marked-footnote output to Word native footnotes
-    processed = processed.replace(/<sup><a id="fnref:(\d+)" href="#fn:\1"[^>]*>(\d+)<\/a><\/sup>/g, 
+    // 3. Convert marked-footnote reference markers to Word native footnote refs.
+    //    Current marked-footnote emits  id="footnote-ref-1" href="#footnote-1",
+    //    older versions emitted  id="fnref:1" href="#fn:1". Match BOTH the
+    //    "footnote-ref-N / footnote-N" and the legacy "fnref:N / fn:N" forms so a
+    //    library version bump never silently breaks footnotes again.
+    processed = processed.replace(
+      /<sup><a id="(?:footnote-ref-|fnref:)(\d+)"[^>]*href="#(?:footnote-|fn:)\1"[^>]*>(\d+)<\/a><\/sup>/g,
       `<a style='mso-footnote-id:ftn$1' href="#_ftn$1" name="_ftnref$1" title=""><span class=MsoFootnoteReference><span style='mso-special-character:footnote'><!--[if !supportFootnotes]-->[$2]<!--[endif]--></span></span></a>`
     );
 
-    // 4. Convert marked-footnote definition list to Word footnote format
-    processed = processed.replace(/<section class="footnotes"[^>]*>\s*<ol>([\s\S]*?)<\/ol>\s*<\/section>/gi, (match, listContent) => {
-      let footnotes = listContent.replace(/<li id="fn:(\d+)">([\s\S]*?)<a href="#fnref:\1"[^>]*>.*?<\/a>([\s\S]*?)<\/li>/gi, 
-        `<div style='mso-element:footnote' id=ftn$1><p class=MsoFootnoteText><a style='mso-footnote-id:ftn$1' href="#_ftnref$1" name="_ftn$1" title="">[$1]</a> $2$3</p></div>`
-      );
-      return `<div style='mso-element:footnote-list'>${footnotes}</div>`;
-    });
+    // 4. Convert the marked-footnote definition list to the Word footnote format.
+    //    The section may carry data-footnotes and an <h2 class="sr-only"> label
+    //    before the <ol> — tolerate any content between <section> and <ol>.
+    processed = processed.replace(
+      /<section class="footnotes"[^>]*>[\s\S]*?<ol>([\s\S]*?)<\/ol>\s*<\/section>/gi,
+      (_match, listContent) => {
+        // Each <li> id is "footnote-N" (new) or "fn:N" (legacy); the back-ref
+        // link (↩) at the end is stripped — Word recreates it natively.
+        let footnotes = listContent.replace(
+          /<li id="(?:footnote-|fn:)(\d+)">([\s\S]*?)<a href="#(?:footnote-ref-|fnref:)\1"[^>]*>[\s\S]*?<\/a>([\s\S]*?)<\/li>/gi,
+          `<div style='mso-element:footnote' id=ftn$1><p class=MsoFootnoteText><a style='mso-footnote-id:ftn$1' href="#_ftnref$1" name="_ftn$1" title="">[$1]</a> $2$3</p></div>`
+        );
+        return `<div style='mso-element:footnote-list'>${footnotes}</div>`;
+      }
+    );
 
     return processed;
   }
@@ -141,23 +211,95 @@ export class Markdown {
   }
 
   /**
-   * Converts a Markdown file to Word .docx (plain template, no TOC).
-   * The .docx is saved in a `DOC` folder next to the source .md file.
-   * If genPdf is true (default) a PDF is also exported to a `PDF` folder.
+   * Breaks the link on every linked inline picture so the image bytes are
+   * stored inside the document (embedded), not merely referenced. Word's
+   * Selection.InsertFile imports <img> tags as LINKED pictures by default,
+   * which break the moment the .docx is moved or the source file/URL is gone.
    *
-   * Template config key: Templates.WordMd
+   * For each linked InlineShape we set SavePictureWithDocument=true then call
+   * BreakLink, converting it to a true embedded picture.
    *
-   * @param {string}  filePath
-   * @param {object}  [opts]
-   * @param {boolean} [opts.genPdf=true]  Also export a PDF alongside the .docx
-   * @returns {string}  Absolute path of the generated .docx
+   * @param {object} doc - An open Word.Document COM object.
    */
-  static convertToWord(filePath, genPdf = true, templatePath = null) {
-    console.info(`[Markdown.convertToWord] 🟢 Starting...`);
-    if (!winax) return Dialogs.warningBox('Native automation (winax) is not available.', 'convertToWord');
+  static _embedLinkedPictures(doc) {
+    console.info(`[Markdown._embedLinkedPictures] 🟢 Starting...`);
+    let embedded = 0;
+    const count = doc.InlineShapes.Count;
+    console.log(`[Markdown._embedLinkedPictures] InlineShapes: ${count}`);
+    for (let i = 1; i <= count; i++) {
+      const shape = doc.InlineShapes.Item(i);
+      try {
+        const link = shape.LinkFormat;
+        if (link) {
+          link.SavePictureWithDocument = true;
+          link.BreakLink();
+          embedded++;
+        }
+      } catch (e) {
+        // Shape has no LinkFormat (already embedded / OMath / chart) — skip.
+      }
+    }
+    console.info(`[Markdown._embedLinkedPictures] ✅ Embedded ${embedded} linked picture(s).`);
+  }
+
+  /**
+   * Resolves a Word template path from a config key that now holds a FOLDER.
+   * The latest "Basename N" .docx inside that folder is picked (matching rules
+   * via Files.getLatestMatchingFile). For backward compatibility, if the config
+   * value already points directly at an existing .docx file, that file is used.
+   *
+   * @param {string} configKey - e.g. 'Templates.WordMd' or 'Templates.WordMdTOC'
+   * @returns {string|null} Absolute path of the resolved template .docx, or null.
+   */
+  static _resolveTemplate(configKey) {
+    console.info(`[Markdown._resolveTemplate] 🟢 Starting... configKey=${configKey}`);
+    const configured = Yamls.getConfig(configKey);
+    console.log(`[Markdown._resolveTemplate] Configured value: ${configured}`);
+
+    if (!configured) {
+      console.warn(`[Markdown._resolveTemplate] No value configured for ${configKey}`);
+      return null;
+    }
+
+    // Backward-compatible: a direct file path still works.
+    if (fs.existsSync(configured) && fs.statSync(configured).isFile()) {
+      console.info(`[Markdown._resolveTemplate] Using direct file path: ${configured}`);
+      return configured;
+    }
+
+    // Folder mode: pick the latest "Basename N" .docx from the folder.
+    const latest = Files.getLatestMatchingFile(configured, '.docx');
+    console.info(`[Markdown._resolveTemplate] Latest template resolved: ${latest}`);
+    return latest;
+  }
+
+  /**
+   * Shared conversion core used by both convertToWord and convertToWordTOC.
+   *
+   * Pipeline: read .md → marked → post-process HTML → write temp HTML →
+   * resolve template (latest file from folder) → copy template to DOC/ →
+   * open in Word → run the format-specific `insertFn` → save → optional PDF →
+   * close & cleanup.
+   *
+   * The only difference between the plain and TOC flows is HOW the HTML is
+   * inserted, so that step is injected as `insertFn(selection, doc, tempHtmlPath,
+   * wordApp)`. It must return true on success, or false to abort (the doc is
+   * then closed without saving). Any TOC/field refresh also happens inside it.
+   *
+   * @param {string}   filePath      Source .md path.
+   * @param {boolean}  genPdf        Also export a PDF.
+   * @param {string}   configKey     Config key holding the template FOLDER.
+   * @param {string}   label         Label for logs/dialogs (e.g. 'convertToWord').
+   * @param {string|null} templatePath Explicit template override (file or folder).
+   * @param {function} insertFn      Format-specific insertion callback.
+   * @returns {string|undefined} Absolute path of the generated .docx.
+   */
+  static async _convertToWordCore(filePath, genPdf, configKey, label, templatePath, insertFn) {
+    console.info(`[Markdown._convertToWordCore] 🟢 Starting... label=${label}`);
+    if (!winax) return Dialogs.warningBox('Native automation (winax) is not available.', label);
 
     const absPath = path.resolve(filePath);
-    if (!fs.existsSync(absPath)) return Dialogs.warningBox(`File not found: ${absPath}`, 'convertToWord');
+    if (!fs.existsSync(absPath)) return Dialogs.warningBox(`File not found: ${absPath}`, label);
 
     try {
       console.log(`📂 Reading Markdown file: ${absPath}`);
@@ -166,27 +308,33 @@ export class Markdown {
       console.log(`🔄 Converting to HTML buffer...`);
       let htmlContent = marked.parse(markdown, { renderer: Markdown._getRenderer() });
 
-      const parsed      = path.parse(absPath);
-      
+      const parsed = path.parse(absPath);
+
       // Apply advanced post-processing (Images, Footnotes, Highlights)
-      htmlContent = Markdown._postProcessHtml(htmlContent, parsed.dir);
+      htmlContent = await Markdown._postProcessHtml(htmlContent, parsed.dir);
 
       const tempHtmlPath = path.join(parsed.dir, `${parsed.name}_temp_${Date.now()}.html`);
-
-      const finalHtml = Markdown._buildTempHtml(htmlContent);
+      const finalHtml    = Markdown._buildTempHtml(htmlContent);
       fs.writeFileSync(tempHtmlPath, finalHtml, 'utf8');
 
-      if (!templatePath) {
-        templatePath = Yamls.getConfig('Templates.WordMd');
+      // Resolve template: explicit override → else latest file from config folder.
+      let resolvedTemplate = templatePath;
+      if (resolvedTemplate && fs.existsSync(resolvedTemplate) && fs.statSync(resolvedTemplate).isDirectory()) {
+        resolvedTemplate = Files.getLatestMatchingFile(resolvedTemplate, '.docx');
       }
-      if (!templatePath || !fs.existsSync(templatePath))
-        return Dialogs.warningBox(`Word template not found at: ${templatePath}`, 'convertToWord');
+      if (!resolvedTemplate) {
+        resolvedTemplate = Markdown._resolveTemplate(configKey);
+      }
+      console.log(`[Markdown._convertToWordCore] Resolved template: ${resolvedTemplate}`);
+      if (!resolvedTemplate || !fs.existsSync(resolvedTemplate))
+        return Dialogs.warningBox(`Word template not found (key ${configKey}): ${resolvedTemplate}`, label);
 
-      const docDir  = path.join(parsed.dir, 'DOC');
+      const docDir = path.join(parsed.dir, 'DOC');
       Markdown._ensureDir(docDir);
       let newPath = path.join(docDir, `${parsed.name}.docx`);
       newPath = Files.incrementFileName(newPath);
-      fs.copyFileSync(templatePath, newPath);
+      console.log(`[Markdown._convertToWordCore] Output docx: ${newPath}`);
+      fs.copyFileSync(resolvedTemplate, newPath);
 
       const wordApp = new winax.Object('Word.Application');
       wordApp.Visible = false;
@@ -196,9 +344,17 @@ export class Markdown {
         console.log(`📂 Opening template docx: ${newPath}`);
         const doc       = wordApp.Documents.Open(newPath);
         const selection = wordApp.Selection;
-        selection.EndKey(6); // wdStory
 
-        selection.InsertFile(tempHtmlPath);
+        const inserted = insertFn(selection, doc, tempHtmlPath, wordApp);
+        if (inserted === false) {
+          doc.Close(false);
+          return Dialogs.warningBox(`Content insertion failed for: ${resolvedTemplate}`, label);
+        }
+
+        // Word's InsertFile imports <img> as LINKED pictures (Type=4). Break the
+        // links so every image (local files + downloaded Mermaid PNGs) is stored
+        // INSIDE the .docx and survives moving the file.
+        Markdown._embedLinkedPictures(doc);
 
         console.log(`\n💾 Word docx saved: ${newPath}`);
         doc.Save();
@@ -209,16 +365,40 @@ export class Markdown {
 
         doc.Close(false);
       } finally {
-        try { wordApp.Quit(); } catch(e) {}
-        try { winax.release(wordApp); } catch(e) {}
+        try { wordApp.Quit(); } catch (e) {}
+        try { winax.release(wordApp); } catch (e) {}
         if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath);
       }
 
       return newPath;
     } catch (error) {
       console.error('❌ Error:', error);
-      return Dialogs.warningBox(error.message, 'convertToWord Error');
+      return Dialogs.warningBox(error.message, `${label} Error`);
     }
+  }
+
+  /**
+   * Converts a Markdown file to Word .docx (plain template, no TOC).
+   * The .docx is saved in a `DOC` folder next to the source .md file.
+   * If genPdf is true (default) a PDF is also exported to a `PDF` folder.
+   *
+   * Template config key: Templates.WordMd (a FOLDER — latest file is picked).
+   *
+   * @param {string}  filePath
+   * @param {boolean} [genPdf=true]  Also export a PDF alongside the .docx
+   * @param {string|null} [templatePath] Explicit template file/folder override.
+   * @returns {string}  Absolute path of the generated .docx
+   */
+  static convertToWord(filePath, genPdf = true, templatePath = null) {
+    console.info(`[Markdown.convertToWord] 🟢 Starting...`);
+    return Markdown._convertToWordCore(
+      filePath, genPdf, 'Templates.WordMd', 'convertToWord', templatePath,
+      (selection, _doc, tempHtmlPath) => {
+        selection.EndKey(6); // wdStory
+        selection.InsertFile(tempHtmlPath);
+        return true;
+      }
+    );
   }
 
   /**
@@ -229,60 +409,20 @@ export class Markdown {
    * The .docx is saved in a `DOC` folder next to the source .md file.
    * If genPdf is true (default) a PDF is also exported to a `PDF` folder.
    *
-   * Template config key: Templates.WordMdTOC
+   * Template config key: Templates.WordMdTOC (a FOLDER — latest file is picked).
    *
    * @param {string}  filePath
-   * @param {object}  [opts]
-   * @param {boolean} [opts.genPdf=true]  Also export a PDF alongside the .docx
+   * @param {boolean} [genPdf=true]  Also export a PDF alongside the .docx
+   * @param {string|null} [templatePath] Explicit template file/folder override.
    * @returns {string}  Absolute path of the generated .docx
    */
   static convertToWordTOC(filePath, genPdf = true, templatePath = null) {
     console.info(`[Markdown.convertToWordTOC] 🟢 Starting...`);
-    if (!winax) return Dialogs.warningBox('Native automation (winax) is not available.', 'convertToWordTOC');
-
-    const absPath = path.resolve(filePath);
-    if (!fs.existsSync(absPath)) return Dialogs.warningBox(`File not found: ${absPath}`, 'convertToWordTOC');
-
-    try {
-      console.log(`📂 Reading Markdown file: ${absPath}`);
-      const markdown = fs.readFileSync(absPath, 'utf8');
-
-      console.log(`🔄 Converting to HTML buffer...`);
-      let htmlContent = marked.parse(markdown, { renderer: Markdown._getRenderer() });
-
-      const parsed       = path.parse(absPath);
-
-      // Apply advanced post-processing (Images, Footnotes, Highlights)
-      htmlContent = Markdown._postProcessHtml(htmlContent, parsed.dir);
-
-      const tempHtmlPath = path.join(parsed.dir, `${parsed.name}_temp_${Date.now()}.html`);
-
-      const finalHtml = Markdown._buildTempHtml(htmlContent);
-      fs.writeFileSync(tempHtmlPath, finalHtml, 'utf8');
-
-      if (!templatePath) {
-        templatePath = Yamls.getConfig('Templates.WordMdTOC');
-      }
-      if (!templatePath || !fs.existsSync(templatePath))
-        return Dialogs.warningBox(`TOC template not found at: ${templatePath}`, 'convertToWordTOC');
-
-      const docDir  = path.join(parsed.dir, 'DOC');
-      Markdown._ensureDir(docDir);
-      let newPath = path.join(docDir, `${parsed.name}.docx`);
-      newPath = Files.incrementFileName(newPath);
-      fs.copyFileSync(templatePath, newPath);
-
-      const wordApp = new winax.Object('Word.Application');
-      wordApp.Visible = false;
-      wordApp.DisplayAlerts = 0;
-
-      try {
-        console.log(`📂 Opening TOC template docx: ${newPath}`);
-        const doc = wordApp.Documents.Open(newPath);
-
+    return Markdown._convertToWordCore(
+      filePath, genPdf, 'Templates.WordMdTOC', 'convertToWordTOC', templatePath,
+      (selection, doc, tempHtmlPath) => {
         // Use Selection.Find so that a successful match actually MOVES the
         // selection to the found text — doc.Content.Find does NOT do this.
-        const selection = wordApp.Selection;
         selection.HomeKey(6); // wdStory — move to document start
 
         const find = selection.Find;
@@ -294,8 +434,8 @@ export class Markdown {
         const found = find.Execute();
 
         if (!found) {
-          doc.Close(false);
-          return Dialogs.warningBox(`Placeholder "{Content}" not found in template: ${templatePath}`, 'convertToWordTOC');
+          console.warn(`[Markdown.convertToWordTOC] Placeholder "{Content}" not found in template.`);
+          return false;
         }
 
         // Selection is now positioned exactly on "{Content}" — delete it and
@@ -311,29 +451,12 @@ export class Markdown {
         }
         // Also update all remaining fields (page refs, etc.)
         doc.Fields.Update();
-
-        console.log(`\n💾 Word (TOC) docx saved: ${newPath}`);
-        doc.Save();
-
-        if (genPdf) {
-          Markdown._exportDocToPdf(newPath, doc, parsed.dir);
-        }
-
-        doc.Close(false);
-      } finally {
-        try { wordApp.Quit(); } catch(e) {}
-        try { winax.release(wordApp); } catch(e) {}
-        if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath);
+        return true;
       }
-
-      return newPath;
-    } catch (error) {
-      console.error('❌ Error:', error);
-      return Dialogs.warningBox(error.message, 'convertToWordTOC Error');
-    }
+    );
   }
 
-  static convertToHtml(filePath) {
+  static async convertToHtml(filePath) {
     console.info(`[Markdown.convertToHtml] 🟢 Starting...`);
     const absPath = path.resolve(filePath);
 
@@ -347,9 +470,9 @@ export class Markdown {
       let htmlContent = marked.parse(markdown, { renderer: Markdown._getRenderer() });
 
       const parsed   = path.parse(absPath);
-      
+
       // Apply advanced post-processing (Images, Footnotes, Highlights)
-      htmlContent = Markdown._postProcessHtml(htmlContent, parsed.dir);
+      htmlContent = await Markdown._postProcessHtml(htmlContent, parsed.dir);
 
       const htmDir   = path.join(parsed.dir, 'HTM');
       Markdown._ensureDir(htmDir);
@@ -384,85 +507,6 @@ ${htmlContent}
       return Dialogs.warningBox(error.message, 'convertToHtml Error');
     }
   }
-  /**
-   * Replaces Latin characters in a Markdown file with visually identical
-   * Cyrillic homoglyphs using the shared PERFECT_STEALTH map from Word.
-   * Works on plain UTF-8 text — no COM/winax required.
-   *
-   * @param {string} fileName - Path to the source .md file.
-   * @param {string|null} chars - If null, all mapped chars are replaced.
-   *   If a string (e.g. "STy"), only those chars present in the map are replaced.
-   * @returns {string|undefined} Path to the saved output file.
-   */
-  static homoglyph(fileName, chars = null) {
-    console.info(`[Markdown.homoglyph] 🟢 Starting...`);
-    const absPath = path.resolve(fileName);
-
-    if (!fs.existsSync(absPath)) {
-      Dialogs.warningBox(`File not found: ${absPath}`, 'Error');
-      return;
-    }
-
-    const replaceMap = Word.buildHomoglyphMap(chars);
-
-    if (Object.keys(replaceMap).length === 0) {
-      console.warn('⚠️ Markdown.homoglyph: No valid replacement characters found. Nothing to do.');
-      return;
-    }
-
-    // Build output path: "<basename> Norm.md", auto-incremented
-    const ext = path.extname(absPath);
-    const baseName = Files.getBaseName(absPath, ext);
-    const dir = path.dirname(absPath);
-    const homoglyphSuffix = Yamls.getConfig('Markdown.HomoglyphSuffix', null, ' Norm') || ' Norm';
-    const baseOutputPath = path.join(dir, `${baseName}${homoglyphSuffix}${ext}`);
-    const outputPath = Files.incrementFileName(baseOutputPath);
-
-    // Read source, apply character substitutions, write output
-    let content = fs.readFileSync(absPath, 'utf8');
-    for (const [latin, cyrillic] of Object.entries(replaceMap)) {
-      const escaped = latin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      content = content.replace(new RegExp(escaped, 'g'), cyrillic);
-      console.log(`🔄 '${latin}' → '${cyrillic}'`);
-    }
-
-    fs.writeFileSync(outputPath, content, 'utf8');
-    console.log(`✅ Markdown homoglyph saved: ${outputPath}`);
-    return outputPath;
-  }
-
-  /**
-   * Prompts the user with an input box containing all PERFECT_STEALTH keys.
-   * The user can remove characters, but adding new ones will be ignored.
-   * Calls homoglyph with the selected characters.
-   *
-   * @param {string} fileName - Path to the source .md file.
-   * @returns {string|undefined} Path to the saved output file.
-   */
-  static homoglyphAsk(fileName) {
-    console.info(`[Markdown.homoglyphAsk] 🟢 Starting...`);
-    const allChars = Object.keys(Word.buildHomoglyphMap()).join('');
-    const defaultChars = Yamls.getConfig('ChoosedChars.Markdown', null, allChars) || allChars;
-
-    const selectedChars = Dialogs.inputBox(
-      'Leave only the characters you want to replace (adding new symbols is prohibited):',
-      'Select Homoglyph Characters',
-      defaultChars
-    );
-
-    if (selectedChars === null) {
-      console.log('homoglyphAsk: Cancelled by user.');
-      return;
-    }
-
-    const validChars = selectedChars.split('').filter(ch => allChars.includes(ch)).join('');
-
-    // Persist the user's choice for next time
-    Yamls.setConfig('ChoosedChars.Markdown', validChars);
-
-    return this.homoglyph(fileName, validChars);
-  }
-
   /**
    * Merges an array of Markdown files into a single .md file.
    *

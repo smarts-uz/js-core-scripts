@@ -1,6 +1,6 @@
-// Unit tests for utils/PowerPoints.js — public methods checkWinax, homoglyph,
+// Unit tests for utils/PowerPoints.js — public methods checkWinax,
 // getProtectedPath, protectFile, unProtectFile, protectFileAsk,
-// unProtectFileAsk, homoglyphAsk.
+// unProtectFileAsk.
 //
 // Pattern (native boundary): PowerPoints drives PowerPoint via the winax COM
 // bridge (`new winax.Object('PowerPoint.Application')`), prompts through Dialogs
@@ -8,9 +8,8 @@
 // jest.unstable_mockModule BEFORE importing the class, let real fs run against a
 // throwaway temp dir, and assert the documented COM call chain
 // (Presentations.Open / SaveAs / Save / Close / password set) plus the
-// missing-file / empty-map / already-protected / not-protected / cancel
-// branches. Word.buildHomoglyphMap is mocked to a small deterministic map so we
-// do not pull Word's own native deps.
+// missing-file / already-protected / not-protected / cancel
+// branches.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
@@ -108,17 +107,6 @@ const FilesMock = {
   },
 };
 
-// Deterministic, tiny homoglyph map: Latin S/T/y -> Cyrillic look-alikes.
-const HOMOGLYPH = { S: 'Ѕ', T: 'Т', y: 'у' };
-const WordMock = {
-  buildHomoglyphMap: jest.fn((chars = null) => {
-    if (chars === null) return { ...HOMOGLYPH };
-    const out = {};
-    for (const ch of String(chars).split('')) if (ch in HOMOGLYPH) out[ch] = HOMOGLYPH[ch];
-    return out;
-  }),
-};
-
 const YamlsMock = {
   getConfig: jest.fn((key, _type, def) => def),
   setConfig: jest.fn(),
@@ -127,7 +115,6 @@ const YamlsMock = {
 jest.unstable_mockModule('winax', () => winaxMock);
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
-jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 
 const { PowerPoints } = await import('../utils/PowerPoints.js');
@@ -190,91 +177,6 @@ describe('PowerPoints.getProtectedPath', () => {
   it('returns an absolute, resolved path', () => {
     const out = PowerPoints.getProtectedPath('deck.pptx');
     expect(path.isAbsolute(out)).toBe(true);
-  });
-});
-
-describe('PowerPoints.homoglyph', () => {
-  it('warns and returns undefined when the file does not exist', () => {
-    const out = PowerPoints.homoglyph(path.join(workDir, 'missing.pptx'));
-    expect(out).toBeUndefined();
-    expect(DialogsMock.warningBox).toHaveBeenCalled();
-    expect(winaxObject).not.toHaveBeenCalled();
-  });
-
-  it('returns undefined without touching COM when the replace map is empty', () => {
-    const file = makePptx();
-    WordMock.buildHomoglyphMap.mockReturnValueOnce({});
-    const out = PowerPoints.homoglyph(file, 'zzz');
-    expect(out).toBeUndefined();
-    expect(winaxObject).not.toHaveBeenCalled();
-  });
-
-  it('copies to a " Norm" output, rewrites mapped shape text, saves and returns the new path', () => {
-    const file = makePptx();
-    // one slide, one shape whose text contains mapped Latin chars
-    state.slideText = [['STy data']];
-
-    const out = PowerPoints.homoglyph(file);
-
-    expect(out).toBe(path.join(workDir, 'deck Norm.pptx'));
-    expect(fs.existsSync(out)).toBe(true); // copy made before COM
-    expect(winaxObject).toHaveBeenCalledWith('PowerPoint.Application');
-    expect(comLog.find((c) => c.op === 'Open').args[0]).toBe(out);
-    // the only shape's text was rewritten to the homoglyph form
-    const setText = comLog.find((c) => c.op === 'setShapeText');
-    expect(setText.args[0]).toBe('ЅТу data');
-    expect(ops()).toEqual(expect.arrayContaining(['Open', 'setShapeText', 'Save', 'Close', 'Quit']));
-    expect(winaxRelease).toHaveBeenCalled();
-  });
-
-  it('honors a configured HomoglyphSuffix', () => {
-    const file = makePptx();
-    state.slideText = [['T']];
-    YamlsMock.getConfig.mockImplementation((key, _t, def) =>
-      key === 'PowerPoint.HomoglyphSuffix' ? ' Cyr' : def);
-
-    const out = PowerPoints.homoglyph(file);
-    expect(out).toBe(path.join(workDir, 'deck Cyr.pptx'));
-  });
-
-  it('does not rewrite a shape whose text has no mapped characters', () => {
-    const file = makePptx();
-    state.slideText = [['no mapped letters here: bdfg']];
-    PowerPoints.homoglyph(file);
-    expect(comLog.find((c) => c.op === 'setShapeText')).toBeUndefined();
-    // Save/Close still happen
-    expect(ops()).toEqual(expect.arrayContaining(['Save', 'Close']));
-  });
-
-  it('passes only the requested chars to buildHomoglyphMap', () => {
-    const file = makePptx();
-    state.slideText = [['Ty']];
-    PowerPoints.homoglyph(file, 'Ty');
-    expect(WordMock.buildHomoglyphMap).toHaveBeenCalledWith('Ty');
-  });
-
-  it('warns and still quits/releases when a COM error is thrown mid-run', () => {
-    const file = makePptx();
-    state.openThrows = new Error('COM boom');
-
-    const out = PowerPoints.homoglyph(file);
-    expect(out).toBeUndefined();
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
-      expect.stringContaining('COM boom'),
-      'Error',
-    );
-    // finally block always runs
-    expect(ops()).toEqual(expect.arrayContaining(['Quit']));
-    expect(winaxRelease).toHaveBeenCalled();
-  });
-
-  it('throws when winax is unavailable — documented via checkWinax (cannot trigger with mock present)', () => {
-    // winax is mocked as present here, so checkWinax passes; this asserts the
-    // happy path reached COM construction, confirming checkWinax did not throw.
-    const file = makePptx();
-    state.slideText = [['T']];
-    PowerPoints.homoglyph(file);
-    expect(winaxObject).toHaveBeenCalledWith('PowerPoint.Application');
   });
 });
 
@@ -418,52 +320,6 @@ describe('PowerPoints.unProtectFileAsk', () => {
 
     PowerPoints.unProtectFileAsk(file);
 
-    expect(winaxObject).not.toHaveBeenCalled();
-  });
-});
-
-describe('PowerPoints.homoglyphAsk', () => {
-  it('seeds the prompt with all map keys, filters the selection, persists it and runs homoglyph', () => {
-    const file = makePptx();
-    state.slideText = [['STy']];
-    // user keeps "Ty" and (ignored) adds a bogus 'Z'
-    DialogsMock.inputBox.mockReturnValue('TyZ');
-
-    const out = PowerPoints.homoglyphAsk(file);
-
-    // default offered = all keys joined
-    expect(DialogsMock.inputBox).toHaveBeenCalledWith(
-      'Leave only the characters you want to replace (adding new symbols is prohibited):',
-      'Select Homoglyph Characters',
-      'STy',
-    );
-    // bogus char filtered out before persist + homoglyph
-    expect(YamlsMock.setConfig).toHaveBeenCalledWith('ChoosedChars.PowerPoint', 'Ty');
-    expect(WordMock.buildHomoglyphMap).toHaveBeenCalledWith('Ty');
-    expect(out).toBe(path.join(workDir, 'deck Norm.pptx'));
-  });
-
-  it('uses a configured default char set when present', () => {
-    const file = makePptx();
-    state.slideText = [['T']];
-    YamlsMock.getConfig.mockImplementation((key, _t, def) =>
-      key === 'ChoosedChars.PowerPoint' ? 'T' : def);
-    DialogsMock.inputBox.mockReturnValue('T');
-
-    PowerPoints.homoglyphAsk(file);
-    expect(DialogsMock.inputBox).toHaveBeenCalledWith(
-      expect.any(String), expect.any(String), 'T',
-    );
-  });
-
-  it('aborts and returns undefined when the prompt is cancelled (null)', () => {
-    const file = makePptx();
-    DialogsMock.inputBox.mockReturnValue(null);
-
-    const out = PowerPoints.homoglyphAsk(file);
-
-    expect(out).toBeUndefined();
-    expect(YamlsMock.setConfig).not.toHaveBeenCalled();
     expect(winaxObject).not.toHaveBeenCalled();
   });
 });
