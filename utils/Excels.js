@@ -1301,6 +1301,62 @@ export class Excels {
     }
   }
 
+  /**
+   * Merges workbooks folder-by-folder: from each given folder it picks the
+   * latest .xlsx by modification time (skipping ~$ temp files), then merges that
+   * set via Excels.mergeFiles (every sheet copied, name collisions suffixed).
+   * Mirrors Word.mergeFolder / PowerPoints.mergeFolder.
+   *
+   * @param {string[]} folderPaths - One or more folders, each contributing its newest .xlsx.
+   * @param {string} [mergedName] - Optional output name/path passed through to mergeFiles.
+   * @returns {string} The resolved path to the saved merged workbook.
+   */
+  static mergeFolder(folderPaths, mergedName = '') {
+    console.info(`[Excels.mergeFolder] 🟢 Starting...`);
+    if (!folderPaths || folderPaths.length === 0) {
+      throw new Error('mergeFolder: No folders provided.');
+    }
+
+    const latestFiles = [];
+
+    for (const folder of folderPaths) {
+      const resolvedFolder = path.resolve(folder);
+      if (!fs.existsSync(resolvedFolder)) {
+        console.warn(`⚠️ Folder not found, skipping: ${resolvedFolder}`);
+        continue;
+      }
+
+      const files = fs.readdirSync(resolvedFolder);
+      let latestFile = null;
+      let latestTime = 0;
+
+      for (const file of files) {
+        if (!file.toLowerCase().endsWith('.xlsx') || file.startsWith('~$')) {
+          continue;
+        }
+        const filePath = path.join(resolvedFolder, file);
+        const stats = fs.statSync(filePath);
+        if (stats.isFile() && stats.mtimeMs > latestTime) {
+          latestTime = stats.mtimeMs;
+          latestFile = filePath;
+        }
+      }
+
+      if (latestFile) {
+        latestFiles.push(latestFile);
+      } else {
+        console.warn(`⚠️ No valid .xlsx files found in: ${resolvedFolder}`);
+      }
+    }
+
+    if (latestFiles.length === 0) {
+      throw new Error('mergeFolder: No .xlsx files found across the provided folders.');
+    }
+
+    console.log(`📑 Found ${latestFiles.length} latest file(s) to merge:\n${latestFiles.join('\n')}`);
+    return this.mergeFiles(latestFiles, mergedName);
+  }
+
   // Excel Visible constants:
   //   -1 = xlSheetVisible
   //    0 = xlSheetHidden      (hidden, but user can show via right-click)

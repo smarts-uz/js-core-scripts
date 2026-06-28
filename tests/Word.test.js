@@ -481,11 +481,13 @@ describe('Word.merge', () => {
     fs.writeFileSync(src1, 'A', 'utf8');
     fs.writeFileSync(src2, 'B', 'utf8');
 
-    Word.merge([src1, src2]);
+    const ret = Word.merge([src1, src2]);
 
     // template copied to "<dirname>.docx" (parentDir basename + template ext)
     const expectedTarget = path.join(workDir, `${path.basename(workDir)}.docx`);
     expect(fs.existsSync(expectedTarget)).toBe(true);
+    // merge returns the path it wrote the merged document to.
+    expect(ret).toBe(expectedTarget);
     // COM app constructed for Word and the target document opened
     expect(winaxObject).toHaveBeenCalledWith('Word.Application');
     expect(comState.openCalls).toContain(expectedTarget);
@@ -748,6 +750,76 @@ describe('Word.unProtectFile', () => {
     const result = Word.unProtectFile(src, 'secret');
     expect(result).toBeUndefined();
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('File is not protected', 'Unprotect Document');
+  });
+});
+
+// =============================================================================
+// PRIVATE COM HELPERS (_safeOpen / _pidsOf)
+// =============================================================================
+
+describe('Word._safeOpen', () => {
+  // _safeOpen is a static method reachable as Word._safeOpen. It opens via a
+  // plain Documents.Open(absPath, false, readOnly); on throw it retries with the
+  // long positional form ending in OpenAndRepair=true. Build minimal fake
+  // wordApps (NOT the full winax proxy) so the Open call count is exact.
+  function fakeApp(openImpl) {
+    return { Documents: { Open: openImpl } };
+  }
+
+  it('returns the doc from a plain open and calls Documents.Open once with 3 args', () => {
+    const DOC = { id: 'doc' };
+    const open = jest.fn(() => DOC);
+    const out = Word._safeOpen(fakeApp(open), path.join(workDir, 'a.docx'));
+
+    expect(out).toBe(DOC);
+    expect(open).toHaveBeenCalledTimes(1);
+    // happy path = (absPath, false, readOnly) → 3 positional args.
+    const callArgs = open.mock.calls[0];
+    expect(callArgs).toHaveLength(3);
+    expect(callArgs[0]).toBe(path.resolve(path.join(workDir, 'a.docx')));
+    expect(callArgs[1]).toBe(false);
+    expect(callArgs[2]).toBe(false); // readOnly default
+  });
+
+  it('passes readOnly through on the happy path', () => {
+    const DOC = { id: 'ro' };
+    const open = jest.fn(() => DOC);
+    const out = Word._safeOpen(fakeApp(open), path.join(workDir, 'b.docx'), { readOnly: true });
+
+    expect(out).toBe(DOC);
+    expect(open.mock.calls[0][2]).toBe(true);
+  });
+
+  it('falls back to repair mode (OpenAndRepair=true) when the first open throws, returning the doc', () => {
+    const REPAIRED = { id: 'repaired' };
+    const open = jest
+      .fn()
+      .mockImplementationOnce(() => { throw new Error('damaged'); })
+      .mockImplementationOnce(() => REPAIRED);
+
+    const out = Word._safeOpen(fakeApp(open), path.join(workDir, 'c.docx'));
+
+    expect(out).toBe(REPAIRED);
+    expect(open).toHaveBeenCalledTimes(2);
+    // The retry uses the long positional form with OpenAndRepair=true as the last arg.
+    const repairArgs = open.mock.calls[1];
+    expect(repairArgs.length).toBeGreaterThan(3);
+    expect(repairArgs[repairArgs.length - 1]).toBe(true); // OpenAndRepair
+  });
+
+  it('throws when both the plain and repair opens fail', () => {
+    const open = jest.fn(() => { throw new Error('totally broken'); });
+    expect(() => Word._safeOpen(fakeApp(open), path.join(workDir, 'd.docx'))).toThrow(
+      /Unable to open .* even in repair mode/i,
+    );
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Word._pidsOf', () => {
+  it('returns a Set (runs tasklist for real; contents not asserted)', () => {
+    const pids = Word._pidsOf('WINWORD.EXE');
+    expect(pids).toBeInstanceOf(Set);
   });
 });
 

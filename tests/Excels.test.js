@@ -1305,6 +1305,103 @@ describe('Excels.mergeFiles', () => {
 });
 
 // =============================================================================
+// mergeFolder — latest-.xlsx-per-folder selection delegating to mergeFiles
+// =============================================================================
+describe('Excels.mergeFolder', () => {
+  // mergeFolder's own job is the latest-by-mtime selection + delegation; the
+  // actual COM merge lives in mergeFiles, which is spied so we assert exactly
+  // which files (and mergedName) are passed through without exercising COM.
+  let mergeSpy;
+
+  beforeEach(() => {
+    mergeSpy = jest.spyOn(Excels, 'mergeFiles').mockReturnValue(path.join(workDir, 'Merged.xlsx'));
+  });
+
+  afterEach(() => {
+    mergeSpy.mockRestore();
+  });
+
+  /**
+   * Create `name` inside `dir` with the given mtime (ms since epoch) so the
+   * "latest wins" selection is deterministic regardless of write order.
+   */
+  function makeAt(dir, name, mtimeMs) {
+    const p = path.join(dir, name);
+    fs.writeFileSync(p, 'x', 'utf8');
+    const t = mtimeMs / 1000; // utimesSync takes seconds
+    fs.utimesSync(p, t, t);
+    return p;
+  }
+
+  it('throws when folderPaths is empty', () => {
+    expect(() => Excels.mergeFolder([], 'out')).toThrow(/mergeFolder: No folders provided\./);
+    expect(() => Excels.mergeFolder(null, 'out')).toThrow(/mergeFolder: No folders provided\./);
+    expect(mergeSpy).not.toHaveBeenCalled();
+  });
+
+  it('throws when no .xlsx is found across the provided folders', () => {
+    const dir = path.join(workDir, 'NoXlsx');
+    fs.mkdirSync(dir, { recursive: true });
+    // Only non-.xlsx content present.
+    fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
+    fs.writeFileSync(path.join(dir, 'data.csv'), 'x');
+
+    expect(() => Excels.mergeFolder([dir], 'out'))
+      .toThrow(/mergeFolder: No \.xlsx files found across the provided folders\./);
+    expect(mergeSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips a non-existent folder with a warning but still merges the rest', () => {
+    const real = path.join(workDir, 'RealFolder');
+    fs.mkdirSync(real, { recursive: true });
+    const only = makeAt(real, 'sheet.xlsx', Date.now());
+    const ghost = path.join(workDir, 'GhostFolder'); // never created
+
+    const result = Excels.mergeFolder([ghost, real], 'Out');
+
+    // The missing folder is skipped; only the real folder's file is passed on.
+    expect(mergeSpy).toHaveBeenCalledTimes(1);
+    expect(mergeSpy).toHaveBeenCalledWith([only], 'Out');
+    expect(result).toBe(path.join(workDir, 'Merged.xlsx'));
+  });
+
+  it('picks the LATEST .xlsx per folder by mtime and passes mergedName through', () => {
+    const folderA = path.join(workDir, 'A');
+    const folderB = path.join(workDir, 'B');
+    fs.mkdirSync(folderA, { recursive: true });
+    fs.mkdirSync(folderB, { recursive: true });
+
+    // Folder A: old vs new — new must win.
+    makeAt(folderA, 'old.xlsx', Date.parse('2020-01-01T00:00:00Z'));
+    const newestA = makeAt(folderA, 'new.xlsx', Date.parse('2024-06-01T00:00:00Z'));
+    // Folder B: three files, the middle-named one is newest.
+    makeAt(folderB, 'first.xlsx', Date.parse('2021-01-01T00:00:00Z'));
+    const newestB = makeAt(folderB, 'winner.xlsx', Date.parse('2025-01-01T00:00:00Z'));
+    makeAt(folderB, 'second.xlsx', Date.parse('2022-01-01T00:00:00Z'));
+
+    const result = Excels.mergeFolder([folderA, folderB], 'Combined');
+
+    expect(mergeSpy).toHaveBeenCalledTimes(1);
+    expect(mergeSpy).toHaveBeenCalledWith([newestA, newestB], 'Combined');
+    expect(result).toBe(path.join(workDir, 'Merged.xlsx'));
+  });
+
+  it('skips ~$-prefixed temp files when selecting the latest', () => {
+    const dir = path.join(workDir, 'WithTemp');
+    fs.mkdirSync(dir, { recursive: true });
+    // The ~$ temp file is the NEWEST on disk but must be ignored.
+    makeAt(dir, '~$open.xlsx', Date.parse('2030-01-01T00:00:00Z'));
+    const realLatest = makeAt(dir, 'report.xlsx', Date.parse('2024-01-01T00:00:00Z'));
+    makeAt(dir, 'older.xlsx', Date.parse('2020-01-01T00:00:00Z'));
+
+    Excels.mergeFolder([dir]);
+
+    // ~$ skipped → report.xlsx is the chosen latest; default mergedName is ''.
+    expect(mergeSpy).toHaveBeenCalledWith([realLatest], '');
+  });
+});
+
+// =============================================================================
 // hide / unhide / isHidden
 // =============================================================================
 describe('Excels.hide', () => {

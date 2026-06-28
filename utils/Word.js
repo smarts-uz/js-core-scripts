@@ -1,5 +1,6 @@
 import fs, { existsSync } from "fs";
 import path from "path";
+import { execSync } from "child_process";
 let winax;
 try {
   winax = (await import("winax")).default;
@@ -26,6 +27,105 @@ export class Word {
       );
     }
     console.info(`[Word.checkWinax] ✅ winax is available.`);
+  }
+
+  /**
+   * Returns the set of currently-running PIDs for a given image name
+   * (e.g. "WINWORD.EXE"). Reads `tasklist` CSV — empty set when none run or on
+   * any error. Used to detect COM processes a winax error leaves orphaned.
+   *
+   * @param {string} imageName
+   * @returns {Set<number>}
+   */
+  static _pidsOf(imageName) {
+    try {
+      const out = execSync(
+        `tasklist /FI "IMAGENAME eq ${imageName}" /FO CSV /NH`,
+        { encoding: "utf8", windowsHide: true }
+      );
+      const pids = new Set();
+      for (const line of out.split(/\r?\n/)) {
+        const m = line.match(/^"[^"]*","(\d+)"/);
+        if (m) pids.add(Number(m[1]));
+      }
+      return pids;
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  /**
+   * Kills any WINWORD.EXE process whose PID is NOT in `before` — i.e. a Word
+   * instance this run spawned that `Quit()`/`winax.release()` failed to close
+   * (the orphaned-process case after a COM error). PIDs present before the run
+   * are left untouched so a user's own open Word is never killed.
+   *
+   * @param {Set<number>} before PIDs captured before the COM object was created.
+   */
+  static _killOrphans(before) {
+    const after = this._pidsOf("WINWORD.EXE");
+    for (const pid of after) {
+      if (before.has(pid)) continue;
+      try {
+        process.kill(pid);
+        console.warn(`[Word._killOrphans] 🪓 Killed orphaned WINWORD.EXE PID ${pid}`);
+      } catch (err) {
+        console.warn(`[Word._killOrphans] ⚠️ Could not kill PID ${pid}: ${err.message}`);
+      }
+    }
+  }
+
+  /**
+   * Opens a Word document, falling back to OpenNoRepairDialog/repair when a
+   * plain open fails on a mildly damaged file (mirrors the Excel safe-open
+   * pattern so the Word side is equally robust). The first arg of
+   * Documents.Open is the file; later positional args set ConfirmConversions,
+   * ReadOnly, …, OpenAndRepair.
+   *
+   * @param {object} wordApp  A Word.Application COM object.
+   * @param {string} filePath Path to the .docx.
+   * @param {{readOnly?: boolean}} [opts]
+   * @returns {object} The opened Document.
+   */
+  static _safeOpen(wordApp, filePath, { readOnly = false } = {}) {
+    const absPath = path.resolve(filePath);
+
+    // Mode 1 — plain open (the form the codebase already uses successfully).
+    try {
+      return wordApp.Documents.Open(absPath, false, readOnly);
+    } catch (err) {
+      console.warn(`[Word._safeOpen] ↩️ Normal open failed: ${err.message}. Trying repair mode…`);
+    }
+
+    // Mode 2 — Open with OpenAndRepair=true (the 16th positional arg). Pass
+    // null (VT_NULL) for the optional params winax accepts.
+    //   Open(FileName, ConfirmConversions, ReadOnly, AddToRecentFiles,
+    //        PasswordDocument, PasswordTemplate, Revert, WritePasswordDocument,
+    //        WritePasswordTemplate, Format, Encoding, Visible, OpenConflictDocument,
+    //        OpenAndRepair, …)
+    try {
+      const doc = wordApp.Documents.Open(
+        absPath,
+        false,    // ConfirmConversions
+        readOnly, // ReadOnly
+        false,    // AddToRecentFiles
+        null,     // PasswordDocument
+        null,     // PasswordTemplate
+        false,    // Revert
+        null,     // WritePasswordDocument
+        null,     // WritePasswordTemplate
+        null,     // Format
+        null,     // Encoding
+        false,    // Visible
+        null,     // OpenConflictDocument
+        null,     // OpenAndConvert / placeholder
+        true      // OpenAndRepair
+      );
+      console.warn(`[Word._safeOpen] ⚠️ Opened "${absPath}" in repair mode (OpenAndRepair=true).`);
+      return doc;
+    } catch (err) {
+      throw new Error(`_safeOpen: Unable to open "${absPath}" even in repair mode. Last error: ${err.message}`);
+    }
   }
 
   static merge(filePaths, pageBreak = true, targetDir = null) {
@@ -62,13 +162,14 @@ export class Word {
 
     console.log("Word Application starting...");
     this.checkWinax("merge");
+    const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object("Word.Application");
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0; // wdAlertsNone
 
     try {
       console.log(`📂 Opening target document: ${targetPath}`);
-      const doc = wordApp.Documents.Open(targetPath);
+      const doc = this._safeOpen(wordApp, targetPath);
       const selection = wordApp.Selection;
 
       for (let i = 0; i < filePaths.length; i++) {
@@ -99,6 +200,7 @@ export class Word {
       doc.Save();
       doc.Close(false);
       console.log(`✅ Merged successfully into: ${targetPath}`);
+      return targetPath;
     } finally {
       try {
         wordApp.Quit();
@@ -106,6 +208,7 @@ export class Word {
       try {
         winax.release(wordApp);
       } catch (_) {}
+      this._killOrphans(before);
     }
   }
 
@@ -320,6 +423,7 @@ export class Word {
     this.checkWinax("wordReplace");
 
     console.log(`[Word.wordReplace] ⚙️ Creating Word.Application COM object...`);
+    const before = this._pidsOf("WINWORD.EXE");
     const word = new winax.Object("Word.Application");
     word.Visible = false;
     word.DisplayAlerts = 0; // wdAlertsNone — suppress all dialogs to prevent hangs
@@ -327,7 +431,7 @@ export class Word {
     let doc;
     try {
       console.log(`[Word.wordReplace] 📂 Opening template: ${path.resolve(templatePath)}`);
-      doc = word.Documents.Open(path.resolve(templatePath));
+      doc = this._safeOpen(word, templatePath);
       console.log(`[Word.wordReplace] ✅ Template opened.`);
 
       const find = doc.Content.Find;
@@ -415,6 +519,7 @@ export class Word {
       console.log(`[Word.wordReplace] 🧹 Quitting Word and releasing COM object...`);
       try { word.Quit(); } catch (_) {}
       try { winax.release(word); } catch (_) {}
+      this._killOrphans(before);
       console.info(`[Word.wordReplace] 🔴 Finished.`);
     }
   }
@@ -837,6 +942,7 @@ export class Word {
     console.info(`[Word.wordToMD] 📄 Target MD file path determined: ${targetPath}`);
 
     console.log(`[Word.wordToMD] ⚙️ Initializing Word.Application via COM...`);
+    const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object("Word.Application");
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
@@ -846,7 +952,7 @@ export class Word {
 
     try {
       console.log(`[Word.wordToMD] 📂 Opening document: ${resolvedFile}`);
-      const doc = wordApp.Documents.Open(resolvedFile);
+      const doc = this._safeOpen(wordApp, resolvedFile);
 
       // Capture equations as LaTeX and swap them for text placeholders BEFORE the
       // HTML export. This is mutation on the in-memory doc only — it is closed
@@ -908,6 +1014,7 @@ export class Word {
       } catch (_) {
         console.warn(`[Word.wordToMD] ⚠️ Error releasing winax object.`);
       }
+      this._killOrphans(before);
       console.info(`[Word.wordToMD] 🔴 Finished wordToMD execution.`);
     }
   }
@@ -957,13 +1064,14 @@ export class Word {
     }
 
     this.checkWinax('protectFile');
+    const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object('Word.Application');
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
 
     try {
       console.log(`📂 Opening document for protection: ${absPath}`);
-      const doc = wordApp.Documents.Open(absPath);
+      const doc = this._safeOpen(wordApp, absPath);
 
       if (doc.ProtectionType !== -1) { // -1 = wdNoProtection
         console.warn(`⚠️ Document is already protected: ${absPath}. Skipping.`);
@@ -987,6 +1095,7 @@ export class Word {
     } finally {
       try { wordApp.Quit(); } catch (_) {}
       try { winax.release(wordApp); } catch (_) {}
+      this._killOrphans(before);
     }
   }
 
@@ -1005,13 +1114,14 @@ export class Word {
     }
 
     this.checkWinax('unProtectFile');
+    const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object('Word.Application');
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
 
     try {
       console.log(`📂 Opening protected document: ${absPath}`);
-      const doc = wordApp.Documents.Open(absPath);
+      const doc = this._safeOpen(wordApp, absPath);
 
       if (doc.ProtectionType === -1) { // -1 = wdNoProtection
         console.warn(`⚠️ Document is not protected: ${absPath}.`);
@@ -1031,6 +1141,7 @@ export class Word {
     } finally {
       try { wordApp.Quit(); } catch (_) {}
       try { winax.release(wordApp); } catch (_) {}
+      this._killOrphans(before);
     }
   }
 

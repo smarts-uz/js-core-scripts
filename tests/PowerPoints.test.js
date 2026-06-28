@@ -51,6 +51,13 @@ function makePresentation() {
 
   const slidesFn = (i) => slidesArr[i - 1];
   slidesFn.Count = slidesArr.length;
+  // InsertFromFile(FileName, Index, SlideStart, SlideEnd): records the call and
+  // grows the target's slide count by (SlideEnd - SlideStart + 1), mirroring how
+  // PowerPoint appends the source slides onto the merged base.
+  slidesFn.InsertFromFile = jest.fn((file, index, start, end) => {
+    comLog.push({ op: 'InsertFromFile', args: [file, index, start, end] });
+    slidesFn.Count += (end - start + 1);
+  });
 
   const presentation = {
     Slides: slidesFn,
@@ -224,8 +231,11 @@ describe('PowerPoints.protectFile', () => {
   it('wraps a COM failure in a PowerPoints.protectFile error and still quits', () => {
     const file = makePptx();
     state.openThrows = new Error('open denied');
+    // Open now flows through _safeOpen, which retries read-only and, on a second
+    // failure, wraps the cause ("…Last error: open denied"); protectFile then
+    // wraps that. Both prefixes and the original message are still present.
     expect(() => PowerPoints.protectFile(file, 'pw'))
-      .toThrow(/PowerPoints\.protectFile failed: open denied/);
+      .toThrow(/PowerPoints\.protectFile failed: .*open denied/);
     expect(ops()).toEqual(expect.arrayContaining(['Quit']));
     expect(winaxRelease).toHaveBeenCalled();
   });
@@ -265,8 +275,9 @@ describe('PowerPoints.unProtectFile', () => {
   it('wraps a COM failure in a PowerPoints.unProtectFile error', () => {
     const file = makePptx();
     state.openThrows = new Error('locked');
+    // Open flows through _safeOpen (retry → wrap), then unProtectFile wraps that.
     expect(() => PowerPoints.unProtectFile(file, 'pw'))
-      .toThrow(/PowerPoints\.unProtectFile failed: locked/);
+      .toThrow(/PowerPoints\.unProtectFile failed: .*locked/);
     expect(ops()).toEqual(expect.arrayContaining(['Quit']));
   });
 });
@@ -321,5 +332,118 @@ describe('PowerPoints.unProtectFileAsk', () => {
     PowerPoints.unProtectFileAsk(file);
 
     expect(winaxObject).not.toHaveBeenCalled();
+  });
+});
+
+describe('PowerPoints.merge', () => {
+  it('throws when no files are provided', () => {
+    expect(() => PowerPoints.merge([])).toThrow(/No files provided/);
+    expect(winaxObject).not.toHaveBeenCalled();
+  });
+
+  it('throws when the first (base) file does not exist', () => {
+    expect(() => PowerPoints.merge([path.join(workDir, 'gone.pptx'), makePptx('b.pptx')]))
+      .toThrow(/First file not found/);
+  });
+
+  it('merges 2 files: copies the base, inserts the source slides, saves and closes', () => {
+    // Each opened presentation (base + source) reports 3 slides via state.slideText.
+    state.slideText = [['a'], ['b'], ['c']];
+    const base = makePptx('a.pptx');
+    const source = makePptx('b.pptx');
+
+    const out = PowerPoints.merge([base, source]);
+
+    // Output path is beside the first file, ends with .pptx, and was created.
+    expect(out.endsWith('.pptx')).toBe(true);
+    expect(path.dirname(out)).toBe(workDir);
+    expect(fs.existsSync(out)).toBe(true);
+
+    // Base was copied to the merged output path.
+    expect(fs.readFileSync(out, 'utf8')).toBe(fs.readFileSync(base, 'utf8'));
+
+    // The source was opened read-only to read its slide count, then inserted once.
+    const inserts = comLog.filter((c) => c.op === 'InsertFromFile');
+    expect(inserts).toHaveLength(1);
+    // InsertFromFile(sourceFile, insertAt=baseCount(3), SlideStart=1, SlideEnd=sourceCount(3))
+    expect(inserts[0].args).toEqual([path.resolve(source), 3, 1, 3]);
+
+    // Save + Close on the target, and the COM app quit.
+    expect(ops()).toEqual(expect.arrayContaining(['Open', 'InsertFromFile', 'Save', 'Close', 'Quit']));
+  });
+
+  it('honors an explicit mergedName (appending .pptx and writing beside the base)', () => {
+    state.slideText = [['a'], ['b']];
+    const base = makePptx('a.pptx');
+    const source = makePptx('b.pptx');
+
+    const out = PowerPoints.merge([base, source], 'Combined');
+
+    expect(path.basename(out)).toBe('Combined.pptx');
+    expect(path.dirname(out)).toBe(workDir);
+    expect(fs.existsSync(out)).toBe(true);
+  });
+
+  it('auto-increments the output name when the target already exists', () => {
+    state.slideText = [['a'], ['b']];
+    const base = makePptx('a.pptx');
+    const source = makePptx('b.pptx');
+    // Pre-create the would-be output so incrementFileName must bump it.
+    fs.writeFileSync(path.join(workDir, 'Combined.pptx'), 'existing', 'utf8');
+
+    const out = PowerPoints.merge([base, source], 'Combined');
+
+    expect(path.basename(out)).toBe('Combined 1.pptx');
+    expect(fs.existsSync(out)).toBe(true);
+  });
+});
+
+describe('PowerPoints.mergeFolder', () => {
+  it('throws when no folders are provided', () => {
+    expect(() => PowerPoints.mergeFolder([])).toThrow(/No folders provided/);
+  });
+
+  it('throws when no .pptx exists across the provided folders', () => {
+    const empty = path.join(workDir, 'empty');
+    fs.mkdirSync(empty, { recursive: true });
+    // A non-pptx file present — still no .pptx found.
+    fs.writeFileSync(path.join(empty, 'notes.txt'), 'x', 'utf8');
+    expect(() => PowerPoints.mergeFolder([empty]))
+      .toThrow(/No \.pptx files found/);
+  });
+
+  it('picks the latest .pptx by mtime from each folder and delegates to merge', () => {
+    state.slideText = [['a'], ['b']];
+
+    const folderA = path.join(workDir, 'A');
+    const folderB = path.join(workDir, 'B');
+    fs.mkdirSync(folderA, { recursive: true });
+    fs.mkdirSync(folderB, { recursive: true });
+
+    // Folder A: an older and a newer .pptx + a ~$ temp file to be ignored.
+    const oldA = path.join(folderA, 'old.pptx');
+    const newA = path.join(folderA, 'new.pptx');
+    const tempA = path.join(folderA, '~$new.pptx');
+    fs.writeFileSync(oldA, 'old-a', 'utf8');
+    fs.writeFileSync(newA, 'new-a', 'utf8');
+    fs.writeFileSync(tempA, 'temp', 'utf8');
+    // Make oldA older and tempA newest — tempA must still be skipped.
+    fs.utimesSync(oldA, new Date(Date.now() - 20000) / 1000, new Date(Date.now() - 20000) / 1000);
+    fs.utimesSync(newA, new Date(Date.now() - 10000) / 1000, new Date(Date.now() - 10000) / 1000);
+    fs.utimesSync(tempA, new Date() / 1000, new Date() / 1000);
+
+    // Folder B: a single .pptx (the base for the second slot).
+    const onlyB = path.join(folderB, 'deck.pptx');
+    fs.writeFileSync(onlyB, 'b', 'utf8');
+
+    const out = PowerPoints.mergeFolder([folderA, folderB]);
+
+    // newA (latest non-temp in A) is the base; onlyB is the source inserted once.
+    expect(fs.existsSync(out)).toBe(true);
+    expect(fs.readFileSync(out, 'utf8')).toBe('new-a');
+    const inserts = comLog.filter((c) => c.op === 'InsertFromFile');
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0].args[0]).toBe(path.resolve(onlyB));
+    expect(ops()).toEqual(expect.arrayContaining(['Open', 'InsertFromFile', 'Save', 'Close', 'Quit']));
   });
 });
