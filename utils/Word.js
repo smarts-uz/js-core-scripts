@@ -1,6 +1,5 @@
 import fs, { existsSync } from "fs";
 import path from "path";
-import { execSync } from "child_process";
 let winax;
 try {
   winax = (await import("winax")).default;
@@ -13,6 +12,7 @@ const { convert } = pkg;
 import { Files } from "./Files.js";
 import { Yamls } from "./Yamls.js";
 import { Dialogs } from "./Dialogs.js";
+import { Com } from "./Com.js";
 import TurndownService from "turndown";
 import turndownPluginGfm from "turndown-plugin-gfm";
 
@@ -29,103 +29,19 @@ export class Word {
     console.info(`[Word.checkWinax] ✅ winax is available.`);
   }
 
-  /**
-   * Returns the set of currently-running PIDs for a given image name
-   * (e.g. "WINWORD.EXE"). Reads `tasklist` CSV — empty set when none run or on
-   * any error. Used to detect COM processes a winax error leaves orphaned.
-   *
-   * @param {string} imageName
-   * @returns {Set<number>}
-   */
+  /** @deprecated Thin shim — delegates to {@link Com.pidsOf}. */
   static _pidsOf(imageName) {
-    try {
-      const out = execSync(
-        `tasklist /FI "IMAGENAME eq ${imageName}" /FO CSV /NH`,
-        { encoding: "utf8", windowsHide: true }
-      );
-      const pids = new Set();
-      for (const line of out.split(/\r?\n/)) {
-        const m = line.match(/^"[^"]*","(\d+)"/);
-        if (m) pids.add(Number(m[1]));
-      }
-      return pids;
-    } catch (_) {
-      return new Set();
-    }
+    return Com.pidsOf(imageName);
   }
 
-  /**
-   * Kills any WINWORD.EXE process whose PID is NOT in `before` — i.e. a Word
-   * instance this run spawned that `Quit()`/`winax.release()` failed to close
-   * (the orphaned-process case after a COM error). PIDs present before the run
-   * are left untouched so a user's own open Word is never killed.
-   *
-   * @param {Set<number>} before PIDs captured before the COM object was created.
-   */
+  /** Kills WINWORD.EXE instances this run orphaned. Delegates to {@link Com.killOrphans}. */
   static _killOrphans(before) {
-    const after = this._pidsOf("WINWORD.EXE");
-    for (const pid of after) {
-      if (before.has(pid)) continue;
-      try {
-        process.kill(pid);
-        console.warn(`[Word._killOrphans] 🪓 Killed orphaned WINWORD.EXE PID ${pid}`);
-      } catch (err) {
-        console.warn(`[Word._killOrphans] ⚠️ Could not kill PID ${pid}: ${err.message}`);
-      }
-    }
+    return Com.killOrphans("WINWORD.EXE", before);
   }
 
-  /**
-   * Opens a Word document, falling back to OpenNoRepairDialog/repair when a
-   * plain open fails on a mildly damaged file (mirrors the Excel safe-open
-   * pattern so the Word side is equally robust). The first arg of
-   * Documents.Open is the file; later positional args set ConfirmConversions,
-   * ReadOnly, …, OpenAndRepair.
-   *
-   * @param {object} wordApp  A Word.Application COM object.
-   * @param {string} filePath Path to the .docx.
-   * @param {{readOnly?: boolean}} [opts]
-   * @returns {object} The opened Document.
-   */
-  static _safeOpen(wordApp, filePath, { readOnly = false } = {}) {
-    const absPath = path.resolve(filePath);
-
-    // Mode 1 — plain open (the form the codebase already uses successfully).
-    try {
-      return wordApp.Documents.Open(absPath, false, readOnly);
-    } catch (err) {
-      console.warn(`[Word._safeOpen] ↩️ Normal open failed: ${err.message}. Trying repair mode…`);
-    }
-
-    // Mode 2 — Open with OpenAndRepair=true (the 16th positional arg). Pass
-    // null (VT_NULL) for the optional params winax accepts.
-    //   Open(FileName, ConfirmConversions, ReadOnly, AddToRecentFiles,
-    //        PasswordDocument, PasswordTemplate, Revert, WritePasswordDocument,
-    //        WritePasswordTemplate, Format, Encoding, Visible, OpenConflictDocument,
-    //        OpenAndRepair, …)
-    try {
-      const doc = wordApp.Documents.Open(
-        absPath,
-        false,    // ConfirmConversions
-        readOnly, // ReadOnly
-        false,    // AddToRecentFiles
-        null,     // PasswordDocument
-        null,     // PasswordTemplate
-        false,    // Revert
-        null,     // WritePasswordDocument
-        null,     // WritePasswordTemplate
-        null,     // Format
-        null,     // Encoding
-        false,    // Visible
-        null,     // OpenConflictDocument
-        null,     // OpenAndConvert / placeholder
-        true      // OpenAndRepair
-      );
-      console.warn(`[Word._safeOpen] ⚠️ Opened "${absPath}" in repair mode (OpenAndRepair=true).`);
-      return doc;
-    } catch (err) {
-      throw new Error(`_safeOpen: Unable to open "${absPath}" even in repair mode. Last error: ${err.message}`);
-    }
+  /** Opens a .docx with repair fallback. Delegates to {@link Com.openWord}. */
+  static _safeOpen(wordApp, filePath, opts = {}) {
+    return Com.openWord(wordApp, filePath, opts);
   }
 
   static merge(filePaths, pageBreak = true, targetDir = null) {

@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 import { Dialogs } from './Dialogs.js';
 import { Files } from './Files.js';
 import { Yamls } from './Yamls.js';
+import { Com } from './Com.js';
 
 let winax;
 try {
@@ -20,78 +20,19 @@ export class PowerPoints {
     }
   }
 
-  /**
-   * Returns the set of currently-running PIDs for a given image name
-   * (e.g. "POWERPNT.EXE"). Reads `tasklist` CSV — empty set when none run or
-   * on any error. Used to detect COM processes a winax error leaves orphaned.
-   *
-   * @param {string} imageName
-   * @returns {Set<number>}
-   */
+  /** @deprecated Thin shim — delegates to {@link Com.pidsOf}. */
   static _pidsOf(imageName) {
-    try {
-      const out = execSync(
-        `tasklist /FI "IMAGENAME eq ${imageName}" /FO CSV /NH`,
-        { encoding: 'utf8', windowsHide: true }
-      );
-      const pids = new Set();
-      for (const line of out.split(/\r?\n/)) {
-        const m = line.match(/^"[^"]*","(\d+)"/);
-        if (m) pids.add(Number(m[1]));
-      }
-      return pids;
-    } catch (_) {
-      return new Set();
-    }
+    return Com.pidsOf(imageName);
   }
 
-  /**
-   * Kills any POWERPNT.EXE process whose PID is NOT in `before` — i.e. a
-   * PowerPoint instance this run spawned that `Quit()`/`winax.release()` failed
-   * to close (the orphaned-process case after a COM error). PIDs present before
-   * the run are left untouched so a user's own open PowerPoint is never killed.
-   *
-   * @param {Set<number>} before PIDs captured before the COM object was created.
-   */
+  /** Kills POWERPNT.EXE instances this run orphaned. Delegates to {@link Com.killOrphans}. */
   static _killOrphans(before) {
-    const after = this._pidsOf('POWERPNT.EXE');
-    for (const pid of after) {
-      if (before.has(pid)) continue;
-      try {
-        process.kill(pid);
-        console.warn(`[PowerPoints._killOrphans] 🪓 Killed orphaned POWERPNT.EXE PID ${pid}`);
-      } catch (err) {
-        console.warn(`[PowerPoints._killOrphans] ⚠️ Could not kill PID ${pid}: ${err.message}`);
-      }
-    }
+    return Com.killOrphans('POWERPNT.EXE', before);
   }
 
-  /**
-   * Opens a presentation with a window-less COM open, falling back to a
-   * read-only open when a plain open fails (the closest PowerPoint analogue to
-   * Excel's repair-mode safe-open — PowerPoint has no CorruptLoad flag).
-   *
-   * @param {object} pptApp   A PowerPoint.Application COM object.
-   * @param {string} filePath Path to the .pptx.
-   * @param {{readOnly?: boolean}} [opts]
-   * @returns {object} The opened Presentation.
-   */
-  static _safeOpen(pptApp, filePath, { readOnly = false } = {}) {
-    const absPath = path.resolve(filePath);
-    // Open(FileName, ReadOnly, Untitled, WithWindow) — msoTrue=-1, msoFalse=0.
-    const ro = readOnly ? -1 : 0;
-    try {
-      return pptApp.Presentations.Open(absPath, ro, 0, 0);
-    } catch (err) {
-      console.warn(`[PowerPoints._safeOpen] ↩️ Normal open failed: ${err.message}. Trying read-only…`);
-    }
-    try {
-      const pres = pptApp.Presentations.Open(absPath, -1, 0, 0);
-      console.warn(`[PowerPoints._safeOpen] ⚠️ Opened "${absPath}" read-only.`);
-      return pres;
-    } catch (err) {
-      throw new Error(`_safeOpen: Unable to open "${absPath}". Last error: ${err.message}`);
-    }
+  /** Opens a .pptx with read-only fallback. Delegates to {@link Com.openPresentation}. */
+  static _safeOpen(pptApp, filePath, opts = {}) {
+    return Com.openPresentation(pptApp, filePath, opts);
   }
 
   /**

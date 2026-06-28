@@ -7,12 +7,12 @@ try {
 } catch (e) {
   // winax not available (likely binary not built)
 }
-import { execSync } from 'child_process';
 import { Files } from './Files.js';
 import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
 import { Dates } from './Dates.js';
 import { Word } from './Word.js';
+import { Com } from './Com.js';
 
 export class Excels {
 
@@ -49,56 +49,10 @@ export class Excels {
    *
    * CorruptLoad: 0 = xlNormalLoad, 1 = xlRepairFile, 2 = xlExtractData.
    */
-  static openWorkbookSafely(excelApp, filePath, { updateLinks = 0, readOnly = false } = {}) {
+  static openWorkbookSafely(excelApp, filePath, opts = {}) {
     console.info(`[Excels.openWorkbookSafely] 🟢 Starting...`);
-    const absPath = path.resolve(filePath);
-
-    // Mode 1 — plain open. Same 3-arg form the codebase has been using
-    // successfully. Keep it short: winax/OLE does not always accept
-    // `undefined` in the middle of a positional argument list.
-    try {
-      return excelApp.Workbooks.Open(absPath, updateLinks, readOnly);
-    } catch (err) {
-      console.warn(`↩️  Normal open failed: ${err.message}. Trying repair mode…`);
-    }
-
-    // Modes 2 & 3 — CorruptLoad fallback. Pass `null` (VT_NULL) for the
-    // optional params winax accepts; `undefined` tends to surface as
-    // "Open method of Workbooks class failed".
-    //   CorruptLoad: 1 = xlRepairFile, 2 = xlExtractData.
-    const callWithCorruptLoad = (corruptLoad) => excelApp.Workbooks.Open(
-      absPath,
-      updateLinks,   // UpdateLinks
-      readOnly,      // ReadOnly
-      null,          // Format
-      null,          // Password
-      null,          // WriteResPassword
-      true,          // IgnoreReadOnlyRecommended
-      null,          // Origin
-      null,          // Delimiter
-      null,          // Editable
-      false,         // Notify
-      null,          // Converter
-      false,         // AddToMru
-      null,          // Local
-      corruptLoad    // CorruptLoad
-    );
-
-    try {
-      const wb = callWithCorruptLoad(1);
-      console.warn(`⚠️  Opened "${absPath}" in repair mode (CorruptLoad=1).`);
-      return wb;
-    } catch (err) {
-      console.warn(`↩️  Repair-mode open failed: ${err.message}. Trying extract-data mode…`);
-    }
-
-    try {
-      const wb = callWithCorruptLoad(2);
-      console.warn(`⚠️  Opened "${absPath}" in extract-data mode (CorruptLoad=2).`);
-      return wb;
-    } catch (err) {
-      throw new Error(`openWorkbookSafely: Unable to open "${absPath}" even with repair/extract-data modes. Last error: ${err.message}`);
-    }
+    // Delegates to the shared Com helper (repair/extract-data CorruptLoad fallback).
+    return Com.openWorkbook(excelApp, filePath, opts);
   }
 
   static getProtectedPath(filename) {
