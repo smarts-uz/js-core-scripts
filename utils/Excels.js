@@ -19,7 +19,7 @@ export class Excels {
   static checkWinax(methodName) {
     console.info(`[Excels.checkWinax] 🟢 Starting...`);
     if (!winax) {
-      throw new Error(`${methodName}: Native automation (winax) is not available. This is often due to a Node.js version mismatch (Node 24 vs 22) or missing build tools. Please use the ExcelJS runner as an alternative.`);
+      throw new Error(`${methodName}: Native automation (winax) is not available. This is often due to a Node.js version mismatch (Node 24 vs 22) or missing build tools.`);
     }
   }
 
