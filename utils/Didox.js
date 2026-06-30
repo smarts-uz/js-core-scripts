@@ -12,11 +12,20 @@ import { Dialogs } from "./Dialogs.js";
 import { Yamls } from "./Yamls.js";
 import { Secrets } from "./Secrets.js";
 
+// Non-secret Didox base URL lives in config.yml (Didox.BaseURL), stored bare
+// (e.g. "api-partners.didox.uz"); normalize to a full https:// origin.
+function didoxBaseURL() {
+    const raw = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    console.debug(`[Didox.didoxBaseURL] ${raw} -> ${url}`);
+    return url;
+}
+
 // Shared client for the Didox Partner API: one place for the base URL and the
 // auth headers that every reference-data call below previously rebuilt by hand
 // (a `new Headers()` + two appends + a requestOptions object, repeated ~15x).
 const didoxApi = ofetch.create({
-    baseURL: Secrets.env("DIDOX_BASE_URL") ?? "https://api-partners.didox.uz",
+    baseURL: didoxBaseURL(),
     headers: {
         "user-key": Secrets.env("DIDOX_USER_KEY") ?? "",
         "Partner-Authorization": Secrets.env("DIDOX_PARTNER_AUTHORIZATION") ?? "",
@@ -275,7 +284,7 @@ export class Didox {
         }
 
         const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
-        const baseURL = Secrets.get('Didox.BaseURL');
+        const baseURL = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
         let returns;
 
         if (fs.existsSync(file)) {
@@ -367,7 +376,7 @@ export class Didox {
         prefix = 'CAR Didox ';
 
         const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
-        const baseURL = Secrets.get('Didox.BaseURL');
+        const baseURL = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
 
         let returns;
 
