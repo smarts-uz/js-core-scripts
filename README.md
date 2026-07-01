@@ -879,244 +879,6 @@ node runs/Dialogs/warningBox.mjs --message <message>
 
 ---
 
-# Didox
-
-Runners: `runs/Didox/` — 23 public static method(s).
-
-## bankByCode(code)
-
-**Run:**
-
-```bash
-node runs/Didox/bankByCode.mjs --code <code>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `code` | no | — |
-
-## carInfoByPinfl(tin)
-
-**Run:**
-
-```bash
-node runs/Didox/carInfoByPinfl.mjs --tin <tin>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `tin` | no | — |
-
-## contracts(owner, rentType, state, [page], [size])
-
-**Run:**
-
-```bash
-node runs/Didox/contracts.mjs --owner <owner>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `owner` | no | — |
-| `rentType` | no | — |
-| `state` | no | — |
-| `page` | yes (default `0`) | — |
-| `size` | yes (default `1000`) | — |
-
-## districtsByCode(regionId, districtCode)
-
-**Run:**
-
-```bash
-node runs/Didox/districtsByCode.mjs --regionId <regionId>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `regionId` | no | — |
-| `districtCode` | no | — |
-
-## documentList()
-
-**Run:**
-
-```bash
-node runs/Didox/documentList.mjs
-```
-
-## documentPDF(docId)
-
-**Run:**
-
-```bash
-node runs/Didox/documentPDF.mjs --docId <docId>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `docId` | no | — |
-
-## frauds()
-
-**Run:**
-
-```bash
-node runs/Didox/frauds.mjs
-```
-
-## fraudsByTin(tin)
-
-**Run:**
-
-```bash
-node runs/Didox/fraudsByTin.mjs --tin <tin>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `tin` | no | — |
-
-## getRegionInfo()
-
-**Run:**
-
-```bash
-node runs/Didox/getRegionInfo.mjs
-```
-
-## getTaxpayerType()
-
-**Run:**
-
-```bash
-node runs/Didox/getTaxpayerType.mjs
-```
-
-## infoByTinPinfl(tin, [personFolder])
-
-**Run:**
-
-```bash
-node runs/Didox/infoByTinPinfl.mjs --tin <tin>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `tin` | no | — |
-| `personFolder` | yes (default `globalThis.folderDirector`) | — |
-
-## login()
-
-**Run:**
-
-```bash
-node runs/Didox/login.mjs
-```
-
-## profileIKPUCodes()
-
-**Run:**
-
-```bash
-node runs/Didox/profileIKPUCodes.mjs
-```
-
-## profileInfo()
-
-**Run:**
-
-```bash
-node runs/Didox/profileInfo.mjs
-```
-
-## regionsByCode(code)
-
-**Run:**
-
-```bash
-node runs/Didox/regionsByCode.mjs --code <code>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `code` | no | — |
-
-## saveBanks()
-
-**Run:**
-
-```bash
-node runs/Didox/saveBanks.mjs
-```
-
-## saveDistricts()
-
-**Run:**
-
-```bash
-node runs/Didox/saveDistricts.mjs
-```
-
-## saveMeasures()
-
-**Run:**
-
-```bash
-node runs/Didox/saveMeasures.mjs
-```
-
-## saveRailwayStations()
-
-**Run:**
-
-```bash
-node runs/Didox/saveRailwayStations.mjs
-```
-
-## saveRegions()
-
-**Run:**
-
-```bash
-node runs/Didox/saveRegions.mjs
-```
-
-## saveRegionsTTN()
-
-**Run:**
-
-```bash
-node runs/Didox/saveRegionsTTN.mjs
-```
-
-## searchIKPUCode(text)
-
-**Run:**
-
-```bash
-node runs/Didox/searchIKPUCode.mjs --text <text>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `text` | no | — |
-
-## vatRegStatus(tin, date)
-
-**Run:**
-
-```bash
-node runs/Didox/vatRegStatus.mjs --tin <tin>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `tin` | no | — |
-| `date` | no | — |
-
-
----
-
 # ES
 
 Runners: `runs/ES/` — 3 public static method(s).
@@ -3904,4 +3666,242 @@ node runs/Yamls/update.mjs --file "<path>"
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
+
+
+---
+
+# didox
+
+Runners: `runs/didox/` — 23 public static method(s).
+
+## bankByCode(code)
+
+**Run:**
+
+```bash
+node runs/didox/bankByCode.mjs --code <code>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `code` | no | — |
+
+## carInfoByPinfl(tin)
+
+**Run:**
+
+```bash
+node runs/didox/carInfoByPinfl.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+
+## contracts(owner, rentType, state, [page], [size])
+
+**Run:**
+
+```bash
+node runs/didox/contracts.mjs --owner <owner>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `owner` | no | — |
+| `rentType` | no | — |
+| `state` | no | — |
+| `page` | yes (default `0`) | — |
+| `size` | yes (default `1000`) | — |
+
+## districtsByCode(regionId, districtCode)
+
+**Run:**
+
+```bash
+node runs/didox/districtsByCode.mjs --regionId <regionId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `regionId` | no | — |
+| `districtCode` | no | — |
+
+## documentList()
+
+**Run:**
+
+```bash
+node runs/didox/documentList.mjs
+```
+
+## documentPDF(docId)
+
+**Run:**
+
+```bash
+node runs/didox/documentPDF.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+
+## frauds()
+
+**Run:**
+
+```bash
+node runs/didox/frauds.mjs
+```
+
+## fraudsByTin(tin)
+
+**Run:**
+
+```bash
+node runs/didox/fraudsByTin.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+
+## getRegionInfo()
+
+**Run:**
+
+```bash
+node runs/didox/getRegionInfo.mjs
+```
+
+## getTaxpayerType()
+
+**Run:**
+
+```bash
+node runs/didox/getTaxpayerType.mjs
+```
+
+## infoByTinPinfl(tin, [personFolder])
+
+**Run:**
+
+```bash
+node runs/didox/infoByTinPinfl.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `personFolder` | yes (default `globalThis.folderDirector`) | — |
+
+## login()
+
+**Run:**
+
+```bash
+node runs/didox/login.mjs
+```
+
+## profileIKPUCodes()
+
+**Run:**
+
+```bash
+node runs/didox/profileIKPUCodes.mjs
+```
+
+## profileInfo()
+
+**Run:**
+
+```bash
+node runs/didox/profileInfo.mjs
+```
+
+## regionsByCode(code)
+
+**Run:**
+
+```bash
+node runs/didox/regionsByCode.mjs --code <code>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `code` | no | — |
+
+## saveBanks()
+
+**Run:**
+
+```bash
+node runs/didox/saveBanks.mjs
+```
+
+## saveDistricts()
+
+**Run:**
+
+```bash
+node runs/didox/saveDistricts.mjs
+```
+
+## saveMeasures()
+
+**Run:**
+
+```bash
+node runs/didox/saveMeasures.mjs
+```
+
+## saveRailwayStations()
+
+**Run:**
+
+```bash
+node runs/didox/saveRailwayStations.mjs
+```
+
+## saveRegions()
+
+**Run:**
+
+```bash
+node runs/didox/saveRegions.mjs
+```
+
+## saveRegionsTTN()
+
+**Run:**
+
+```bash
+node runs/didox/saveRegionsTTN.mjs
+```
+
+## searchIKPUCode(text)
+
+**Run:**
+
+```bash
+node runs/didox/searchIKPUCode.mjs --text <text>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `text` | no | — |
+
+## vatRegStatus(tin, date)
+
+**Run:**
+
+```bash
+node runs/didox/vatRegStatus.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `date` | no | — |
 

@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import os from 'os';
 import pino from 'pino';
 
 export class Logs {
@@ -12,9 +12,10 @@ export class Logs {
         }
         global.__utils_instance__ = this;
 
-        // Logs folder lives in the parent of utils/. fileURLToPath fixes the old
-        // __dirname usage, which is undefined under ESM ("type": "module") and threw.
-        const logsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'logs');
+        // Logs live under the OS temp dir — NEVER inside any project CWD. Writing
+        // them beside utils/ (a symlink) leaked a logs/ folder into every consumer
+        // project's working directory; a dedicated temp folder avoids that entirely.
+        const logsDir = path.join(os.tmpdir(), 'js-core-scripts-logs');
         fs.mkdirSync(logsDir, { recursive: true });
 
         // pino + pino-roll give structured logs with daily rotation and a 7-file

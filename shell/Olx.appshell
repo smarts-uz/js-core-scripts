@@ -1,0 +1,10 @@
+.mhtml
+NoClose;OLX App One (pages+pagination);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\appOne.mjs" --app "%1"
+NoClose;OLX App Two (offers+phones);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\appTwo.mjs" --app "%1"
+NoClose;OLX App Three (phones+merge);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\appThree.mjs" --app "%1"
+NoClose;OLX Offers;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\offers.mjs" --app "%1"
+NoClose;OLX Pages;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\pages.mjs" --app "%1"
+NoClose;OLX Phone;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\phone.mjs" --app "%1"
+NoClose;OLX Finder;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\finder.mjs" --app "%1"
+NoClose;OLX Merge;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\merge.mjs" --app "%1"
+NoClose;OLX Checker (no-phone);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Olx\checker.mjs" --app "%1"

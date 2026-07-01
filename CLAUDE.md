@@ -49,7 +49,9 @@ Owned by `smarts-app-cmdline` → `module/runner-tree.md` (the generation shape:
 
 Owned by `smarts-app-cmdline` → `module/classes.md`, `module/dependencies.md`. This project's concrete helpers and paths:
 
-- [utils/](utils/), `node_modules/`, and `data/` are **symlinks** into `d:\Develop\Projects\DevApp\Execute\JS\Develop\`. Import shared helpers by **relative path**: `./utils/Yamls.js`, `./utils/Word.js`, etc.
+- [utils/](utils/) and `node_modules/` are the runtime library + deps. Import shared helpers by **relative path**: `./utils/Yamls.js`, `./utils/Word.js`, etc. **The shared `d:\Develop\Projects\DevApp\Execute\JS\Develop\` tree does not exist on this machine** — `utils/` is a real tracked folder here and `node_modules/` lives in this root; if a `node_modules` symlink is ever expected, it points at this project's own tree, not the absent shared one.
+- **`data/` is a symlink → `conf/data`** (created via `cmd //c mklink //D "data" "conf\\data"`). The `data/*.json` files (banks/districts/regions/measures/…) are sourced from `conf/data/`; `utils/didox.js` and `tests/Didox.test.js` import them by `../data/...`, so the `data/` symlink **must exist** or the whole library fails to load. If it is missing, recreate it — do not point it at the absent shared tree. (The `conf/` folder also holds `bank/`, `cost/`, `IX/`, `IXGo/`, … which the app reads.)
+- **`utils/Logs.js` writes its rotating log files to `os.tmpdir()/js-core-scripts-logs`, NEVER to the CWD** — a `logs/` folder in the project root is a bug (it used to leak there via `../logs` beside `utils/`).
 - Helpers in use: `Yamls` (config + YAML merge), `Dates` (`sleep`), `Dialogs` (`warningBox`, `inputBox`), `Files` (`incrementFileName`, `getLatestMatchingFile`, `currentDir`), `Markdown`, `Word`, `Excels` (COM), `PowerPoints`, `Homoglyph`, `Chromes` (MHTML/URL), `Scanner`, `Category`, `Registry`.
 - **COM automation uses `winax`** (Word/Excel/PowerPoint `.Application`), loaded inside ESM via `createRequire`. `Homoglyph._checkWinax(...)` guards COM formats and throws if winax is unavailable.
 - `utils/` resolves to the `smarts-uz/js-core-scripts` repo and is **tracked as plain files in this repo too** — a `utils/*.js` change appears in **both** repos and is committed in **both** (per the global "treat symlinks as local files/folders" rule).
@@ -128,9 +130,18 @@ Owned by `smarts-app-cmdline` → `module/quality.md`. This project's concrete c
 - **`-ask` suffix** = an interactive variant that prompts (password or character set) via `Dialogs.inputBox()` before acting.
 - **Homoglyph logic is centralized** in `utils/Homoglyph.js` — runners call into it, never re-implementing replacement.
 
+### The `cmd/` sub-projects and their shell-out runners (project-specific)
+
+`cmd/` holds two standalone CLI sub-projects whose entrypoints orchestrate the `utils/` pipeline (single `--yaml`/`--input` or batch `--all`, or `--app <data.mhtml>`):
+
+- **`cmd/js-winax-contract/`** — `words.js` (→ `Yamls.fillYamlWithInfo` + `Word.makeContract`), `yamls.js`/`update.js` (Yaml enrich/update), `excels.js` (`Excels.generate`), `excel-convert.js` (`.xltx`→`.xlsx`), `testing.js`.
+- **`cmd/js-scraper-olx.uz/`** — `App-One/Two/Three.js`, `offers.js`, `pages.js`, `phone.js`, `finder.js`, `merge.js`, `checker.js`, `testing.js` — each an OLX scrape pipeline (`Chromes.initFolders` → `Puppe.*`/`Phone.*` → `Chromes.finish`).
+- **Each cmd folder needs three symlinks to run** (the shared `Develop/` tree is absent): `utils` → `..\..\utils`, `node_modules` → `..\..\node_modules`, and (contract only) `config.yml` → `..\..\config-contract.yml`. The scraper has its own `config.yml`. Recreate with `cmd //c mklink //D` / `mklink` if missing — without them the cmd scripts fail with `MODULE_NOT_FOUND`.
+- **These features are exposed in `runs/` as shell-out runners** (they `spawn node <cmd-script>` with `cwd` = the cmd folder so its `config.yml`/`.env` resolve): `runs/Olx/*` (10, all `--app`), `runs/Word/contract.mjs`, `runs/Yamls/contractFill.mjs` + `contractUpdate.mjs`, `runs/Excels/contract.mjs` + `contractConvert.mjs`. They are **hand-written shell-out runners, not reflection-generated** (no matching `utils/` class), so `runs/_generate.mjs` neither creates nor deletes them.
+
 ### Launchers — concrete `shell/` files
 
-Owned by `smarts-app-cmdline` → `module/launchers.md` (every entry → a runner; `.appshell`/`.appmany`/`.applnk` forms; `NoClose` keeps the window open; launch.json mirrors). This project's concrete files: `Docx`/`Xlsx`/`Md`/`Pptx`/`Yml`/`Mht`/`Mhtml`/`Folder` `.appshell`+`.appmany`, and `ALL.applnk` (→ `runs/Registry/clean.mjs`). The only non-runner launch configs are separate tools with no `utils/` class (`ai-rename.js`, `ai-rename-gemini.js`, `chat-export.js`).
+Owned by `smarts-app-cmdline` → `module/launchers.md` (every entry → a runner; `.appshell`/`.appmany`/`.applnk` forms; `NoClose` keeps the window open; launch.json mirrors). This project's concrete files: `Docx`/`Xlsx`/`Md`/`Pptx`/`Yml`/`Mht`/`Mhtml`/`Folder` `.appshell`+`.appmany`, **`Olx.appshell`** (`.mhtml` → the OLX scraper runners), and `ALL.applnk` (→ `runs/Registry/clean.mjs`). The Yml/Xlsx menus also carry the contract shell-out runners. Separate `Contract.appshell`/`Contract.appassoc` (+ `ContractALL.*`) launch `cmd/js-winax-contract/*.js` directly. The only non-runner launch configs are separate tools with no `utils/` class (`ai-rename.js`, `ai-rename-gemini.js`, `chat-export.js`). **`runs/_wire-shell.mjs` and `runs/_wire-launch.mjs` derive their project `ROOT` relatively via `path.resolve(import.meta.dirname, '..')` — never a hardcoded absolute; shell launchers embed absolute runner paths built from that derived root, launch.json uses `${workspaceFolder}`.**
 
 ### Wiring a new method / new class
 

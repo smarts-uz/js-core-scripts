@@ -3,7 +3,9 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const ROOT = 'd:\\Develop\\Manager\\App\\AI\\Category\\Move\\Sources\\js_ai_category';
+// Derive the project root relatively from this script's own location — runs/ is
+// one folder below the root. Never hardcode an absolute path (the project moves).
+const ROOT = path.resolve(import.meta.dirname, '..');
 const SH = path.join(ROOT, 'shell');
 const R = (cls, method) => `${ROOT}\\runs\\${cls}\\${method}.mjs`;
 
@@ -67,6 +69,8 @@ const files = {
             L('Excel Homoglyph (All)', 'Homoglyph', 'excel', '--file "%1"'),
             L('Excel Homoglyph (Chars...)', 'Homoglyph', 'excel', '--file "%1" --chars "%2"'),
             L('Excel Homoglyph (Ask)', 'Homoglyph', 'excelAsk', '--file "%1"'),
+            // Contract .xltx → .xlsx convert (delegates to cmd/js-winax-contract)
+            L('Contract Convert (.xltx→.xlsx)', 'Excels', 'contractConvert', '--input "%1"'),
         ],
     ],
     'Md.appshell': [
@@ -111,6 +115,27 @@ const files = {
         [
             L('Category', 'Category', 'run', '--yaml "%1"'),
             L('Revert', 'Category', 'revert', '--yaml "%1"'),
+            // Contract workflow (delegates to cmd/js-winax-contract via shell-out runners)
+            L('Contract → Word', 'Word', 'contract', '--yaml "%1"'),
+            L('Contract → Excel', 'Excels', 'contract', '--yaml "%1"'),
+            L('Contract Fill Yaml', 'Yamls', 'contractFill', '--yaml "%1"'),
+            L('Contract Update Yaml', 'Yamls', 'contractUpdate', '--yaml "%1"'),
+        ],
+    ],
+    // OLX scraper pipeline — each step delegates to cmd/js-scraper-olx.uz via a
+    // shell-out runner. The primary input is a saved data .mhtml passed as "%1".
+    'Olx.appshell': [
+        '.mhtml',
+        [
+            L('OLX App One (pages+pagination)', 'Olx', 'appOne', '--app "%1"'),
+            L('OLX App Two (offers+phones)', 'Olx', 'appTwo', '--app "%1"'),
+            L('OLX App Three (phones+merge)', 'Olx', 'appThree', '--app "%1"'),
+            L('OLX Offers', 'Olx', 'offers', '--app "%1"'),
+            L('OLX Pages', 'Olx', 'pages', '--app "%1"'),
+            L('OLX Phone', 'Olx', 'phone', '--app "%1"'),
+            L('OLX Finder', 'Olx', 'finder', '--app "%1"'),
+            L('OLX Merge', 'Olx', 'merge', '--app "%1"'),
+            L('OLX Checker (no-phone)', 'Olx', 'checker', '--app "%1"'),
         ],
     ],
     'Folder.appshell': [

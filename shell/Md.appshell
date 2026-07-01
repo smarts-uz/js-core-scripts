@@ -1,10 +1,10 @@
 .md
-NoClose;MD to HTML;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\convertToHtml.mjs" --file "%1"
-NoClose;MD to Word;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\convertToWord.mjs" --file "%1"
-NoClose;MD to Word (No PDF);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\convertToWord.mjs" --file "%1" --gen-pdf false
-NoClose;MD to Word TOC;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\convertToWordTOC.mjs" --file "%1"
-NoClose;MD to Word TOC (No PDF);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\convertToWordTOC.mjs" --file "%1" --gen-pdf false
-NoClose;MD Merge;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\merge.mjs" %*
-NoClose;MD Homoglyph (All);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Homoglyph\markdown.mjs" --file "%1"
-NoClose;MD Homoglyph (Chars...);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Homoglyph\markdown.mjs" --file "%1" --chars "%2"
-NoClose;MD Homoglyph (Ask);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Homoglyph\markdownAsk.mjs" --file "%1"
+NoClose;MD to HTML;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Markdown\convertToHtml.mjs" --file "%1"
+NoClose;MD to Word;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Markdown\convertToWord.mjs" --file "%1"
+NoClose;MD to Word (No PDF);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Markdown\convertToWord.mjs" --file "%1" --gen-pdf false
+NoClose;MD to Word TOC;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Markdown\convertToWordTOC.mjs" --file "%1"
+NoClose;MD to Word TOC (No PDF);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Markdown\convertToWordTOC.mjs" --file "%1" --gen-pdf false
+NoClose;MD Merge;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Markdown\merge.mjs" %*
+NoClose;MD Homoglyph (All);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Homoglyph\markdown.mjs" --file "%1"
+NoClose;MD Homoglyph (Chars...);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Homoglyph\markdown.mjs" --file "%1" --chars "%2"
+NoClose;MD Homoglyph (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Homoglyph\markdownAsk.mjs" --file "%1"
