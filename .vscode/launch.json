@@ -674,217 +674,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract → Word",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Word\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\path\\to\\contract.yml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract → Excel",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\path\\to\\contract.yml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract Convert (.xltx→.xlsx)",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contractConvert.mjs",
-      "args": [
-        "--input",
-        "d:\\path\\to\\template.xltx"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract Fill Yaml",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\path\\to\\contract.yml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract Update Yaml",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractUpdate.mjs",
-      "args": [
-        "--yaml",
-        "d:\\path\\to\\contract.yml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX App One",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appOne.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX App Two",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appTwo.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX App Three",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Offers",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\offers.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Pages",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Phone",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\phone.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Finder",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Merge",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\merge.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Checker",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "OLX Testing",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Olx\\testing.mjs",
-      "args": [
-        "--app",
-        "d:\\path\\to\\data.mhtml"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls zokirov",
+      "name": "Contract Fill Yaml (single)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -898,7 +688,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract yamls ALL",
+      "name": "Contract Fill Yaml (batch --all)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -912,133 +702,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract yamls ALL Saodat",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--all",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Saodats\\ALL.contractall"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls MuhimQurilish",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\STROYBRO\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls STROYBRO",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\STROYBRO\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls MEDIA",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\MEDIA ILLUSION\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls umtc",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Saodats\\UMTC\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls NIKITIN",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\JMR uz2b\\YaTT NIKITIN ALEKSEY\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract yamls KO’MIR",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\ZHONGWU HENHE KOMIR\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract update ALL AnvarIkr",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractUpdate.mjs",
-      "args": [
-        "--all",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract update LH CROSS BORDER",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractUpdate.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\LH CROSS BORDER TRANSPORTATION\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract update RASH",
+      "name": "Contract Update Yaml (single)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1052,7 +716,21 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract words ZOKIROV",
+      "name": "Contract Update Yaml (batch --all)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Yamls\\contractUpdate.mjs",
+      "args": [
+        "--all",
+        "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Contract → Word (single)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1066,21 +744,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract words COLONIUM",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Word\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Founder\\THE COLONIUM\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract words ALL AnvarIkr",
+      "name": "Contract → Word (batch --all)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1094,63 +758,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract words ALL Saodat",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Word\\contract.mjs",
-      "args": [
-        "--all",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Saodats\\ALL.contractall"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract excels HUA YAN GUO",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\ErdunShi\\HUA YAN GUO JI TOU ZI FA ZHAN\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract excels LH CROSS BORDER",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\LH CROSS BORDER TRANSPORTATION\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract excels ASHALIFE",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\ASHALIFE PHARMA\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract excels RASH",
+      "name": "Contract → Excel (single)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1164,35 +772,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract excels ISTS",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\ISTS\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract excels AET",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
-      "args": [
-        "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\ErdunShi\\AETHERIS\\ALL.contract"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Contract excels ALL",
+      "name": "Contract → Excel (batch --all)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1206,7 +786,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract excel-convert (explicit)",
+      "name": "Contract Convert (explicit output)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1222,7 +802,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract excel-convert (auto)",
+      "name": "Contract Convert (auto output)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1236,7 +816,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App One LED",
+      "name": "OLX App One (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1250,7 +830,21 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App Two LED",
+      "name": "OLX App One (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\appOne.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX App Two (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1264,7 +858,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App Two Osmos",
+      "name": "OLX App Two (Osmos)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1278,11 +872,11 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX pages LED",
+      "name": "OLX App Three (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
+      "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -1292,7 +886,21 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX offers LED",
+      "name": "OLX App Three (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Offers (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1306,11 +914,25 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX finder LED",
+      "name": "OLX Offers (Osmos)",
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
+      "program": "${workspaceFolder}\\runs\\Olx\\offers.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Pages (LED)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -1320,7 +942,21 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX phone LED",
+      "name": "OLX Pages (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Phone (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1334,7 +970,49 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX merge LED",
+      "name": "OLX Phone (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\phone.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Finder (LED)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
+      "args": [
+        "--app",
+        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Finder (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Merge (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1348,7 +1026,49 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Testing LED",
+      "name": "OLX Merge (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\merge.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Checker (LED)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
+      "args": [
+        "--app",
+        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Checker (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Testing (LED)",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1356,6 +1076,20 @@
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "OLX Testing (Osmos)",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\runs\\Olx\\testing.mjs",
+      "args": [
+        "--app",
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     }

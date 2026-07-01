@@ -211,66 +211,29 @@ const configurations = [
     raw('Export Chat to .claude', 'chat-export.js', []),
     cfg('Registry Clean (PATH)', 'Registry', 'clean', ['--hives', 'Both']),
 
-    // ── Contract workflow (shell-out runners → cmd/js-winax-contract) ──────────
-    cfg('Contract → Word', 'Word', 'contract', ['--yaml', 'd:\\path\\to\\contract.yml']),
-    cfg('Contract → Excel', 'Excels', 'contract', ['--yaml', 'd:\\path\\to\\contract.yml']),
-    cfg('Contract Convert (.xltx→.xlsx)', 'Excels', 'contractConvert', [
-        '--input',
-        'd:\\path\\to\\template.xltx',
+    // ── Contract presets — 2 examples PER COMMAND (single --yaml + batch --all),
+    //    NOT one per firm. Any firm just swaps the path.
+    cfg('Contract Fill Yaml (single)', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\AL-INOBAT\\ALL.contract']),
+    cfg('Contract Fill Yaml (batch --all)', 'Yamls', 'contractFill', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
+    cfg('Contract Update Yaml (single)', 'Yamls', 'contractUpdate', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract']),
+    cfg('Contract Update Yaml (batch --all)', 'Yamls', 'contractUpdate', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
+    cfg('Contract → Word (single)', 'Word', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract']),
+    cfg('Contract → Word (batch --all)', 'Word', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
+    cfg('Contract → Excel (single)', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract']),
+    cfg('Contract → Excel (batch --all)', 'Excels', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
+    cfg('Contract Convert (explicit output)', 'Excels', 'contractConvert', ['--input', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx', '--output', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xlsx']),
+    cfg('Contract Convert (auto output)', 'Excels', 'contractConvert', ['--input', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx']),
+
+    // ── OLX scrape presets — 2 examples PER COMMAND (two different data sources),
+    //    NOT one per firm. Any project just swaps the --app path.
+    ...[
+        ['appOne', 'App One'], ['appTwo', 'App Two'], ['appThree', 'App Three'],
+        ['offers', 'Offers'], ['pages', 'Pages'], ['phone', 'Phone'],
+        ['finder', 'Finder'], ['merge', 'Merge'], ['checker', 'Checker'], ['testing', 'Testing'],
+    ].flatMap(([m, label]) => [
+        cfg(`OLX ${label} (LED)`, 'Olx', m, ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
+        cfg(`OLX ${label} (Osmos)`, 'Olx', m, ['--app', 'd:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp']),
     ]),
-    cfg('Contract Fill Yaml', 'Yamls', 'contractFill', ['--yaml', 'd:\\path\\to\\contract.yml']),
-    cfg('Contract Update Yaml', 'Yamls', 'contractUpdate', ['--yaml', 'd:\\path\\to\\contract.yml']),
-
-    // ── OLX scraper pipeline (shell-out runners → cmd/js-scraper-olx.uz) ───────
-    cfg('OLX App One', 'Olx', 'appOne', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX App Two', 'Olx', 'appTwo', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX App Three', 'Olx', 'appThree', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Offers', 'Olx', 'offers', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Pages', 'Olx', 'pages', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Phone', 'Olx', 'phone', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Finder', 'Olx', 'finder', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Merge', 'Olx', 'merge', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Checker', 'Olx', 'checker', ['--app', 'd:\\path\\to\\data.mhtml']),
-    cfg('OLX Testing', 'Olx', 'testing', ['--app', 'd:\\path\\to\\data.mhtml']),
-
-    // ── Merged named contract presets (was .vscode/launch contract.json) ───────
-    // Repointed from the old flat cmd/*.js programs to the runs/ shell-out runners.
-    cfg('Contract yamls zokirov', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\AL-INOBAT\\ALL.contract']),
-    cfg('Contract yamls ALL', 'Yamls', 'contractFill', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract yamls ALL Saodat', 'Yamls', 'contractFill', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Saodats\\ALL.contractall']),
-    cfg('Contract yamls MuhimQurilish', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\STROYBRO\\ALL.contract']),
-    cfg('Contract yamls STROYBRO', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\STROYBRO\\ALL.contract']),
-    cfg('Contract yamls MEDIA', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\MEDIA ILLUSION\\ALL.contract']),
-    cfg('Contract yamls umtc', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Saodats\\UMTC\\ALL.contract']),
-    cfg('Contract yamls NIKITIN', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\JMR uz2b\\YaTT NIKITIN ALEKSEY\\ALL.contract']),
-    cfg('Contract yamls KO’MIR', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\ZHONGWU HENHE KOMIR\\ALL.contract']),
-    cfg('Contract update ALL AnvarIkr', 'Yamls', 'contractUpdate', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract update LH CROSS BORDER', 'Yamls', 'contractUpdate', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\LH CROSS BORDER TRANSPORTATION\\ALL.contract']),
-    cfg('Contract update RASH', 'Yamls', 'contractUpdate', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract']),
-    cfg('Contract words ZOKIROV', 'Word', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract']),
-    cfg('Contract words COLONIUM', 'Word', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Founder\\THE COLONIUM\\ALL.contract']),
-    cfg('Contract words ALL AnvarIkr', 'Word', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract words ALL Saodat', 'Word', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Saodats\\ALL.contractall']),
-    cfg('Contract excels HUA YAN GUO', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\ErdunShi\\HUA YAN GUO JI TOU ZI FA ZHAN\\ALL.contract']),
-    cfg('Contract excels LH CROSS BORDER', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\LH CROSS BORDER TRANSPORTATION\\ALL.contract']),
-    cfg('Contract excels ASHALIFE', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\Perfects\\ASHALIFE PHARMA\\ALL.contract']),
-    cfg('Contract excels RASH', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract']),
-    cfg('Contract excels ISTS', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\ISTS\\ALL.contract']),
-    cfg('Contract excels AET', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\ErdunShi\\AETHERIS\\ALL.contract']),
-    cfg('Contract excels ALL', 'Excels', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract excel-convert (explicit)', 'Excels', 'contractConvert', ['--input', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx', '--output', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xlsx']),
-    cfg('Contract excel-convert (auto)', 'Excels', 'contractConvert', ['--input', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx']),
-
-    // ── Merged named OLX scrape presets (was .vscode/launch scrape.json) ───────
-    cfg('OLX App One LED', 'Olx', 'appOne', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX App Two LED', 'Olx', 'appTwo', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX App Two Osmos', 'Olx', 'appTwo', ['--app', 'd:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp']),
-    cfg('OLX pages LED', 'Olx', 'pages', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX offers LED', 'Olx', 'offers', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX finder LED', 'Olx', 'finder', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX phone LED', 'Olx', 'phone', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX merge LED', 'Olx', 'merge', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-    cfg('OLX Testing LED', 'Olx', 'testing', ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
 ];
 
 const header = `{
