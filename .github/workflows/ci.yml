@@ -16,7 +16,7 @@ jobs:
         name: Lint & format (Ubuntu)
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
             - uses: actions/setup-node@v4
               with:
                   node-version-file: '.nvmrc'
@@ -36,7 +36,7 @@ jobs:
         # COM/Office are skipped/mocked at the boundary (see tests/helpers/esm.js).
         runs-on: windows-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
             - uses: actions/setup-node@v4
               with:
                   node-version-file: '.nvmrc'
