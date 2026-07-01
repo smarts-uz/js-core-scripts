@@ -674,7 +674,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract Fill Yaml (single)",
+      "name": "Contract Fill Yaml Single, AL-INOBAT",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -688,7 +688,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract Fill Yaml (batch --all)",
+      "name": "Contract Fill Yaml Batch, AnvarIkr",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -702,7 +702,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract Update Yaml (single)",
+      "name": "Contract Update Yaml Single, RASH-PHARMA",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -716,7 +716,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract Update Yaml (batch --all)",
+      "name": "Contract Update Yaml Batch, AnvarIkr",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -730,7 +730,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract → Word (single)",
+      "name": "Contract → Word Single, ZOKIROV",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -744,7 +744,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract → Word (batch --all)",
+      "name": "Contract → Word Batch, AnvarIkr",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -758,7 +758,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract → Excel (single)",
+      "name": "Contract → Excel Single, RASH-PHARMA",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -772,7 +772,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract → Excel (batch --all)",
+      "name": "Contract → Excel Batch, AnvarIkr",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -786,7 +786,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract Convert (explicit output)",
+      "name": "Contract Convert Explicit, Act 90",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -802,7 +802,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Contract Convert (auto output)",
+      "name": "Contract Convert Auto, Act 90",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -816,7 +816,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App One (LED)",
+      "name": "OLX App One, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -830,7 +830,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App One (Osmos)",
+      "name": "OLX App One, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -844,7 +844,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App Two (LED)",
+      "name": "OLX App Two, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -858,7 +858,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App Two (Osmos)",
+      "name": "OLX App Two, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -872,7 +872,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App Three (LED)",
+      "name": "OLX App Three, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -886,7 +886,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX App Three (Osmos)",
+      "name": "OLX App Three, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -900,7 +900,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Offers (LED)",
+      "name": "OLX Offers, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -914,7 +914,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Offers (Osmos)",
+      "name": "OLX Offers, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -928,7 +928,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Pages (LED)",
+      "name": "OLX Pages, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -942,7 +942,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Pages (Osmos)",
+      "name": "OLX Pages, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -956,7 +956,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Phone (LED)",
+      "name": "OLX Phone, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -970,7 +970,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Phone (Osmos)",
+      "name": "OLX Phone, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -984,7 +984,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Finder (LED)",
+      "name": "OLX Finder, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -998,7 +998,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Finder (Osmos)",
+      "name": "OLX Finder, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1012,7 +1012,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Merge (LED)",
+      "name": "OLX Merge, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1026,7 +1026,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Merge (Osmos)",
+      "name": "OLX Merge, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1040,7 +1040,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Checker (LED)",
+      "name": "OLX Checker, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1054,7 +1054,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Checker (Osmos)",
+      "name": "OLX Checker, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1068,7 +1068,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Testing (LED)",
+      "name": "OLX Testing, LED",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -1082,7 +1082,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "OLX Testing (Osmos)",
+      "name": "OLX Testing, Osmos",
       "skipFiles": [
         "<node_internals>/**"
       ],

@@ -142,7 +142,7 @@ export class Yamls {
             data.WhoAmI = Yamls.getConfig('Contract.DefaultBank');
         }
 
-        const whoAmIYaml = path.join(Files.currentDir(), 'bank', data.WhoAmI + ".yaml")
+        const whoAmIYaml = path.join(Files.currentDir(), 'conf', 'bank', data.WhoAmI + ".yaml")
         console.info("Using whoAmIYaml", whoAmIYaml);
 
         if (!existsSync(whoAmIYaml)) Dialogs.warningBox(whoAmIYaml, "whoAmIYaml file not found. .");
@@ -158,7 +158,7 @@ export class Yamls {
             data.Tariff = Yamls.getConfig('Contract.DefaultTariff');
         }
 
-        const priceYaml = path.join(Files.currentDir(), 'cost', data.Tariff + ".yaml")
+        const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', data.Tariff + ".yaml")
         console.info("Using priceYaml", priceYaml);
 
         if (!existsSync(priceYaml)) Dialogs.warningBox(priceYaml, "priceYaml file not found. .");

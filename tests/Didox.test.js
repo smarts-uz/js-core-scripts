@@ -18,9 +18,9 @@ import path from 'path';
 import { makeTmpDir, cleanupAllTmpDirs } from './helpers/tmp.js';
 import { utilsModule } from './helpers/esm.js';
 
-import banks from '../data/banks.json' with { type: 'json' };
-import regions from '../data/regions.json' with { type: 'json' };
-import districts from '../data/districts.json' with { type: 'json' };
+import banks from '../conf/data/banks.json' with { type: 'json' };
+import regions from '../conf/data/regions.json' with { type: 'json' };
+import districts from '../conf/data/districts.json' with { type: 'json' };
 
 // --- HTTP boundary: ofetch.create() -> didoxApi (the per-call client) ---------
 // `didoxApi` is captured here so every test can drive what each call resolves to

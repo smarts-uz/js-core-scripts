@@ -1,8 +1,8 @@
 // add functikon infoByTinPinfl
 
-import banks from "../data/banks.json" with { type: "json" };
-import districts from "../data/districts.json" with { type: "json" };
-import regions from "../data/regions.json" with { type: "json" };
+import banks from "../conf/data/banks.json" with { type: "json" };
+import districts from "../conf/data/districts.json" with { type: "json" };
+import regions from "../conf/data/regions.json" with { type: "json" };
 
 import fs from "fs";
 import path from "path";

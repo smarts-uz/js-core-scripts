@@ -328,10 +328,12 @@ describe('Yamls.getPrepayMonth', () => {
 describe('Yamls.loadYamlWithDeps', () => {
   it('merges the main yaml with bank/ and cost/ dependency files', () => {
     writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1' } });
-    // dependency files resolve under <project>/bank and <project>/cost
+    // dependency files resolve under <project>/conf/bank and <project>/conf/cost
     writeTree(projectDir, {
-      bank: { 'AAB.yaml': yaml.dump({ BankName: 'Asia Alliance', WhoAmI: 'AAB' }) },
-      cost: { 'T1.yaml': yaml.dump({ TariffPrice: 100, Tariff: 'T1' }) },
+      conf: {
+        bank: { 'AAB.yaml': yaml.dump({ BankName: 'Asia Alliance', WhoAmI: 'AAB' }) },
+        cost: { 'T1.yaml': yaml.dump({ TariffPrice: 100, Tariff: 'T1' }) },
+      },
     });
     const main = path.join(workDir, 'main.yaml');
     fs.writeFileSync(main, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1', Area: '50' }), 'utf8');
@@ -349,8 +351,10 @@ describe('Yamls.loadYamlWithDeps', () => {
   it('falls back to config DefaultBank / DefaultTariff when missing', () => {
     writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1' } });
     writeTree(projectDir, {
-      bank: { 'AAB.yaml': yaml.dump({ BankName: 'Asia Alliance' }) },
-      cost: { 'T1.yaml': yaml.dump({ TariffPrice: 100 }) },
+      conf: {
+        bank: { 'AAB.yaml': yaml.dump({ BankName: 'Asia Alliance' }) },
+        cost: { 'T1.yaml': yaml.dump({ TariffPrice: 100 }) },
+      },
     });
     const main = path.join(workDir, 'main.yaml');
     fs.writeFileSync(main, yaml.dump({ Area: '50' }), 'utf8'); // no WhoAmI/Tariff
