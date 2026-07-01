@@ -70,7 +70,9 @@ describe('ExcelsJS.readWorkbookSafely', () => {
   it('falls back to a lenient read when the normal read throws', () => {
     const wb = makeWorkbook({ S: {} });
     XLSX.readFile
-      .mockImplementationOnce(() => { throw new Error('bad zip'); })
+      .mockImplementationOnce(() => {
+        throw new Error('bad zip');
+      })
       .mockReturnValueOnce(wb);
 
     const result = ExcelsJS.readWorkbookSafely('book.xlsx');
@@ -79,15 +81,19 @@ describe('ExcelsJS.readWorkbookSafely', () => {
     expect(XLSX.readFile).toHaveBeenCalledTimes(2);
     // Second call carries the lenient flags.
     expect(XLSX.readFile.mock.calls[1][1]).toEqual(
-      expect.objectContaining({ WTF: true, cellStyles: false, sheetStubs: false }),
+      expect.objectContaining({ WTF: true, cellStyles: false, sheetStubs: false })
     );
   });
 
   it('repairs via Excel COM and reads the repaired copy when both reads fail', () => {
     const wb = makeWorkbook({ S: {} });
     XLSX.readFile
-      .mockImplementationOnce(() => { throw new Error('fail 1'); })
-      .mockImplementationOnce(() => { throw new Error('fail 2'); })
+      .mockImplementationOnce(() => {
+        throw new Error('fail 1');
+      })
+      .mockImplementationOnce(() => {
+        throw new Error('fail 2');
+      })
       .mockReturnValueOnce(wb);
 
     const result = ExcelsJS.readWorkbookSafely('book.xlsx');
@@ -102,17 +108,21 @@ describe('ExcelsJS.readWorkbookSafely', () => {
   });
 
   it('throws a descriptive error when even the repaired read fails', () => {
-    XLSX.readFile.mockImplementation(() => { throw new Error('still broken'); });
+    XLSX.readFile.mockImplementation(() => {
+      throw new Error('still broken');
+    });
 
     expect(() => ExcelsJS.readWorkbookSafely('book.xlsx')).toThrow(
-      /Unable to read .* even after Excel repair/,
+      /Unable to read .* even after Excel repair/
     );
   });
 });
 
 describe('ExcelsJS.replaceFormula', () => {
   it('throws when the file does not exist', () => {
-    expect(() => ExcelsJS.replaceFormula(path.join(work, 'missing.xlsx'))).toThrow(/File not found/);
+    expect(() => ExcelsJS.replaceFormula(path.join(work, 'missing.xlsx'))).toThrow(
+      /File not found/
+    );
   });
 
   it('replaces the search string in formula cells and writes a new workbook', () => {
@@ -121,10 +131,10 @@ describe('ExcelsJS.replaceFormula', () => {
 
     const wb = makeWorkbook({
       Sheet1: {
-        '!ref': 'A1:B1',           // skipped (starts with '!')
-        A1: { f: '@SUM(A1:A2)' },  // has '@' → replaced
-        B1: { f: 'PLAIN' },        // no '@' → unchanged
-        C1: { v: 5 },              // no formula → untouched
+        '!ref': 'A1:B1', // skipped (starts with '!')
+        A1: { f: '@SUM(A1:A2)' }, // has '@' → replaced
+        B1: { f: 'PLAIN' }, // no '@' → unchanged
+        C1: { v: 5 }, // no formula → untouched
       },
     });
     XLSX.readFile.mockReturnValueOnce(wb);
@@ -179,7 +189,7 @@ describe('ExcelsJS.replaceFormula', () => {
 
     ExcelsJS.replaceFormula(file, '@', '', false, 'Keep');
 
-    expect(wb.Sheets.Keep.A1.f).toBe('one');   // processed
+    expect(wb.Sheets.Keep.A1.f).toBe('one'); // processed
     expect(wb.Sheets.Other.A1.f).toBe('@two'); // filtered out, untouched
   });
 
@@ -198,6 +208,6 @@ describe('ExcelsJS.replaceFormula', () => {
     ExcelsJS.replaceFormula(file, '@', '', false);
 
     expect(wb.Sheets.Skip.A1.f).toBe('@a'); // excluded, untouched
-    expect(wb.Sheets.Run.A1.f).toBe('b');   // processed
+    expect(wb.Sheets.Run.A1.f).toBe('b'); // processed
   });
 });

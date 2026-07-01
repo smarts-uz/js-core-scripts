@@ -84,7 +84,9 @@ describe('MySoliq.entrepreneurInfoAPI', () => {
 
     expect(out).toEqual(payload);
     const [url, opts] = f.mock.calls[0];
-    expect(url).toBe('https://My3.soliq.uz/api/remote-access-api/entrepreneur/info/PIN1?passportSeries=AA&passportNumber=123');
+    expect(url).toBe(
+      'https://My3.soliq.uz/api/remote-access-api/entrepreneur/info/PIN1?passportSeries=AA&passportNumber=123'
+    );
     expect(opts.method).toBe('GET');
     // header set via Headers().append("X-API-KEY", ...)
     expect(opts.headers.get('X-API-KEY')).toBe('apikey-1');
@@ -92,14 +94,21 @@ describe('MySoliq.entrepreneurInfoAPI', () => {
   });
 
   it('returns null and shows a dialog on a non-OK response', async () => {
-    stubFetch(async () => ({ ok: false, status: 403, statusText: 'Forbidden', json: async () => ({}) }));
+    stubFetch(async () => ({
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      json: async () => ({}),
+    }));
     const out = await MySoliq.entrepreneurInfoAPI('PIN1', 'AA', '123');
     expect(out).toBeNull();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
   });
 
   it('returns null when fetch throws', async () => {
-    stubFetch(async () => { throw new Error('offline'); });
+    stubFetch(async () => {
+      throw new Error('offline');
+    });
     const out = await MySoliq.entrepreneurInfoAPI('PIN1', 'AA', '123');
     expect(out).toBeNull();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
@@ -135,8 +144,14 @@ describe('MySoliq.entrepreneurInfo', () => {
     const saved = path.join(restApiDir, 'PINFL Soliq PIN42.json');
     expect(fs.existsSync(saved)).toBe(true);
     expect(out).toEqual(payload);
-    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderCompan, 'RegDate 2021-05-05');
-    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderCompan, 'VatNumber V999');
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(
+      globalThis.folderCompan,
+      'RegDate 2021-05-05'
+    );
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(
+      globalThis.folderCompan,
+      'VatNumber V999'
+    );
   });
 
   it('reads from cache when the PINFL file already exists (no fetch)', async () => {
@@ -165,7 +180,11 @@ describe('MySoliq.vatInfoAPI', () => {
     // Secrets.get('My3','SRental') -> process.env.MY3_SRENTAL
     process.env.MY3_SRENTAL = 'bearer-token';
     const data = [{ companyName: 'X', id: 7 }];
-    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ recordsTotal: 1, data }) }));
+    const f = stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ recordsTotal: 1, data }),
+    }));
 
     const out = await MySoliq.vatInfoAPI('305');
 
@@ -177,21 +196,32 @@ describe('MySoliq.vatInfoAPI', () => {
   });
 
   it('still returns data (empty) and warns internally when recordsTotal is 0', async () => {
-    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ recordsTotal: 0, data: [] }) }));
+    const f = stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ recordsTotal: 0, data: [] }),
+    }));
     const out = await MySoliq.vatInfoAPI('999');
     expect(out).toEqual([]);
     expect(f).toHaveBeenCalledTimes(1);
   });
 
   it('returns null and shows a dialog on a non-OK response', async () => {
-    stubFetch(async () => ({ ok: false, status: 502, statusText: 'Bad Gateway', json: async () => ({}) }));
+    stubFetch(async () => ({
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+      json: async () => ({}),
+    }));
     const out = await MySoliq.vatInfoAPI('305');
     expect(out).toBeNull();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
   });
 
   it('returns null when fetch throws', async () => {
-    stubFetch(async () => { throw new Error('boom'); });
+    stubFetch(async () => {
+      throw new Error('boom');
+    });
     expect(await MySoliq.vatInfoAPI('305')).toBeNull();
   });
 });
@@ -209,7 +239,9 @@ describe('MySoliq.companyInfoAPI', () => {
     const out = await MySoliq.companyInfoAPI('305000000');
 
     expect(out).toEqual(payload);
-    expect(f.mock.calls[0][0]).toBe('https://My3.soliq.uz/api/remote-access-api/company/info/305000000?type=full');
+    expect(f.mock.calls[0][0]).toBe(
+      'https://My3.soliq.uz/api/remote-access-api/company/info/305000000?type=full'
+    );
     expect(f.mock.calls[0][1].headers.get('X-API-KEY')).toBe('apikey-2');
     delete process.env.MY3_API_SRENTAL;
   });
@@ -221,7 +253,9 @@ describe('MySoliq.companyInfoAPI', () => {
   });
 
   it('returns null when fetch throws', async () => {
-    stubFetch(async () => { throw new Error('down'); });
+    stubFetch(async () => {
+      throw new Error('down');
+    });
     expect(await MySoliq.companyInfoAPI('1')).toBeNull();
   });
 });
@@ -240,7 +274,11 @@ describe('MySoliq.vatInfo', () => {
       directorFioUz: 'Ali',
       dateReg: '2020-02-02',
     };
-    stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ recordsTotal: 1, data: [row] }) }));
+    stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ recordsTotal: 1, data: [row] }),
+    }));
 
     const out = await MySoliq.vatInfo('700');
 
@@ -248,19 +286,33 @@ describe('MySoliq.vatInfo', () => {
     expect(fs.existsSync(path.join(restApiDir, 'INN VAT 700.json'))).toBe(true);
     expect(out).toEqual(row);
     expect(WordMock.cleanCompanyName).toHaveBeenCalledWith('Acme LLC');
-    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderForNDS, 'clean:Acme LLC');
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(
+      globalThis.folderForNDS,
+      'clean:Acme LLC'
+    );
     expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderForNDS, '11');
     delete process.env.My3SRental;
   });
 
   it('returns null when the data array is empty (returns[0] ?? null)', async () => {
-    stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ recordsTotal: 0, data: [] }) }));
+    stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ recordsTotal: 0, data: [] }),
+    }));
     const out = await MySoliq.vatInfo('701');
     expect(out).toBeNull();
   });
 
   it('reads the cached array and extracts its first row (no fetch)', async () => {
-    const row = { companyName: 'Cached Co', address: 'A', id: 1, stateNameLat: 'S', directorFioUz: 'D', dateReg: 'X' };
+    const row = {
+      companyName: 'Cached Co',
+      address: 'A',
+      id: 1,
+      stateNameLat: 'S',
+      directorFioUz: 'D',
+      dateReg: 'X',
+    };
     fs.writeFileSync(path.join(restApiDir, 'INN VAT 702.json'), JSON.stringify([row]));
     const f = stubFetch();
     const out = await MySoliq.vatInfo('702');
@@ -276,7 +328,12 @@ describe('MySoliq.companyInfo', () => {
   it('fetches, caches and flags a CASHED_OUT company as a scammer', async () => {
     state.config['My3Api.SRental'] = 'apikey';
     const payload = {
-      company: { name: 'Bad Co', statusType: 'CASHED_OUT', registrationDate: '2018-01-01', vatNumber: 'V1' },
+      company: {
+        name: 'Bad Co',
+        statusType: 'CASHED_OUT',
+        registrationDate: '2018-01-01',
+        vatNumber: 'V1',
+      },
     };
     stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
 
@@ -291,12 +348,17 @@ describe('MySoliq.companyInfo', () => {
 
   it('marks a normal company as not a scammer and writes RegDate', async () => {
     state.config['My3Api.SRental'] = 'apikey';
-    const payload = { company: { name: 'Good Co', statusType: 'ACTIVE', registrationDate: '2015-06-06' } };
+    const payload = {
+      company: { name: 'Good Co', statusType: 'ACTIVE', registrationDate: '2015-06-06' },
+    };
     stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
 
     const out = await MySoliq.companyInfo('304000000');
     expect(out.IsScammer).toBe('Нет');
-    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderCompan, 'RegDate 2015-06-06');
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(
+      globalThis.folderCompan,
+      'RegDate 2015-06-06'
+    );
   });
 
   it('returns null when the API yields nothing', async () => {
@@ -307,7 +369,9 @@ describe('MySoliq.companyInfo', () => {
   });
 
   it('reads from cache when the INN Soliq file already exists (no fetch)', async () => {
-    const cached = { company: { name: 'Cached', statusType: 'ACTIVE', registrationDate: '2010-10-10' } };
+    const cached = {
+      company: { name: 'Cached', statusType: 'ACTIVE', registrationDate: '2010-10-10' },
+    };
     fs.writeFileSync(path.join(restApiDir, 'INN Soliq 306.json'), JSON.stringify(cached));
     const f = stubFetch();
     const out = await MySoliq.companyInfo('306');

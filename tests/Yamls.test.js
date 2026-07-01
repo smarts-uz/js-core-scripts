@@ -38,7 +38,10 @@ const FilesMock = {
     let baseName = parsed.name;
     let counter = 1;
     const m = baseName.match(/^(.*?)\s+(\d+)$/);
-    if (m) { baseName = m[1]; counter = parseInt(m[2], 10); }
+    if (m) {
+      baseName = m[1];
+      counter = parseInt(m[2], 10);
+    }
     let np = filePath;
     while (fs.existsSync(np)) {
       np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
@@ -52,7 +55,9 @@ const FilesMock = {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         if (ignoreFolderCondition && ignoreFolderCondition(entry.name, fullPath)) continue;
-        results = results.concat(FilesMock.findRecursiveFull(fullPath, condition, ignoreFolderCondition));
+        results = results.concat(
+          FilesMock.findRecursiveFull(fullPath, condition, ignoreFolderCondition)
+        );
       } else if (condition(entry.name)) {
         results.push(fullPath);
       }

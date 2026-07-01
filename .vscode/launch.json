@@ -1,0 +1,506 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Word to MD",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Word\\wordToMD.mjs",
+            "args": ["--file", "d:\\path\\to\\test.docx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Scan Folders (Statistic)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Scanner\\run.mjs",
+            "args": [
+                "--sourceFolder",
+                "d:\\Humans\\Medicine\\Disserta\\Statistic",
+                "--maxLevel",
+                "5"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run Category (AZK App 1)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Category\\run.mjs",
+            "args": [
+                "--yaml",
+                "D:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\AZK\\3\\1773681723823_AZK App 1.yml"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Revert Category (Main-Asp)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Category\\revert.mjs",
+            "args": ["--yaml", "d:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\Main-Asp.yml"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MHTML to HTML (Download)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Chromes\\saveHtmlFromMht.mjs",
+            "args": [
+                "--mhtml",
+                "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\Analysis ToolPak\\ALL\\Excel Data Analysis Toolpak.mhtml",
+                "--delete"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "URL(s) to Clipboard (Example)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Chromes\\processPathsToClipboard.mjs",
+            "args": [
+                "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Enlarge Dialog Box On Mac.mhtml",
+                "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Excel 64 Bits.mhtml"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Merge YAMLs in Folder",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Yamls\\mergeYamlsInFolder.mjs",
+            "args": [
+                "--folder",
+                "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Features\\ALL"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Replace Formula (@)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\replaceFormula.mjs",
+            "args": [
+                "--file",
+                "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx",
+                "--search",
+                "@",
+                "--replace",
+                ""
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Replace Formula2 (@)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\replaceFormula2.mjs",
+            "args": [
+                "--file",
+                "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx",
+                "--search",
+                "@",
+                "--replace",
+                ""
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Replace FormulaArray (@)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\replaceFormulaArray.mjs",
+            "args": [
+                "--file",
+                "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx",
+                "--search",
+                "@",
+                "--replace",
+                ""
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Replace Standard (@)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\replaceStandart.mjs",
+            "args": [
+                "--file",
+                "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx",
+                "--search",
+                "@",
+                "--replace",
+                ""
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Replace Formula All (@)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\replaceFormulaAll.mjs",
+            "args": [
+                "--file",
+                "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx",
+                "--search",
+                "@",
+                "--replace",
+                ""
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Recalc",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\recalculate.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Change Font to Arial",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\changeFont.mjs",
+            "args": [
+                "--file",
+                "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx",
+                "--font",
+                "Arial"
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MD to HTML (TMT Neuropsychological Assessment)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Markdown\\convertToHtml.mjs",
+            "args": [
+                "--file",
+                "d:\\Humans\\Medicine\\Diagnos\\Neurolog\\Attention\\Trail Making Test, TMT\\Normals\\TMT_Neuropsychological_Assessment_v1.md"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MD to Word (TMT Protocol)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Markdown\\convertToWord.mjs",
+            "args": [
+                "--file",
+                "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MD to Word TOC (Statistical Protocol)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Markdown\\convertToWordTOC.mjs",
+            "args": [
+                "--file",
+                "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Word Merge Folders",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Word\\mergeFolder.mjs",
+            "args": [
+                "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\4. I-BOB\\",
+                "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\5. II-BOB\\",
+                "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\6. III-BOB\\"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Merge Excels in Folder",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\mergeFiles.mjs",
+            "args": [
+                "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-2 Diagnostic Value\\Durdona\\8"
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Protect Worksheets Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\protectSheetAsk.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Unprotect Worksheets Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\unProtectSheetAsk.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Protect File Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\protectFileAsk.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Unprotect File Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\unProtectFileAsk.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Hide Protect Sheet Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\hideProtectSheetAsk.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Unhide Unprotect Sheet Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\unHideUnProtectSheetAsk.mjs",
+            "args": ["--file", "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Merge Folders",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Excels\\mergeFolder.mjs",
+            "args": ["d:\\path\\to\\folderA", "d:\\path\\to\\folderB"],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "PowerPoint Merge Files",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\PowerPoints\\merge.mjs",
+            "args": ["d:\\path\\to\\a.pptx", "d:\\path\\to\\b.pptx"],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "PowerPoint Merge Folders",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\PowerPoints\\mergeFolder.mjs",
+            "args": ["d:\\path\\to\\folderA", "d:\\path\\to\\folderB"],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Word Homoglyph All Chars",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\word.mjs",
+            "args": [
+                "--file",
+                "d:\\Humans\\Languag\\ReWrite\\App\\Disser\\Article 4\\Article 4.docx"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Word Homoglyph Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\wordAsk.mjs",
+            "args": [
+                "--file",
+                "d:\\Humans\\Languag\\ReWrite\\App\\Disser\\Article 4\\Article 4.docx"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MD Homoglyph All Chars",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\markdown.mjs",
+            "args": ["--file", "d:\\Humans\\Languag\\ReWrite\\App\\POCD\\POCD_maqola 3.md"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MD Homoglyph Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\markdownAsk.mjs",
+            "args": ["--file", "d:\\Humans\\Languag\\ReWrite\\App\\POCD\\POCD_maqola 3.md"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "MD Merge Files",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Markdown\\merge.mjs",
+            "args": [
+                "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Electroencephalography EEG 5.md",
+                "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Luria s Memory Word Test LMWT 5.md"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "AI Rename by Content",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\ai-rename.js",
+            "args": ["d:\\path\\to\\file1.md", "d:\\path\\to\\file2.md", "--effort", "max"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Gemini Rename by Content",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\ai-rename-gemini.js",
+            "args": ["d:\\path\\to\\file1.md", "d:\\path\\to\\file2.md", "--level", "4"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Homoglyph All Chars",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\excel.mjs",
+            "args": ["--file", "d:\\path\\to\\test.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Excel Homoglyph Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\excelAsk.mjs",
+            "args": ["--file", "d:\\path\\to\\test.xlsx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "PPT Homoglyph All Chars",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\powerpoint.mjs",
+            "args": ["--file", "d:\\path\\to\\test.pptx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "PPT Homoglyph Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Homoglyph\\powerpointAsk.mjs",
+            "args": ["--file", "d:\\path\\to\\test.pptx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Word Protect File Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Word\\protectFileAsk.mjs",
+            "args": ["--file", "d:\\path\\to\\test.docx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Word Unprotect File Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Word\\unProtectFileAsk.mjs",
+            "args": ["--file", "d:\\path\\to\\test.docx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "PPT Protect File Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\PowerPoints\\protectFileAsk.mjs",
+            "args": ["--file", "d:\\path\\to\\test.pptx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "PPT Unprotect File Ask",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\PowerPoints\\unProtectFileAsk.mjs",
+            "args": ["--file", "d:\\path\\to\\test.pptx"],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Export Chat to .claude",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\chat-export.js",
+            "args": [],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Registry Clean (PATH)",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}\\runs\\Registry\\clean.mjs",
+            "args": ["--hives", "Both"],
+            "console": "integratedTerminal"
+        }
+    ]
+}

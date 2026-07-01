@@ -24,7 +24,9 @@ import { utilsModule } from './helpers/esm.js';
 const undiciFetch = jest.fn();
 const setGlobalDispatcher = jest.fn();
 class AgentMock {
-  constructor(opts) { this.opts = opts; }
+  constructor(opts) {
+    this.opts = opts;
+  }
 }
 jest.unstable_mockModule('undici', () => ({
   fetch: undiciFetch,
@@ -68,7 +70,9 @@ class UserAgentMock {
   constructor() {
     this.data = { userAgent: 'Mozilla/5.0 Chrome/124', deviceCategory: 'desktop' };
   }
-  toString() { return this.data.userAgent; }
+  toString() {
+    return this.data.userAgent;
+  }
 }
 jest.unstable_mockModule('user-agents', () => ({ default: UserAgentMock }));
 
@@ -78,7 +82,12 @@ const YamlsMock = { getConfig: jest.fn((key) => config[key]) };
 
 const FilesMock = {
   mkdirIfNotExists: jest.fn((d) => fs.mkdirSync(d, { recursive: true })),
-  cleanupFileName: jest.fn((name) => String(name).replace(/[<>:"|?*\\/\s]+/g, ' ').trim().slice(0, 100)),
+  cleanupFileName: jest.fn((name) =>
+    String(name)
+      .replace(/[<>:"|?*\\/\s]+/g, ' ')
+      .trim()
+      .slice(0, 100)
+  ),
   readJson: jest.fn((p) => JSON.parse(fs.readFileSync(p, 'utf8'))),
   writeJson: jest.fn((p, data) => fs.writeFileSync(p, JSON.stringify(data), 'utf8')),
   backupFile: jest.fn(),
@@ -106,7 +115,14 @@ const { Chromes } = await import('../utils/Chromes.js');
 
 // helper: a fetch Response stand-in
 function jsonResponse(body, { ok = true, status = 200, statusText = 'OK' } = {}) {
-  return { ok, status, statusText, json: async () => body, text: async () => body, arrayBuffer: async () => Buffer.from(JSON.stringify(body)) };
+  return {
+    ok,
+    status,
+    statusText,
+    json: async () => body,
+    text: async () => body,
+    arrayBuffer: async () => Buffer.from(JSON.stringify(body)),
+  };
 }
 function bufferResponse(buf, { ok = true, status = 200, statusText = 'OK' } = {}) {
   return { ok, status, statusText, arrayBuffer: async () => buf, text: async () => buf.toString() };
@@ -189,13 +205,21 @@ describe('Chromes.userAgent', () => {
 describe('Chromes.getUrlFromFile', () => {
   it('extracts the Snapshot-Content-Location URL from an MHT', () => {
     const f = path.join(tmp, 'a.mht');
-    fs.writeFileSync(f, 'From: <Saved by Blink>\r\nSnapshot-Content-Location: https://example.com/page?x=1\r\nSubject: test\r\n', 'utf8');
+    fs.writeFileSync(
+      f,
+      'From: <Saved by Blink>\r\nSnapshot-Content-Location: https://example.com/page?x=1\r\nSubject: test\r\n',
+      'utf8'
+    );
     expect(Chromes.getUrlFromFile(f)).toBe('https://example.com/page?x=1');
   });
 
   it('falls back to Content-Location when no Snapshot header is present', () => {
     const f = path.join(tmp, 'b.mht');
-    fs.writeFileSync(f, 'MIME-Version: 1.0\r\nContent-Location: https://site.org/article\r\n', 'utf8');
+    fs.writeFileSync(
+      f,
+      'MIME-Version: 1.0\r\nContent-Location: https://site.org/article\r\n',
+      'utf8'
+    );
     expect(Chromes.getUrlFromFile(f)).toBe('https://site.org/article');
   });
 
@@ -266,7 +290,11 @@ describe('Chromes.saveUrlFileFromMht', () => {
 // =============================================================================
 // mhtToHtmConvert (real MHT fixture, offline — no network)
 // =============================================================================
-function buildMht({ url = 'https://example.com/article', encoding = '8bit', body = '<html><body><img src="/img/a.png"><a href="/next">n</a></body></html>' } = {}) {
+function buildMht({
+  url = 'https://example.com/article',
+  encoding = '8bit',
+  body = '<html><body><img src="/img/a.png"><a href="/next">n</a></body></html>',
+} = {}) {
   const boundary = '----MultipartBoundary--XYZ----';
   let encodedBody = body;
   if (encoding === 'base64') encodedBody = Buffer.from(body, 'utf8').toString('base64');
@@ -308,7 +336,11 @@ describe('Chromes.mhtToHtmConvert', () => {
 
   it('decodes a base64 HTML part', async () => {
     const mht = path.join(tmp, 'b64.mhtml');
-    fs.writeFileSync(mht, buildMht({ encoding: 'base64', body: '<html><body>Hello B64 World</body></html>' }), 'binary');
+    fs.writeFileSync(
+      mht,
+      buildMht({ encoding: 'base64', body: '<html><body>Hello B64 World</body></html>' }),
+      'binary'
+    );
 
     const out = await Chromes.mhtToHtmConvert(mht, false);
     expect(fs.readFileSync(out, 'utf8')).toContain('Hello B64 World');
@@ -343,7 +375,11 @@ describe('Chromes.mhtToHtmConvert', () => {
 
   it('returns null when no MIME boundary is present', async () => {
     const mht = path.join(tmp, 'noboundary.mhtml');
-    fs.writeFileSync(mht, 'Snapshot-Content-Location: https://x.com/\r\n\r\nplain text, no boundary', 'binary');
+    fs.writeFileSync(
+      mht,
+      'Snapshot-Content-Location: https://x.com/\r\n\r\nplain text, no boundary',
+      'binary'
+    );
     const out = await Chromes.mhtToHtmConvert(mht, false);
     expect(out).toBeNull();
   });
@@ -394,12 +430,17 @@ describe('Chromes.saveHtmlFromMht', () => {
   it('downloads HTML for the MHT URL, rewrites links and writes .html', async () => {
     const mht = path.join(tmp, 'live.mhtml');
     fs.writeFileSync(mht, 'Snapshot-Content-Location: https://example.com/post\r\n', 'utf8');
-    undiciFetch.mockResolvedValue(textResponse('<html><body><img src="/p.png"><a href="/n">n</a></body></html>'));
+    undiciFetch.mockResolvedValue(
+      textResponse('<html><body><img src="/p.png"><a href="/n">n</a></body></html>')
+    );
 
     const out = await Chromes.saveHtmlFromMht(mht, false);
 
     expect(out).toBe(path.join(tmp, 'live.html'));
-    expect(undiciFetch).toHaveBeenCalledWith('https://example.com/post', expect.objectContaining({ method: 'GET' }));
+    expect(undiciFetch).toHaveBeenCalledWith(
+      'https://example.com/post',
+      expect.objectContaining({ method: 'GET' })
+    );
     const html = fs.readFileSync(out, 'utf8');
     expect(html).toContain('<!-- Content-Location: https://example.com/post -->');
     expect(html).toContain('https://example.com/p.png');
@@ -527,7 +568,7 @@ describe('Chromes.runIxbrowser', () => {
     fs.writeFileSync(
       txt,
       '[FULL] "C:\\Chrome\\chrome.exe" --load-extension=C:\\ext\\crx --window-size=800,600',
-      'utf8',
+      'utf8'
     );
     return txt;
   }
@@ -670,7 +711,9 @@ describe('Chromes.pageGo', () => {
 
     expect(page.close).toHaveBeenCalled();
     expect(browser.newPage).toHaveBeenCalled();
-    expect(page.goto).toHaveBeenCalledWith('https://example.com/new', { waitUntil: 'networkidle2' });
+    expect(page.goto).toHaveBeenCalledWith('https://example.com/new', {
+      waitUntil: 'networkidle2',
+    });
   });
 
   it('swallows a goto failure and invokes its recovery runBrowser path', async () => {
@@ -685,7 +728,9 @@ describe('Chromes.pageGo', () => {
     // relaunch) — the important contract is that pageGo does not throw and the
     // navigation was attempted.
     await expect(Chromes.pageGo('https://example.com/err')).resolves.toBeUndefined();
-    expect(page.goto).toHaveBeenCalledWith('https://example.com/err', { waitUntil: 'networkidle2' });
+    expect(page.goto).toHaveBeenCalledWith('https://example.com/err', {
+      waitUntil: 'networkidle2',
+    });
     expect(coreLaunch).not.toHaveBeenCalled();
   });
 });
@@ -824,7 +869,11 @@ describe('Chromes.fetcher', () => {
   it('fetches JSON from the network and writes it to the cache', async () => {
     undiciFetch.mockResolvedValue(jsonResponse({ hello: 'world' }));
 
-    const body = await Chromes.fetcher('https://api.example.com/v1/data', { method: 'GET' }, 'owner1');
+    const body = await Chromes.fetcher(
+      'https://api.example.com/v1/data',
+      { method: 'GET' },
+      'owner1'
+    );
 
     expect(body).toEqual({ hello: 'world' });
     expect(undiciFetch).toHaveBeenCalledWith('https://api.example.com/v1/data', { method: 'GET' });
@@ -838,19 +887,34 @@ describe('Chromes.fetcher', () => {
   it('returns the cached JSON when a fresh cache file exists', async () => {
     // first call populates the cache for real (writeJson mock writes the file)
     undiciFetch.mockResolvedValue(jsonResponse({ n: 1 }));
-    await Chromes.fetcher('https://api.example.com/c', { method: 'GET' }, 'own', Chromes.Duration.Hour10);
+    await Chromes.fetcher(
+      'https://api.example.com/c',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.Hour10
+    );
 
     undiciFetch.mockClear();
     undiciFetch.mockResolvedValue(jsonResponse({ n: 999 }));
-    const second = await Chromes.fetcher('https://api.example.com/c', { method: 'GET' }, 'own', Chromes.Duration.Hour10);
+    const second = await Chromes.fetcher(
+      'https://api.example.com/c',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.Hour10
+    );
 
-    expect(second).toEqual({ n: 1 });           // served from cache, not the network
-    expect(undiciFetch).not.toHaveBeenCalled();  // no network hit on the 2nd call
+    expect(second).toEqual({ n: 1 }); // served from cache, not the network
+    expect(undiciFetch).not.toHaveBeenCalled(); // no network hit on the 2nd call
   });
 
   it('always hits the network when duration is noCache', async () => {
     undiciFetch.mockResolvedValue(jsonResponse({ fresh: true }));
-    const out = await Chromes.fetcher('https://api.example.com/nc', { method: 'GET' }, 'own', Chromes.Duration.noCache);
+    const out = await Chromes.fetcher(
+      'https://api.example.com/nc',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.noCache
+    );
     expect(out).toEqual({ fresh: true });
     expect(undiciFetch).toHaveBeenCalled();
     expect(FilesMock.writeJson).not.toHaveBeenCalled(); // noCache → not persisted
@@ -858,14 +922,24 @@ describe('Chromes.fetcher', () => {
 
   it('warns (returns null) on a non-ok response', async () => {
     undiciFetch.mockResolvedValue(jsonResponse({}, { ok: false, status: 503, statusText: 'Down' }));
-    const out = await Chromes.fetcher('https://api.example.com/err', { method: 'GET' }, 'own', Chromes.Duration.noCache);
+    const out = await Chromes.fetcher(
+      'https://api.example.com/err',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.noCache
+    );
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
 
   it('errors (returns null) when fetch throws', async () => {
     undiciFetch.mockRejectedValue(new Error('network down'));
-    const out = await Chromes.fetcher('https://api.example.com/throw', { method: 'GET' }, 'own', Chromes.Duration.noCache);
+    const out = await Chromes.fetcher(
+      'https://api.example.com/throw',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.noCache
+    );
     expect(out).toBeNull();
     expect(DialogsMock.errorBox).toHaveBeenCalled();
   });
@@ -878,7 +952,13 @@ describe('Chromes.download', () => {
   it('downloads a binary file and writes it to the cache, returning the path', async () => {
     undiciFetch.mockResolvedValue(bufferResponse(Buffer.from('PDFDATA')));
 
-    const out = await Chromes.download('https://files.example.com/a/doc', { method: 'GET' }, 'own', 'pdf', Chromes.Duration.noCache);
+    const out = await Chromes.download(
+      'https://files.example.com/a/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.noCache
+    );
 
     expect(typeof out).toBe('string');
     expect(out.endsWith('.pdf')).toBe(true);
@@ -889,32 +969,64 @@ describe('Chromes.download', () => {
 
   it('returns the cached file path when a fresh cache exists', async () => {
     undiciFetch.mockResolvedValue(bufferResponse(Buffer.from('ORIGINAL')));
-    const first = await Chromes.download('https://files.example.com/b/doc', { method: 'GET' }, 'own', 'pdf', Chromes.Duration.Hour10);
+    const first = await Chromes.download(
+      'https://files.example.com/b/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.Hour10
+    );
 
     undiciFetch.mockClear();
-    const second = await Chromes.download('https://files.example.com/b/doc', { method: 'GET' }, 'own', 'pdf', Chromes.Duration.Hour10);
+    const second = await Chromes.download(
+      'https://files.example.com/b/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.Hour10
+    );
 
     expect(second).toBe(first);
     expect(undiciFetch).not.toHaveBeenCalled();
   });
 
   it('warns (returns null) on a non-ok response', async () => {
-    undiciFetch.mockResolvedValue(bufferResponse(Buffer.from(''), { ok: false, status: 404, statusText: 'NF' }));
-    const out = await Chromes.download('https://files.example.com/x/y', { method: 'GET' }, 'own', 'pdf', Chromes.Duration.noCache);
+    undiciFetch.mockResolvedValue(
+      bufferResponse(Buffer.from(''), { ok: false, status: 404, statusText: 'NF' })
+    );
+    const out = await Chromes.download(
+      'https://files.example.com/x/y',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.noCache
+    );
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
 
   it('warns (returns null) when the downloaded buffer is empty', async () => {
     undiciFetch.mockResolvedValue(bufferResponse(Buffer.alloc(0)));
-    const out = await Chromes.download('https://files.example.com/e/empty', { method: 'GET' }, 'own', 'pdf', Chromes.Duration.noCache);
+    const out = await Chromes.download(
+      'https://files.example.com/e/empty',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.noCache
+    );
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
 
   it('errors (returns null) when fetch throws', async () => {
     undiciFetch.mockRejectedValue(new Error('boom'));
-    const out = await Chromes.download('https://files.example.com/t/throw', { method: 'GET' }, 'own', 'pdf', Chromes.Duration.noCache);
+    const out = await Chromes.download(
+      'https://files.example.com/t/throw',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.noCache
+    );
     expect(out).toBeNull();
     expect(DialogsMock.errorBox).toHaveBeenCalled();
   });

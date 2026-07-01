@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# Auto-format & lint staged files before every commit (via lint-staged).
+#
+# This repo's node_modules is a SYMLINK into a shared tree, and the dev tools
+# (eslint/prettier/lint-staged) are installed there with --no-save, so their
+# .bin shims may be absent in some environments. If lint-staged cannot run we
+# WARN and let the commit proceed (format-on-save in VS Code is the primary
+# auto-format path) rather than blocking. Bypass entirely with `git commit -n`.
+if [ -x "node_modules/.bin/lint-staged" ]; then
+  node_modules/.bin/lint-staged || {
+    echo "⚠️  lint-staged failed; committing anyway (run 'npm run format && npm run lint' manually)."
+    exit 0
+  }
+else
+  echo "⚠️  lint-staged not installed (symlinked node_modules); skipping pre-commit format."
+  echo "    Run 'npm install' in the shared tree, or 'npm run format' before pushing."
+  exit 0
+fi

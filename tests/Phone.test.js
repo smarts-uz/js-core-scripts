@@ -38,7 +38,9 @@ const FilesMock = {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         if (ignoreFolderCondition && ignoreFolderCondition(entry.name, full)) continue;
-        results = results.concat(FilesMock.findRecursiveFull(full, condition, ignoreFolderCondition));
+        results = results.concat(
+          FilesMock.findRecursiveFull(full, condition, ignoreFolderCondition)
+        );
       } else if (condition(entry.name)) results.push(full);
     }
     return results;
@@ -70,7 +72,11 @@ const FilesMock = {
     if (FilesMock.isEmpty(filename)) return null;
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
     // sanitize like Files.cleanupFileName: collapse illegal chars / whitespace to ' '
-    const clean = String(filename).replace(/[<>:"|?*\\/]+/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 100);
+    const clean = String(filename)
+      .replace(/[<>:"|?*\\/]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 100);
     const filePath = path.join(folder, `${clean}.app`);
     fs.writeFileSync(filePath, 'App', 'utf8');
     return filePath;
@@ -199,8 +205,9 @@ describe('Phone.extractUzbekPhones', () => {
 
   it('deduplicates identical matches', () => {
     // the space between is consumed by the first match, leaving one unique hit
-    expect(Phone.extractUzbekPhones('+998-90-123-45-67 +998-90-123-45-67'))
-      .toEqual(['+998-90-123-45-67']);
+    expect(Phone.extractUzbekPhones('+998-90-123-45-67 +998-90-123-45-67')).toEqual([
+      '+998-90-123-45-67',
+    ]);
   });
 
   it('returns an array (jest-extended)', () => {
@@ -214,7 +221,12 @@ describe('Phone.extractUzbekPhones', () => {
 
 describe('Phone.getPhones', () => {
   it('returns only phone files, names by default', () => {
-    writeTree(root, { [PHONE]: '', '+998-33-999-96-99.app': '', 'notes.txt': '', 'region район.app': '' });
+    writeTree(root, {
+      [PHONE]: '',
+      '+998-33-999-96-99.app': '',
+      'notes.txt': '',
+      'region район.app': '',
+    });
     const out = Phone.getPhones(root);
     expect(out).toEqual(expect.arrayContaining([PHONE, '+998-33-999-96-99.app']));
     expect(out).toHaveLength(2);
@@ -316,9 +328,9 @@ describe('Phone.getNoPhones', () => {
     writeTree(save, {
       withPhone: { [PHONE]: '' },
       withoutPhone: { 'notes.txt': '' },
-      '@ excluded': { 'x.txt': '' },   // '@' excluded
-      '#excluded': { 'x.txt': '' },    // '#' excluded
-      '- Theory': { 'x.txt': '' },     // exact-name excluded
+      '@ excluded': { 'x.txt': '' }, // '@' excluded
+      '#excluded': { 'x.txt': '' }, // '#' excluded
+      '- Theory': { 'x.txt': '' }, // exact-name excluded
     });
     globalThis.saveDir = save;
     globalThis.mhtmlDirPhoneHasJson = path.join(root, 'has.json');
@@ -330,8 +342,9 @@ describe('Phone.getNoPhones', () => {
     // both result JSONs were written
     expect(fs.existsSync(globalThis.mhtmlDirPhoneHasJson)).toBe(true);
     expect(fs.existsSync(globalThis.mhtmlDirPhoneHasNotJson)).toBe(true);
-    expect(JSON.parse(fs.readFileSync(globalThis.mhtmlDirPhoneHasJson, 'utf8')))
-      .toEqual([path.join(save, 'withPhone')]);
+    expect(JSON.parse(fs.readFileSync(globalThis.mhtmlDirPhoneHasJson, 'utf8'))).toEqual([
+      path.join(save, 'withPhone'),
+    ]);
     expect(FilesMock.writeJson).toHaveBeenCalledTimes(2);
   });
 
@@ -354,8 +367,8 @@ describe('Phone.appFindPhones', () => {
   it('skips folders ES reports no clones for and copies clone phone files into the original', () => {
     const save = path.join(root, 'save');
     writeTree(save, {
-      userA: {},                                   // will get a clone
-      userB: {},                                   // no clones → skipped
+      userA: {}, // will get a clone
+      userB: {}, // no clones → skipped
     });
     const cloneDir = path.join(root, 'clones', 'userA-clone');
     writeTree(cloneDir, { [PHONE]: '', '#PhoneOK.txt': '' });
@@ -434,7 +447,7 @@ describe('Phone.appCalculateCountOnline', () => {
   it('removes pre-existing #OfferCount files, then recomputes per top-level folder', () => {
     const app = path.join(root, 'app');
     writeTree(app, {
-      '#OfferCount 99.app': '',                              // stale, must be removed
+      '#OfferCount 99.app': '', // stale, must be removed
       folderA: { 'Мы нашли 10 объявлений.app': '', 'Юнусабадский район.app': '' },
       folderB: { 'plain.app': '' },
     });
@@ -445,7 +458,10 @@ describe('Phone.appCalculateCountOnline', () => {
     // the stale top-level offer-count file was unlinked
     expect(exists(app, '#OfferCount 99.app')).toBe(false);
     // folderA got a fresh #OfferCount 10 and its region copied up
-    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(path.join(app, 'folderA'), '#OfferCount 10');
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(
+      path.join(app, 'folderA'),
+      '#OfferCount 10'
+    );
     expect(exists(path.join(app, 'folderA'), 'Юнусабадский район.app')).toBe(true);
   });
 });
@@ -584,9 +600,9 @@ describe('Phone.appMergePhones', () => {
 
     writeTree(save, {
       Dave: { [PHONE]: '' },
-      '@ excluded': { [PHONE]: '' },   // excluded by '@'
-      '#excluded': { [PHONE]: '' },    // excluded by '#'
-      '- Theory': { [PHONE]: '' },     // excluded by name
+      '@ excluded': { [PHONE]: '' }, // excluded by '@'
+      '#excluded': { [PHONE]: '' }, // excluded by '#'
+      '- Theory': { [PHONE]: '' }, // excluded by name
     });
 
     Phone.appMergePhones();

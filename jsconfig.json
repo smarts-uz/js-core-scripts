@@ -1,0 +1,26 @@
+{
+    // Type-aware IntelliSense for this plain-JS (ESM) project via the TypeScript
+    // language service — no TypeScript build, no .ts files. `checkJs` surfaces
+    // JSDoc-derived type errors inline in the editor (and via `npx tsc --noEmit`)
+    // without changing how anything runs. It is an editor/diagnostic aid only;
+    // it is NOT wired into CI as a hard gate, because the winax COM layer is
+    // inherently dynamic/untyped (a COM Application object has no static shape),
+    // so a handful of COM call sites are expected to be `any`. Add a focused
+    // `// @ts-nocheck` at the top of a COM-only file if its noise outweighs value.
+    "compilerOptions": {
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "target": "ES2022",
+        "lib": ["ES2023"],
+        "checkJs": true,
+        "allowJs": true,
+        "noEmit": true,
+        "resolveJsonModule": true,
+        "strict": false,
+        "skipLibCheck": true,
+        "baseUrl": ".",
+        "maxNodeModuleJsDepth": 0
+    },
+    "include": ["utils/**/*.js", "runs/**/*.mjs", "tests/**/*.js"],
+    "exclude": ["node_modules", "coverage"]
+}

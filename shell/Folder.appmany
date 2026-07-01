@@ -1,0 +1,4 @@
+Folder
+NoClose;Merge Word Folders;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Word\mergeFolder.mjs" $files
+NoClose;Merge Excel Folders;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Excels\mergeFolder.mjs" $files
+NoClose;Merge PowerPoint Folders;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\PowerPoints\mergeFolder.mjs" $files

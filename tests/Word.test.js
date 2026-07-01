@@ -27,7 +27,7 @@ import { utilsModule } from './helpers/esm.js';
 const comState = {
   // pinnable doc leaves
   protectionType: undefined, // doc.ProtectionType (-1 = none, else protected)
-  contentText: undefined,    // doc.Content.Text used by the placeholder scanner
+  contentText: undefined, // doc.Content.Text used by the placeholder scanner
   // observability
   lastApp: null,
   lastDoc: null,
@@ -57,7 +57,8 @@ function makeDoc() {
         });
       }
       if (prop === 'then' || prop === 'catch' || prop === 'finally') return undefined;
-      if (prop === Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') return () => 'Doc';
+      if (prop === Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString')
+        return () => 'Doc';
       return makeComProxy({}, `Doc.${String(prop)}`);
     },
   };
@@ -86,7 +87,10 @@ function freshApp() {
     get(_t, prop) {
       if (prop === 'Documents') return documents;
       if (prop === '__sets__' || prop === '__rawSets__') return rawSets;
-      if (prop === 'Quit') return () => { comState.quitCount += 1; };
+      if (prop === 'Quit')
+        return () => {
+          comState.quitCount += 1;
+        };
       if (prop === 'Selection') return comState.selection || makeComProxy({}, 'Selection');
       if (prop === 'then' || prop === 'catch' || prop === 'finally') return undefined;
       return makeComProxy({}, `App.${String(prop)}`);
@@ -107,7 +111,11 @@ const winaxObject = jest.fn(function (progId) {
 // winaxRelease is reassigned per-test (cleared) so each test gets a fresh spy;
 // the module-level winaxMock forwards to whatever winaxRelease currently is.
 let winaxRelease = jest.fn();
-const winaxMock = { default: { Object: winaxObject, release: (...a) => winaxRelease(...a) }, Object: winaxObject, release: (...a) => winaxRelease(...a) };
+const winaxMock = {
+  default: { Object: winaxObject, release: (...a) => winaxRelease(...a) },
+  Object: winaxObject,
+  release: (...a) => winaxRelease(...a),
+};
 jest.unstable_mockModule('winax', () => winaxMock);
 
 // `turndown` / `turndown-plugin-gfm` are optional deps not installed in this
@@ -115,10 +123,20 @@ jest.unstable_mockModule('winax', () => winaxMock);
 // HTML→MD path that wordToMD calls). Provide minimal mocks so the module
 // resolves and _convertHtmlToMd produces a string.
 class TurndownMock {
-  constructor(opts) { this.opts = opts; this.rules = {}; }
-  use() { return this; }
-  addRule(name, rule) { this.rules[name] = rule; return this; }
-  turndown(html) { return `MD(${String(html).length})`; }
+  constructor(opts) {
+    this.opts = opts;
+    this.rules = {};
+  }
+  use() {
+    return this;
+  }
+  addRule(name, rule) {
+    this.rules[name] = rule;
+    return this;
+  }
+  turndown(html) {
+    return `MD(${String(html).length})`;
+  }
 }
 // `{ virtual: true }` lets these absent packages be mocked without an on-disk
 // module (turndown / turndown-plugin-gfm are NOT in package.json deps — Word.js
@@ -135,7 +153,9 @@ jest.unstable_mockModule('turndown-plugin-gfm', () => gfmMock, { virtual: true }
 const configStore = {};
 const YamlsMock = {
   getConfig: jest.fn((key, _type, def = null) => (key in configStore ? configStore[key] : def)),
-  setConfig: jest.fn((key, val) => { configStore[key] = val; }),
+  setConfig: jest.fn((key, val) => {
+    configStore[key] = val;
+  }),
   loadYamlWithDeps: jest.fn(() => ({})),
 };
 const DialogsMock = {
@@ -241,7 +261,7 @@ describe('Word.getNumberWordOnly', () => {
     // fractional) — "2 000" -> 2000, "1 234 567" -> 1234567.
     expect(Word.getNumberWordOnly('2 000')).toBe('Две тысячи');
     expect(Word.getNumberWordOnly('1 234 567')).toBe(
-      'Один миллион двести тридцать четыре тысячи пятьсот шестьдесят семь',
+      'Один миллион двести тридцать четыре тысячи пятьсот шестьдесят семь'
     );
     // "12.50" -> "1250" because the dot is stripped, not parsed as decimal.
     expect(Word.getNumberWordOnly('12.50')).toBe('Одна тысяча двести пятьдесят');
@@ -259,8 +279,18 @@ describe('Word.getNumberWordOnly', () => {
 describe('Word.getRussianMonthName', () => {
   it('maps month numbers 1..12 to Russian month names', () => {
     const expected = [
-      'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-      'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+      'январь',
+      'февраль',
+      'март',
+      'апрель',
+      'май',
+      'июнь',
+      'июль',
+      'август',
+      'сентябрь',
+      'октябрь',
+      'ноябрь',
+      'декабрь',
     ];
     for (let m = 1; m <= 12; m++) {
       expect(Word.getRussianMonthName(m)).toBe(expected[m - 1]);
@@ -591,7 +621,7 @@ describe('Word.makeContract', () => {
       expect.objectContaining({ ContractNum: 'DG-001' }),
       template,
       result.outputDocxPath,
-      result.outputPdfPath,
+      result.outputPdfPath
     );
     spy.mockRestore();
   });
@@ -613,7 +643,7 @@ describe('Word.makeContract', () => {
     expect(() => Word.makeContract(yml)).toThrow(/must be of type string/);
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       expect.stringContaining('Contract number not found'),
-      'Error',
+      'Error'
     );
     spy.mockRestore();
   });
@@ -636,7 +666,7 @@ describe('Word.wordReplace', () => {
       { Name: 'Acme', Sum: '1000', Date: '11', ClientPhone: '998901234567' },
       template,
       outDocx,
-      outPdf,
+      outPdf
     );
 
     expect(winaxObject).toHaveBeenCalledWith('Word.Application');
@@ -654,7 +684,7 @@ describe('Word.wordReplace', () => {
     fs.writeFileSync(template, 'TPL', 'utf8');
 
     expect(() =>
-      Word.wordReplace({}, template, path.join(workDir, 'o.docx'), path.join(workDir, 'o.pdf')),
+      Word.wordReplace({}, template, path.join(workDir, 'o.docx'), path.join(workDir, 'o.pdf'))
     ).toThrow(/boom/);
     expect(winaxRelease).toHaveBeenCalled();
   });
@@ -749,7 +779,10 @@ describe('Word.unProtectFile', () => {
 
     const result = Word.unProtectFile(src, 'secret');
     expect(result).toBeUndefined();
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith('File is not protected', 'Unprotect Document');
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      'File is not protected',
+      'Unprotect Document'
+    );
   });
 });
 
@@ -794,7 +827,9 @@ describe('Word._safeOpen', () => {
     const REPAIRED = { id: 'repaired' };
     const open = jest
       .fn()
-      .mockImplementationOnce(() => { throw new Error('damaged'); })
+      .mockImplementationOnce(() => {
+        throw new Error('damaged');
+      })
       .mockImplementationOnce(() => REPAIRED);
 
     const out = Word._safeOpen(fakeApp(open), path.join(workDir, 'c.docx'));
@@ -808,9 +843,11 @@ describe('Word._safeOpen', () => {
   });
 
   it('throws when both the plain and repair opens fail', () => {
-    const open = jest.fn(() => { throw new Error('totally broken'); });
+    const open = jest.fn(() => {
+      throw new Error('totally broken');
+    });
     expect(() => Word._safeOpen(fakeApp(open), path.join(workDir, 'd.docx'))).toThrow(
-      /Unable to open .* even in repair mode/i,
+      /Unable to open .* even in repair mode/i
     );
     expect(open).toHaveBeenCalledTimes(2);
   });
@@ -879,13 +916,22 @@ function makeOpenThrowOnce() {
     const app = new Proxy(function () {}, {
       get(_t, prop) {
         if (prop === 'Documents') {
-          return { Open: () => { throw new Error('boom'); } };
+          return {
+            Open: () => {
+              throw new Error('boom');
+            },
+          };
         }
-        if (prop === 'Quit') return () => { comState.quitCount += 1; };
+        if (prop === 'Quit')
+          return () => {
+            comState.quitCount += 1;
+          };
         if (prop === '__rawSets__' || prop === '__sets__') return {};
         return makeComProxy({}, `App.${String(prop)}`);
       },
-      set() { return true; },
+      set() {
+        return true;
+      },
     });
     comState.lastApp = app;
     return app;

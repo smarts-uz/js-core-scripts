@@ -76,7 +76,7 @@ describe('Scanner.notify', () => {
     expect(opts).toEqual({ stdio: 'ignore' });
   });
 
-  it("doubles single quotes in message and title to escape them", () => {
+  it('doubles single quotes in message and title to escape them', () => {
     Scanner.notify("it's", "o'clock", 3);
     const [cmd] = execSync.mock.calls[0];
     expect(cmd).toContain("it''s");
@@ -84,7 +84,9 @@ describe('Scanner.notify', () => {
   });
 
   it('swallows execSync errors', () => {
-    execSync.mockImplementation(() => { throw new Error('boom'); });
+    execSync.mockImplementation(() => {
+      throw new Error('boom');
+    });
     expect(() => Scanner.notify('m', 't', 1)).not.toThrow();
   });
 });
@@ -125,7 +127,9 @@ describe('Scanner.safeWriteFile', () => {
     // old current file becomes the canonical backup
     expect(fs.readFileSync(path.join(theory, 'out.txt'), 'utf8')).toBe('OLD2');
     // the previous backup was renamed with a timestamp suffix
-    const renamed = fs.readdirSync(theory).filter((n) => /^out \d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.txt$/.test(n));
+    const renamed = fs
+      .readdirSync(theory)
+      .filter((n) => /^out \d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.txt$/.test(n));
     expect(renamed).toHaveLength(1);
     expect(fs.readFileSync(path.join(theory, renamed[0]), 'utf8')).toBe('BACKUP1');
   });
@@ -136,7 +140,7 @@ describe('Scanner.scanRecursive', () => {
     writeTree(workDir, {
       Clients: { Acme: {}, Beta: {} },
       App: { ShouldSkip: {} }, // App is in defaultExclusions
-      '_hidden': {},
+      _hidden: {},
       'note.txt': 'file', // files are ignored
     });
     const tree = Scanner.scanRecursive(workDir, 1, 5, Scanner.defaultExclusions);
@@ -272,7 +276,9 @@ describe('Scanner.run', () => {
 
   it('uses the default exclusions when Yamls.getConfig throws', () => {
     writeTree(workDir, { Keep: {}, ALL: { skipped: {} } });
-    YamlsMock.getConfig.mockImplementation(() => { throw new Error('no config'); });
+    YamlsMock.getConfig.mockImplementation(() => {
+      throw new Error('no config');
+    });
     const base = path.basename(workDir);
 
     Scanner.run({ sourceFolder: workDir });
@@ -302,7 +308,9 @@ describe('Scanner.run', () => {
     // pass a sourceFolder whose basename produces a write into an unwritable
     // location is hard cross-platform. Instead, make path.basename throw via a
     // non-string sourceFolder, which throws synchronously inside the try block.
-    expect(() => Scanner.run({ sourceFolder: 12345, aicFolder: path.join(workDir, 'a') })).toThrow();
+    expect(() =>
+      Scanner.run({ sourceFolder: 12345, aicFolder: path.join(workDir, 'a') })
+    ).toThrow();
     expect(execSync).toHaveBeenCalled(); // notify() shelled out on error
   });
 });

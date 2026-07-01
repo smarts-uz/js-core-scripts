@@ -1,0 +1,2 @@
+*
+NoClose;Copy URL(s) to Clipboard;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Chromes\processPathsToClipboard.mjs" $files

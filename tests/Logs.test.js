@@ -8,7 +8,16 @@
 // dir runs for real (harmless). The constructor caches a global singleton
 // (global.__utils_instance__) and overrides console.*, so we snapshot and
 // restore console around the suite to keep other behavior tidy.
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 
 // --- mock the heavy boundaries BEFORE importing Logs -------------------------
 const logger = { info: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() };
@@ -57,9 +66,7 @@ describe('Logs constructor', () => {
     new Logs();
 
     expect(pinoFn).toHaveBeenCalled();
-    expect(pinoFn.transport).toHaveBeenCalledWith(
-      expect.objectContaining({ target: 'pino-roll' }),
-    );
+    expect(pinoFn.transport).toHaveBeenCalledWith(expect.objectContaining({ target: 'pino-roll' }));
     // console.* are now wrapped (no longer the originals).
     expect(console.log).not.toBe(originalConsole.log);
   });
@@ -99,7 +106,9 @@ describe('Logs.showMessageBox', () => {
   });
 
   it('swallows errors when execSync throws (does not reject)', async () => {
-    execSync.mockImplementation(() => { throw new Error('msg not available'); });
+    execSync.mockImplementation(() => {
+      throw new Error('msg not available');
+    });
     const logs = new Logs();
     await expect(logs.showMessageBox('x', 'T')).resolves.toBeUndefined();
   });

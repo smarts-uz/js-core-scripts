@@ -1,0 +1,2 @@
+.md
+NoClose;Merge MD Files;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Markdown\merge.mjs" $files

@@ -1,0 +1,12 @@
+node_modules/
+utils/
+data/
+coverage/
+.claude/
+README.md
+package-lock.json
+
+# Generated per-method runners (produced by runs/_generate.mjs) — do NOT format;
+# they are regenerated. The hand-authored runs/_*.mjs tooling IS formatted.
+runs/*/
+

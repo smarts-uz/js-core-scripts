@@ -103,7 +103,9 @@ describe('IjaraSoliq.contracts — happy path', () => {
 
     expect(out).toBe(body);
     const [url, options, owner, duration, replace] = ChromesMock.fetcher.mock.calls[0];
-    expect(url).toBe('https://ijara.soliq.uz/api/rent/client/contract/get-list/by-params?myRentType=1&state=20&page=0&size=1000');
+    expect(url).toBe(
+      'https://ijara.soliq.uz/api/rent/client/contract/get-list/by-params?myRentType=1&state=20&page=0&size=1000'
+    );
     expect(options.headers.authorization).toBe('Bearer tok-ij');
     expect(options.headers.referer).toContain('myRentType=1&state=20');
     expect(owner).toBe('SRental');
@@ -149,7 +151,9 @@ describe('IjaraSoliq.download — guard clauses', () => {
   });
 
   it('BUG: throws ReferenceError when owner is omitted (default `Owner.SRental` is undefined)', async () => {
-    await expect(IjaraSoliq.download(undefined, 1, 'a', 'b')).rejects.toBeInstanceOf(ReferenceError);
+    await expect(IjaraSoliq.download(undefined, 1, 'a', 'b')).rejects.toBeInstanceOf(
+      ReferenceError
+    );
   });
 });
 
@@ -161,7 +165,9 @@ describe('IjaraSoliq.download — happy path', () => {
 
     expect(out).toBe('C:/tmp/contract.pdf');
     const [url, options, owner, fileType, duration, replace] = ChromesMock.download.mock.calls[0];
-    expect(url).toBe('https://ijara.soliq.uz/api/rent/client/file/download-file/3754678/01.02.2026/31.12.2028');
+    expect(url).toBe(
+      'https://ijara.soliq.uz/api/rent/client/file/download-file/3754678/01.02.2026/31.12.2028'
+    );
     expect(options.method).toBe('GET');
     expect(owner).toBe('SRental');
     expect(fileType).toBe('pdf');
@@ -178,7 +184,9 @@ describe('IjaraSoliq.download — happy path', () => {
 
   it('re-throws when the downloader rejects', async () => {
     ChromesMock.download.mockRejectedValue(new Error('download failed'));
-    await expect(IjaraSoliq.download('SRental', 123, '01.02.2026', '31.12.2028')).rejects.toThrow('download failed');
+    await expect(IjaraSoliq.download('SRental', 123, '01.02.2026', '31.12.2028')).rejects.toThrow(
+      'download failed'
+    );
   });
 });
 
@@ -198,6 +206,8 @@ describe('IjaraSoliq.testing', () => {
     expect(ChromesMock.fetcher).toHaveBeenCalledTimes(1);
     expect(ChromesMock.download).toHaveBeenCalledTimes(1);
     expect(ChromesMock.fetcher.mock.calls[0][2]).toBe('SRental');
-    expect(ChromesMock.download.mock.calls[0][0]).toContain('/download-file/3754678/01.02.2026/31.12.2028');
+    expect(ChromesMock.download.mock.calls[0][0]).toContain(
+      '/download-file/3754678/01.02.2026/31.12.2028'
+    );
   });
 });

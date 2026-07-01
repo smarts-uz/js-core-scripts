@@ -36,7 +36,10 @@ export function makeComProxy(overrides = {}, label = 'COM') {
       }
       // then/catch must be undefined so `await comProxy` does not hang.
       if (prop === 'then' || prop === 'catch' || prop === 'finally') return undefined;
-      return makeComProxy(overrides[prop] && typeof overrides[prop] === 'object' ? overrides[prop] : {}, `${label}.${String(prop)}`);
+      return makeComProxy(
+        overrides[prop] && typeof overrides[prop] === 'object' ? overrides[prop] : {},
+        `${label}.${String(prop)}`
+      );
     },
     set(_t, prop, value) {
       sets[prop] = value;

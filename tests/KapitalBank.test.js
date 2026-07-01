@@ -28,10 +28,11 @@ const IjaraSoliqMock = { Owner: { SRental: 'SRental', WorkSpace: 'WorkSpace' } }
 // Mirror utils/Secrets.js: ('Kapital','SRental') -> KAPITAL_SRENTAL,
 // ('KapitalId','SRental') -> KAPITAL_ID_SRENTAL. Reads process.env, never config.
 const envName = (section, owner = '') => {
-  const norm = (s) => String(s)
-    .replace(/([a-z])([A-Z])/g, '$1_$2')
-    .replace(/(\d)([A-Z])/g, '$1_$2')
-    .toUpperCase();
+  const norm = (s) =>
+    String(s)
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .replace(/(\d)([A-Z])/g, '$1_$2')
+      .toUpperCase();
   return owner ? `${norm(section)}_${norm(owner)}` : norm(section);
 };
 const SecretsMock = {
@@ -135,7 +136,9 @@ describe('KapitalBank.payments — happy path', () => {
 
     expect(out).toEqual(items);
     const [url, options, owner, duration, replace] = ChromesMock.fetcher.mock.calls[0];
-    expect(url).toBe('https://b2b-api.kapitalbank.uz/api/business/07209920/01158/paymentOrders/inBank?pageSize=500&pageNumber=2&state=2');
+    expect(url).toBe(
+      'https://b2b-api.kapitalbank.uz/api/business/07209920/01158/paymentOrders/inBank?pageSize=500&pageNumber=2&state=2'
+    );
     expect(options.method).toBe('GET');
     expect(options.headers.authorization).toBe('Bearer tok-1');
     expect(owner).toBe('SRental');
@@ -145,14 +148,18 @@ describe('KapitalBank.payments — happy path', () => {
 
   it('defaults state to Conducted (2) when not passed', async () => {
     configureOwner('SRental');
-    ChromesMock.fetcher.mockResolvedValue({ result: { totalCount: 1, totalPages: 1, items: [{}] } });
+    ChromesMock.fetcher.mockResolvedValue({
+      result: { totalCount: 1, totalPages: 1, items: [{}] },
+    });
     await KapitalBank.payments('SRental', 1, 10);
     expect(ChromesMock.fetcher.mock.calls[0][0]).toContain('&state=2');
   });
 
   it('returns an Array (via Array.from) even for an array-like items value', async () => {
     configureOwner('SRental');
-    ChromesMock.fetcher.mockResolvedValue({ result: { totalCount: 1, totalPages: 1, items: [{ a: 1 }] } });
+    ChromesMock.fetcher.mockResolvedValue({
+      result: { totalCount: 1, totalPages: 1, items: [{ a: 1 }] },
+    });
     const out = await KapitalBank.payments('SRental', 1, 10);
     expect(out).toBeArray();
     expect(out).toEqual([{ a: 1 }]);
@@ -195,7 +202,9 @@ describe('KapitalBank.payments — response edge cases', () => {
 describe('KapitalBank.testing', () => {
   it('delegates to payments with the SRental owner and forwards its result', async () => {
     configureOwner('SRental');
-    ChromesMock.fetcher.mockResolvedValue({ result: { totalCount: 1, totalPages: 1, items: [{ id: 9 }] } });
+    ChromesMock.fetcher.mockResolvedValue({
+      result: { totalCount: 1, totalPages: 1, items: [{ id: 9 }] },
+    });
 
     await KapitalBank.testing();
 

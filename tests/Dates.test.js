@@ -139,7 +139,7 @@ describe('Dates.randomInt', () => {
       const max = min + delta;
       const r = Dates.randomInt(min, max);
       return Number.isInteger(r) && r >= min && r <= max;
-    },
+    }
   );
 });
 

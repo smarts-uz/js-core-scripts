@@ -1,0 +1,2 @@
+.mht
+NoClose;MHTML to HTML;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Chromes\saveHtmlFromMht.mjs" --mhtml "%1" --offline

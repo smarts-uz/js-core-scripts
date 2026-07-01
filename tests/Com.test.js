@@ -49,7 +49,9 @@ describe('Com.killOrphans', () => {
 
   it('counts a process.kill that throws as not-killed (best-effort, no crash)', () => {
     jest.spyOn(Com, 'pidsOf').mockReturnValue(new Set([999]));
-    jest.spyOn(process, 'kill').mockImplementation(() => { throw new Error('ESRCH'); });
+    jest.spyOn(process, 'kill').mockImplementation(() => {
+      throw new Error('ESRCH');
+    });
 
     const killed = Com.killOrphans('WINWORD.EXE', new Set());
 
@@ -150,7 +152,9 @@ describe('Com.openPresentation', () => {
 
   it('throws when both opens fail', () => {
     const app = makePptApp([new Error('locked'), new Error('dead')]);
-    expect(() => Com.openPresentation(app, 'd.pptx')).toThrow(/Com\.openPresentation: Unable to open/);
+    expect(() => Com.openPresentation(app, 'd.pptx')).toThrow(
+      /Com\.openPresentation: Unable to open/
+    );
   });
 });
 

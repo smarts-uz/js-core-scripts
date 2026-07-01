@@ -1,0 +1,7 @@
+.docx
+NoClose;Word to MD;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Word\wordToMD.mjs" --file "%1"
+NoClose;Word Homoglyph (All);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Homoglyph\word.mjs" --file "%1"
+NoClose;Word Homoglyph (Chars...);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Homoglyph\word.mjs" --file "%1" --chars "%2"
+NoClose;Word Homoglyph (Ask);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Homoglyph\wordAsk.mjs" --file "%1"
+NoClose;Protect File (Ask);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Word\protectFileAsk.mjs" --file "%1"
+NoClose;Unprotect File (Ask);node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Word\unProtectFileAsk.mjs" --file "%1"

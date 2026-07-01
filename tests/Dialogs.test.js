@@ -66,7 +66,7 @@ describe('Dialogs.messageBox', () => {
     expect(cmd).toStartWith('powershell -NoProfile -EncodedCommand ');
 
     const script = decodeEncodedCommand(cmd);
-    expect(script).toInclude("[System.Windows.Forms.MessageBox]::Show(");
+    expect(script).toInclude('[System.Windows.Forms.MessageBox]::Show(');
     expect(script).toInclude("'Hello world'");
     expect(script).toInclude("'My Title'");
   });
@@ -86,7 +86,9 @@ describe('Dialogs.messageBox', () => {
   });
 
   it('swallows execSync errors and does not throw (catch branch)', () => {
-    execSync.mockImplementation(() => { throw new Error('powershell missing'); });
+    execSync.mockImplementation(() => {
+      throw new Error('powershell missing');
+    });
     expect(() => Dialogs.messageBox('boom', 'T')).not.toThrow();
     expect(execSync).toHaveBeenCalledTimes(1);
   });
@@ -118,7 +120,7 @@ describe('Dialogs.warningBox', () => {
 
   it('throws an Error carrying the message when stop=true', () => {
     expect(() =>
-      Dialogs.warningBox('stop now', 'Warning', Dialogs.Icons.Exclamation, Dialogs.Buttons.OK, true),
+      Dialogs.warningBox('stop now', 'Warning', Dialogs.Icons.Exclamation, Dialogs.Buttons.OK, true)
     ).toThrow('stop now');
     // the message box is still shown before throwing
     expect(execSync).toHaveBeenCalledTimes(1);
@@ -144,7 +146,7 @@ describe('Dialogs.errorBox', () => {
 
   it('throws an Error carrying the message when stop=true', () => {
     expect(() =>
-      Dialogs.errorBox('fatal', 'Error', Dialogs.Icons.Stop, Dialogs.Buttons.OK, true),
+      Dialogs.errorBox('fatal', 'Error', Dialogs.Icons.Stop, Dialogs.Buttons.OK, true)
     ).toThrow('fatal');
     expect(execSync).toHaveBeenCalledTimes(1);
   });
@@ -173,7 +175,7 @@ describe('Dialogs.openFileDialog', () => {
     expect(cmd).toInclude("$dlg.InitialDirectory = 'D:\\It''s Mine'");
   });
 
-  it("defaults the initial directory to D:\\Projects", () => {
+  it('defaults the initial directory to D:\\Projects', () => {
     execSync.mockReturnValue('C:\\x.docx');
     Dialogs.openFileDialog();
     expect(firstCommand()).toInclude("$dlg.InitialDirectory = 'D:\\Projects'");
@@ -185,7 +187,9 @@ describe('Dialogs.openFileDialog', () => {
   });
 
   it('returns null when execSync throws', () => {
-    execSync.mockImplementation(() => { throw new Error('powershell missing'); });
+    execSync.mockImplementation(() => {
+      throw new Error('powershell missing');
+    });
     expect(Dialogs.openFileDialog()).toBeNull();
   });
 });
@@ -221,7 +225,9 @@ describe('Dialogs.inputBox', () => {
   });
 
   it('returns null when execSync throws', () => {
-    execSync.mockImplementation(() => { throw new Error('boom'); });
+    execSync.mockImplementation(() => {
+      throw new Error('boom');
+    });
     expect(Dialogs.inputBox()).toBeNull();
   });
 });
@@ -255,7 +261,9 @@ describe('Dialogs.multilineInputBox', () => {
   });
 
   it('returns null when execSync throws', () => {
-    execSync.mockImplementation(() => { throw new Error('boom'); });
+    execSync.mockImplementation(() => {
+      throw new Error('boom');
+    });
     expect(Dialogs.multilineInputBox()).toBeNull();
   });
 });

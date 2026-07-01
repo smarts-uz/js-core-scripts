@@ -1,0 +1,3 @@
+.yml
+NoClose;Category;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Category\run.mjs" --yaml "%1"
+NoClose;Revert;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Category\revert.mjs" --yaml "%1"

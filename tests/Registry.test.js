@@ -77,7 +77,7 @@ describe('Registry.clean — platform guard', () => {
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       'Registry Clean is only available on Windows.',
-      'Registry Clean',
+      'Registry Clean'
     );
     expect(spawnSync).not.toHaveBeenCalled();
   });
@@ -89,7 +89,9 @@ describe('Registry.clean — invocation & command shape', () => {
     expect(spawnSync).toHaveBeenCalledTimes(1);
     const [cmd, args, opts] = spawnSync.mock.calls[0];
     expect(cmd).toBe('powershell');
-    expect(args).toEqual(expect.arrayContaining(['-NoProfile', '-NonInteractive', '-EncodedCommand']));
+    expect(args).toEqual(
+      expect.arrayContaining(['-NoProfile', '-NonInteractive', '-EncodedCommand'])
+    );
     expect(opts).toMatchObject({ encoding: 'utf8', windowsHide: true });
     expect(opts.maxBuffer).toBeGreaterThan(0);
   });
@@ -127,7 +129,8 @@ describe('Registry.clean — hive resolution', () => {
 
   it('falls back to the config Registry.clean.Hives value when arg is null', () => {
     YamlsMock.getConfig.mockImplementation((key) =>
-      key === 'Registry.clean.Hives' ? 'User' : null);
+      key === 'Registry.clean.Hives' ? 'User' : null
+    );
     const out = Registry.clean(null);
     expect(out.scope).toBe('User');
   });
@@ -191,7 +194,11 @@ describe('Registry.clean — result shaping (happy path)', () => {
       broadcast: true,
     });
     expect(out.changes).toHaveLength(2);
-    expect(out.changes[0]).toEqual({ scope: 'HKCU', name: 'Path', removed: ['%GONE%', 'D:\\dead'] });
+    expect(out.changes[0]).toEqual({
+      scope: 'HKCU',
+      name: 'Path',
+      removed: ['%GONE%', 'D:\\dead'],
+    });
     expect(out.errors).toEqual([]);
     // success with no errors → message box, not a warning
     expect(DialogsMock.messageBox).toHaveBeenCalledWith(expect.any(String), 'Registry Clean');
@@ -219,7 +226,9 @@ describe('Registry.clean — result shaping (happy path)', () => {
 
   it('singularizes the "entry" word when exactly one entry is removed', () => {
     psReturns({
-      backup: null, elevated: true, broadcast: false,
+      backup: null,
+      elevated: true,
+      broadcast: false,
       changes: [{ scope: 'HKCU', name: 'Path', removed: ['x'] }],
       errors: [],
     });
@@ -261,9 +270,11 @@ describe('Registry.clean — result shaping (happy path)', () => {
 describe('Registry.clean — JSON parsing', () => {
   it('falls back to the first {...} block when stdout has surrounding noise', () => {
     const envelope = { backup: null, elevated: true, broadcast: false, changes: [], errors: [] };
-    spawnSync.mockReturnValue(spawnResult({
-      stdout: `WARNING: leading noise\n${JSON.stringify(envelope)}\ntrailing noise`,
-    }));
+    spawnSync.mockReturnValue(
+      spawnResult({
+        stdout: `WARNING: leading noise\n${JSON.stringify(envelope)}\ntrailing noise`,
+      })
+    );
 
     const out = Registry.clean('User');
     expect(out).not.toBeNull();
@@ -285,7 +296,7 @@ describe('Registry.clean — failure branches', () => {
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       expect.stringContaining('spawn ENOENT'),
-      'Registry Clean',
+      'Registry Clean'
     );
   });
 
@@ -295,7 +306,7 @@ describe('Registry.clean — failure branches', () => {
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       expect.stringContaining('PowerShell exited with code 1'),
-      'Registry Clean',
+      'Registry Clean'
     );
   });
 
@@ -304,7 +315,7 @@ describe('Registry.clean — failure branches', () => {
     Registry.clean('User');
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       expect.stringContaining('access denied'),
-      'Registry Clean',
+      'Registry Clean'
     );
   });
 });

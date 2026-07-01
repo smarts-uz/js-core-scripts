@@ -124,15 +124,18 @@ function makeWorkbook(overrides = {}) {
  * CalculateFull spies. Returns the app proxy.
  */
 function installApp(workbook, extraAppOverrides = {}) {
-  const app = makeComProxy({
-    Quit: jest.fn(),
-    CalculateFull: jest.fn(),
-    Workbooks: {
-      Open: jest.fn(() => workbook),
-      Add: jest.fn(() => workbook),
+  const app = makeComProxy(
+    {
+      Quit: jest.fn(),
+      CalculateFull: jest.fn(),
+      Workbooks: {
+        Open: jest.fn(() => workbook),
+        Add: jest.fn(() => workbook),
+      },
+      ...extraAppOverrides,
     },
-    ...extraAppOverrides,
-  }, 'Excel.Application');
+    'Excel.Application'
+  );
   state.comFactory = (progId) => (progId === 'Excel.Application' ? app : makeComProxy({}, progId));
   state.lastApp = app;
   return app;
@@ -176,8 +179,9 @@ describe('Excels.checkWinax', () => {
   it('is callable through methods that gate on it (no throw → method proceeds)', () => {
     // Indirect: repairToFile calls checkWinax first; a missing input throws the
     // file-not-found error AFTER checkWinax passes, proving checkWinax did not throw.
-    expect(() => Excels.repairToFile(path.join(workDir, 'nope.xlsx'), path.join(workDir, 'o.xlsx')))
-      .toThrow(/File not found/);
+    expect(() =>
+      Excels.repairToFile(path.join(workDir, 'nope.xlsx'), path.join(workDir, 'o.xlsx'))
+    ).toThrow(/File not found/);
   });
 
   // The winax-missing branch (winax === undefined) cannot be reached here because
@@ -208,9 +212,17 @@ describe('Excels.openExcel', () => {
   });
 
   it('wraps any failure into a "Failed to open Excel file" error', () => {
-    state.comFactory = () => makeComProxy({
-      Workbooks: { Open: () => { throw new Error('boom'); } },
-    }, 'Excel.Application');
+    state.comFactory = () =>
+      makeComProxy(
+        {
+          Workbooks: {
+            Open: () => {
+              throw new Error('boom');
+            },
+          },
+        },
+        'Excel.Application'
+      );
     // Both the normal and repair/extract opens throw, so openWorkbookSafely
     // ultimately throws and openExcel wraps it.
     expect(() => Excels.openExcel(makeFile('b.xlsx'))).toThrow(/Failed to open Excel file/);
@@ -278,11 +290,14 @@ describe('Excels.openWorkbookSafely', () => {
   });
 
   it('throws a descriptive error when every open mode fails', () => {
-    const open = jest.fn(() => { throw new Error('dead'); });
+    const open = jest.fn(() => {
+      throw new Error('dead');
+    });
     const app = makeComProxy({ Workbooks: { Open: open } }, 'Excel.Application');
 
-    expect(() => Excels.openWorkbookSafely(app, 'z.xlsx'))
-      .toThrow(/Unable to open .* repair\/extract-data modes/);
+    expect(() => Excels.openWorkbookSafely(app, 'z.xlsx')).toThrow(
+      /Unable to open .* repair\/extract-data modes/
+    );
     expect(open).toHaveBeenCalledTimes(3);
   });
 });
@@ -339,8 +354,9 @@ describe('Excels.repairToFile', () => {
   });
 
   it('throws when the input file does not exist', () => {
-    expect(() => Excels.repairToFile(path.join(workDir, 'ghost.xlsx'), path.join(workDir, 'o.xlsx')))
-      .toThrow(/File not found/);
+    expect(() =>
+      Excels.repairToFile(path.join(workDir, 'ghost.xlsx'), path.join(workDir, 'o.xlsx'))
+    ).toThrow(/File not found/);
   });
 });
 
@@ -363,8 +379,9 @@ describe('Excels.convertXltxToXlsx', () => {
   });
 
   it('throws when the input template is missing', () => {
-    expect(() => Excels.convertXltxToXlsx(path.join(workDir, 'no.xltx'), path.join(workDir, 'o.xlsx')))
-      .toThrow(/Input file not found/);
+    expect(() =>
+      Excels.convertXltxToXlsx(path.join(workDir, 'no.xltx'), path.join(workDir, 'o.xlsx'))
+    ).toThrow(/Input file not found/);
   });
 });
 
@@ -448,7 +465,9 @@ describe('Excels.processPricing', () => {
     installSheet({ Row: 1, Column: 1 });
 
     // future date later than the last file's date → also writes a future row.
-    expect(() => Excels.processPricing({ Price: '500', FutureDateExcel: '2099-12-31' })).not.toThrow();
+    expect(() =>
+      Excels.processPricing({ Price: '500', FutureDateExcel: '2099-12-31' })
+    ).not.toThrow();
     expect(DatesMock.parseDMYExcel).toHaveBeenCalled();
   });
 
@@ -458,7 +477,9 @@ describe('Excels.processPricing', () => {
     globalThis.folderPricings = pricings;
     installSheet();
 
-    expect(() => Excels.processPricing({ Price: '1', FutureDateExcel: '2099-01-01' })).not.toThrow();
+    expect(() =>
+      Excels.processPricing({ Price: '1', FutureDateExcel: '2099-01-01' })
+    ).not.toThrow();
   });
 });
 
@@ -472,9 +493,12 @@ describe('Excels.processFolders', () => {
     globalThis.folderALL = all;
 
     const setCells = [];
-    const sheet = makeComProxy({
-      Cells: jest.fn((r, c) => makeComProxy({}, `Cell(${r},${c})`)),
-    }, 'Sheet');
+    const sheet = makeComProxy(
+      {
+        Cells: jest.fn((r, c) => makeComProxy({}, `Cell(${r},${c})`)),
+      },
+      'Sheet'
+    );
     globalThis.excelSheet = sheet;
 
     expect(() => Excels.processFolders('myfolder', { Row: 2, Column: 3 })).not.toThrow();
@@ -555,17 +579,31 @@ describe('Excels.fileOpen', () => {
     installApp(wb, { ExecuteExcel4Macro: jest.fn(() => 1) });
 
     expect(() => Excels.fileOpen(path.join(workDir, 'absent.xlsx'))).not.toThrow();
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith(expect.stringContaining('not found'), 'File Error');
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('not found'),
+      'File Error'
+    );
   });
 
   it('warns and cleans up when sheet detection throws', () => {
     // Open succeeds but Sheets('App') throws → catch branch quits + warns.
-    const wb = makeComProxy({ Sheets: jest.fn(() => { throw new Error('no App'); }) }, 'Workbook');
+    const wb = makeComProxy(
+      {
+        Sheets: jest.fn(() => {
+          throw new Error('no App');
+        }),
+      },
+      'Workbook'
+    );
     installApp(wb, { ExecuteExcel4Macro: jest.fn(() => 1) });
 
     Excels.fileOpen(makeFile('c.xlsx'));
 
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith('Excel open failed for column detection.', 'Excel Error', 16);
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      'Excel open failed for column detection.',
+      'Excel Error',
+      16
+    );
   });
 });
 
@@ -582,7 +620,14 @@ describe('Excels.fileSave', () => {
 
   it('warns instead of throwing when Save fails', () => {
     globalThis.excelApp = makeComProxy({ CalculateFull: jest.fn() }, 'App');
-    globalThis.excelWorkbook = makeComProxy({ Save: jest.fn(() => { throw new Error('disk full'); }) }, 'Workbook');
+    globalThis.excelWorkbook = makeComProxy(
+      {
+        Save: jest.fn(() => {
+          throw new Error('disk full');
+        }),
+      },
+      'Workbook'
+    );
 
     expect(() => Excels.fileSave()).not.toThrow();
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('disk full', 'Excel Error', 16);
@@ -608,7 +653,9 @@ describe('Excels.fileClose', () => {
   });
 
   it('warns (no throw) when killing the PID fails', () => {
-    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => { throw new Error('ESRCH'); });
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => {
+      throw new Error('ESRCH');
+    });
     globalThis.excelApp = makeComProxy({ CalculateFull: jest.fn(), Quit: jest.fn() }, 'App');
     globalThis.excelWorkbook = makeComProxy({ Save: jest.fn(), Close: jest.fn() }, 'Workbook');
     globalThis.excelSheet = makeComProxy({}, 'Sheet');
@@ -649,10 +696,13 @@ describe('Excels.replaceFormula family', () => {
         });
         return proxy;
       });
-      const formulaCells = makeComProxy({
-        Count: items.length,
-        Item: (i) => items[i - 1],
-      }, 'FormulaCells');
+      const formulaCells = makeComProxy(
+        {
+          Count: items.length,
+          Item: (i) => items[i - 1],
+        },
+        'FormulaCells'
+      );
       const usedRange = makeComProxy({ SpecialCells: jest.fn(() => formulaCells) }, 'UsedRange');
       sheetByIndex[idx + 1] = makeComProxy({ Name: nm, UsedRange: usedRange }, `Sheet:${nm}`);
     });
@@ -712,7 +762,8 @@ describe('Excels.replaceFormula family', () => {
 
   it('skips sheets named in Excel.ExcludedSheets when no sheetFilter is given', () => {
     YamlsMock.getConfig.mockImplementation((key, type, def) =>
-      key === 'Excel.ExcludedSheets' ? ['Secret'] : def);
+      key === 'Excel.ExcludedSheets' ? ['Secret'] : def
+    );
     const writes = [];
     const wb = workbookWithFormulas(['Secret', 'Public'], ['=@'], writes);
     installApp(wb);
@@ -734,8 +785,7 @@ describe('Excels.replaceFormula family', () => {
   });
 
   it('throws for a missing input file', () => {
-    expect(() => Excels.replaceFormula(path.join(workDir, 'none.xlsx')))
-      .toThrow(/File not found/);
+    expect(() => Excels.replaceFormula(path.join(workDir, 'none.xlsx'))).toThrow(/File not found/);
   });
 });
 
@@ -749,7 +799,8 @@ describe('Excels.replaceStandart', () => {
       byIndex[i + 1] = makeComProxy({ Name: nm, Cells: { Replace: replaceFn } }, `Sheet:${nm}`);
     });
     const SheetsFn = jest.fn((arg) =>
-      typeof arg === 'number' ? byIndex[arg] : byIndex[sheetNames.indexOf(arg) + 1]);
+      typeof arg === 'number' ? byIndex[arg] : byIndex[sheetNames.indexOf(arg) + 1]
+    );
     SheetsFn.Count = sheetNames.length;
     return makeComProxy(wbSpies({ Sheets: SheetsFn }), 'Workbook');
   }
@@ -796,7 +847,13 @@ describe('Excels.replaceFormulaAll', () => {
           if (prop === 'Formula') return cell.__v ?? f;
           return makeComProxy({}, String(prop));
         },
-        set(t, prop, v) { if (prop === 'Formula') { cell.__v = v; writes.push(v); } return true; },
+        set(t, prop, v) {
+          if (prop === 'Formula') {
+            cell.__v = v;
+            writes.push(v);
+          }
+          return true;
+        },
       });
     });
     const area = makeComProxy({ Count: items.length, Item: (i) => items[i - 1] }, 'Area');
@@ -870,9 +927,25 @@ describe('Excels.changeFont', () => {
   it('sets Cells.Font.Name on every sheet when no filter is given', () => {
     const fontSets = [];
     function sheet(name) {
-      return makeComProxy({
-        Cells: { Font: new Proxy({}, { set(t, p, v) { if (p === 'Name') fontSets.push({ name, v }); return true; }, get() { return undefined; } }) },
-      }, `Sheet:${name}`);
+      return makeComProxy(
+        {
+          Cells: {
+            Font: new Proxy(
+              {},
+              {
+                set(t, p, v) {
+                  if (p === 'Name') fontSets.push({ name, v });
+                  return true;
+                },
+                get() {
+                  return undefined;
+                },
+              }
+            ),
+          },
+        },
+        `Sheet:${name}`
+      );
     }
     const s1 = sheet('A');
     const s2 = sheet('B');
@@ -883,16 +956,35 @@ describe('Excels.changeFont', () => {
 
     Excels.changeFont(makeFile('font.xlsx'), 'Calibri');
 
-    expect(fontSets).toEqual([{ name: 'A', v: 'Calibri' }, { name: 'B', v: 'Calibri' }]);
+    expect(fontSets).toEqual([
+      { name: 'A', v: 'Calibri' },
+      { name: 'B', v: 'Calibri' },
+    ]);
     // Source exists → SaveAs target is incremented.
     expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'font 1.xlsx'), 51);
   });
 
   it('targets only the filtered sheet', () => {
     let setValue = null;
-    const sheet = makeComProxy({
-      Cells: { Font: new Proxy({}, { set(t, p, v) { if (p === 'Name') setValue = v; return true; }, get() { return undefined; } }) },
-    }, 'Sheet');
+    const sheet = makeComProxy(
+      {
+        Cells: {
+          Font: new Proxy(
+            {},
+            {
+              set(t, p, v) {
+                if (p === 'Name') setValue = v;
+                return true;
+              },
+              get() {
+                return undefined;
+              },
+            }
+          ),
+        },
+      },
+      'Sheet'
+    );
     const wb = makeComProxy({ Sheets: jest.fn(() => sheet) }, 'Workbook');
     installApp(wb);
 
@@ -927,7 +1019,11 @@ describe('Excels.generate', () => {
       if (key === 'Templates.Excel') return template;
       return null;
     });
-    YamlsMock.loadYamlWithDeps.mockReturnValue({ ComName: 'Acme', Price: '100', FutureDateExcel: '2099-01-01' });
+    YamlsMock.loadYamlWithDeps.mockReturnValue({
+      ComName: 'Acme',
+      Price: '100',
+      FutureDateExcel: '2099-01-01',
+    });
     YamlsMock.getPrepayMonth.mockReturnValue(2);
 
     // COM: workbook whose sheet supports Find/Replace and a callable Cells
@@ -937,8 +1033,15 @@ describe('Excels.generate', () => {
     cellsFn.Find = jest.fn(() => makeComProxy({ Row: 1, Column: 1 }, 'found'));
     cellsFn.Replace = jest.fn(() => true);
     const sheet = makeComProxy({ Cells: cellsFn }, 'AppSheet');
-    const wb = makeComProxy({ Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() }, 'Workbook');
-    installApp(wb, { ExecuteExcel4Macro: jest.fn(() => 111), CalculateFull: jest.fn(), Quit: jest.fn() });
+    const wb = makeComProxy(
+      { Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() },
+      'Workbook'
+    );
+    installApp(wb, {
+      ExecuteExcel4Macro: jest.fn(() => 111),
+      CalculateFull: jest.fn(),
+      Quit: jest.fn(),
+    });
 
     const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
 
@@ -947,11 +1050,19 @@ describe('Excels.generate', () => {
     // Word.initFolders + Files.copyFileWithRetry + workbook saved/closed.
     expect(WordMock.initFolders).toHaveBeenCalledWith(path.join(workDir, 'data.yml'));
     expect(FilesMock.copyFileWithRetry).toHaveBeenCalled();
-    expect(wb.Save).toHaveBeenCalled();      // via fileClose → fileSave
+    expect(wb.Save).toHaveBeenCalled(); // via fileClose → fileSave
     expect(wb.Close).toHaveBeenCalledWith(true);
     // Replacement of each yaml key happened (replaceInSheet uses the 7-arg
     // whole-cell Replace form).
-    expect(sheet.Cells.Replace).toHaveBeenCalledWith('{ComName}', 'Acme', 2, 2, false, false, false);
+    expect(sheet.Cells.Replace).toHaveBeenCalledWith(
+      '{ComName}',
+      'Acme',
+      2,
+      2,
+      false,
+      false,
+      false
+    );
     killSpy.mockRestore();
   });
 
@@ -966,9 +1077,19 @@ describe('Excels.generate', () => {
     YamlsMock.getConfig.mockImplementation((key) => (key === 'Templates.Excel' ? template : null));
     YamlsMock.loadYamlWithDeps.mockReturnValue({ ComName: 'X' });
 
-    const sheet = makeComProxy({ Cells: { Find: jest.fn(() => makeComProxy({ Row: 1, Column: 1 })), Replace: jest.fn() } }, 'AppSheet');
-    const wb = makeComProxy({ Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() }, 'Workbook');
-    installApp(wb, { ExecuteExcel4Macro: jest.fn(() => 1), CalculateFull: jest.fn(), Quit: jest.fn() });
+    const sheet = makeComProxy(
+      { Cells: { Find: jest.fn(() => makeComProxy({ Row: 1, Column: 1 })), Replace: jest.fn() } },
+      'AppSheet'
+    );
+    const wb = makeComProxy(
+      { Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() },
+      'Workbook'
+    );
+    installApp(wb, {
+      ExecuteExcel4Macro: jest.fn(() => 1),
+      CalculateFull: jest.fn(),
+      Quit: jest.fn(),
+    });
     const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
 
     // readLines on the real fs stub throws for a missing file → generate throws.
@@ -1032,7 +1153,10 @@ describe('Excels.unProtectFile', () => {
 
   it('warns and returns when the workbook is not protected', () => {
     const wb = makeComProxy(wbSpies({ HasPassword: false }), 'Workbook');
-    const app = makeComProxy({ Quit: jest.fn(), Workbooks: { Open: jest.fn(() => wb) } }, 'Excel.Application');
+    const app = makeComProxy(
+      { Quit: jest.fn(), Workbooks: { Open: jest.fn(() => wb) } },
+      'Excel.Application'
+    );
     state.comFactory = () => app;
 
     Excels.unProtectFile(makeFile('Open.xlsx'), 'pw');
@@ -1042,7 +1166,9 @@ describe('Excels.unProtectFile', () => {
   });
 
   it('throws for a missing file', () => {
-    expect(() => Excels.unProtectFile(path.join(workDir, 'no.xlsx'), 'p')).toThrow(/File not found/);
+    expect(() => Excels.unProtectFile(path.join(workDir, 'no.xlsx'), 'p')).toThrow(
+      /File not found/
+    );
   });
 });
 
@@ -1068,7 +1194,8 @@ describe('Excels.protectFileAsk / unProtectFileAsk', () => {
     DialogsMock.inputBox.mockReturnValue('up-pw');
     const wb = makeComProxy(wbSpies({ HasPassword: true }), 'Workbook');
     const open = jest.fn(() => wb);
-    state.comFactory = () => makeComProxy({ Quit: jest.fn(), Workbooks: { Open: open } }, 'Excel.Application');
+    state.comFactory = () =>
+      makeComProxy({ Quit: jest.fn(), Workbooks: { Open: open } }, 'Excel.Application');
     const file = makeFile('U.xlsx');
 
     Excels.unProtectFileAsk(file);
@@ -1136,7 +1263,10 @@ describe('Excels.unProtectSheet', () => {
   function workbookSheets(count, protectContents, unprotectFn) {
     const sheets = {};
     for (let i = 1; i <= count; i++) {
-      sheets[i] = makeComProxy({ ProtectContents: protectContents, Unprotect: unprotectFn }, `WS${i}`);
+      sheets[i] = makeComProxy(
+        { ProtectContents: protectContents, Unprotect: unprotectFn },
+        `WS${i}`
+      );
     }
     const WorksheetsFn = jest.fn((i) => sheets[i]);
     WorksheetsFn.Count = count;
@@ -1162,12 +1292,17 @@ describe('Excels.unProtectSheet', () => {
 
     Excels.unProtectSheet(makeFile('UP2.xlsx'), 'pw');
 
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith('File is not protected', 'Unprotect Worksheets');
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      'File is not protected',
+      'Unprotect Worksheets'
+    );
     expect(unprotect).not.toHaveBeenCalled();
   });
 
   it('throws for a missing file', () => {
-    expect(() => Excels.unProtectSheet(path.join(workDir, 'no.xlsx'), 'p')).toThrow(/File not found/);
+    expect(() => Excels.unProtectSheet(path.join(workDir, 'no.xlsx'), 'p')).toThrow(
+      /File not found/
+    );
   });
 });
 
@@ -1248,12 +1383,15 @@ describe('Excels.mergeFiles', () => {
 
     const src = sourceWorkbook(['Data']);
 
-    const app = makeComProxy({
-      Workbooks: {
-        Add: jest.fn(() => targetWb),
-        Open: jest.fn(() => src),
+    const app = makeComProxy(
+      {
+        Workbooks: {
+          Add: jest.fn(() => targetWb),
+          Open: jest.fn(() => src),
+        },
       },
-    }, 'Excel.Application');
+      'Excel.Application'
+    );
     state.comFactory = () => app;
 
     const result = Excels.mergeFiles([f1, f2], 'Merged');
@@ -1277,7 +1415,11 @@ describe('Excels.mergeFiles', () => {
     const targetWb = makeComProxy(wbSpies({ Sheets: TargetSheetsFn }), 'TargetWB');
     const src = sourceWorkbook(['S']);
     const open = jest.fn(() => src);
-    state.comFactory = () => makeComProxy({ Quit: jest.fn(), Workbooks: { Add: jest.fn(() => targetWb), Open: open } }, 'Excel.Application');
+    state.comFactory = () =>
+      makeComProxy(
+        { Quit: jest.fn(), Workbooks: { Add: jest.fn(() => targetWb), Open: open } },
+        'Excel.Application'
+      );
 
     Excels.mergeFiles([missing, real], 'M2');
 
@@ -1296,7 +1438,11 @@ describe('Excels.mergeFiles', () => {
     TargetSheetsFn.Count = 1;
     const targetWb = makeComProxy(wbSpies({ Sheets: TargetSheetsFn }), 'TargetWB');
     const src = sourceWorkbook(['S']);
-    state.comFactory = () => makeComProxy({ Quit: jest.fn(), Workbooks: { Add: jest.fn(() => targetWb), Open: jest.fn(() => src) } }, 'Excel.Application');
+    state.comFactory = () =>
+      makeComProxy(
+        { Quit: jest.fn(), Workbooks: { Add: jest.fn(() => targetWb), Open: jest.fn(() => src) } },
+        'Excel.Application'
+      );
 
     const result = Excels.mergeFiles([f1]);
 
@@ -1346,8 +1492,9 @@ describe('Excels.mergeFolder', () => {
     fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
     fs.writeFileSync(path.join(dir, 'data.csv'), 'x');
 
-    expect(() => Excels.mergeFolder([dir], 'out'))
-      .toThrow(/mergeFolder: No \.xlsx files found across the provided folders\./);
+    expect(() => Excels.mergeFolder([dir], 'out')).toThrow(
+      /mergeFolder: No \.xlsx files found across the provided folders\./
+    );
     expect(mergeSpy).not.toHaveBeenCalled();
   });
 
@@ -1481,7 +1628,11 @@ describe('Excels.isHidden', () => {
     const wb = makeComProxy({ Sheets: jest.fn(() => sheet) }, 'Workbook');
     const app = installApp(wb);
     Excels.isHidden(makeFile('RO.xlsx'), 'S');
-    expect(app.Workbooks.Open).toHaveBeenCalledWith(path.resolve(path.join(workDir, 'RO.xlsx')), 0, true);
+    expect(app.Workbooks.Open).toHaveBeenCalledWith(
+      path.resolve(path.join(workDir, 'RO.xlsx')),
+      0,
+      true
+    );
   });
 
   it('throws for a missing file', () => {
@@ -1508,7 +1659,15 @@ describe('Excels.hideProtectSheet (and Ask)', () => {
       // First open is from hide(); subsequent from protectSheet().
       return call === 1
         ? makeComProxy({ Sheets: jest.fn(() => hideSheet) }, 'HideWB')
-        : makeComProxy({ Worksheets: Object.assign(jest.fn(() => protectSheetWs), { Count: 1 }) }, 'ProtectWB');
+        : makeComProxy(
+            {
+              Worksheets: Object.assign(
+                jest.fn(() => protectSheetWs),
+                { Count: 1 }
+              ),
+            },
+            'ProtectWB'
+          );
     });
     state.comFactory = () => makeComProxy({ Workbooks: { Open: open } }, 'Excel.Application');
 
@@ -1553,8 +1712,21 @@ describe('Excels.unHideUnProtectSheet (and Ask)', () => {
     open.mockImplementation(() => {
       call++;
       return call === 1
-        ? makeComProxy({ Sheets: jest.fn(() => unhideSheet), Save: jest.fn(), Close: jest.fn() }, 'UnhideWB')
-        : makeComProxy({ Worksheets: Object.assign(jest.fn(() => protectedWs), { Count: 1 }), Save: jest.fn(), Close: jest.fn() }, 'UnprotectWB');
+        ? makeComProxy(
+            { Sheets: jest.fn(() => unhideSheet), Save: jest.fn(), Close: jest.fn() },
+            'UnhideWB'
+          )
+        : makeComProxy(
+            {
+              Worksheets: Object.assign(
+                jest.fn(() => protectedWs),
+                { Count: 1 }
+              ),
+              Save: jest.fn(),
+              Close: jest.fn(),
+            },
+            'UnprotectWB'
+          );
     });
     state.comFactory = () => makeComProxy({ Workbooks: { Open: open } }, 'Excel.Application');
 
@@ -1580,8 +1752,21 @@ describe('Excels.unHideUnProtectSheet (and Ask)', () => {
     open.mockImplementation(() => {
       call++;
       return call === 1
-        ? makeComProxy({ Sheets: jest.fn(() => unhideSheet), Save: jest.fn(), Close: jest.fn() }, 'UnhideWB')
-        : makeComProxy({ Worksheets: Object.assign(jest.fn(() => protectedWs), { Count: 1 }), Save: jest.fn(), Close: jest.fn() }, 'UnprotectWB');
+        ? makeComProxy(
+            { Sheets: jest.fn(() => unhideSheet), Save: jest.fn(), Close: jest.fn() },
+            'UnhideWB'
+          )
+        : makeComProxy(
+            {
+              Worksheets: Object.assign(
+                jest.fn(() => protectedWs),
+                { Count: 1 }
+              ),
+              Save: jest.fn(),
+              Close: jest.fn(),
+            },
+            'UnprotectWB'
+          );
     });
     state.comFactory = () => makeComProxy({ Workbooks: { Open: open } }, 'Excel.Application');
 

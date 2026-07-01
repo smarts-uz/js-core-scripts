@@ -22,7 +22,9 @@ import { utilsModule } from './helpers/esm.js';
 const config = {};
 const YamlsMock = {
   getConfig: jest.fn((key, _type = null, def = null) => (key in config ? config[key] : def)),
-  setConfig: jest.fn((key, value) => { config[key] = value; }),
+  setConfig: jest.fn((key, value) => {
+    config[key] = value;
+  }),
 };
 
 // --- Files: real fs-backed helpers (mirrors the genuine implementations) ------
@@ -33,7 +35,10 @@ const FilesMock = {
     let baseName = parsed.name;
     let counter = 1;
     const m = baseName.match(/^(.*?)\s+(\d+)$/);
-    if (m) { baseName = m[1]; counter = parseInt(m[2], 10); }
+    if (m) {
+      baseName = m[1];
+      counter = parseInt(m[2], 10);
+    }
     let np = filePath;
     while (fs.existsSync(np)) {
       np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
@@ -49,7 +54,8 @@ const FilesMock = {
   // non-existent path), so a not-found returns null like the real helper.
   getLatestMatchingFile: jest.fn((folder, ext = null) => {
     if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) return null;
-    const entries = fs.readdirSync(folder)
+    const entries = fs
+      .readdirSync(folder)
       .filter((f) => (ext ? f.toLowerCase().endsWith(ext.toLowerCase()) : true))
       .sort();
     return entries.length ? path.join(folder, entries[entries.length - 1]) : null;
@@ -266,12 +272,15 @@ describe('Markdown.convertToWordTOC', () => {
     // Pin the NEXT Word.Application COM object so Selection.Find.Execute()
     // returns 0 (falsey) → the not-found branch closes the doc and warns.
     winaxMock.Object.mockImplementationOnce(() =>
-      makeComProxy({
-        Selection: {
-          HomeKey: () => {},
-          Find: { ClearFormatting: () => {}, Replacement: {}, Execute: () => 0 },
+      makeComProxy(
+        {
+          Selection: {
+            HomeKey: () => {},
+            Find: { ClearFormatting: () => {}, Replacement: {}, Execute: () => 0 },
+          },
         },
-      }, 'Word.Application'),
+        'Word.Application'
+      )
     );
     const md = writeMd('noph.md', '# H\n');
 

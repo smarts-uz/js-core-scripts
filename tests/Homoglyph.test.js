@@ -162,11 +162,7 @@ describe('Homoglyph.markdownAsk', () => {
     const out = Homoglyph.markdownAsk(src);
 
     // the prompt was pre-filled from the persisted choice
-    expect(DialogsMock.inputBox).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(String),
-      'Aa'
-    );
+    expect(DialogsMock.inputBox).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'Aa');
     // only the valid chars (Aa) are persisted back
     expect(YamlsMock.setConfig).toHaveBeenCalledWith('ChoosedChars.Markdown', 'Aa');
     // and applied: A→А, a→а; E,e stay Latin

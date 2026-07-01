@@ -1,0 +1,53 @@
+name: CI
+
+on:
+    push:
+        branches: [main, 'feat-*']
+    pull_request:
+        branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    lint-and-format:
+        name: Lint & format (Ubuntu)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: npm
+            - run: npm ci
+            - name: Prettier check
+              run: npm run format:check
+            - name: ESLint
+              run: npm run lint
+
+    test:
+        name: Test (Windows)
+        # COM automation (winax / Excel.Application) is Windows-only, so the suite
+        # runs on a Windows runner. NOTE: utils/ and node_modules/ are symlinks into
+        # a shared local source on the maintainer's machine; in CI those resolve
+        # from this repo's own committed copies + `npm ci`. Tests that drive real
+        # COM/Office are skipped/mocked at the boundary (see tests/helpers/esm.js).
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: npm
+            - run: npm ci
+            - name: Jest (native ESM)
+              run: npm run test:coverage
+            - name: Upload coverage
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage
+                  path: coverage/
+                  if-no-files-found: ignore

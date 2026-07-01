@@ -34,8 +34,13 @@ function makePresentation() {
   const slidesArr = state.slideText.map((shapeTexts) => {
     const shapesArr = shapeTexts.map((txt) => {
       const textRange = {
-        get Text() { return this._t; },
-        set Text(v) { this._t = v; comLog.push({ op: 'setShapeText', args: [v] }); },
+        get Text() {
+          return this._t;
+        },
+        set Text(v) {
+          this._t = v;
+          comLog.push({ op: 'setShapeText', args: [v] });
+        },
         _t: txt,
       };
       return {
@@ -56,15 +61,22 @@ function makePresentation() {
   // PowerPoint appends the source slides onto the merged base.
   slidesFn.InsertFromFile = jest.fn((file, index, start, end) => {
     comLog.push({ op: 'InsertFromFile', args: [file, index, start, end] });
-    slidesFn.Count += (end - start + 1);
+    slidesFn.Count += end - start + 1;
   });
 
   const presentation = {
     Slides: slidesFn,
-    get Password() { return this._password; },
-    set Password(v) { this._password = v; comLog.push({ op: 'setPassword', args: [v] }); },
+    get Password() {
+      return this._password;
+    },
+    set Password(v) {
+      this._password = v;
+      comLog.push({ op: 'setPassword', args: [v] });
+    },
     _password: state.password,
-    set WritePassword(v) { comLog.push({ op: 'setWritePassword', args: [v] }); },
+    set WritePassword(v) {
+      comLog.push({ op: 'setWritePassword', args: [v] });
+    },
     Save: jest.fn(() => comLog.push({ op: 'Save', args: [] })),
     SaveAs: jest.fn((p) => comLog.push({ op: 'SaveAs', args: [p] })),
     Close: jest.fn(() => comLog.push({ op: 'Close', args: [] })),
@@ -87,7 +99,11 @@ function makePptApp() {
 
 const winaxObject = jest.fn(() => makePptApp());
 const winaxRelease = jest.fn();
-const winaxMock = { default: { Object: winaxObject, release: winaxRelease }, Object: winaxObject, release: winaxRelease };
+const winaxMock = {
+  default: { Object: winaxObject, release: winaxRelease },
+  Object: winaxObject,
+  release: winaxRelease,
+};
 
 const DialogsMock = {
   warningBox: jest.fn(),
@@ -104,7 +120,10 @@ const FilesMock = {
     let base = parsed.name;
     let counter = 1;
     const m = base.match(/^(.*?)\s+(\d+)$/);
-    if (m) { base = m[1]; counter = parseInt(m[2], 10); }
+    if (m) {
+      base = m[1];
+      counter = parseInt(m[2], 10);
+    }
     let np = filePath;
     while (fs.existsSync(np)) {
       np = path.join(parsed.dir, `${base} ${counter}${parsed.ext}`);
@@ -165,7 +184,8 @@ describe('PowerPoints.getProtectedPath', () => {
 
   it('honors a configured ProtectSuffix from Yamls', () => {
     YamlsMock.getConfig.mockImplementation((key, _t, def) =>
-      key === 'PowerPoint.ProtectSuffix' ? ' Secured' : def);
+      key === 'PowerPoint.ProtectSuffix' ? ' Secured' : def
+    );
     const out = PowerPoints.getProtectedPath(path.join(workDir, 'deck.pptx'));
     expect(out).toBe(path.join(workDir, 'deck Secured.pptx'));
   });
@@ -189,8 +209,9 @@ describe('PowerPoints.getProtectedPath', () => {
 
 describe('PowerPoints.protectFile', () => {
   it('throws when the source file does not exist', () => {
-    expect(() => PowerPoints.protectFile(path.join(workDir, 'gone.pptx'), 'pw'))
-      .toThrow(/File not found/);
+    expect(() => PowerPoints.protectFile(path.join(workDir, 'gone.pptx'), 'pw')).toThrow(
+      /File not found/
+    );
     expect(winaxObject).not.toHaveBeenCalled();
   });
 
@@ -205,7 +226,9 @@ describe('PowerPoints.protectFile', () => {
     expect(comLog.find((c) => c.op === 'Open').args[0]).toBe(path.resolve(file));
     expect(comLog.find((c) => c.op === 'setPassword').args[0]).toBe('secret');
     expect(comLog.find((c) => c.op === 'SaveAs').args[0]).toBe(out);
-    expect(ops()).toEqual(expect.arrayContaining(['Open', 'setPassword', 'SaveAs', 'Close', 'Quit']));
+    expect(ops()).toEqual(
+      expect.arrayContaining(['Open', 'setPassword', 'SaveAs', 'Close', 'Quit'])
+    );
     // no write-password set when not provided
     expect(comLog.find((c) => c.op === 'setWritePassword')).toBeUndefined();
   });
@@ -234,8 +257,9 @@ describe('PowerPoints.protectFile', () => {
     // Open now flows through _safeOpen, which retries read-only and, on a second
     // failure, wraps the cause ("…Last error: open denied"); protectFile then
     // wraps that. Both prefixes and the original message are still present.
-    expect(() => PowerPoints.protectFile(file, 'pw'))
-      .toThrow(/PowerPoints\.protectFile failed: .*open denied/);
+    expect(() => PowerPoints.protectFile(file, 'pw')).toThrow(
+      /PowerPoints\.protectFile failed: .*open denied/
+    );
     expect(ops()).toEqual(expect.arrayContaining(['Quit']));
     expect(winaxRelease).toHaveBeenCalled();
   });
@@ -243,8 +267,9 @@ describe('PowerPoints.protectFile', () => {
 
 describe('PowerPoints.unProtectFile', () => {
   it('throws when the source file does not exist', () => {
-    expect(() => PowerPoints.unProtectFile(path.join(workDir, 'gone.pptx'), 'pw'))
-      .toThrow(/File not found/);
+    expect(() => PowerPoints.unProtectFile(path.join(workDir, 'gone.pptx'), 'pw')).toThrow(
+      /File not found/
+    );
   });
 
   it('clears both passwords, saves in place and closes when protected', () => {
@@ -267,7 +292,10 @@ describe('PowerPoints.unProtectFile', () => {
 
     PowerPoints.unProtectFile(file, 'secret');
 
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith('File is not protected', 'Unprotect Presentation');
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      'File is not protected',
+      'Unprotect Presentation'
+    );
     expect(comLog.find((c) => c.op === 'Save')).toBeUndefined();
     expect(ops()).toEqual(expect.arrayContaining(['Open', 'Close', 'Quit']));
   });
@@ -276,8 +304,9 @@ describe('PowerPoints.unProtectFile', () => {
     const file = makePptx();
     state.openThrows = new Error('locked');
     // Open flows through _safeOpen (retry → wrap), then unProtectFile wraps that.
-    expect(() => PowerPoints.unProtectFile(file, 'pw'))
-      .toThrow(/PowerPoints\.unProtectFile failed: .*locked/);
+    expect(() => PowerPoints.unProtectFile(file, 'pw')).toThrow(
+      /PowerPoints\.unProtectFile failed: .*locked/
+    );
     expect(ops()).toEqual(expect.arrayContaining(['Quit']));
   });
 });
@@ -291,7 +320,7 @@ describe('PowerPoints.protectFileAsk', () => {
 
     expect(DialogsMock.inputBox).toHaveBeenCalledWith(
       'Enter open-password to protect the presentation:',
-      'Protect Presentation',
+      'Protect Presentation'
     );
     expect(out).toBe(path.join(workDir, 'deck Protected.pptx'));
     expect(comLog.find((c) => c.op === 'setPassword').args[0]).toBe('typed-pw');
@@ -318,7 +347,7 @@ describe('PowerPoints.unProtectFileAsk', () => {
 
     expect(DialogsMock.inputBox).toHaveBeenCalledWith(
       'Enter open-password to unprotect the presentation:',
-      'Unprotect Presentation',
+      'Unprotect Presentation'
     );
     // unProtectFile returns nothing; ask returns undefined
     expect(out).toBeUndefined();
@@ -342,8 +371,9 @@ describe('PowerPoints.merge', () => {
   });
 
   it('throws when the first (base) file does not exist', () => {
-    expect(() => PowerPoints.merge([path.join(workDir, 'gone.pptx'), makePptx('b.pptx')]))
-      .toThrow(/First file not found/);
+    expect(() => PowerPoints.merge([path.join(workDir, 'gone.pptx'), makePptx('b.pptx')])).toThrow(
+      /First file not found/
+    );
   });
 
   it('merges 2 files: copies the base, inserts the source slides, saves and closes', () => {
@@ -369,7 +399,9 @@ describe('PowerPoints.merge', () => {
     expect(inserts[0].args).toEqual([path.resolve(source), 3, 1, 3]);
 
     // Save + Close on the target, and the COM app quit.
-    expect(ops()).toEqual(expect.arrayContaining(['Open', 'InsertFromFile', 'Save', 'Close', 'Quit']));
+    expect(ops()).toEqual(
+      expect.arrayContaining(['Open', 'InsertFromFile', 'Save', 'Close', 'Quit'])
+    );
   });
 
   it('honors an explicit mergedName (appending .pptx and writing beside the base)', () => {
@@ -408,8 +440,7 @@ describe('PowerPoints.mergeFolder', () => {
     fs.mkdirSync(empty, { recursive: true });
     // A non-pptx file present — still no .pptx found.
     fs.writeFileSync(path.join(empty, 'notes.txt'), 'x', 'utf8');
-    expect(() => PowerPoints.mergeFolder([empty]))
-      .toThrow(/No \.pptx files found/);
+    expect(() => PowerPoints.mergeFolder([empty])).toThrow(/No \.pptx files found/);
   });
 
   it('picks the latest .pptx by mtime from each folder and delegates to merge', () => {
@@ -444,6 +475,8 @@ describe('PowerPoints.mergeFolder', () => {
     const inserts = comLog.filter((c) => c.op === 'InsertFromFile');
     expect(inserts).toHaveLength(1);
     expect(inserts[0].args[0]).toBe(path.resolve(onlyB));
-    expect(ops()).toEqual(expect.arrayContaining(['Open', 'InsertFromFile', 'Save', 'Close', 'Quit']));
+    expect(ops()).toEqual(
+      expect.arrayContaining(['Open', 'InsertFromFile', 'Save', 'Close', 'Quit'])
+    );
   });
 });

@@ -1,0 +1,78 @@
+Contract:
+    Prefix: RC
+    Format: '{Prefix}-{ComName}-{Year}-{Month}-{Day}'
+    PrepayMonth: 1
+    PdfFormatCode: 17
+    ComDateIjara: 31.12.2029
+    AddDays: 363
+    DefaultBank: SRental-Kapital
+    DefaultTariff: 1-450k
+CmdLine:
+    ExitTimeout: 3000
+    ExitTimeoutError: 30000
+    TryCatch: false
+Cache:
+    Directory: c:\Cache
+    FetchTimeout: 100
+# Secrets (My3Api, My3, Kapital, KapitalId, Didox, Ijara) moved to .env — read
+# via process.env (dotenv). See INTEGRATIONS.md for the variable names.
+Templates:
+    WordMerge: d:\FileType\Office\Projects\DOCX\Merge\
+    # Folders (not files). At runtime the latest "Basename N" file is picked from each.
+    WordMd: d:\FileType\Office\Projects\DOCX\MD\
+    WordMdTOC: d:\FileType\Office\Projects\DOCX\MD-TOC\
+    WordMdRule: d:\FileType\Office\Projects\DOCX\MD-Rule\
+ChoosedChars:
+    Word: cxACEHIJKMOPSTX
+    Markdown: cxACEHIJKMOPSTX
+    Excel: cxACEHIJKMOPSTX
+    PowerPoint: cxACEHIJKMOPSTX
+Scanner:
+    Exclusions:
+        - ALL
+        - App
+        - Asp
+        - Asv
+        - Azk
+        - Services
+        - Element
+        - Projects
+        - '- Theory'
+        - AIC
+        - Formula
+        - Durdona
+        - MsExcel
+        - RealStat
+        - Sample
+        - Samples
+Excel:
+    ProtectSuffix: ' PR'
+    HomoglyphSuffix: ' Norm'
+    ExcludedSheets:
+        - Results
+        - Lookup
+        - ALL
+        - App
+        - Stroop
+        - TMT
+        - DST
+        - LMWT
+        - NS
+        - EEG
+        - Audio
+
+Word:
+    HomoglyphSuffix: ' App'
+
+PowerPoint:
+    HomoglyphSuffix: ' App'
+
+Markdown:
+    HomoglyphSuffix: ' App'
+    LineBetween: 20
+
+Registry:
+    clean:
+        Hives: Both # which environment hive(s) to clean Path / Path_* in. Possible: System | User | Both
+        Backup: true # export both env keys to %USERPROFILE%\registry-path-backup-<timestamp> before changing. Possible: true | false
+        Broadcast: true # notify running apps of the change via WM_SETTINGCHANGE (no reboot needed). Possible: true | false

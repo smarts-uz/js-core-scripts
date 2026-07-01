@@ -221,11 +221,7 @@ describe('Files.findRelevantDirectories', () => {
   it('includes the root plus existing "@ Weak" / "@ Other" subdirs', () => {
     writeTree(dir, { '@ Weak': {}, '@ Other': {} });
     const dirs = Files.findRelevantDirectories(dir);
-    expect(dirs).toIncludeAllMembers([
-      dir,
-      path.join(dir, '@ Weak'),
-      path.join(dir, '@ Other'),
-    ]);
+    expect(dirs).toIncludeAllMembers([dir, path.join(dir, '@ Weak'), path.join(dir, '@ Other')]);
     expect(dirs).toBeArrayOfSize(3);
   });
 
@@ -264,7 +260,7 @@ describe('Files.findAllContractFiles', () => {
     writeTree(dir, {
       'ALL.contract': 'top',
       sub: { 'ALL.contract': 'nested', 'note.txt': 'x' },
-      'ALL': { 'ALL.contract': 'ignored-ALL-folder' },
+      ALL: { 'ALL.contract': 'ignored-ALL-folder' },
       '@ Bads': { 'ALL.contract': 'ignored-bads' },
     });
     const found = Files.findAllContractFiles(dir);
@@ -296,10 +292,7 @@ describe('Files.findRecursiveFull', () => {
   it('returns matching FULL paths across nested folders', () => {
     writeTree(dir, { 'a.json': '{}', sub: { 'b.json': '{}' } });
     const out = Files.findRecursiveFull(dir, (name) => name.endsWith('.json'));
-    expect(out).toIncludeSameMembers([
-      path.join(dir, 'a.json'),
-      path.join(dir, 'sub', 'b.json'),
-    ]);
+    expect(out).toIncludeSameMembers([path.join(dir, 'a.json'), path.join(dir, 'sub', 'b.json')]);
   });
 
   it('honours the ignoreFolderCondition predicate', () => {
@@ -310,7 +303,7 @@ describe('Files.findRecursiveFull', () => {
     const out = Files.findRecursiveFull(
       dir,
       (name) => name.endsWith('.json'),
-      (folderName) => folderName === 'skip',
+      (folderName) => folderName === 'skip'
     );
     expect(out).toEqual([path.join(dir, 'a.json')]);
   });
@@ -453,7 +446,9 @@ describe('Files.copyFolderRecursiveSync', () => {
   });
 
   it('warns and does nothing when the source is missing', () => {
-    expect(() => Files.copyFolderRecursiveSync(path.join(dir, 'no'), path.join(dir, 'out'))).not.toThrow();
+    expect(() =>
+      Files.copyFolderRecursiveSync(path.join(dir, 'no'), path.join(dir, 'out'))
+    ).not.toThrow();
     expect(fs.existsSync(path.join(dir, 'out'))).toBe(false);
   });
 });
@@ -478,7 +473,9 @@ describe('Files.moveFolder', () => {
   });
 
   it('throws when the source does not exist', () => {
-    expect(() => Files.moveFolder(path.join(dir, 'no'), path.join(dir, 'd'))).toThrow(/does not exist/);
+    expect(() => Files.moveFolder(path.join(dir, 'no'), path.join(dir, 'd'))).toThrow(
+      /does not exist/
+    );
   });
 
   it('returns early (no overwrite) when rename=true and dest exists', () => {
@@ -488,7 +485,7 @@ describe('Files.moveFolder', () => {
     writeTree(dest, { 'a.txt': 'dest' });
     Files.moveFolder(src, dest, true);
     expect(read(dest, 'a.txt')).toBe('dest'); // untouched
-    expect(fs.existsSync(src)).toBe(true);    // source untouched
+    expect(fs.existsSync(src)).toBe(true); // source untouched
   });
 });
 

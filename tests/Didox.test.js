@@ -126,17 +126,20 @@ describe('Didox reference-data GET calls', () => {
     ['getTaxpayerType', '/v1/profile/taxpayerType/312261753/uz?date='],
   ];
 
-  it.each(cases)('%s requests %s as text and returns undefined (fire-and-forget)', async (method, endpoint) => {
-    didoxApi.mockResolvedValue('payload');
-    const ret = Didox[method]();
-    expect(ret).toBeUndefined();
-    expect(didoxApi).toHaveBeenCalledTimes(1);
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toContain(endpoint);
-    expect(opts).toMatchObject({ responseType: 'text' });
-    // let the internal .then() settle so a stray rejection cannot leak
-    await Promise.resolve();
-  });
+  it.each(cases)(
+    '%s requests %s as text and returns undefined (fire-and-forget)',
+    async (method, endpoint) => {
+      didoxApi.mockResolvedValue('payload');
+      const ret = Didox[method]();
+      expect(ret).toBeUndefined();
+      expect(didoxApi).toHaveBeenCalledTimes(1);
+      const [url, opts] = didoxApi.mock.calls[0];
+      expect(url).toContain(endpoint);
+      expect(opts).toMatchObject({ responseType: 'text' });
+      // let the internal .then() settle so a stray rejection cannot leak
+      await Promise.resolve();
+    }
+  );
 
   it('documentPDF embeds the doc id in the view path', async () => {
     didoxApi.mockResolvedValue('%PDF');
@@ -256,15 +259,19 @@ describe('Didox.infoByTinPinfl', () => {
   });
 
   it('fetches, saves the JSON to folderRestAPI and classifies a company address', async () => {
-    // infoByTinPinfl resolves baseURL + the Partner-Authorization header through
-    // Secrets (process.env), not Yamls config — so set the env vars it reads.
-    process.env.DIDOX_BASE_URL = 'api.example.uz';
+    // infoByTinPinfl resolves baseURL via Yamls.getConfig('Didox.BaseURL') and the
+    // Partner-Authorization header via Secrets — set both the config and the env var.
+    state.config['Didox.BaseURL'] = 'api.example.uz';
     process.env.DIDOX_SRENTAL = 'token-123';
     const payload = { name: 'Acme', address: 'Adolat MFY, building 4', tin: '123456789' };
     // json() yields a FRESH object each call: the source mutates the returned
     // object (adds AddressType) AFTER writing the file, so the saved file must
     // compare against the original (unmutated) payload.
-    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ ...payload }) }));
+    const f = stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...payload }),
+    }));
 
     const out = await Didox.infoByTinPinfl('123456789');
 
@@ -279,7 +286,6 @@ describe('Didox.infoByTinPinfl', () => {
     expect(opts.method).toBe('GET');
     // address classified
     expect(out.AddressType).toBe('Adolat');
-    delete process.env.DIDOX_BASE_URL;
     delete process.env.DIDOX_SRENTAL;
   });
 
@@ -319,7 +325,9 @@ describe('Didox.infoByTinPinfl', () => {
 
   it('returns null and shows a dialog when fetch throws', async () => {
     state.config['Didox.BaseURL'] = 'api.example.uz';
-    stubFetch(async () => { throw new Error('network down'); });
+    stubFetch(async () => {
+      throw new Error('network down');
+    });
     const out = await Didox.infoByTinPinfl('700700701');
     expect(out).toBeNull();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
@@ -376,7 +384,9 @@ describe('Didox.carInfoByPinfl', () => {
 
   it('returns null when fetch throws', async () => {
     process.env.baseURL = 'api.cars.uz';
-    stubFetch(async () => { throw new Error('boom'); });
+    stubFetch(async () => {
+      throw new Error('boom');
+    });
     const out = await Didox.carInfoByPinfl('124');
     expect(out).toBeNull();
     delete process.env.baseURL;

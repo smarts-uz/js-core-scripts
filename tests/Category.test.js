@@ -139,7 +139,9 @@ describe('Category.moveFile', () => {
     // dest now holds the moved (NEW) content
     expect(fs.readFileSync(dest, 'utf8')).toBe('NEW');
     // the old dest was preserved under a "dest <timestamp>.txt" name
-    const preserved = fs.readdirSync(dir).filter((f) => f.startsWith('dest ') && f.endsWith('.txt'));
+    const preserved = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith('dest ') && f.endsWith('.txt'));
     expect(preserved).toHaveLength(1);
     expect(fs.readFileSync(path.join(dir, preserved[0]), 'utf8')).toBe('OLD');
   });
@@ -168,7 +170,7 @@ describe('Category.removeEmptyDirs', () => {
     Category.removeEmptyDirs(leaf, base, 'T');
 
     expect(fs.existsSync(leaf)).toBe(false); // empty leaf removed
-    expect(fs.existsSync(mid)).toBe(true);   // non-empty parent kept
+    expect(fs.existsSync(mid)).toBe(true); // non-empty parent kept
   });
 
   it('does nothing when the start path does not exist', () => {
@@ -200,7 +202,7 @@ describe('Category.resolveTargetPath', () => {
       'file.txt',
       { category: 'Docs' },
       'C:/src',
-      null,
+      null
     );
     expect(out).toBe(path.normalize('C:/src/Docs/file.txt'));
   });
@@ -211,7 +213,7 @@ describe('Category.resolveTargetPath', () => {
       'page.html',
       { category: 'Web' },
       '',
-      'example.com',
+      'example.com'
     );
     expect(out).toBe(path.normalize('Web/example.com/page.html'));
   });
@@ -222,7 +224,7 @@ describe('Category.resolveTargetPath', () => {
       'page.html',
       { category: 'Web' },
       '',
-      null,
+      null
     );
     expect(out).toBe(path.normalize('Web/page.html'));
   });
@@ -233,7 +235,7 @@ describe('Category.resolveTargetPath', () => {
       'f.txt',
       { category: 'C' },
       '',
-      null,
+      null
     );
     expect(out).toBe(path.normalize('C/f.txt'));
   });
@@ -245,7 +247,7 @@ describe('Category.displayPath', () => {
       'f.txt',
       {},
       path.join('C:', 'src'),
-      path.join('C:', 'src', 'sub', 'f.txt'),
+      path.join('C:', 'src', 'sub', 'f.txt')
     );
     expect(out).toBe('sub/f.txt');
   });

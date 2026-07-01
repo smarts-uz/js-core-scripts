@@ -1,0 +1,6 @@
+Folder
+NoClose;Make Structure;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Scanner\run.mjs" --sourceFolder "%1" --maxLevel 5
+NoClose;MHTML to HTML;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Chromes\convertFolderMhtToHtm.mjs" --folder "%1"
+NoClose;Copy HTML URLs;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Chromes\processPathsToClipboard.mjs" "%1"
+NoClose;Merge YAMLs;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Yamls\mergeYamlsInFolder.mjs" --folder "%1"
+NoClose;Merge Excels;node.exe "d:\Develop\Manager\App\AI\Category\Move\Sources\js_ai_category\runs\Excels\mergeFiles.mjs" "%1"

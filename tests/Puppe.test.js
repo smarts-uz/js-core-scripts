@@ -44,7 +44,11 @@ const Files = {
   combineJsonFiles: jest.fn(),
   backupFolderZip: jest.fn(),
   backupFile: jest.fn(),
-  cleanupFileName: jest.fn((s) => String(s).replace(/[\\/:*?"<>|]/g, ' ').trim()),
+  cleanupFileName: jest.fn((s) =>
+    String(s)
+      .replace(/[\\/:*?"<>|]/g, ' ')
+      .trim()
+  ),
   findRecursiveFull: jest.fn(() => []),
 };
 
@@ -157,7 +161,12 @@ describe('Puppe.humanScroll', () => {
   it('breaks the loop (no throw) when wheel rejects', async () => {
     Yamls.getConfig.mockImplementation((k) => (k === 'humanScrollStep' ? '5' : '100'));
     const page = setPage({
-      mouse: { wheel: jest.fn(async () => { throw new Error('detached'); }), move: jest.fn() },
+      mouse: {
+        wheel: jest.fn(async () => {
+          throw new Error('detached');
+        }),
+        move: jest.fn(),
+      },
     });
 
     await expect(Puppe.humanScroll()).resolves.toBeUndefined();
@@ -286,7 +295,11 @@ describe('Puppe.extractUserId', () => {
   it('propagates the $eval rejection as a destructuring TypeError (documents real behavior)', async () => {
     // $eval rejects → the .catch returns null → `let { href, match } = null`
     // throws a TypeError. We document this real, un-guarded behavior.
-    setPage({ $eval: jest.fn(async () => { throw new Error('no node'); }) });
+    setPage({
+      $eval: jest.fn(async () => {
+        throw new Error('no node');
+      }),
+    });
 
     await expect(Puppe.extractUserId()).rejects.toThrow(TypeError);
   });
@@ -301,7 +314,7 @@ describe('Puppe.extractContent', () => {
     expect(out).toBe('Hello world description');
     expect(page.$eval).toHaveBeenCalledWith(
       '[data-cy="ad_description"] > div:last-child',
-      expect.any(Function),
+      expect.any(Function)
     );
   });
 });
@@ -313,11 +326,18 @@ describe('Puppe.extractApp', () => {
     const out = await Puppe.extractApp('[data-testid="ad-price-container"] h3', globalThis.page);
 
     expect(out).toBe('1 200 000 сум');
-    expect(page.$eval).toHaveBeenCalledWith('[data-testid="ad-price-container"] h3', expect.any(Function));
+    expect(page.$eval).toHaveBeenCalledWith(
+      '[data-testid="ad-price-container"] h3',
+      expect.any(Function)
+    );
   });
 
   it('returns null when the selector is absent (rejection swallowed)', async () => {
-    setPage({ $eval: jest.fn(async () => { throw new Error('no node'); }) });
+    setPage({
+      $eval: jest.fn(async () => {
+        throw new Error('no node');
+      }),
+    });
 
     expect(await Puppe.extractApp('.missing', globalThis.page)).toBeNull();
   });
@@ -333,7 +353,11 @@ describe('Puppe.extractAppPhone', () => {
   });
 
   it('returns null when extraction throws', async () => {
-    setPage({ $eval: jest.fn(async () => { throw new Error('no href'); }) });
+    setPage({
+      $eval: jest.fn(async () => {
+        throw new Error('no href');
+      }),
+    });
 
     expect(await Puppe.extractAppPhone('a.phone', globalThis.page)).toBeNull();
   });
@@ -389,7 +413,9 @@ describe('Puppe.showPhone', () => {
     const btn = { isVisible: jest.fn(async () => true), click: jest.fn(async () => {}) };
     setPage({
       $$: jest.fn(async () => [btn]),
-      waitForSelector: jest.fn(async () => { throw new Error('timeout'); }),
+      waitForSelector: jest.fn(async () => {
+        throw new Error('timeout');
+      }),
     });
 
     expect(await Puppe.showPhone()).toBeNull();
@@ -440,7 +466,9 @@ describe('Puppe.saveAsMhtml', () => {
 
   it('swallows an error when the CDP session cannot be created', async () => {
     setPage({
-      createCDPSession: jest.fn(async () => { throw new Error('no target'); }),
+      createCDPSession: jest.fn(async () => {
+        throw new Error('no target');
+      }),
       url: jest.fn(() => 'https://x.test'),
     });
 
@@ -476,9 +504,9 @@ describe('Puppe.scrollAds', () => {
   it('reads page geometry and performs scrollCount + final scroll evaluates', async () => {
     Yamls.getConfig.mockReturnValue(undefined); // fall back to defaults
     Chromes.randomInt
-      .mockReturnValueOnce(0)   // waitTime
-      .mockReturnValueOnce(2)   // scrollCount
-      .mockReturnValue(100);    // scroll positions
+      .mockReturnValueOnce(0) // waitTime
+      .mockReturnValueOnce(2) // scrollCount
+      .mockReturnValue(100); // scroll positions
     Chromes.getRandomFloat.mockReturnValue(0.001);
     const page = setPage({
       evaluate: jest.fn(async () => 1000), // scrollHeight / innerHeight / scrollTo
@@ -527,11 +555,13 @@ describe('Puppe.scrapePages', () => {
 
     await Puppe.scrapePages('https://www.olx.uz/catalog');
 
-    expect(Chromes.pageGo).toHaveBeenCalledWith('https://www.olx.uz/catalog', { waitUntil: 'networkidle2' });
+    expect(Chromes.pageGo).toHaveBeenCalledWith('https://www.olx.uz/catalog', {
+      waitUntil: 'networkidle2',
+    });
     // JSON index written under mhtmlDirData
     expect(Files.writeJson).toHaveBeenCalledWith(
       path.join(globalThis.mhtmlDirData, 'Catalog Page.json'),
-      ['https://www.olx.uz/x', 'https://www.olx.uz/y'],
+      ['https://www.olx.uz/x', 'https://www.olx.uz/y']
     );
     // page MHTML saved under mhtmlDirPage
     expect(fs.existsSync(path.join(globalThis.mhtmlDirPage, 'Catalog Page.mhtml'))).toBe(true);
@@ -568,7 +598,10 @@ describe('Puppe.scrapeUser', () => {
     expect(Chromes.pageGo).toHaveBeenCalledWith('https://olx.uz/u2', { waitUntil: 'networkidle2' });
     expect(fs.existsSync(path.join(userDir, 'User u2.mhtml'))).toBe(true);
     expect(Files.removeFilesWithExtension).toHaveBeenCalledWith(userDir, '.app');
-    expect(Chromes.saveUrlFile).toHaveBeenCalledWith(path.join(userDir, 'User u2.url'), 'https://olx.uz/u2');
+    expect(Chromes.saveUrlFile).toHaveBeenCalledWith(
+      path.join(userDir, 'User u2.url'),
+      'https://olx.uz/u2'
+    );
     // each extracted pattern is normalized then persisted
     expect(Dates.normalizeUzAccordingToRule).toHaveBeenCalledWith('Some Seller');
     expect(Files.saveInfoToFile).toHaveBeenCalled();
@@ -641,9 +674,9 @@ describe('Puppe.scrapeOffers', () => {
     // Match by message (not constructor): under --experimental-vm-modules the
     // engine TypeError comes from a different realm, so `toThrow(TypeError)`
     // fails the identity check even though it IS a TypeError.
-    await expect(
-      Puppe.scrapeOffers('https://www.olx.uz/d/obyavlenie/x-ID1.html'),
-    ).rejects.toThrow(/path.*argument must be of type string/);
+    await expect(Puppe.scrapeOffers('https://www.olx.uz/d/obyavlenie/x-ID1.html')).rejects.toThrow(
+      /path.*argument must be of type string/
+    );
 
     expect(Dialogs.warningBox).toHaveBeenCalled();
   });
@@ -745,7 +778,7 @@ describe('Puppe.itemSavePagination', () => {
         // call order: scrollIntoView, [next-clicker → false], scrollTo top,
         // maxPageNumber → return 3 for the maxPage evaluate.
         if (evalCall === 2) return false; // next button clicker: stop loop
-        if (evalCall === 4) return 3;      // maxPageNumber
+        if (evalCall === 4) return 3; // maxPageNumber
         return undefined;
       }),
     });
@@ -760,7 +793,7 @@ describe('Puppe.itemSavePagination', () => {
     ]);
     expect(Files.writeJson).toHaveBeenCalledWith(
       path.join(globalThis.mhtmlDirPage, 'Cat Listing.json'),
-      out,
+      out
     );
   });
 
@@ -789,7 +822,7 @@ describe('Puppe.appSavePages', () => {
     fs.writeFileSync(
       globalThis.mhtmlDirPageAllJson,
       JSON.stringify(['https://www.olx.uz/p1', 'https://www.olx.uz/p2']),
-      'utf8',
+      'utf8'
     );
     Yamls.getConfig.mockReturnValue('0');
     const cdp = cdpSession('PAGE');
@@ -851,7 +884,8 @@ describe('Puppe.appSavePhones', () => {
       waitForSelector: jest.fn(async () => ({})),
       createCDPSession: jest.fn(async () => cdp),
       $eval: jest.fn(async (selector) =>
-        selector === 'a[data-testid="contact-phone"]' ? '+998900000000' : null),
+        selector === 'a[data-testid="contact-phone"]' ? '+998900000000' : null
+      ),
     });
 
     await Puppe.appSavePhones();

@@ -1,52 +1,43 @@
 {
-  "type": "module",
-  "main": "electron-main.js",
-  "scripts": {
-    "start": "node yaml-fill.js",
-    "electron": "electron .",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-    "test:ci": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --ci --coverage --reporters=default --reporters=jest-junit"
-  },
-  "dependencies": {
-    "adm-zip": "0.5.16",
-    "dayjs": "^1.11.19",
-    "dot-prop": "^10.1.0",
-    "dotenv": "17.2.3",
-    "fs-extra": "^8.1.0",
-    "js-yaml": "4.1.1",
-    "katex": "^0.16.11",
-    "libqp": "^2.1.1",
-    "marked": "^15.0.12",
-    "marked-footnote": "^1.4.0",
-    "marked-katex-extension": "^5.1.10",
-    "node-notifier": "10.0.1",
-    "number-to-words-ru": "2.4.1",
-    "ofetch": "^1.5.1",
-    "open": "^11.0.0",
-    "p-retry": "^8.0.0",
-    "pino": "^10.3.1",
-    "pino-roll": "^4.0.0",
-    "puppeteer": "24.34.0",
-    "turndown": "^7.2.0",
-    "turndown-plugin-gfm": "^1.0.2",
-    "undici": "^7.20.0",
-    "user-agents": "^1.1.668",
-    "winax": "3.6.9",
-    "xlsx": "^0.18.5",
-    "yargs": "18.0.0",
-    "node-fetch": "^3.3.2"
-  },
-  "devDependencies": {
-    "@fast-check/jest": "^2.0.3",
-    "cross-env": "^7.0.3",
-    "electron": "^39.0.0",
-    "electron-squirrel-startup": "^1.0.0",
-    "jest": "^29.7.0",
-    "jest-extended": "^4.0.2",
-    "jest-junit": "^16.0.0",
-    "jest-watch-typeahead": "^2.2.2",
-    "jest-when": "^3.6.0"
-  }
+    "name": "js_ai_category",
+    "version": "1.0.0",
+    "description": "Node.js (ESM) CLI tools for processing Office and Markdown documents on Windows.",
+    "type": "module",
+    "private": true,
+    "license": "MIT",
+    "author": "Asror Zakirov <asror.zk@gmail.com>",
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+        "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+        "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "generate:runners": "node runs/_generate.mjs",
+        "generate:readme": "node runs/_gen-readme.mjs",
+        "generate:shell": "node runs/_wire-shell.mjs",
+        "generate:launch": "node runs/_wire-launch.mjs",
+        "prepare": "husky"
+    },
+    "lint-staged": {
+        "!(runs/*/**).{js,mjs}": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "*.{json,yml,yaml,md}": [
+            "prettier --write"
+        ]
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.17.0",
+        "eslint": "^9.17.0",
+        "globals": "^15.14.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^15.3.0",
+        "prettier": "^3.4.2"
+    }
 }
