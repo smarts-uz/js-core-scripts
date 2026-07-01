@@ -287,7 +287,11 @@ export class Yamls {
 
         console.log("Using template", template);
 
-        if (!Files.exists(template)) {
+        // ⚠️ Check template BEFORE any destructive backup/delete operations.
+        // Files.exists() is async — must be awaited; missing await caused the
+        // check to always pass (Promise is truthy), leading to the source
+        // contract being deleted even when template did not exist.
+        if (!await Files.exists(template)) {
             Dialogs.warningBox(`Template file not found: ${template}`, "Error");
             return;
         }

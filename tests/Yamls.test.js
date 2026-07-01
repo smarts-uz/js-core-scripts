@@ -446,6 +446,41 @@ describe('Yamls.update', () => {
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
 
+  // Regression for the missing-`await` bug: Files.exists() is async, so the
+  // guard must `await` it. Before the fix, `if (!Files.exists(template))`
+  // tested a *Promise* (always truthy → guard never fired), so a MISSING
+  // template still fell through to the destructive backup/delete steps. Here
+  // exists() resolves to `false` asynchronously and we assert the guard fires
+  // AND none of the destructive operations run.
+  it('awaits the async template check and skips ALL destructive steps when the template is missing', async () => {
+    writeConfig({ Templates: { Yaml: path.join(workDir, 'no-template.yaml') } });
+    FilesMock.exists.mockResolvedValue(false); // async false — the real Files.exists is async
+
+    const r = await Yamls.update(path.join(workDir, 'x.yaml'));
+
+    expect(r).toBeUndefined();
+    expect(DialogsMock.warningBox).toHaveBeenCalled();
+    // The guard must short-circuit BEFORE any destructive backup/delete work.
+    expect(WordMock.initFolders).not.toHaveBeenCalled();
+    expect(FilesMock.backupFile).not.toHaveBeenCalled();
+    expect(FilesMock.backupFolder).not.toHaveBeenCalled();
+  });
+
+  it('proceeds past the guard when the async template check resolves true', async () => {
+    const template = path.join(workDir, 'tpl.yaml');
+    fs.writeFileSync(template, yaml.dump({ A: 1 }), 'utf8');
+    writeConfig({ Templates: { Yaml: template } });
+    FilesMock.exists.mockResolvedValue(true); // async true → guard passes
+    WordMock.initFolders.mockReturnValue(false); // stop right after the guard
+
+    const r = await Yamls.update(path.join(workDir, 'x.yaml'));
+
+    // guard did NOT fire (no warning), and execution advanced to Word.initFolders
+    expect(DialogsMock.warningBox).not.toHaveBeenCalled();
+    expect(WordMock.initFolders).toHaveBeenCalled();
+    expect(r).toBe(false);
+  });
+
   it('returns false when Word.initFolders fails', async () => {
     const template = path.join(workDir, 'tpl.yaml');
     fs.writeFileSync(template, yaml.dump({ A: 1 }), 'utf8');
