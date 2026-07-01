@@ -24,13 +24,25 @@ function didoxBaseURL() {
 // Shared client for the Didox Partner API: one place for the base URL and the
 // auth headers that every reference-data call below previously rebuilt by hand
 // (a `new Headers()` + two appends + a requestOptions object, repeated ~15x).
-const didoxApi = ofetch.create({
-    baseURL: didoxBaseURL(),
-    headers: {
-        "user-key": Secrets.env("DIDOX_USER_KEY") ?? "",
-        "Partner-Authorization": Secrets.env("DIDOX_PARTNER_AUTHORIZATION") ?? "",
-    },
-});
+//
+// Built LAZILY on first call — not at module top-level. didox.js and Yamls.js
+// form an import cycle (didox.js imports Yamls, Yamls.js imports Didox), so
+// touching Yamls.getConfig()/Secrets.env() during module evaluation crashes with
+// "Cannot access 'Yamls' before initialization" (TDZ). Deferring to first use
+// lets both modules finish initializing before any config/secret is read.
+let _didoxClient = null;
+function didoxApi(...args) {
+    if (!_didoxClient) {
+        _didoxClient = ofetch.create({
+            baseURL: didoxBaseURL(),
+            headers: {
+                "user-key": Secrets.env("DIDOX_USER_KEY") ?? "",
+                "Partner-Authorization": Secrets.env("DIDOX_PARTNER_AUTHORIZATION") ?? "",
+            },
+        });
+    }
+    return _didoxClient(...args);
+}
 
 
 export class Didox {

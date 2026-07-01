@@ -4,9 +4,10 @@
 // saveDistricts, saveRegions, saveBanks, saveRegionsTTN, saveRailwayStations,
 // fraudsByTin, frauds, profileIKPUCodes, documentList, documentPDF,
 // searchIKPUCode, profileInfo, vatRegStatus, getTaxpayerType, login, documentPDF)
-// all go through `didoxApi`, the instance returned by `ofetch.create(...)` at
-// module load. We therefore mock `ofetch` so `create()` returns a controllable
-// jest.fn we can inspect. `infoByTinPinfl`/`carInfoByPinfl` use the GLOBAL
+// all go through `didoxApi`, the instance returned by `ofetch.create(...)` —
+// built LAZILY on the first API call (not at module load) to dodge the
+// didox.js<->Yamls.js import-cycle TDZ crash. We therefore mock `ofetch` so
+// `create()` returns a controllable jest.fn we can inspect. `infoByTinPinfl`/`carInfoByPinfl` use the GLOBAL
 // `fetch`, which we stub per-test. `bankByCode`/`regionsByCode`/
 // `districtsByCode` are pure lookups against the bundled data JSON (tested for
 // real). `contracts` references an undefined `Chromes` symbol — a source bug we
@@ -25,9 +26,9 @@ import districts from '../data/districts.json' with { type: 'json' };
 // `didoxApi` is captured here so every test can drive what each call resolves to
 // and assert the endpoint/options it was invoked with.
 const didoxApi = jest.fn(async () => '');
-// Capture the create() config at module-load time: the source calls
-// ofetch.create(...) ONCE during import, and the suite's clearMocks wipes the
-// mock.calls history before any test body runs — so we snapshot it here instead.
+// Capture the create() config: the source calls ofetch.create(...) ONCE, lazily,
+// on the first didoxApi() call (memoized thereafter). We snapshot the config here
+// so it survives the suite's clearMocks between tests.
 let capturedCreateConfig = null;
 const ofetchCreate = jest.fn((cfg) => {
   capturedCreateConfig = cfg;
@@ -96,6 +97,11 @@ function stubFetch(impl) {
 // ---------------------------------------------------------------------------
 describe('Didox module wiring', () => {
   it('creates a single shared ofetch client with the partner base URL + auth headers', () => {
+    // The client is built LAZILY on first API call (not at module import) to
+    // avoid the didox.js<->Yamls.js import-cycle TDZ crash, so trigger one call
+    // before asserting the captured ofetch.create(...) config.
+    didoxApi.mockResolvedValue('OK');
+    Didox.saveMeasures();
     expect(capturedCreateConfig).not.toBeNull();
     expect(capturedCreateConfig.baseURL).toBe('https://api-partners.didox.uz');
     expect(capturedCreateConfig.headers).toContainKey('user-key');
