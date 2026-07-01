@@ -1,36 +1,53 @@
-// AUTO-GENERATED shell-out runner — forwards to the cmd/ entrypoint.
-// Feature: Yaml Contract Fill (enrich)
-// Delegates to: cmd/js-winax-contract/yamls.js
-// The cmd script orchestrates the utils/ pipeline (single --yaml/--input or batch
-// --all). This runner just spawns it, forwarding the primary input + any extra args.
-import { spawn } from 'node:child_process';
+// AUTO-GENERATED self-contained runner — Yamls.contractFill.
+// Feature: Yaml Contract Fill (enrich). Ported from cmd/js-winax-contract; single --yaml or batch --all.
 import path from 'node:path';
+process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 
-const SCRIPT = "D:\\Develop\\Projects\\DevApp\\Execute\\JS\\Sources\\cmd\\js-winax-contract\\yamls.js";
-const PRIMARY_FLAG = "--yaml";
+const yargsMod = await import('yargs');
+const { hideBin } = await import('yargs/helpers');
+const yargs = yargsMod.default;
+const { Files } = await import('../../utils/Files.js');
+const { Yamls } = await import('../../utils/Yamls.js');
+const { Dates } = await import('../../utils/Dates.js');
+const { Dialogs } = await import('../../utils/Dialogs.js');
 
-// Build args: a bare positional (%1 from a shell launcher) becomes "<flag> <value>";
-// explicit flags (--yaml, --all, --open, --input, --output) are passed through as-is.
-const raw = process.argv.slice(2);
-const args = [];
-if (raw.length && !raw[0].startsWith('-')) {
-    args.push(PRIMARY_FLAG, raw[0], ...raw.slice(1));
-} else {
-    args.push(...raw);
+// Per-contract step: the action.
+async function processOne(ymlFile) {
+    console.warn('Processing contract:', ymlFile);
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
 }
 
-console.log('1️⃣ Yamls contractFill Start →', path.basename(SCRIPT), args.join(' '));
+async function main() {
+    console.log('1️⃣ Yamls contractFill Start');
+    const argv = yargs(hideBin(process.argv))
+        .option('yaml', { alias: 'y', describe: 'single contract yaml' })
+        .option('all', { alias: 'a', describe: 'ALL index for batch' })
+        .help().parse();
 
-const child = spawn(process.execPath, [SCRIPT, ...args], {
-    stdio: 'inherit',
-    cwd: path.dirname(SCRIPT), // config.yml / .env resolve from the cmd folder
-});
+    const ymlFile = argv.yaml;
+    const allFile = argv.all;
+    console.log('yaml:', ymlFile, '| all:', allFile);
 
-child.on('exit', (code) => {
-    console.log('3️⃣ Yamls contractFill Done (exit ' + code + ')');
-    process.exit(code ?? 0);
-});
-child.on('error', (err) => {
-    console.error('❌ Yamls contractFill failed to spawn:', err.message);
-    process.exit(1);
-});
+    const run = async () => {
+        if (!Files.isEmpty(allFile)) {
+            const ymlFiles = Files.findAllContractFiles(allFile);
+            console.log(`Found ${ymlFiles.length} contracts`);
+            for (const f of ymlFiles) await processOne(f);
+        } else if (!Files.isEmpty(ymlFile)) {
+            await processOne(ymlFile);
+        } else {
+            console.warn('No --yaml or --all provided.');
+        }
+    };
+
+    if (Yamls.getConfig('CmdLine.TryCatch') === 'true') {
+        try { await run(); Dates.sleep(Number(Yamls.getConfig('CmdLine.ExitTimeout'))); }
+        catch (error) { console.error('❌ Error:', error); Dialogs.warningBox(String(error && error.message || error), 'Yamls contractFill Error'); Dates.sleep(Number(Yamls.getConfig('CmdLine.ExitTimeoutError'))); }
+    } else {
+        await run(); Dates.sleep(Number(Yamls.getConfig('CmdLine.ExitTimeout')));
+    }
+
+    console.log('3️⃣ Yamls contractFill Done');
+}
+
+main();

@@ -37,7 +37,7 @@ const files = {
             L('Excel Homoglyph (All)', 'Homoglyph', 'excel', '--file "%1"'),
             L('Excel Homoglyph (Chars...)', 'Homoglyph', 'excel', '--file "%1" --chars "%2"'),
             L('Excel Homoglyph (Ask)', 'Homoglyph', 'excelAsk', '--file "%1"'),
-            // Contract .xltx → .xlsx convert (delegates to cmd/js-winax-contract)
+            // Contract .xltx → .xlsx convert (self-contained runner over Excels)
             L('Contract Convert (.xltx→.xlsx)', 'Excels', 'contractConvert', '--input "%1"'),
         ],
     ],
@@ -83,15 +83,15 @@ const files = {
         [
             L('Category', 'Category', 'run', '--yaml "%1"'),
             L('Revert', 'Category', 'revert', '--yaml "%1"'),
-            // Contract workflow (delegates to cmd/js-winax-contract via shell-out runners)
+            // Contract workflow (self-contained runners over Word/Excels/Yamls)
             L('Contract → Word', 'Word', 'contract', '--yaml "%1"'),
             L('Contract → Excel', 'Excels', 'contract', '--yaml "%1"'),
             L('Contract Fill Yaml', 'Yamls', 'contractFill', '--yaml "%1"'),
             L('Contract Update Yaml', 'Yamls', 'contractUpdate', '--yaml "%1"'),
         ],
     ],
-    // OLX scraper pipeline — each step delegates to cmd/js-scraper-olx.uz via a
-    // shell-out runner. The primary input is a saved data .mhtml passed as "%1".
+    // OLX scraper pipeline — self-contained runners over Chromes/Puppe/Phone.
+    // The primary input is a saved data .mhtml passed as "%1".
     'Olx.appshell': [
         '.mhtml',
         [

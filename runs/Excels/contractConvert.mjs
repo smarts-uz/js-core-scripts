@@ -1,36 +1,40 @@
-// AUTO-GENERATED shell-out runner — forwards to the cmd/ entrypoint.
-// Feature: Excel Contract Convert (.xltx→.xlsx)
-// Delegates to: cmd/js-winax-contract/excel-convert.js
-// The cmd script orchestrates the utils/ pipeline (single --yaml/--input or batch
-// --all). This runner just spawns it, forwarding the primary input + any extra args.
-import { spawn } from 'node:child_process';
+// AUTO-GENERATED self-contained runner — Excels.contractConvert.
+// Feature: Excel Contract Convert (.xltx→.xlsx). Ported from cmd/js-winax-contract/excel-convert.js.
 import path from 'node:path';
+process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 
-const SCRIPT = "D:\\Develop\\Projects\\DevApp\\Execute\\JS\\Sources\\cmd\\js-winax-contract\\excel-convert.js";
-const PRIMARY_FLAG = "--input";
+const yargsMod = await import('yargs');
+const { hideBin } = await import('yargs/helpers');
+const yargs = yargsMod.default;
+const { Excels } = await import('../../utils/Excels.js');
+const { Yamls } = await import('../../utils/Yamls.js');
+const { Dates } = await import('../../utils/Dates.js');
+const { Dialogs } = await import('../../utils/Dialogs.js');
 
-// Build args: a bare positional (%1 from a shell launcher) becomes "<flag> <value>";
-// explicit flags (--yaml, --all, --open, --input, --output) are passed through as-is.
-const raw = process.argv.slice(2);
-const args = [];
-if (raw.length && !raw[0].startsWith('-')) {
-    args.push(PRIMARY_FLAG, raw[0], ...raw.slice(1));
-} else {
-    args.push(...raw);
+async function main() {
+    console.log('1️⃣ Excels contractConvert Start');
+    const argv = yargs(hideBin(process.argv))
+        .option('input', { alias: 'i', demandOption: true, describe: '.xltx template' })
+        .option('output', { alias: 'o', describe: '.xlsx output (optional)' })
+        .help().parse();
+
+    const input = argv.input;
+    const output = argv.output;
+    console.log('input:', input, '| output:', output);
+
+    const run = () => {
+        if (output) Excels.convertXltxToXlsx(input, output);
+        else Excels.convertXltxToXlsxAuto(input);
+    };
+
+    if (Yamls.getConfig('CmdLine.TryCatch') === 'true') {
+        try { run(); Dates.sleep(Number(Yamls.getConfig('CmdLine.ExitTimeout'))); }
+        catch (error) { console.error('❌ Error:', error); Dialogs.warningBox(String(error && error.message || error), 'Excels contractConvert Error'); Dates.sleep(Number(Yamls.getConfig('CmdLine.ExitTimeoutError'))); }
+    } else {
+        run(); Dates.sleep(Number(Yamls.getConfig('CmdLine.ExitTimeout')));
+    }
+
+    console.log('3️⃣ Excels contractConvert Done');
 }
 
-console.log('1️⃣ Excels contractConvert Start →', path.basename(SCRIPT), args.join(' '));
-
-const child = spawn(process.execPath, [SCRIPT, ...args], {
-    stdio: 'inherit',
-    cwd: path.dirname(SCRIPT), // config.yml / .env resolve from the cmd folder
-});
-
-child.on('exit', (code) => {
-    console.log('3️⃣ Excels contractConvert Done (exit ' + code + ')');
-    process.exit(code ?? 0);
-});
-child.on('error', (err) => {
-    console.error('❌ Excels contractConvert failed to spawn:', err.message);
-    process.exit(1);
-});
+main();

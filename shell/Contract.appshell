@@ -1,5 +1,5 @@
 .contract
-NoClose;Words;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\cmd\js-winax-contract\words.js" --yaml "%1"
-NoClose;Excels;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\cmd\js-winax-contract\excels.js" --yaml "%1"
-NoClose;Update;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\cmd\js-winax-contract\update.js" --yaml "%1"
-NoClose;Yamls;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\cmd\js-winax-contract\yamls.js" --yaml "%1"
+NoClose;Words;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Word\contract.mjs" --yaml "%1"
+NoClose;Excels;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\contract.mjs" --yaml "%1"
+NoClose;Update;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Yamls\contractUpdate.mjs" --yaml "%1"
+NoClose;Yamls;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Yamls\contractFill.mjs" --yaml "%1"
