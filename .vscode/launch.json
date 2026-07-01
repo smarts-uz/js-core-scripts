@@ -14,7 +14,7 @@
       "program": "${workspaceFolder}\\runs\\Word\\wordToMD.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.docx"
+        "d:\\FileType\\Office\\Projects\\DOCX\\ALL\\A4 1.docx"
       ],
       "console": "integratedTerminal"
     },
@@ -44,7 +44,7 @@
       "program": "${workspaceFolder}\\runs\\Category\\run.mjs",
       "args": [
         "--yaml",
-        "D:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\AZK\\3\\1773681723823_AZK App 1.yml"
+        "D:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\AIC\\AZK\\3\\1773681723823_AZK App 1.yml"
       ],
       "console": "integratedTerminal"
     },
@@ -58,7 +58,7 @@
       "program": "${workspaceFolder}\\runs\\Category\\revert.mjs",
       "args": [
         "--yaml",
-        "d:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\Main-Asp.yml"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\AIC\\@ Ready\\Main-Asp.yml"
       ],
       "console": "integratedTerminal"
     },
@@ -72,7 +72,7 @@
       "program": "${workspaceFolder}\\runs\\Chromes\\saveHtmlFromMht.mjs",
       "args": [
         "--mhtml",
-        "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\Analysis ToolPak\\ALL\\Excel Data Analysis Toolpak.mhtml",
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Calculat\\MsExcel\\real-statistics.com\\Element\\- Theory\\Free Download _ Real Statistics Using Excel.mhtml",
         "--delete"
       ],
       "console": "integratedTerminal"
@@ -86,8 +86,8 @@
       ],
       "program": "${workspaceFolder}\\runs\\Chromes\\processPathsToClipboard.mjs",
       "args": [
-        "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Enlarge Dialog Box On Mac.mhtml",
-        "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Excel 64 Bits.mhtml"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Calculat\\MsExcel\\real-statistics.com\\Element\\- Theory\\Free Download _ Real Statistics Using Excel.mhtml",
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Calculat\\MsExcel\\real-statistics.com\\Element\\- Theory\\Home Page (Welcome) _ Real Statistics Using Excel.mhtml"
       ],
       "console": "integratedTerminal"
     },
@@ -101,7 +101,7 @@
       "program": "${workspaceFolder}\\runs\\Yamls\\mergeYamlsInFolder.mjs",
       "args": [
         "--folder",
-        "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Features\\ALL"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Calculat\\MsExcel\\real-statistics.com\\Projects\\ALL\\App"
       ],
       "console": "integratedTerminal"
     },
@@ -115,7 +115,7 @@
       "program": "${workspaceFolder}\\runs\\Markdown\\convertToHtml.mjs",
       "args": [
         "--file",
-        "d:\\Humans\\Medicine\\Diagnos\\Neurolog\\Attention\\Trail Making Test, TMT\\Normals\\TMT_Neuropsychological_Assessment_v1.md"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\AIQuery\\Diagnose Statistic\\3.md"
       ],
       "console": "integratedTerminal"
     },
@@ -129,7 +129,7 @@
       "program": "${workspaceFolder}\\runs\\Markdown\\convertToWord.mjs",
       "args": [
         "--file",
-        "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\Missing Data Imputation\\Fully Conditional Specification (FCS)\\Durdona\\Research_Plan_82.md"
       ],
       "console": "integratedTerminal"
     },
@@ -143,7 +143,7 @@
       "program": "${workspaceFolder}\\runs\\Markdown\\convertToWordTOC.mjs",
       "args": [
         "--file",
-        "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\Missing Data Imputation\\Fully Conditional Specification (FCS)\\Durdona\\Research_Plan_82.md"
       ],
       "console": "integratedTerminal"
     },
@@ -156,9 +156,9 @@
       ],
       "program": "${workspaceFolder}\\runs\\Word\\mergeFolder.mjs",
       "args": [
-        "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\4. I-BOB\\",
-        "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\5. II-BOB\\",
-        "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\6. III-BOB\\"
+        "d:\\FileType\\Office\\Projects\\DOCX\\Merge\\",
+        "d:\\FileType\\Office\\Projects\\DOCX\\MD\\",
+        "d:\\FileType\\Office\\Projects\\DOCX\\ALL\\"
       ],
       "console": "integratedTerminal"
     },
@@ -171,7 +171,7 @@
       ],
       "program": "${workspaceFolder}\\runs\\Excels\\mergeFiles.mjs",
       "args": [
-        "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-2 Diagnostic Value\\Durdona\\8"
+        "d:\\FileType\\Office\\Projects\\XLSX\\Medicate"
       ],
       "console": "integratedTerminal",
       "outputCapture": "std"
@@ -269,8 +269,8 @@
       ],
       "program": "${workspaceFolder}\\runs\\Excels\\mergeFolder.mjs",
       "args": [
-        "d:\\path\\to\\folderA",
-        "d:\\path\\to\\folderB"
+        "d:\\FileType\\Office\\Projects\\XLSX\\Medicate",
+        "d:\\FileType\\Office\\Projects\\XLSX\\OlxApps"
       ],
       "console": "integratedTerminal",
       "outputCapture": "std"
@@ -284,8 +284,8 @@
       ],
       "program": "${workspaceFolder}\\runs\\PowerPoints\\merge.mjs",
       "args": [
-        "d:\\path\\to\\a.pptx",
-        "d:\\path\\to\\b.pptx"
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL\\Sample 1.pptx",
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL\\Sample 2.pptx"
       ],
       "console": "integratedTerminal",
       "outputCapture": "std"
@@ -299,8 +299,8 @@
       ],
       "program": "${workspaceFolder}\\runs\\PowerPoints\\mergeFolder.mjs",
       "args": [
-        "d:\\path\\to\\folderA",
-        "d:\\path\\to\\folderB"
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL",
+        "d:\\FileType\\Office\\Projects\\PPTX\\24-Years"
       ],
       "console": "integratedTerminal",
       "outputCapture": "std"
@@ -370,8 +370,8 @@
       ],
       "program": "${workspaceFolder}\\runs\\Markdown\\merge.mjs",
       "args": [
-        "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Electroencephalography EEG 5.md",
-        "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Luria s Memory Word Test LMWT 5.md"
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\AIQuery\\Diagnose Statistic\\3.md",
+        "d:\\Humans\\Medicine\\Disserta\\Statistic\\Methods\\AIQuery\\Diagnose Statistic\\4.md"
       ],
       "console": "integratedTerminal"
     },
@@ -385,7 +385,7 @@
       "program": "${workspaceFolder}\\runs\\Homoglyph\\excel.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.xlsx"
+        "d:\\FileType\\Office\\Projects\\XLSX\\Costs.xlsx"
       ],
       "console": "integratedTerminal"
     },
@@ -399,7 +399,7 @@
       "program": "${workspaceFolder}\\runs\\Homoglyph\\excelAsk.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.xlsx"
+        "d:\\FileType\\Office\\Projects\\XLSX\\Costs.xlsx"
       ],
       "console": "integratedTerminal"
     },
@@ -413,7 +413,7 @@
       "program": "${workspaceFolder}\\runs\\Homoglyph\\powerpoint.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.pptx"
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL\\Sample 1.pptx"
       ],
       "console": "integratedTerminal"
     },
@@ -427,7 +427,7 @@
       "program": "${workspaceFolder}\\runs\\Homoglyph\\powerpointAsk.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.pptx"
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL\\Sample 1.pptx"
       ],
       "console": "integratedTerminal"
     },
@@ -441,7 +441,7 @@
       "program": "${workspaceFolder}\\runs\\Word\\protectFileAsk.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.docx"
+        "d:\\FileType\\Office\\Projects\\DOCX\\ALL\\A4 1.docx"
       ],
       "console": "integratedTerminal"
     },
@@ -455,7 +455,7 @@
       "program": "${workspaceFolder}\\runs\\Word\\unProtectFileAsk.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.docx"
+        "d:\\FileType\\Office\\Projects\\DOCX\\ALL\\A4 1.docx"
       ],
       "console": "integratedTerminal"
     },
@@ -469,7 +469,7 @@
       "program": "${workspaceFolder}\\runs\\PowerPoints\\protectFileAsk.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.pptx"
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL\\Sample 1.pptx"
       ],
       "console": "integratedTerminal"
     },
@@ -483,7 +483,7 @@
       "program": "${workspaceFolder}\\runs\\PowerPoints\\unProtectFileAsk.mjs",
       "args": [
         "--file",
-        "d:\\path\\to\\test.pptx"
+        "d:\\FileType\\Office\\Projects\\PPTX\\ALL\\Sample 1.pptx"
       ],
       "console": "integratedTerminal"
     },
@@ -567,7 +567,7 @@
       "program": "${workspaceFolder}\\runs\\Word\\contract.mjs",
       "args": [
         "--yaml",
-        "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract"
+        "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\@ Other\\ZOKIROV CONSTRUCTION\\ALL.contract"
       ],
       "console": "integratedTerminal"
     },
@@ -653,7 +653,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\appOne.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -667,7 +667,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\appOne.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -681,7 +681,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\appTwo.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -695,7 +695,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\appTwo.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -709,7 +709,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -723,7 +723,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -737,7 +737,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\offers.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -751,7 +751,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\offers.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -765,7 +765,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -779,7 +779,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -793,7 +793,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\phone.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -807,7 +807,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\phone.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -821,7 +821,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -835,7 +835,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -849,7 +849,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\merge.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -863,7 +863,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\merge.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -877,7 +877,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -891,7 +891,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -905,7 +905,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\testing.mjs",
       "args": [
         "--app",
-        "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Officings\\Зеркало Подсветка LED\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     },
@@ -919,7 +919,7 @@
       "program": "${workspaceFolder}\\runs\\Olx\\testing.mjs",
       "args": [
         "--app",
-        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
+        "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\_______\\ALL.olxapp"
       ],
       "console": "integratedTerminal"
     }
