@@ -1,8 +1,9 @@
 // Rewrites .vscode/launch.json so every util-method debug config runs its
 // per-method runner: program → ${workspaceFolder}\runs\<Class>\<method>.mjs.
-// console is 'internalConsole' (Debug Console), NOT 'integratedTerminal' — the
-// latter freezes on Windows/PowerShell echoing a half-typed ${env:...} at the
-// prompt instead of launching the program.
+// console is 'integratedTerminal' — the runners need a real terminal (interactive
+// Dialogs.inputBox in the -ask variants, visible stdout). The ${env:...} freeze
+// is a VS Code default-shell (PowerShell) issue, fixed by setting the terminal
+// profile to Command Prompt in .vscode/settings.json, NOT by switching console.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -18,7 +19,7 @@ const cfg = (name, cls, method, args, outputStd = false) => ({
     skipFiles: ['<node_internals>/**'],
     program: prog(cls, method),
     args,
-    console: 'internalConsole',
+    console: 'integratedTerminal',
     ...(outputStd ? { outputCapture: 'std' } : {}),
 });
 

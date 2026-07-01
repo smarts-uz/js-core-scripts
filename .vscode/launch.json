@@ -16,7 +16,7 @@
         "--file",
         "d:\\path\\to\\test.docx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -32,7 +32,7 @@
         "--maxLevel",
         "5"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -46,7 +46,7 @@
         "--yaml",
         "D:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\AZK\\3\\1773681723823_AZK App 1.yml"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -60,7 +60,7 @@
         "--yaml",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\Main-Asp.yml"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -75,7 +75,7 @@
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\Analysis ToolPak\\ALL\\Excel Data Analysis Toolpak.mhtml",
         "--delete"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -89,7 +89,7 @@
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Enlarge Dialog Box On Mac.mhtml",
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Excel 64 Bits.mhtml"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -103,7 +103,7 @@
         "--folder",
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Features\\ALL"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -117,7 +117,7 @@
         "--file",
         "d:\\Humans\\Medicine\\Diagnos\\Neurolog\\Attention\\Trail Making Test, TMT\\Normals\\TMT_Neuropsychological_Assessment_v1.md"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -131,7 +131,7 @@
         "--file",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -145,7 +145,7 @@
         "--file",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -160,7 +160,7 @@
         "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\5. II-BOB\\",
         "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\6. III-BOB\\"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -173,7 +173,7 @@
       "args": [
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-2 Diagnostic Value\\Durdona\\8"
       ],
-      "console": "internalConsole",
+      "console": "integratedTerminal",
       "outputCapture": "std"
     },
     {
@@ -188,7 +188,7 @@
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -202,7 +202,7 @@
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -216,7 +216,7 @@
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -230,7 +230,7 @@
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -244,7 +244,7 @@
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -258,7 +258,7 @@
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -272,7 +272,7 @@
         "d:\\path\\to\\folderA",
         "d:\\path\\to\\folderB"
       ],
-      "console": "internalConsole",
+      "console": "integratedTerminal",
       "outputCapture": "std"
     },
     {
@@ -287,7 +287,7 @@
         "d:\\path\\to\\a.pptx",
         "d:\\path\\to\\b.pptx"
       ],
-      "console": "internalConsole",
+      "console": "integratedTerminal",
       "outputCapture": "std"
     },
     {
@@ -302,7 +302,7 @@
         "d:\\path\\to\\folderA",
         "d:\\path\\to\\folderB"
       ],
-      "console": "internalConsole",
+      "console": "integratedTerminal",
       "outputCapture": "std"
     },
     {
@@ -317,7 +317,7 @@
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\Disser\\Article 4\\Article 4.docx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -331,7 +331,7 @@
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\Disser\\Article 4\\Article 4.docx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -345,7 +345,7 @@
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\POCD\\POCD_maqola 3.md"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -359,7 +359,7 @@
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\POCD\\POCD_maqola 3.md"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -373,7 +373,7 @@
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Electroencephalography EEG 5.md",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Luria s Memory Word Test LMWT 5.md"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -387,7 +387,7 @@
         "--file",
         "d:\\path\\to\\test.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -401,7 +401,7 @@
         "--file",
         "d:\\path\\to\\test.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -415,7 +415,7 @@
         "--file",
         "d:\\path\\to\\test.pptx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -429,7 +429,7 @@
         "--file",
         "d:\\path\\to\\test.pptx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -443,7 +443,7 @@
         "--file",
         "d:\\path\\to\\test.docx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -457,7 +457,7 @@
         "--file",
         "d:\\path\\to\\test.docx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -471,7 +471,7 @@
         "--file",
         "d:\\path\\to\\test.pptx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -485,7 +485,7 @@
         "--file",
         "d:\\path\\to\\test.pptx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -499,7 +499,7 @@
         "--hives",
         "Both"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -513,7 +513,7 @@
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\AL-INOBAT\\ALL.contract"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -527,7 +527,7 @@
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -541,7 +541,7 @@
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -555,7 +555,7 @@
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -569,7 +569,7 @@
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -583,7 +583,7 @@
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -597,7 +597,7 @@
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -611,7 +611,7 @@
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -627,7 +627,7 @@
         "--output",
         "d:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xlsx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -641,7 +641,7 @@
         "--input",
         "d:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -655,7 +655,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -669,7 +669,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -683,7 +683,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -697,7 +697,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -711,7 +711,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -725,7 +725,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -739,7 +739,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -753,7 +753,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -767,7 +767,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -781,7 +781,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -795,7 +795,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -809,7 +809,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -823,7 +823,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -837,7 +837,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -851,7 +851,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -865,7 +865,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -879,7 +879,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -893,7 +893,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -907,7 +907,7 @@
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     },
     {
       "type": "node",
@@ -921,7 +921,7 @@
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
       ],
-      "console": "internalConsole"
+      "console": "integratedTerminal"
     }
   ]
 }

@@ -19,5 +19,15 @@
     // hand-format them (they're regenerated, and runs/ is in .prettierignore).
     "files.watcherExclude": {
         "**/coverage/**": true
+    },
+
+    // Debug/launch configs use console:integratedTerminal. On Windows the DEFAULT
+    // terminal profile is PowerShell, which freezes on the ${env:...} line VS Code
+    // injects to set env vars — the program never launches. Force the integrated
+    // terminal to Command Prompt (cmd.exe), which runs the injected launch command
+    // cleanly, so every debug config in launch.json starts without hanging.
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
+    "terminal.integrated.automationProfile.windows": {
+        "path": "C:\\Windows\\System32\\cmd.exe"
     }
 }
