@@ -62,7 +62,10 @@ Owned by `smarts-app-cmdline` → `module/config-secrets.md` (config-file shape:
 
 - Read via `Yamls.getConfig('Section.Key')` (dotted path; values come back as **strings**).
 - **Global keys:** `CmdLine.TryCatch` (`"true"`/`"false"`), `CmdLine.ExitTimeout` (`3000` ms success), `CmdLine.ExitTimeoutError` (`30000` ms error).
-- **`Templates.*` are FOLDER paths, not files** — `WordMerge`, `WordMd`, `WordMdTOC`, `WordMdRule` under `d:\FileType\Office\Projects\DOCX\…\`. At runtime the latest `Basename N` file is picked via `Files.getLatestMatchingFile()`.
+- **`config.yml` is the SINGLE config file — there is no separate `config-contract.yml` or `Excel.txt`** (both were merged into `config.yml` and deleted). The contract runners resolve everything from `config.yml`.
+- **`Templates.*` has two kinds of value.** The **folder** paths — `WordMerge`, `WordMd`, `WordMdTOC`, `WordMdRule` under `d:\FileType\Office\Projects\DOCX\…\` — from which the latest `Basename N` file is picked via `Files.getLatestMatchingFile()`. Plus the **file** paths for the contract workflow — `Templates.Word` (the `.docx` contract template, read by `Word.makeContract`), `Templates.Yaml` (`Yamls`), `Templates.Excel` (`Excels.generate`). These `Templates.Word/Excel` **file** keys are distinct from the `ChoosedChars.{Word,Excel}` homoglyph char sets — no collision.
+- **`Excel.CellNames`** — the ordered list of contract pricing cell/column names (`Trans-OT`, `Bank-OT`, … `BaaR-IN`), read by `Excels.generate` (formerly the standalone `Excel.txt`; `getConfig` returns the YAML list as an array).
+- **`Didox.BaseURL: api-partners.didox.uz`** — the non-secret Didox partner-API base URL (the tokens stay in `.env`).
 - **`ChoosedChars.{Word,Markdown,Excel,PowerPoint}`** — persisted user homoglyph selection (`cxACEHIJKMOPSTX`); `-ask` scripts pre-fill from it and write the filtered choice back.
 - **Homoglyph output suffix per format** — `Excel.HomoglyphSuffix: " Norm"`; `Word`/`PowerPoint`/`Markdown`.HomoglyphSuffix: `" App"`. The config value is authoritative; output path `<baseName><suffix><ext>`, auto-incremented on collision.
 - **`Excel.ProtectSuffix: " PR"`**, **`Excel.ExcludedSheets`** (Results, Lookup, ALL, App, Stroop, TMT, DST, LMWT, NS, EEG, Audio) — skipped by replace/protect ops. PowerPoint protect suffix `' Protected'` (code default).
