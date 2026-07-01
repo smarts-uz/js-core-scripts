@@ -1,5 +1,5 @@
 // AUTO-GENERATED self-contained runner — Word.contract.
-// Feature: Word Contract (make .docx from yaml). Ported from cmd/js-winax-contract; single --yaml or batch --all.
+// Feature: Word Contract (make .docx from yaml). Single --yaml or batch --all; calls Word/Yamls directly.
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 

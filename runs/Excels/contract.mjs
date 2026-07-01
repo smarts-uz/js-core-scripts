@@ -1,5 +1,5 @@
 // AUTO-GENERATED self-contained runner — Excels.contract.
-// Feature: Excel Contract (generate .xlsx from yaml). Ported from cmd/js-winax-contract; single --yaml or batch --all.
+// Feature: Excel Contract (generate .xlsx from yaml). Single --yaml or batch --all; calls Excels/Yamls directly.
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 

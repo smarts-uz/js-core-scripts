@@ -1,5 +1,5 @@
 // AUTO-GENERATED self-contained runner — Excels.contractConvert.
-// Feature: Excel Contract Convert (.xltx→.xlsx). Ported from cmd/js-winax-contract/excel-convert.js.
+// Feature: Excel Contract Convert (.xltx→.xlsx); calls Excels.convertXltxToXlsx(Auto).
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 

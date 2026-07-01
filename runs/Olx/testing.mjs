@@ -1,6 +1,6 @@
 // AUTO-GENERATED self-contained runner — Olx.testing.
-// Feature: OLX Testing (count online). Ported from the old cmd/js-scraper-olx.uz pipeline;
-// calls Chromes/Puppe/Phone directly (no cmd script). Input: --app <data.mhtml>.
+// Feature: OLX Testing (count online). Runs the scraper pipeline by calling Chromes/Puppe/Phone
+// directly. Input: --app <data.mhtml>.
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 

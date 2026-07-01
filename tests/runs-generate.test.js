@@ -133,6 +133,6 @@ describe('generated runner files', () => {
         checked++;
       }
     }
-    expect(checked).toBeGreaterThan(100); // ~284 runners
+    expect(checked).toBeGreaterThan(100); // ~304 runners (289 generated + 15 hand-written)
   });
 });

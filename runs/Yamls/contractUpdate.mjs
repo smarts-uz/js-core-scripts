@@ -1,5 +1,5 @@
 // AUTO-GENERATED self-contained runner — Yamls.contractUpdate.
-// Feature: Yaml Contract Update. Ported from cmd/js-winax-contract; single --yaml or batch --all.
+// Feature: Yaml Contract Update. Single --yaml or batch --all; calls Yamls/Yamls directly.
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 

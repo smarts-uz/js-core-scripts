@@ -1,6 +1,6 @@
 // AUTO-GENERATED self-contained runner — Olx.appOne.
-// Feature: OLX App One (pages+pagination). Ported from the old cmd/js-scraper-olx.uz pipeline;
-// calls Chromes/Puppe/Phone directly (no cmd script). Input: --app <data.mhtml>.
+// Feature: OLX App One (pages+pagination). Runs the scraper pipeline by calling Chromes/Puppe/Phone
+// directly. Input: --app <data.mhtml>.
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 
