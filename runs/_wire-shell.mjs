@@ -28,38 +28,6 @@ const files = {
     'Xlsx.appshell': [
         '.xlsx',
         [
-            L(
-                'Replace @ (Formula)',
-                'Excels',
-                'replaceFormula',
-                '--file "%1" --search "@" --replace ""'
-            ),
-            L(
-                'Replace @ (Formula2)',
-                'Excels',
-                'replaceFormula2',
-                '--file "%1" --search "@" --replace ""'
-            ),
-            L(
-                'Replace @ (FormulaArray)',
-                'Excels',
-                'replaceFormulaArray',
-                '--file "%1" --search "@" --replace ""'
-            ),
-            L(
-                'Replace @ (Standard)',
-                'Excels',
-                'replaceStandart',
-                '--file "%1" --search "@" --replace ""'
-            ),
-            L(
-                'Replace @ (Formula All)',
-                'Excels',
-                'replaceFormulaAll',
-                '--file "%1" --search "@" --replace ""'
-            ),
-            L('Excel Recalc', 'Excels', 'recalculate', '--file "%1"'),
-            L('Change Font to Arial', 'Excels', 'changeFont', '--file "%1" --font "Arial"'),
             L('Protect Worksheets (Ask)', 'Excels', 'protectSheetAsk', '--file "%1"'),
             L('Unprotect Worksheets (Ask)', 'Excels', 'unProtectSheetAsk', '--file "%1"'),
             L('Protect File (Ask)', 'Excels', 'protectFileAsk', '--file "%1"'),

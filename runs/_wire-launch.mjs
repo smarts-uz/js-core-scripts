@@ -60,49 +60,6 @@ const configurations = [
         '--folder',
         'd:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Features\\ALL',
     ]),
-    cfg(
-        'Excel Replace Formula (@)',
-        'Excels',
-        'replaceFormula',
-        ['--file', X, '--search', '@', '--replace', ''],
-        true
-    ),
-    cfg(
-        'Excel Replace Formula2 (@)',
-        'Excels',
-        'replaceFormula2',
-        ['--file', X, '--search', '@', '--replace', ''],
-        true
-    ),
-    cfg(
-        'Excel Replace FormulaArray (@)',
-        'Excels',
-        'replaceFormulaArray',
-        ['--file', X, '--search', '@', '--replace', ''],
-        true
-    ),
-    cfg(
-        'Excel Replace Standard (@)',
-        'Excels',
-        'replaceStandart',
-        ['--file', X, '--search', '@', '--replace', ''],
-        true
-    ),
-    cfg(
-        'Excel Replace Formula All (@)',
-        'Excels',
-        'replaceFormulaAll',
-        ['--file', X, '--search', '@', '--replace', ''],
-        true
-    ),
-    cfg('Excel Recalc', 'Excels', 'recalculate', ['--file', X], true),
-    cfg(
-        'Excel Change Font to Arial',
-        'Excels',
-        'changeFont',
-        ['--file', X, '--font', 'Arial'],
-        true
-    ),
     cfg('MD to HTML (TMT Neuropsychological Assessment)', 'Markdown', 'convertToHtml', [
         '--file',
         'd:\\Humans\\Medicine\\Diagnos\\Neurolog\\Attention\\Trail Making Test, TMT\\Normals\\TMT_Neuropsychological_Assessment_v1.md',

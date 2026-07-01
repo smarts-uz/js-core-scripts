@@ -1,11 +1,4 @@
 .xlsx
-NoClose;Replace @ (Formula);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\replaceFormula.mjs" --file "%1" --search "@" --replace ""
-NoClose;Replace @ (Formula2);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\replaceFormula2.mjs" --file "%1" --search "@" --replace ""
-NoClose;Replace @ (FormulaArray);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\replaceFormulaArray.mjs" --file "%1" --search "@" --replace ""
-NoClose;Replace @ (Standard);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\replaceStandart.mjs" --file "%1" --search "@" --replace ""
-NoClose;Replace @ (Formula All);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\replaceFormulaAll.mjs" --file "%1" --search "@" --replace ""
-NoClose;Excel Recalc;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\recalculate.mjs" --file "%1"
-NoClose;Change Font to Arial;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\changeFont.mjs" --file "%1" --font "Arial"
 NoClose;Protect Worksheets (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\protectSheetAsk.mjs" --file "%1"
 NoClose;Unprotect Worksheets (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\unProtectSheetAsk.mjs" --file "%1"
 NoClose;Protect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\protectFileAsk.mjs" --file "%1"
