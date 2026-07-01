@@ -1,6 +1,8 @@
 // Rewrites .vscode/launch.json so every util-method debug config runs its
 // per-method runner: program → ${workspaceFolder}\runs\<Class>\<method>.mjs.
-// Non-util tools (ai-rename, ai-rename-gemini, chat-export) are kept verbatim.
+// console is 'internalConsole' (Debug Console), NOT 'integratedTerminal' — the
+// latter freezes on Windows/PowerShell echoing a half-typed ${env:...} at the
+// prompt instead of launching the program.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -16,17 +18,8 @@ const cfg = (name, cls, method, args, outputStd = false) => ({
     skipFiles: ['<node_internals>/**'],
     program: prog(cls, method),
     args,
-    console: 'integratedTerminal',
+    console: 'internalConsole',
     ...(outputStd ? { outputCapture: 'std' } : {}),
-});
-const raw = (name, program, args) => ({
-    type: 'node',
-    request: 'launch',
-    name,
-    skipFiles: ['<node_internals>/**'],
-    program: `\${workspaceFolder}\\${program}`,
-    args,
-    console: 'integratedTerminal',
 });
 
 const X = 'd:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx';
@@ -133,18 +126,6 @@ const configurations = [
         'd:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Electroencephalography EEG 5.md',
         'd:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Luria s Memory Word Test LMWT 5.md',
     ]),
-    raw('AI Rename by Content', 'ai-rename.js', [
-        'd:\\path\\to\\file1.md',
-        'd:\\path\\to\\file2.md',
-        '--effort',
-        'max',
-    ]),
-    raw('Gemini Rename by Content', 'ai-rename-gemini.js', [
-        'd:\\path\\to\\file1.md',
-        'd:\\path\\to\\file2.md',
-        '--level',
-        '4',
-    ]),
     cfg('Excel Homoglyph All Chars', 'Homoglyph', 'excel', ['--file', 'd:\\path\\to\\test.xlsx']),
     cfg('Excel Homoglyph Ask', 'Homoglyph', 'excelAsk', ['--file', 'd:\\path\\to\\test.xlsx']),
     cfg('PPT Homoglyph All Chars', 'Homoglyph', 'powerpoint', [
@@ -165,7 +146,6 @@ const configurations = [
         '--file',
         'd:\\path\\to\\test.pptx',
     ]),
-    raw('Export Chat to .claude', 'chat-export.js', []),
     cfg('Registry Clean (PATH)', 'Registry', 'clean', ['--hives', 'Both']),
 
     // ── Contract presets — 2 examples PER COMMAND (single --yaml + batch --all),
