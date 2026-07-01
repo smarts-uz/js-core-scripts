@@ -1011,12 +1011,12 @@ describe('Excels.generate', () => {
     globalThis.folderALL = folderALL;
     fs.mkdirSync(folderALL, { recursive: true });
 
-    // Template + Excel.txt (list of placeholder/folder names) on disk.
+    // Template on disk; the pricing cell names come from config (Excel.CellNames).
     const template = makeFile('Template.xlsx', 'tpl');
-    fs.writeFileSync(path.join(workDir, 'Excel.txt'), 'Region\n', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
       if (key === 'Templates.Excel') return template;
+      if (key === 'Excel.CellNames') return ['Region'];
       return null;
     });
     YamlsMock.loadYamlWithDeps.mockReturnValue({
@@ -1066,21 +1066,21 @@ describe('Excels.generate', () => {
     killSpy.mockRestore();
   });
 
-  it('warns when Excel.txt is absent but still proceeds through the pipeline', () => {
+  it('warns when Excel.CellNames is missing but still proceeds through the pipeline', () => {
     globalThis.folderActReco = path.join(workDir, 'ActReco2');
     globalThis.folderALL = path.join(workDir, 'ALL2');
     fs.mkdirSync(globalThis.folderALL, { recursive: true });
     const template = makeFile('Tpl2.xlsx', 'tpl');
-    // No Excel.txt written → readLines would throw, but warningBox fires first
-    // and readLines on a missing file throws inside generate. Document: the
-    // method does not guard the throw, so we assert the warning was issued.
+    // Excel.CellNames not configured (returns null) → warning fires; the (empty)
+    // cell-name loop is a no-op, so generate proceeds without throwing.
     YamlsMock.getConfig.mockImplementation((key) => (key === 'Templates.Excel' ? template : null));
     YamlsMock.loadYamlWithDeps.mockReturnValue({ ComName: 'X' });
 
-    const sheet = makeComProxy(
-      { Cells: { Find: jest.fn(() => makeComProxy({ Row: 1, Column: 1 })), Replace: jest.fn() } },
-      'AppSheet'
-    );
+    // Callable Cells (processPricing does excelSheet.Cells(r,c).Value = …).
+    const cellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    cellsFn.Find = jest.fn(() => makeComProxy({ Row: 1, Column: 1 }, 'found'));
+    cellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: cellsFn }, 'AppSheet');
     const wb = makeComProxy(
       { Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() },
       'Workbook'
@@ -1092,9 +1092,11 @@ describe('Excels.generate', () => {
     });
     const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
 
-    // readLines on the real fs stub throws for a missing file → generate throws.
-    expect(() => Excels.generate(path.join(workDir, 'd.yml'))).toThrow();
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith('Excel.txt not found', 'Error');
+    expect(() => Excels.generate(path.join(workDir, 'd.yml'))).not.toThrow();
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      'Excel.CellNames missing/empty in config.yml',
+      'Error'
+    );
     killSpy.mockRestore();
   });
 });

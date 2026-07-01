@@ -846,14 +846,11 @@ export class Excels {
     // Attempt to copy the file
     Files.copyFileWithRetry(Yamls.getConfig('Templates.Excel'), newFilePath);
 
-    // 1. Read the list from Excel.txt
-    const cellsFilePath = path.join(Files.currentDir(), 'Excel.txt');
-    if (!fs.existsSync(cellsFilePath))
-      Dialogs.warningBox('Excel.txt not found', 'Error');
-
-
-    // Example usage:
-    const cellNames = Files.readLines(cellsFilePath);
+    // 1. Read the ordered pricing cell/column names from config.yml (Excel.CellNames).
+    const configuredCells = Yamls.getConfig('Excel.CellNames');
+    if (!Array.isArray(configuredCells) || configuredCells.length === 0)
+      Dialogs.warningBox('Excel.CellNames missing/empty in config.yml', 'Error');
+    const cellNames = Array.isArray(configuredCells) ? configuredCells : [];
     console.log('Cell names:', cellNames.join(', '), 'cellNames');
 
     this.fileOpen(newFilePath);

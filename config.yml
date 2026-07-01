@@ -16,12 +16,19 @@ Cache:
     FetchTimeout: 100
 # Secrets (My3Api, My3, Kapital, KapitalId, Didox, Ijara) moved to .env — read
 # via process.env (dotenv). See INTEGRATIONS.md for the variable names.
+# The non-secret Didox partner-API base URL stays here.
+Didox:
+    BaseURL: api-partners.didox.uz
 Templates:
     WordMerge: d:\FileType\Office\Projects\DOCX\Merge\
     # Folders (not files). At runtime the latest "Basename N" file is picked from each.
     WordMd: d:\FileType\Office\Projects\DOCX\MD\
     WordMdTOC: d:\FileType\Office\Projects\DOCX\MD-TOC\
     WordMdRule: d:\FileType\Office\Projects\DOCX\MD-Rule\
+    # Contract templates (files) — read by Word.makeContract / Yamls / Excels.generate.
+    Word: d:\Humans\Building\Rentalls\Contract\Projects\Rentals 527.docx
+    Yaml: d:\Develop\Projects\ALL\ALL\ALL.contract
+    Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 90.xlsx
 ChoosedChars:
     Word: cxACEHIJKMOPSTX
     Markdown: cxACEHIJKMOPSTX
@@ -48,6 +55,18 @@ Scanner:
 Excel:
     ProtectSuffix: ' PR'
     HomoglyphSuffix: ' Norm'
+    # Contract pricing cell/column names, in order — read by Excels.generate
+    # (formerly the standalone Excel.txt).
+    CellNames:
+        - Trans-OT
+        - Bank-OT
+        - Bank-IN
+        - EHF-IN
+        - Card-OT
+        - Card-IN
+        - Bonuses
+        - BaaR-OT
+        - BaaR-IN
     ExcludedSheets:
         - Results
         - Lookup
