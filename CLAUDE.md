@@ -113,14 +113,14 @@ Owned by `smarts-app-cmdline` → `module/tests.md` (one-file-per-class 1:1, nat
 - Runs under `NODE_OPTIONS=--experimental-vm-modules` (via `cross-env` in the test scripts); [jest.config.mjs](jest.config.mjs) sets `transform: {}`, `testMatch: ['<rootDir>/tests/**/*.test.js']`, `setupFilesAfterEnv` (`jest-extended/all` + `tests/setup/jest.setup.js`).
 - **`node tests/ALL.mjs`** discovers every `*.test.js` directly in `tests/` (non-recursive), excludes any `@`-prefixed folder, sets the ESM flag, accepts name filters (`node tests/ALL.mjs Word Secrets`) + pass-through jest flags.
 - Pure/fs methods tested for real against `tests/helpers/tmp.js`; native/COM/network/GUI methods mock the boundary via `jest.unstable_mockModule` keyed by `tests/helpers/esm.js`'s `utilsModule(...)`.
-- **`data/` symlink** must be present (specs import `data/banks.json`/etc.). Integration-credential test conventions are in [INTEGRATIONS.md](INTEGRATIONS.md).
+- **`conf/data/*.json` must be present** (specs import `../conf/data/banks.json`/etc.). Integration-credential test conventions are in [INTEGRATIONS.md](INTEGRATIONS.md).
 - **Coverage thresholds** in [jest.config.mjs](jest.config.mjs): statements/functions/lines 50, branches 40; the check is skipped when the `utils/` symlink yields `0/0` instrumentation.
 
 ### Dev tooling & quality gates (concrete)
 
 Owned by `smarts-app-cmdline` → `module/quality.md`. This project's concrete config:
 
-- **ESLint** ([eslint.config.mjs](eslint.config.mjs), flat) lints `**/*.{js,mjs}` but ignores the symlinked `utils/`, `data/`, `coverage/`, `node_modules/`, `.claude/`, `README.md`. `ecmaVersion: 2025`; `no-console` off; test files also disable `no-unused-vars` + `no-control-regex`.
+- **ESLint** ([eslint.config.mjs](eslint.config.mjs), flat) lints `**/*.{js,mjs}` but ignores the symlinked `utils/`, the `conf/` data tree, `cmd/`, `coverage/`, `node_modules/`, `.claude/`, `README.md`. `ecmaVersion: 2025`; `no-console` off; test files also disable `no-unused-vars` + `no-control-regex`.
 - **Prettier** ([.prettierrc.json](.prettierrc.json): 4-space, single-quote, 100 width; tests + `eslint.config.mjs` 2-space). Runs on save ([.vscode/settings.json](.vscode/settings.json) + `esbenp.prettier-vscode`), in a Husky + lint-staged pre-commit hook ([.husky/pre-commit](.husky/pre-commit), non-blocking), and in CI. Generated runners (`runs/*/`) are in [.prettierignore](.prettierignore); the hand-authored `runs/_*.mjs` tooling is formatted.
 - **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs `lint`+`format:check` on Ubuntu and jest on **Windows** (COM is Windows-only). Dependabot, PR/issue templates, `CODEOWNERS`, MIT [LICENSE](LICENSE), [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), and [jsconfig.json](jsconfig.json) (`checkJs`) are present.
 

@@ -29,4 +29,4 @@ The integration helpers — `Didox.js`, `MySoliq.js`, `IjaraSoliq.js`, `KapitalB
 ## Tests — integration-credential specifics (concrete)
 
 - The integration classes read credentials via `Secrets.get(...)` → `process.env.<SECTION>_<OWNER>`. Specs set/restore the exact env var per test (e.g. `process.env.IJARA_SRENTAL`, `KAPITAL_ID_SRENTAL`) and isolate it (delete before a "no bearer" guard test) so a consumer project's real `.env` can't make the test non-deterministic.
-- **`data/` is a symlink** (like `utils/` and `node_modules/`) into the shared source, tracked as real JSON files in this repo too; `Didox.js` and its spec import the bundled `data/banks.json`/`regions.json`/`districts.json`, so the suite needs it present.
+- **The bundled data lives in `conf/data/` and is read from there directly** (no root `data/` symlink). `Didox.js` imports `../conf/data/banks.json`/`regions.json`/`districts.json` and `tests/Didox.test.js` imports `../conf/data/...`, so the suite needs `conf/data/*.json` present.

@@ -11,8 +11,9 @@ export default [
     ignores: [
       'node_modules/**',
       'utils/**', // symlinked into js-core-scripts; linted in its own repo
-      'data/**',
+      'conf/**', // data/config trees (data JSON, bank/cost YAML) — not source
       'coverage/**',
+      'cmd/**', // loose .cmd/.js utility scripts, not part of the linted source
       '.claude/**',
       'README.md',
     ],
