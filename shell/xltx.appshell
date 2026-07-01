@@ -1,0 +1,2 @@
+.xltx
+node.exe;Excel-Convert;"D:\Humans\Building\Rentalls\Develop\Generate\Sources\js-winax-contract\excel-convert.js" --input "%1"

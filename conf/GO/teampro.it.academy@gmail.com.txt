@@ -1,0 +1,57 @@
+﻿[0] C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser-Resources\\chrome\142-0002\chrome.exe
+
+[1] --force-color-profile=srgb
+
+[2] --metrics-recording-only
+
+[3] --no-first-run
+
+[4] --password-store=basic
+
+[5] --use-mock-keychain
+
+[6] --user-data-dir=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\821dab6faac9a75897824928fc0736be
+
+[7] --no-default-browser-check
+
+[8] --disable-background-mode
+
+[9] --disable-extension-welcome-page
+
+[10] --autoplay-policy=no-user-gesture-required
+
+[11] --protected-enablechromeversion=1
+
+[12] --enable-unsafe-swiftshader
+
+[13] --protected-gems=2147483649
+
+[14] --js-flags=--ignore_debugger
+
+[15] --protected-webgpu=apple,common-3
+
+[16] --disable-features=HttpsUpgrades,HttpsFirstModeV2ForEngagedSites,HttpsFirstBalancedMode,HttpsFirstBalancedModeAutoEnable,EnableFingerprintingProtectionFilter,FlashDeprecationWarning,EnablePasswordsAccountStorage,RendererCodeIntegrity,CanvasNoise
+
+[17] --disable-popup-blocking
+
+[18] --hide-crash-restore-bubble
+
+[19] --user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.7499.21 Safari/537.36
+
+[20] --lang=en-US
+
+[21] --no-sandbox
+
+[22] --disable-setuid-sandbox
+
+[23] --extended-parameters=594NuFN9WIOkBqOFLy4tlRf9lf7YeImkBqbXcqmpB1uFPqG-z3v-GacrmRpDvF2gmFNSlR2gv9zEzU4-eFc_zkjk7R26GI4-vm48GF0xuUdDeU7ceF72zqYSuxN2Ly4zGa43lFf9vmcseUcDux42eUcizqrkcyz-z372lU2qvmD2eId95WzEzqokLy4ReX4qvNT9eFc2uXcf5R2SzqYSuxN2Ly41lacSeFD4GFdgzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjQPqf3GIzFvUf8G628c6mQBtuQPqOiPq8UG6hXP6vkvNpuafpqG63icqGgVIcszkjkNFNk7SpcGa4_zqr9c1GpLy4TeRpslDcqGIiOeX4Su9zEzqhkLy4JvId-eFc8lR2se2c2lJ7YeUukBk48uF-kLy4PGIixu9zEzUNgLNNtLRNgzkjkOIcqvaTStRfgv9zEzUNgLNNtLRNgzkjkmRp8lRvsuUSkBk4cGIc4ex72eyz-z3c8exv8uSD8uU-kBqbpP1m-z3fDvR2s7xhkBqoFc1z-z3c-VINglf42GX7RuyzELtopB1b-z2cSGa7YGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuB1zpvRfkcUv8GIPiGtuDB13XB1zSBtzQvUPjc6PFGUNuaRNUctGicRN3Pt73c178cUc3c6lUB1uSvI78vq22P6vqzkjk7J2gGIDYGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuB1zpvRfkcUv8GIPiGtuDB13XB1zSBtzQvUPjc6PFGUNuafpuBRPQPUPXGtT3GUGSv1ujc63SGquic143c6zDB1G9PFPkLy4avI4JtbvOzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjQPqf3GIzFvUf8G628c6mQBtuQPqOiPq8UG6hXP6vkvNpuafj9PqGXGUzjPUm6cRGpGq4qcIOSctv8Pt4UGImDcIf8BWz-z3cseF0YvacRVIp2zqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjQPqf3GIzFvUf8G628c6mQBtuQPqOiPq8UG6hXP6vkvNpuafjjGIfUB1f8vROiv1bXGt3iPRckGIzQP639vq73vtfqG9z-zUD8uU-kBk4e7R29vIcSaapteISpPWh0zJ72GIDjuUKgLkQkLy4_vINjLI4xlF2gLavYuF2keRmkBqb-zUpsGF-0va8SLI4DGU4-vWzEPaS=
+
+[24] --window-position=0,0
+
+[25] --load-extension=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\akcocjjpkmlniicdeemdceeajlmoabhg,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\omghfjlpggmjjaagoclmmobgdodcjboh,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\bgnkhhnnamicmpeenaelnjfhikgbkllg
+
+[26] http://127.0.0.1:9774/?id=46&time=1765187626&timezone=Asia/Tomsk&name=Smm11%20-%20teampro.it.academy%40gmail.com&username=&tfa_secret=&note=&group_name=HH&tag_name=YandexJunk
+
+[27] https://gmail.com
+
+[FULL] C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser-Resources\\chrome\142-0002\chrome.exe --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain "--user-data-dir=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\821dab6faac9a75897824928fc0736be" --no-default-browser-check --disable-background-mode --disable-extension-welcome-page --autoplay-policy=no-user-gesture-required --protected-enablechromeversion=1 --enable-unsafe-swiftshader --protected-gems=2147483649 --js-flags=--ignore_debugger --protected-webgpu=apple,common-3 --disable-features=HttpsUpgrades,HttpsFirstModeV2ForEngagedSites,HttpsFirstBalancedMode,HttpsFirstBalancedModeAutoEnable,EnableFingerprintingProtectionFilter,FlashDeprecationWarning,EnablePasswordsAccountStorage,RendererCodeIntegrity,CanvasNoise --disable-popup-blocking --hide-crash-restore-bubble "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.7499.21 Safari/537.36" --lang=en-US --no-sandbox --disable-setuid-sandbox --extended-parameters=594NuFN9WIOkBqOFLy4tlRf9lf7YeImkBqbXcqmpB1uFPqG-z3v-GacrmRpDvF2gmFNSlR2gv9zEzU4-eFc_zkjk7R26GI4-vm48GF0xuUdDeU7ceF72zqYSuxN2Ly4zGa43lFf9vmcseUcDux42eUcizqrkcyz-z372lU2qvmD2eId95WzEzqokLy4ReX4qvNT9eFc2uXcf5R2SzqYSuxN2Ly41lacSeFD4GFdgzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjQPqf3GIzFvUf8G628c6mQBtuQPqOiPq8UG6hXP6vkvNpuafpqG63icqGgVIcszkjkNFNk7SpcGa4_zqr9c1GpLy4TeRpslDcqGIiOeX4Su9zEzqhkLy4JvId-eFc8lR2se2c2lJ7YeUukBk48uF-kLy4PGIixu9zEzUNgLNNtLRNgzkjkOIcqvaTStRfgv9zEzUNgLNNtLRNgzkjkmRp8lRvsuUSkBk4cGIc4ex72eyz-z3c8exv8uSD8uU-kBqbpP1m-z3fDvR2s7xhkBqoFc1z-z3c-VINglf42GX7RuyzELtopB1b-z2cSGa7YGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuB1zpvRfkcUv8GIPiGtuDB13XB1zSBtzQvUPjc6PFGUNuaRNUctGicRN3Pt73c178cUc3c6lUB1uSvI78vq22P6vqzkjk7J2gGIDYGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuB1zpvRfkcUv8GIPiGtuDB13XB1zSBtzQvUPjc6PFGUNuafpuBRPQPUPXGtT3GUGSv1ujc63SGquic143c6zDB1G9PFPkLy4avI4JtbvOzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjQPqf3GIzFvUf8G628c6mQBtuQPqOiPq8UG6hXP6vkvNpuafj9PqGXGUzjPUm6cRGpGq4qcIOSctv8Pt4UGImDcIf8BWz-z3cseF0YvacRVIp2zqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjQPqf3GIzFvUf8G628c6mQBtuQPqOiPq8UG6hXP6vkvNpuafjjGIfUB1f8vROiv1bXGt3iPRckGIzQP639vq73vtfqG9z-zUD8uU-kBk4e7R29vIcSaapteISpPWh0zJ72GIDjuUKgLkQkLy4_vINjLI4xlF2gLavYuF2keRmkBqb-zUpsGF-0va8SLI4DGU4-vWzEPaS= --window-position=0,0 "--load-extension=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\akcocjjpkmlniicdeemdceeajlmoabhg,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\omghfjlpggmjjaagoclmmobgdodcjboh,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\bgnkhhnnamicmpeenaelnjfhikgbkllg" http://127.0.0.1:9774/?id=46&time=1765187626&timezone=Asia/Tomsk&name=Smm11%20-%20teampro.it.academy%40gmail.com&username=&tfa_secret=&note=&group_name=HH&tag_name=YandexJunk https://gmail.com

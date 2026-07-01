@@ -1,0 +1,55 @@
+﻿[0] C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser-Resources\\chrome\134-0001\chrome.exe
+
+[1] --force-color-profile=srgb
+
+[2] --metrics-recording-only
+
+[3] --no-first-run
+
+[4] --password-store=basic
+
+[5] --use-mock-keychain
+
+[6] --user-data-dir=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\72a5ea8f9742c1ccea600ad019715214
+
+[7] --no-default-browser-check
+
+[8] --disable-background-mode
+
+[9] --disable-extension-welcome-page
+
+[10] --autoplay-policy=no-user-gesture-required
+
+[11] --protected-enablechromeversion=1
+
+[12] --protected-gems=2147483649
+
+[13] --js-flags=--ignore_debugger
+
+[14] --protected-webgpu=intel,gen-7
+
+[15] --disable-features=HttpsUpgrades,HttpsFirstModeV2ForEngagedSites,HttpsFirstBalancedMode,HttpsFirstBalancedModeAutoEnable,EnableFingerprintingProtectionFilter,FlashDeprecationWarning,EnablePasswordsAccountStorage,RendererCodeIntegrity
+
+[16] --disable-popup-blocking
+
+[17] --hide-crash-restore-bubble
+
+[18] --user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.104 Safari/537.36
+
+[19] --lang=en-US
+
+[20] --no-sandbox
+
+[21] --disable-setuid-sandbox
+
+[22] --extended-parameters=594NuFN9WIOkBqODLy4tlRf9lf7YeImkBqbXcqmpB1uFctu-z3v-GacrmRpDvF2gmFNSlR2gv9zEzU4-eFc_zkjk7R26GI4-vm48GF0xuUdDeU7ceF72zqYSuxN2Ly4zGa43lFf9vmcseUcDux42eUcizqrkcyz-z372lU2qvmD2eId95WzEzqokLy4ReX4qvNT9eFc2uXcf5R2SzqYSuxN2Ly41lacSeFD4GFdgzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjXPUbDvIbQvq3Xc14qPIcqvIbFP1T8v1hpBtupctzpcfpuafpqG63icqGgVIcszkjkNFNk7SpcGa4_zqr9c1GpLy4TeRpslDcqGIiOeX4Su9zEzqhkLy4JvId-eFc8lR2se2c2lJ7YeUukBk48uF-kLy4PGIixu9zEzUNgLNNtLRNgzkjkOIcqvaTStRfgv9zEzUNgLNNtLRNgzkjkmRp8lRvsuUSkBk4aVIQ6Pkz-z3c8exv8uSD8uU-kBqbpP1m-z3fDvR2s7xhkBqoFc1z-z3c-VINglf42GX7RuyzELtopB1b-z2cSGa7YGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuc648cIN8BRGic6O9G6fqGFN8cqhjGIOjPt3XPtm9Pt7ua13pGtf3GqN3cqhXvRGQcthjcRPFB17UvIzDBIbFctb6zkjk7J2gGIDYGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuc648cIN8BRGic6O9G6fqGFN8cqhjGIOjPt3XPtm9Pt7uafpuPRz6PRv2cqm9cImXGqbjcqG9ctT3Btc8PFGQBtzSc1bkLy4avI4JtbvOzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjXPUbDvIbQvq3Xc14qPIcqvIbFP1T8v1hpBtupctzpcfpuafjXvtbictbQcqzXGt3QvqGSGIfUGFGjc6OSB1OSctbFvWz-z3cseF0YvacRVIp2zqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjXPUbDvIbQvq3Xc14qPIcqvIbFP1T8v1hpBtupctzpcfpuafp2vtoDc63SG6uFBtuiPFzpP639PIOQv1GiP1mDBIO6Pkz-zUD8uU-kBk4e7R29vIcSaapteISpPyh0zJc0Ga4SlRmgLkQkZO==
+
+[23] --window-position=0,0
+
+[24] --load-extension=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\akcocjjpkmlniicdeemdceeajlmoabhg,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\omghfjlpggmjjaagoclmmobgdodcjboh,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\bgnkhhnnamicmpeenaelnjfhikgbkllg
+
+[25] http://127.0.0.1:9774/?id=45&time=1765187657&timezone=Europe/Zurich&name=Smm10%20-%20smarttech.mailer.4%40gmail.com&username=&tfa_secret=&note=&group_name=Smm&tag_name=Yandex
+
+[26] https://gmail.com
+
+[FULL] C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser-Resources\\chrome\134-0001\chrome.exe --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain "--user-data-dir=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\72a5ea8f9742c1ccea600ad019715214" --no-default-browser-check --disable-background-mode --disable-extension-welcome-page --autoplay-policy=no-user-gesture-required --protected-enablechromeversion=1 --protected-gems=2147483649 --js-flags=--ignore_debugger --protected-webgpu=intel,gen-7 --disable-features=HttpsUpgrades,HttpsFirstModeV2ForEngagedSites,HttpsFirstBalancedMode,HttpsFirstBalancedModeAutoEnable,EnableFingerprintingProtectionFilter,FlashDeprecationWarning,EnablePasswordsAccountStorage,RendererCodeIntegrity --disable-popup-blocking --hide-crash-restore-bubble "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.104 Safari/537.36" --lang=en-US --no-sandbox --disable-setuid-sandbox --extended-parameters=594NuFN9WIOkBqODLy4tlRf9lf7YeImkBqbXcqmpB1uFctu-z3v-GacrmRpDvF2gmFNSlR2gv9zEzU4-eFc_zkjk7R26GI4-vm48GF0xuUdDeU7ceF72zqYSuxN2Ly4zGa43lFf9vmcseUcDux42eUcizqrkcyz-z372lU2qvmD2eId95WzEzqokLy4ReX4qvNT9eFc2uXcf5R2SzqYSuxN2Ly41lacSeFD4GFdgzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjXPUbDvIbQvq3Xc14qPIcqvIbFP1T8v1hpBtupctzpcfpuafpqG63icqGgVIcszkjkNFNk7SpcGa4_zqr9c1GpLy4TeRpslDcqGIiOeX4Su9zEzqhkLy4JvId-eFc8lR2se2c2lJ7YeUukBk48uF-kLy4PGIixu9zEzUNgLNNtLRNgzkjkOIcqvaTStRfgv9zEzUNgLNNtLRNgzkjkmRp8lRvsuUSkBk4aVIQ6Pkz-z3c8exv8uSD8uU-kBqbpP1m-z3fDvR2s7xhkBqoFc1z-z3c-VINglf42GX7RuyzELtopB1b-z2cSGa7YGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuc648cIN8BRGic6O9G6fqGFN8cqhjGIOjPt3XPtm9Pt7ua13pGtf3GqN3cqhXvRGQcthjcRPFB17UvIzDBIbFctb6zkjk7J2gGIDYGScseUvYv9zEz3PEafpuafN6va46afpuabf3eI2gVacSuUfSeX4uafpuOaTj7RfSGNpuafpWeFf0VIixafpuaR2QOx4slXc2u2puafpyuUdXuFN9zb78lRfuafpuc648cIN8BRGic6O9G6fqGFN8cqhjGIOjPt3XPtm9Pt7uafpuPRz6PRv2cqm9cImXGqbjcqG9ctT3Btc8PFGQBtzSc1bkLy4avI4JtbvOzqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjXPUbDvIbQvq3Xc14qPIcqvIbFP1T8v1hpBtupctzpcfpuafjXvtbictbQcqzXGt3QvqGSGIfUGFGjc6OSB1OSctbFvWz-z3cseF0YvacRVIp2zqrkO6YuafpuNac2uxcuafpuOI70VIiYuX79Ga7su2puafpTuJTbGa78afpuaf4sGIDYeUluafpuVa8yuUdXuFN9afpuab49eXl6vazo7RfSGNpuafjXPUbDvIbQvq3Xc14qPIcqvIbFP1T8v1hpBtupctzpcfpuafp2vtoDc63SG6uFBtuiPFzpP639PIOQv1GiP1mDBIO6Pkz-zUD8uU-kBk4e7R29vIcSaapteISpPyh0zJc0Ga4SlRmgLkQkZO== --window-position=0,0 "--load-extension=C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\akcocjjpkmlniicdeemdceeajlmoabhg,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\omghfjlpggmjjaagoclmmobgdodcjboh,C:\\Users\\Administrator\\AppData\\Roaming\\ixBrowser\\Browser Data\\extension\\bgnkhhnnamicmpeenaelnjfhikgbkllg" http://127.0.0.1:9774/?id=45&time=1765187657&timezone=Europe/Zurich&name=Smm10%20-%20smarttech.mailer.4%40gmail.com&username=&tfa_secret=&note=&group_name=Smm&tag_name=Yandex https://gmail.com

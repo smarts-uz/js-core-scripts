@@ -1,0 +1,5 @@
+.contractall
+node.exe;Words;"D:\Humans\Building\Rentalls\Develop\Generate\Sources\js-winax-contract\words.js" --all "%1"
+node.exe;Excels;"D:\Humans\Building\Rentalls\Develop\Generate\Sources\js-winax-contract\excels.js" --all "%1" 
+node.exe;Update;"D:\Humans\Building\Rentalls\Develop\Generate\Sources\js-winax-contract\update.js" --all "%1" 
+node.exe;Yamls;"D:\Humans\Building\Rentalls\Develop\Generate\Sources\js-winax-contract\yamls.js" --all "%1" 

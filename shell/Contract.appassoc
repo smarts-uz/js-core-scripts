@@ -1,0 +1,1 @@
+node.exe;.contract;"D:\Humans\Building\Rentalls\Develop\Generate\Sources\js-winax-contract\yamls.js" --yaml "%1"
