@@ -4,9 +4,9 @@
 //
 // Strategy: the directory walking, YAML emit, markdown and incrementing logic
 // are all pure / real-fs, so they run for real against throwaway temp dirs.
-// Two boundaries are mocked: child_process (Scanner.notify shells out to
-// powershell via execSync) and Yamls (Scanner.run pulls exclusions from
-// Yamls.getConfig). js-yaml runs for real so toYaml round-trips genuinely.
+// Two boundaries are mocked: winax (Scanner.notify opens a native popup via the
+// COM WScript.Shell object — NO PowerShell anymore) and Yamls (Scanner.run pulls
+// exclusions from Yamls.getConfig). js-yaml runs for real so toYaml round-trips.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
@@ -15,10 +15,18 @@ import { makeTmpDir, cleanupAllTmpDirs, writeTree, read } from './helpers/tmp.js
 import { utilsModule } from './helpers/esm.js';
 
 // --- mocked boundary ---------------------------------------------------------
-const execSync = jest.fn();
+// Scanner.notify loads winax via createRequire('winax'); mock node:module so
+// require('winax') returns our COM fake instead of opening a real popup.
+const popup = jest.fn(() => -1);
+const winaxObject = jest.fn(() => ({ Popup: popup }));
+const winaxFake = { Object: winaxObject };
+const fakeRequire = (id) => (id === 'winax' ? winaxFake : (() => { throw new Error(`unexpected require: ${id}`); })());
 const YamlsMock = { getConfig: jest.fn() };
 
-jest.unstable_mockModule('child_process', () => ({ execSync, default: { execSync } }));
+jest.unstable_mockModule('node:module', () => ({
+  createRequire: () => fakeRequire,
+  default: { createRequire: () => fakeRequire },
+}));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 
 const { Scanner } = await import('../utils/Scanner.js');
@@ -65,28 +73,26 @@ describe('Scanner.getTimestamp', () => {
 });
 
 describe('Scanner.notify', () => {
-  it('shells out to powershell via execSync with the message/title/type', () => {
+  it('opens a native popup via winax COM WScript.Shell.Popup (message/title/timeout/type)', () => {
     Scanner.notify('Hello', 'Title', 5, 64);
-    expect(execSync).toHaveBeenCalledTimes(1);
-    const [cmd, opts] = execSync.mock.calls[0];
-    expect(cmd).toContain('powershell');
-    expect(cmd).toContain('Hello');
-    expect(cmd).toContain('Title');
-    expect(cmd).toContain('64');
-    expect(opts).toEqual({ stdio: 'ignore' });
+    expect(winaxObject).toHaveBeenCalledWith('WScript.Shell');
+    expect(popup).toHaveBeenCalledTimes(1);
+    const [text, secs, title, type] = popup.mock.calls[0];
+    expect(text).toBe('Hello');
+    expect(secs).toBe(5);
+    expect(title).toBe('Title');
+    expect(type).toBe(64);
   });
 
-  it('doubles single quotes in message and title to escape them', () => {
+  it('passes the raw message and title through (COM needs no quote escaping)', () => {
     Scanner.notify("it's", "o'clock", 3);
-    const [cmd] = execSync.mock.calls[0];
-    expect(cmd).toContain("it''s");
-    expect(cmd).toContain("o''clock");
+    const [text, , title] = popup.mock.calls[0];
+    expect(text).toBe("it's");
+    expect(title).toBe("o'clock");
   });
 
-  it('swallows execSync errors', () => {
-    execSync.mockImplementation(() => {
-      throw new Error('boom');
-    });
+  it('swallows COM errors', () => {
+    winaxObject.mockImplementationOnce(() => { throw new Error('boom'); });
     expect(() => Scanner.notify('m', 't', 1)).not.toThrow();
   });
 });
@@ -311,6 +317,6 @@ describe('Scanner.run', () => {
     expect(() =>
       Scanner.run({ sourceFolder: 12345, aicFolder: path.join(workDir, 'a') })
     ).toThrow();
-    expect(execSync).toHaveBeenCalled(); // notify() shelled out on error
+    expect(popup).toHaveBeenCalled(); // notify() opened a COM popup on error
   });
 });

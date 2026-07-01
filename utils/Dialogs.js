@@ -1,8 +1,34 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
-
+const require = createRequire(import.meta.url);
 
 export class Dialogs {
+
+  // Run a VBScript snippet via cscript (NOT PowerShell) and return its trimmed
+  // stdout. cscript emits clean UTF-8 — unlike the old PowerShell path, whose
+  // UTF-16 stdout leaked garbled ("Chinese-looking") text into the terminal.
+  // The .vbs is written latin1 so VBScript's default (ANSI) parser reads it.
+  static _runVbs(vbsScript) {
+    const file = path.join(os.tmpdir(), `js-core-dialog-${process.pid}-${Date.now()}.vbs`);
+    try {
+      fs.writeFileSync(file, vbsScript, "latin1");
+      const out = execFileSync("cscript", ["//nologo", file], { encoding: "utf8" });
+      return out.replace(/\r?\n$/, "");
+    } finally {
+      try { fs.unlinkSync(file); } catch { /* best-effort cleanup */ }
+    }
+  }
+
+  // Escape a JS string for embedding inside a VBScript double-quoted literal:
+  // doubled quotes, and CR/LF spliced via VBScript's Chr() so multi-line values survive.
+  static _vbsStr(s) {
+    const parts = String(s).split(/\r\n|\r|\n/).map((line) => `"${line.replace(/"/g, '""')}"`);
+    return parts.join(" & vbCrLf & ");
+  }
 
 
   static Buttons = {
@@ -83,21 +109,17 @@ export class Dialogs {
 
 
 
-  static messageBox(message, title = 'Message') {
-      console.info(`[Dialogs.messageBox] 🟢 Starting...`);
+  static messageBox(message, title = 'Message', icon = this.Icons.Information) {
+    console.info(`[Dialogs.messageBox] 🟢 Starting...`);
     console.info(`[Dialogs.messageBox] 💬 Opening native message box: [${title}]`);
     try {
-      // Properly escape the message and title for PowerShell
-      // Escape single quotes by doubling them (PowerShell string literal escaping)
-      const escapedMessage = message.replace(/'/g, "''");
-      const escapedTitle = title.replace(/'/g, "''");
-
-      // Create the PowerShell script with properly escaped strings
-      const psScript = `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${escapedMessage}', '${escapedTitle}')`;
-
-      // Use -EncodedCommand to avoid shell escaping issues
-      const encodedScript = Buffer.from(psScript, 'utf16le').toString('base64');
-      execSync(`powershell -NoProfile -EncodedCommand ${encodedScript}`);
+      // winax COM WScript.Shell.Popup — a native message box with NO PowerShell.
+      // The old PowerShell path piped UTF-16 stdout into the terminal, which the
+      // console rendered as garbled "Chinese" text; COM writes nothing to stdout.
+      // Popup(text, secondsToWait=0 → wait forever, title, type = buttons|icon).
+      const shell = new (require("winax").Object)("WScript.Shell");
+      const buttonCode = this.Buttons.OK; // 0 = OK only
+      shell.Popup(String(message), 0, String(title), buttonCode + Number(icon));
       console.log(`[Dialogs.messageBox] ✅ Native message box closed successfully.`);
     } catch (err) {
       console.error(`[Dialogs.messageBox] ❌ Error opening message box:`, err.message);
@@ -106,33 +128,25 @@ export class Dialogs {
 
   static openFileDialog(initialDir = "D:\\Projects") {
     console.info(`[Dialogs.openFileDialog] 🟢 Starting...`);
-    // Properly escape single quotes by doubling them for PowerShell
-    const escapedInitialDir = initialDir.replace(/'/g, "''");
-
-    const psScript = `
-    Add-Type -AssemblyName System.Windows.Forms
-    $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.InitialDirectory = '${escapedInitialDir}'
-    $dlg.Filter = 'Word Documents (*.doc;*.docx)|*.doc;*.docx|All Files (*.*)|*.*'
-    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        Write-Output $dlg.FileName
-    }
-    `;
+    // A native file-open dialog via the UserAccounts.CommonDialog COM object,
+    // driven by cscript (NOT PowerShell) so stdout stays clean UTF-8.
+    const vbs = `
+Dim dlg, ok
+Set dlg = CreateObject("UserAccounts.CommonDialog")
+dlg.Filter = "Word Documents|*.doc;*.docx|All Files|*.*"
+dlg.InitialDir = ${this._vbsStr(initialDir)}
+ok = dlg.ShowOpen
+If ok Then WScript.Echo dlg.FileName
+`.trim();
 
     try {
-      // Inline PowerShell script with -NoProfile to avoid user profile issues
-      const filePath = execSync(
-        `powershell -NoProfile -Command "${psScript.replace(/\n/g, ';')}"`,
-        { encoding: "utf8" }
-      ).trim();
-
+      const filePath = this._runVbs(vbs).trim();
       if (filePath) {
         console.log("Selected file:", filePath);
         return filePath;
-      } else {
-        console.log("No file selected.");
-        return null;
       }
+      console.log("No file selected.");
+      return null;
     } catch (err) {
       console.error("Error opening dialog:", err.message);
       return null;
@@ -149,16 +163,10 @@ export class Dialogs {
    */
   static inputBox(prompt = 'Enter value:', title = 'Input', defaultValue = '') {
     console.info(`[Dialogs.inputBox] 🟢 Starting...`);
-    const esc = s => s.replace(/'/g, "''");
-    const psScript = `
-[void][Reflection.Assembly]::LoadWithPartialName('Microsoft.VisualBasic')
-$result = [Microsoft.VisualBasic.Interaction]::InputBox('${esc(prompt)}', '${esc(title)}', '${esc(defaultValue)}')
-Write-Output $result
-`.trim();
-
+    // VBScript's built-in InputBox() via cscript — no PowerShell, clean UTF-8 stdout.
+    const vbs = `WScript.Echo InputBox(${this._vbsStr(prompt)}, ${this._vbsStr(title)}, ${this._vbsStr(defaultValue)})`;
     try {
-      const encodedScript = Buffer.from(psScript, 'utf16le').toString('base64');
-      const output = execSync(`powershell -NoProfile -EncodedCommand ${encodedScript}`, { encoding: 'utf8' }).trim();
+      const output = this._runVbs(vbs).trim();
       return output.length > 0 ? output : null;
     } catch (err) {
       console.error('Error opening input box:', err.message);
@@ -178,63 +186,56 @@ Write-Output $result
    */
   static multilineInputBox(prompt = 'Enter text:', title = 'Input', defaultValue = '') {
     console.info(`[Dialogs.multilineInputBox] 🟢 Starting...`);
-    const esc = s => String(s).replace(/'/g, "''");
-    // A bare WinForms form: a label, a multi-line text box (Enter = newline,
-    // so AcceptButton is intentionally NOT set), and OK / Cancel buttons. Only
-    // the OK branch writes the text, so Cancel / Esc yields empty output → null.
-    const psScript = `
-[void][Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')
-[void][Reflection.Assembly]::LoadWithPartialName('System.Drawing')
-$form = New-Object System.Windows.Forms.Form
-$form.Text = '${esc(title)}'
-$form.StartPosition = 'CenterScreen'
-$form.Size = New-Object System.Drawing.Size(640, 480)
-$form.MinimumSize = New-Object System.Drawing.Size(400, 300)
-$form.TopMost = $true
-$label = New-Object System.Windows.Forms.Label
-$label.Text = '${esc(prompt)}'
-$label.AutoSize = $false
-$label.Location = New-Object System.Drawing.Point(12, 10)
-$label.Size = New-Object System.Drawing.Size(600, 40)
-$label.Anchor = 'Top, Left, Right'
-$form.Controls.Add($label)
-$textBox = New-Object System.Windows.Forms.TextBox
-$textBox.Multiline = $true
-$textBox.AcceptsReturn = $true
-$textBox.ScrollBars = 'Vertical'
-$textBox.WordWrap = $true
-$textBox.Font = New-Object System.Drawing.Font('Consolas', 10)
-$textBox.Location = New-Object System.Drawing.Point(12, 54)
-$textBox.Size = New-Object System.Drawing.Size(600, 340)
-$textBox.Anchor = 'Top, Bottom, Left, Right'
-$textBox.Text = '${esc(defaultValue)}'
-$form.Controls.Add($textBox)
-$ok = New-Object System.Windows.Forms.Button
-$ok.Text = 'OK'
-$ok.DialogResult = [System.Windows.Forms.DialogResult]::OK
-$ok.Size = New-Object System.Drawing.Size(90, 30)
-$ok.Location = New-Object System.Drawing.Point(424, 404)
-$ok.Anchor = 'Bottom, Right'
-$form.Controls.Add($ok)
-$cancel = New-Object System.Windows.Forms.Button
-$cancel.Text = 'Cancel'
-$cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-$cancel.Size = New-Object System.Drawing.Size(90, 30)
-$cancel.Location = New-Object System.Drawing.Point(522, 404)
-$cancel.Anchor = 'Bottom, Right'
-$form.Controls.Add($cancel)
-$form.CancelButton = $cancel
-if ($form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $textBox.Text }
-`.trim();
+    // A resizable multi-line input window via mshta (HTA) — NOT PowerShell. The
+    // HTA writes the entered text to a temp file as UTF-8; we read it back and
+    // delete it. Enter inserts a newline; OK submits, Cancel/close yields "".
+    const outFile = path.join(os.tmpdir(), `js-core-mlinput-${process.pid}-${Date.now()}.txt`);
+    const htaFile = path.join(os.tmpdir(), `js-core-mlinput-${process.pid}-${Date.now()}.hta`);
+    const jsStr = (s) => JSON.stringify(String(s)); // safe JS string literal for the HTA
+
+    const hta = `<!DOCTYPE html><html><head><title>${String(title).replace(/</g, "&lt;")}</title>
+<HTA:APPLICATION ID="app" BORDER="thin" SCROLL="no" INNERBORDER="no" MAXIMIZEBUTTON="no" MINIMIZEBUTTON="no" SYSMENU="yes" />
+<style>
+  body{font-family:Segoe UI,Arial;margin:10px;background:#f0f0f0}
+  #lbl{margin-bottom:6px;white-space:pre-wrap}
+  textarea{width:100%;height:300px;font-family:Consolas,monospace;font-size:13px;box-sizing:border-box}
+  .bar{margin-top:8px;text-align:right}
+  button{width:90px;height:28px;margin-left:6px}
+</style></head><body>
+<div id="lbl"></div>
+<textarea id="txt"></textarea>
+<div class="bar"><button onclick="submit()">OK</button><button onclick="cancelIt()">Cancel</button></div>
+<script>
+  window.resizeTo(660,480);
+  var fso = new ActiveXObject("Scripting.FileSystemObject");
+  document.getElementById("lbl").innerText = ${jsStr(prompt)};
+  document.getElementById("txt").value = ${jsStr(defaultValue)};
+  document.getElementById("txt").focus();
+  function writeOut(t){
+    var f = fso.CreateTextFile(${jsStr(outFile)}, true, true); // unicode=true → UTF-16 file
+    f.Write(t); f.Close();
+  }
+  function submit(){ writeOut(document.getElementById("txt").value); window.close(); }
+  function cancelIt(){ writeOut(""); window.close(); }
+<\/script></body></html>`;
 
     try {
-      const encodedScript = Buffer.from(psScript, 'utf16le').toString('base64');
-      const output = execSync(`powershell -NoProfile -EncodedCommand ${encodedScript}`, { encoding: 'utf8' }).replace(/\r?\n$/, '');
+      fs.writeFileSync(htaFile, hta, "utf8");
+      // mshta blocks until the HTA window closes.
+      execFileSync("mshta", [htaFile], { stdio: "ignore" });
+      let output = "";
+      if (fs.existsSync(outFile)) {
+        // The HTA wrote a UTF-16 (unicode) file; read and strip a BOM if present.
+        output = fs.readFileSync(outFile, "utf16le").replace(/^﻿/, "").replace(/\r\n/g, "\n");
+      }
       console.log(`[Dialogs.multilineInputBox] ✅ entered ${output.length} char(s)`);
       return output.trim().length > 0 ? output : null;
     } catch (err) {
       console.error('Error opening multiline input box:', err.message);
       return null;
+    } finally {
+      try { fs.unlinkSync(htaFile); } catch { /* best-effort */ }
+      try { fs.unlinkSync(outFile); } catch { /* best-effort */ }
     }
   }
 

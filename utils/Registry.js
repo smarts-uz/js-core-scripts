@@ -1,4 +1,7 @@
-import { spawnSync } from 'child_process';
+import { execFileSync } from 'child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { Yamls } from './Yamls.js';
 import { Files } from './Files.js';
@@ -7,14 +10,39 @@ import { Dialogs } from './Dialogs.js';
 /**
  * Registry — deterministic Windows registry maintenance helpers.
  *
- * These methods do NOT call any model; they shell out to PowerShell (via
- * -EncodedCommand, the same trick Dialogs uses) and parse the JSON envelope
- * the script prints back.
+ * These methods do NOT call any model and do NOT use PowerShell (whose UTF-16
+ * stdout leaked garbled "Chinese-looking" text into the terminal). They shell
+ * out to the plain `reg.exe` CLI — which emits clean UTF-8 — reading and
+ * rewriting values in Node, preserving each value's registry type.
  *
  * Defaults live under the `Registry:` section of config.yml and are used
  * whenever the matching argument is omitted.
  */
 export class Registry {
+
+    /** Run reg.exe with args and return { status, stdout, stderr } (clean UTF-8). */
+    static _reg(args) {
+        try {
+            const stdout = execFileSync('reg', args, { encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024 });
+            return { status: 0, stdout, stderr: '' };
+        } catch (e) {
+            return { status: e.status ?? 1, stdout: e.stdout ? String(e.stdout) : '', stderr: e.stderr ? String(e.stderr) : (e.message || '') };
+        }
+    }
+
+    /**
+     * Parse `reg query <key>` output into [{ name, kind, value }]. reg.exe prints
+     * each value as: "    <name>    <REG_TYPE>    <data>" (whitespace-separated,
+     * data may itself contain spaces/semicolons).
+     */
+    static _parseQuery(stdout) {
+        const out = [];
+        for (const line of stdout.split(/\r?\n/)) {
+            const m = line.match(/^\s{4}(.+?)\s{4}(REG_[A-Z_]+)\s{4}(.*)$/);
+            if (m) out.push({ name: m[1], kind: m[2], value: m[3] });
+        }
+        return out;
+    }
 
     /** Read a per-method config value, e.g. _cfg('clean', 'Hives'). */
     static _cfg(section, key, defaultValue = null) {
@@ -82,111 +110,12 @@ export class Registry {
             const doBroadcast = this._resolveBool(broadcast, 'clean', 'Broadcast', true);
             console.info(`[Registry.clean] requested=${requested} scope=${scope} doBackup=${doBackup} doBroadcast=${doBroadcast}`);
 
-            // PowerShell does the work: for every Path / Path_* value in the chosen
-            // hive(s) it drops %VAR% references to undefined variables and literal
-            // directories that no longer exist, rewriting each value in place with
-            // its ORIGINAL registry type preserved, then prints a JSON envelope.
-            const script = `
-$ErrorActionPreference = 'Stop'
-$result = [ordered]@{ backup = $null; elevated = $false; broadcast = $false; changes = @(); errors = @() }
-try { $wi = [Security.Principal.WindowsIdentity]::GetCurrent(); $result.elevated = (New-Object Security.Principal.WindowsPrincipal($wi)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) } catch {}
-
-$DO_BACKUP = ${doBackup ? '$true' : '$false'}
-$DO_BROADCAST = ${doBroadcast ? '$true' : '$false'}
-$HIVES = '${scope}'
-
-$smRel = 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment'
-$raw = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
-$sysK = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($smRel)
-$usrK = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
-
-if ($DO_BACKUP) {
-  try {
-    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-    $bk = Join-Path $env:USERPROFILE ('registry-path-backup-' + $stamp)
-    New-Item -ItemType Directory -Force -Path $bk | Out-Null
-    & reg.exe export ('HKLM\\' + $smRel) (Join-Path $bk 'system_env.reg') /y | Out-Null
-    & reg.exe export 'HKCU\\Environment' (Join-Path $bk 'user_env.reg') /y | Out-Null
-    $result.backup = $bk
-  } catch { $result.errors += ('backup: ' + $_.Exception.Message) }
-}
-
-$defined = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
-foreach ($n in $sysK.GetValueNames()) { [void]$defined.Add($n) }
-foreach ($n in $usrK.GetValueNames()) { [void]$defined.Add($n) }
-
-function Clean-Value($value) {
-  $kept = @(); $removed = @()
-  foreach ($tok in ($value -split ';')) {
-    if ($tok -eq '') { continue }
-    if ($tok -match '^%([^%]+)%$') { if ($defined.Contains($matches[1])) { $kept += $tok } else { $removed += $tok } }
-    elseif ($tok -match '%') { $kept += $tok }
-    elseif (Test-Path -LiteralPath $tok -PathType Container) { $kept += $tok }
-    else { $removed += $tok }
-  }
-  [pscustomobject]@{ Kept = ($kept -join ';'); Removed = $removed }
-}
-
-function Process-Hive($scopeName, $readKey, $openWritable) {
-  $names = @($readKey.GetValueNames() | Where-Object { $_ -eq 'Path' -or $_ -like 'Path_*' } | Sort-Object)
-  $pending = @()
-  foreach ($name in $names) {
-    $res = Clean-Value ($readKey.GetValue($name, '', $raw))
-    if ($res.Removed.Count -gt 0) { $pending += [pscustomobject]@{ name = $name; kept = $res.Kept; removed = $res.Removed; kind = $readKey.GetValueKind($name) } }
-  }
-  if ($pending.Count -eq 0) { return }
-  $wkey = $null
-  try { $wkey = & $openWritable } catch { $result.errors += ('open ' + $scopeName + ': ' + $_.Exception.Message); return }
-  foreach ($p in $pending) {
-    try {
-      $wkey.SetValue($p.name, $p.kept, $p.kind)
-      $result.changes += [pscustomobject]@{ scope = $scopeName; name = $p.name; removed = @($p.removed) }
-    } catch { $result.errors += ($scopeName + ' / ' + $p.name + ': ' + $_.Exception.Message) }
-  }
-  $wkey.Flush()
-}
-
-if ($HIVES -eq 'System' -or $HIVES -eq 'Both') { Process-Hive 'HKLM' $sysK { [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($smRel, $true) } }
-if ($HIVES -eq 'User'   -or $HIVES -eq 'Both') { Process-Hive 'HKCU' $usrK { [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true) } }
-
-if ($DO_BROADCAST -and $result.changes.Count -gt 0) {
-  try {
-    Add-Type 'using System; using System.Runtime.InteropServices; public static class WinEnvBroadcast { [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result); }'
-    $r = [UIntPtr]::Zero
-    [void][WinEnvBroadcast]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$r)
-    $result.broadcast = $true
-  } catch { $result.errors += ('broadcast: ' + $_.Exception.Message) }
-}
-
-$result | ConvertTo-Json -Depth 6 -Compress
-`;
-
-            // run the script hidden; -EncodedCommand so nothing has to be shell-escaped
-            const encoded = Buffer.from(script, 'utf16le').toString('base64');
-            const ps = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
-                encoding: 'utf8',
-                windowsHide: true,
-                maxBuffer: 32 * 1024 * 1024,
-            });
-            console.debug(`[Registry.clean] scriptLen=${script.length} encodedLen=${encoded.length} status=${ps.status}`);
-            if (ps.error) throw ps.error;
-            if (ps.status !== 0) {
-                const err = (ps.stderr || '').trim();
-                throw new Error(`PowerShell exited with code ${ps.status}${err ? `: ${err}` : ''}`);
-            }
-
-            // parse the JSON envelope (fall back to the first {...} block if needed)
-            const stdout = (ps.stdout || '').trim();
-            console.debug(`[Registry.clean] stdoutLen=${stdout.length}`);
-            let data;
-            try {
-                data = JSON.parse(stdout);
-            } catch (_) {
-                const a = stdout.indexOf('{');
-                const b = stdout.lastIndexOf('}');
-                if (a < 0 || b <= a) throw new Error(`Could not parse PowerShell JSON output:\n${stdout.slice(0, 500)}`);
-                data = JSON.parse(stdout.slice(a, b + 1));
-            }
+            // Pure Node + reg.exe (NO PowerShell): for every Path / Path_* value in
+            // the chosen hive(s) drop %VAR% references to undefined variables and
+            // literal directories that no longer exist, rewriting each value in
+            // place with its ORIGINAL registry type preserved. reg.exe emits clean
+            // UTF-8, so nothing garbled ever reaches the terminal.
+            const data = this._cleanCore(scope, doBackup, doBroadcast);
 
             const changes = this._asArray(data.changes).map(c => ({
                 scope: c.scope,
@@ -226,5 +155,107 @@ $result | ConvertTo-Json -Depth 6 -Compress
             Dialogs.warningBox(desc, 'Registry Clean');
             return null;
         }
+    }
+
+    /**
+     * The deterministic core of clean(), implemented with reg.exe + Node only
+     * (no PowerShell). Reads the User (HKCU\Environment) and System (HKLM\…\
+     * Session Manager\Environment) keys, drops dead tokens from Path / Path_*,
+     * writes each survivor back preserving its registry type, optionally backs
+     * up first and broadcasts the change. Returns the same envelope shape the
+     * old PowerShell script produced.
+     */
+    static _cleanCore(scope, doBackup, doBroadcast) {
+        const SYS_KEY = 'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment';
+        const USR_KEY = 'HKCU\\Environment';
+        const result = { backup: null, elevated: false, broadcast: false, changes: [], errors: [] };
+
+        // Elevation is confirmed later by whether an HKLM write actually succeeds
+        // (an HKCU-only run never needs it). Read both hives' value lists first —
+        // the union of their names is the "defined variable" set for %VAR% checks.
+        const usrVals = this._parseQuery(this._reg(['query', USR_KEY]).stdout);
+        const sysVals = this._parseQuery(this._reg(['query', SYS_KEY]).stdout);
+        const defined = new Set();
+        for (const v of usrVals) defined.add(v.name.toLowerCase());
+        for (const v of sysVals) defined.add(v.name.toLowerCase());
+
+        // Backup via reg.exe export (clean, native).
+        if (doBackup) {
+            try {
+                const stamp = this._stamp();
+                const bk = path.join(os.homedir(), `registry-path-backup-${stamp}`);
+                fs.mkdirSync(bk, { recursive: true });
+                this._reg(['export', SYS_KEY, path.join(bk, 'system_env.reg'), '/y']);
+                this._reg(['export', USR_KEY, path.join(bk, 'user_env.reg'), '/y']);
+                result.backup = bk;
+            } catch (e) {
+                result.errors.push(`backup: ${e.message || e}`);
+            }
+        }
+
+        const cleanValue = (value) => {
+            const kept = [];
+            const removed = [];
+            for (const tok of String(value).split(';')) {
+                if (tok === '') continue;
+                const ref = tok.match(/^%([^%]+)%$/);
+                if (ref) {
+                    if (defined.has(ref[1].toLowerCase())) kept.push(tok); else removed.push(tok);
+                } else if (tok.includes('%')) {
+                    kept.push(tok); // partial expansion — leave as-is
+                } else {
+                    let exists = false;
+                    try { exists = fs.existsSync(tok) && fs.statSync(tok).isDirectory(); } catch { exists = false; }
+                    if (exists) kept.push(tok); else removed.push(tok);
+                }
+            }
+            return { kept: kept.join(';'), removed };
+        };
+
+        const processHive = (scopeName, keyPath, vals) => {
+            const targets = vals
+                .filter(v => v.name === 'Path' || v.name.startsWith('Path_'))
+                .sort((a, b) => a.name.localeCompare(b.name));
+            for (const v of targets) {
+                const res = cleanValue(v.value);
+                if (res.removed.length === 0) continue;
+                // reg add preserves the type via /t; write the cleaned value.
+                const w = this._reg(['add', keyPath, '/v', v.name, '/t', v.kind, '/d', res.kept, '/f']);
+                if (w.status === 0) {
+                    if (scopeName === 'HKLM') result.elevated = true; // an HKLM write only succeeds when elevated
+                    result.changes.push({ scope: scopeName, name: v.name, removed: res.removed });
+                } else {
+                    const msg = (w.stderr || '').trim();
+                    if (scopeName === 'HKLM' && /denied|Access is denied|requires elevation/i.test(msg)) {
+                        // not elevated — HKLM skipped; recorded via the elevated=false note upstream
+                    } else {
+                        result.errors.push(`${scopeName} / ${v.name}: ${msg || 'reg add failed'}`);
+                    }
+                }
+            }
+        };
+
+        if (scope === 'System' || scope === 'Both') processHive('HKLM', SYS_KEY, sysVals);
+        if (scope === 'User' || scope === 'Both') processHive('HKCU', USR_KEY, usrVals);
+
+        // Broadcast WM_SETTINGCHANGE so running apps pick up the new environment
+        // without a reboot — via rundll32 (native, no PowerShell).
+        if (doBroadcast && result.changes.length > 0) {
+            try {
+                execFileSync('rundll32', ['user32.dll,UpdatePerUserSystemParameters'], { windowsHide: true });
+                result.broadcast = true;
+            } catch (e) {
+                result.errors.push(`broadcast: ${e.message || e}`);
+            }
+        }
+
+        return result;
+    }
+
+    /** yyyyMMdd_HHmmss timestamp for backup folder names. */
+    static _stamp() {
+        const n = new Date();
+        const p = (x) => String(x).padStart(2, '0');
+        return `${n.getFullYear()}${p(n.getMonth() + 1)}${p(n.getDate())}_${p(n.getHours())}${p(n.getMinutes())}${p(n.getSeconds())}`;
     }
 }

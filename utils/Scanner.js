@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { createRequire } from 'node:module';
 import yaml from 'js-yaml';
 import { Yamls } from './Yamls.js';
+
+const require = createRequire(import.meta.url);
 
 export class Scanner {
 
@@ -30,12 +32,14 @@ export class Scanner {
 
     static notify(message, title, timeoutSeconds, type = 64) {
     console.info(`[Scanner.notify] 🟢 Starting...`);
-        // type 64 = Information, 16 = Error
-        const command = `powershell -Command "$notification = New-Object -ComObject WScript.Shell; $notification.Popup('${message.replace(/'/g, "''")}', ${timeoutSeconds}, '${title.replace(/'/g, "''")}', ${type})"`;
+        // type 64 = Information, 16 = Error. winax COM WScript.Shell.Popup — NO
+        // PowerShell (whose UTF-16 stdout leaked garbled "Chinese" text). COM
+        // writes nothing to stdout, so the console stays clean.
         try {
-            execSync(command, { stdio: 'ignore' });
+            const shell = new (require('winax').Object)('WScript.Shell');
+            shell.Popup(String(message), Number(timeoutSeconds) || 0, String(title), Number(type));
         } catch (e) {
-            // Ignore notification errors
+            // Ignore notification errors (e.g. winax/COM unavailable)
         }
     }
 
