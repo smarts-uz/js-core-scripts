@@ -355,14 +355,19 @@ export class Yamls {
             if (!rewrite && !cacheExists)
                 console.warn(`[Yamls.fillYamlWithInfo] ⚠️ rewrite=false lekin cache topilmadi — API dan olinmoqda.`);
 
-            let comTIN = Files.getTINFromTXT(globalThis.folderCompan);
-            console.info("comTIN:", comTIN);
+            // A Compan folder can carry BOTH a 9-digit TIN marker and a 14-digit
+            // PINFL marker (a sole proprietor/YaTT registered under their own
+            // personal ID). The PINFL is the stronger signal — it identifies an
+            // individual, not a company with a separate director — so it takes
+            // priority over the TIN when both are present.
+            let comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
+            console.info("comTIN ComPINFL:", comTIN);
 
             let isYatt = false;
 
             if (!comTIN) {
-                comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
-                console.info("comTIN ComPINFL:", comTIN);
+                comTIN = Files.getTINFromTXT(globalThis.folderCompan);
+                console.info("comTIN:", comTIN);
             }
 
             if (!comTIN) {

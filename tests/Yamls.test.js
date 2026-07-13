@@ -505,6 +505,57 @@ describe('Yamls.fillYamlWithInfo', () => {
     const r = await Yamls.fillYamlWithInfo(path.join(workDir, 'x.yaml'));
     expect(r).toBeNull();
   });
+
+  // Regression: a Compan folder can carry BOTH a 9-digit TIN marker and a
+  // 14-digit PINFL marker (a sole proprietor/YaTT registered under their own
+  // personal ID). Didox's TIN-based lookup for such an entity returns an
+  // empty directorPinfl/director (there is no separate director — the
+  // entrepreneur IS the company), which used to leave DirName/SurName/etc.
+  // blank and mis-flag isYatt=false. The PINFL marker must take priority.
+  it('prefers the PINFL marker over the TIN marker when both exist', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1', AddDays: 30 } });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', 'T1.yaml'), yaml.dump({}), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    FilesMock.getTINFromTXT.mockReturnValue('491842367');
+    FilesMock.getPINFLFromTXT.mockReturnValue('31311816590022');
+    DidoxMock.infoByTinPinfl.mockImplementation(async (tin) =>
+      tin === '31311816590022'
+        ? { directorPinfl: '', personalNum: '31311816590022', name: 'LI ZHENGBIN' }
+        : null
+    );
+    MySoliqMock.entrepreneurInfo.mockResolvedValue(null);
+
+    // replaceYaml formats a full contract (pricing, dates, addresses, …) that
+    // is out of scope for this regression — stub it so the test stays focused
+    // on the TIN-vs-PINFL selection this fix targets.
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, true);
+
+    expect(FilesMock.getPINFLFromTXT).toHaveBeenCalledWith(globalThis.folderCompan);
+    expect(DidoxMock.infoByTinPinfl).toHaveBeenCalledWith('31311816590022');
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderALL, '#YaTT');
+
+    const [, , companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(companyInfoArg.isYatt).toBe(true);
+    expect(companyInfoArg.directorPinfl).toBe('31311816590022');
+    expect(companyInfoArg.ceo?.name).toBe('LI ZHENGBIN');
+
+    replaceYamlSpy.mockRestore();
+  });
 });
 
 describe('Yamls.replaceYaml', () => {
