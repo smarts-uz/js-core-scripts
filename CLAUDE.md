@@ -158,9 +158,43 @@ The two standalone `cmd/` sub-projects (`js-winax-contract`, `js-scraper-olx.uz`
 A target folder's `Compan/` can carry **both** a 9-digit TIN marker file (`491842367.txt`/`.app`) **and** a 14-digit PINFL marker file (`31311816590022.txt`) — this happens for a sole proprietor (YaTT) registered under their own personal ID, where the "company" and the individual are the same legal person. `Yamls.fillYamlWithInfo` resolves `comTIN` by checking **`Files.getPINFLFromTXT` first, falling back to `Files.getTINFromTXT`** — the PINFL is the stronger signal (it identifies an individual, never a company with a separate director) and must win when both markers are present.
 
 - **Why the order matters:** Didox's `infoByTinPinfl` lookup keyed on a 9-digit TIN for a sole proprietor returns `directorPinfl: ""` and `director: null` — there is no separate director record, because the entrepreneur _is_ the registered entity. Before this fix, `getTINFromTXT` was checked first, so a YaTT target with both markers present resolved `comTIN` to the 9-digit TIN, `isYatt` stayed `false`, and `DirName`/`SurName`/`SurTIN`/etc. were left permanently blank (the generate step "did nothing" from the user's perspective) while `Compan/null.app` and `Compan/Director null.app` marker files got written as a side effect of `ceo`/`ceo.name` resolving to `null`.
-- **The `comTIN.length === 14` branch already self-corrects `directorPinfl`** (`if (isYatt) companyInfo.directorPinfl = comTIN`) — once the PINFL wins the priority check, `isYatt` is set correctly and the rest of the pipeline (the second `Didox.infoByTinPinfl(companyInfo.directorPinfl, …)` call for the "director," which for a YaTT resolves to the same person) fills in correctly.
+- **`isYatt` is derived from `ComType`, resolved BEFORE `comTIN`'s own resolution order matters for the `#YaTT` marker/`directorPinfl` self-correction** — see the dedicated section below; this section's PINFL-vs-TIN priority for `comTIN` itself is unaffected by that change.
 - **A stray `null`/`undefined`-named `.app` marker file found in a `Compan/`/`Contract/` folder is a symptom of this bug having run previously** — it is old, garbled output from before the fix, not a new-format marker. Leave it in place (never delete per the standing "nothing is ever deleted" rule) rather than treating it as intentional data.
 - Regression test: `tests/Yamls.test.js` → `Yamls.fillYamlWithInfo` → _"prefers the PINFL marker over the TIN marker when both exist"_.
+
+### `ComType` (not PINFL/TIN length) is the sole source of truth for `isYatt`
+
+`isYatt` (whether the target company is a sole proprietor/YaTT) is derived from the
+`ComType` starting-Variables field — `yamlData.ComType === 'YaTT'` — read directly off
+the loaded `.contract` YAML, **never** from `comTIN.length === 14` (the old
+auto-inference). `ComType` is filled by the `smarts-firm-docums` skill from the
+company's own real registration documents (a Statute, an IP/YaTT registration
+certificate, a registry extract) — a human-grounded classification, not a length
+heuristic that a 14-digit PINFL could produce for reasons unrelated to legal form.
+
+- **Why the change:** a PINFL is 14 digits regardless of whether its holder is a
+  YaTT sole proprietor or, for example, the director of an MChJ whose own personal
+  PINFL happens to be the marker on file in `Compan/` — length alone cannot
+  distinguish these cases. `ComType` is a real, document-grounded fact instead.
+- **`companyInfo.isYatt` remains the single carried value throughout the pipeline**
+  (set once in `fillYamlWithInfo` from `yamlData.ComType`, then read by every
+  downstream branch, including inside `replaceYaml` where it arrives as the
+  `companyInfo` parameter).
+- **Fixed a related pre-existing casing bug while making this change:** several
+  branches in `replaceYaml` read `yamlData.isYatt` (lowercase `i`) — but the actual
+  assignment was `yamlData.IsYatt = companyInfo.isYatt` (uppercase `I`, the `#Auto`
+  output field the external contract-generation application consumes). Since
+  JavaScript object keys are case-sensitive, `yamlData.isYatt` was **always
+  `undefined`**, so `if (!yamlData.isYatt)` was **always `true`** — every YaTT-specific
+  branch (`ComOKEDName`, `ComNa1NameLat`, `ComStatusNameLat`, the `#YaTT-Active`/
+  `#YaTT-Inactive` marker, and the whole `ComOpf`/`ComRegDate`/`ComTaxMode`/etc. block)
+  was silently unreachable for every company, YaTT or not. Fixed by reading
+  `companyInfo.isYatt` (correctly cased, already carried through) at every one of
+  these branch points instead of the never-set `yamlData.isYatt`.
+- Regression tests: `tests/Yamls.test.js` → `Yamls.fillYamlWithInfo` → _"prefers the
+  PINFL marker over the TIN marker when both exist"_ (now sets `ComType: 'YaTT'` in
+  its fixture) and _"derives isYatt from ComType, not from PINFL/TIN length"_ (a
+  PINFL-bearing company with `ComType: 'MChJ'` is correctly treated as non-YaTT).
 
 ### `Files.exists()` — must use the Promise-based `fs.promises.access`, never the callback-style `fs.access`
 

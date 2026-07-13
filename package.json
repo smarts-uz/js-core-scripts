@@ -1,6 +1,6 @@
 {
     "name": "js_ai_category",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "description": "Node.js (ESM) CLI tools for processing Office and Markdown documents on Windows.",
     "type": "module",
     "private": true,

@@ -363,8 +363,6 @@ export class Yamls {
             let comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
             console.info("comTIN ComPINFL:", comTIN);
 
-            let isYatt = false;
-
             if (!comTIN) {
                 comTIN = Files.getTINFromTXT(globalThis.folderCompan);
                 console.info("comTIN:", comTIN);
@@ -375,10 +373,16 @@ export class Yamls {
                 return null;
             }
 
-            if (comTIN.length === 14) {
+            // ComType is a starting-Variables field (filled by smarts-firm-docums from
+            // the company's real registration documents: Statute, IP/YaTT certificate,
+            // registry extract) — the human-confirmed legal form is the source of
+            // truth for whether this company is a sole proprietor, replacing the old
+            // automatic PINFL-vs-TIN-length inference (comTIN.length === 14).
+            const isYatt = yamlData.ComType === 'YaTT';
+            console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
+
+            if (isYatt)
                 Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
-                isYatt = true;
-            }
 
             companyInfo = await Didox.infoByTinPinfl(comTIN);
             console.log(companyInfo, 'companyInfo');
@@ -388,7 +392,6 @@ export class Yamls {
                 return null;
             }
 
-            console.info("Core isYatt:", isYatt);
             companyInfo.isYatt = isYatt;
 
             if (isYatt)
@@ -616,7 +619,7 @@ export class Yamls {
         Files.saveInfoToFile(globalThis.folderALL, `#Addr-${yamlData.ComAddressType}`);
 
         yamlData.ComOKED = companyInfo.oked
-        if (!yamlData.isYatt)
+        if (!companyInfo.isYatt)
             yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail.name_uz_latn ?? ''
         else
             yamlData.ComOKEDName = companyInfo?.soliqYatt?.activityTypeName?.uz ?? ''
@@ -695,7 +698,7 @@ export class Yamls {
 
         yamlData.ComNa1Code = companyInfo.na1Code
         yamlData.ComNa1Name = companyInfo.na1Name
-        if (!yamlData.isYatt)
+        if (!companyInfo.isYatt)
             yamlData.ComNa1NameLat = companyInfo.soliq?.company.businessStructureDetail.name_uz_latn ?? ''
         else
             yamlData.ComNa1NameLat = companyInfo?.soliqYatt?.formName?.uz ?? ''
@@ -708,7 +711,7 @@ export class Yamls {
         yamlData.ComStatusCode = companyInfo.statusCode
         yamlData.ComStatusName = companyInfo.statusName
 
-        if (!yamlData.isYatt) {
+        if (!companyInfo.isYatt) {
             yamlData.ComStatusNameLat = companyInfo.soliq?.company.statusDetail.name_uz_latn ?? ''
             yamlData.ComStatusGroup = companyInfo.soliq?.company.statusDetail.group ?? ''
 
@@ -726,7 +729,7 @@ export class Yamls {
         yamlData.ComPersonalNum = companyInfo.personalNum
 
         yamlData.ComIsItd = companyInfo.isItd
-        if (yamlData.isYatt) {
+        if (companyInfo.isYatt) {
             if (companyInfo.isItd === true)
                 Files.saveInfoToFile(globalThis.folderALL, '#YaTT-Active');
             else
@@ -750,7 +753,7 @@ export class Yamls {
             Files.saveInfoToFile(globalThis.folderALL, '#Is-PeasantFarm');
 
 
-        if (!yamlData.isYatt) {
+        if (!companyInfo.isYatt) {
             yamlData.ComOpf = companyInfo.soliq?.company.opf ?? ''
             yamlData.ComKfs = companyInfo.soliq?.company.kfs ?? ''
             yamlData.ComSoato = companyInfo.soliq?.company.soato ?? ''
@@ -797,7 +800,7 @@ export class Yamls {
         yamlData.ComVATRegCode = companyInfo.VATRegCode
         yamlData.ComVATRegStatus = companyInfo.VATRegStatus
 
-        if (!yamlData.isYatt) {
+        if (!companyInfo.isYatt) {
             yamlData.ComVATCompanyName = companyInfo.vat?.companyName ?? ''
             yamlData.ComVATDirectorName = companyInfo.vat?.directorFioLatn ?? ''
 

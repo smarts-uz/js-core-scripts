@@ -511,7 +511,10 @@ describe('Yamls.fillYamlWithInfo', () => {
   // personal ID). Didox's TIN-based lookup for such an entity returns an
   // empty directorPinfl/director (there is no separate director — the
   // entrepreneur IS the company), which used to leave DirName/SurName/etc.
-  // blank and mis-flag isYatt=false. The PINFL marker must take priority.
+  // blank. The PINFL marker must take priority when resolving comTIN, and
+  // isYatt is now derived from the ComType starting-Variables field (filled
+  // by smarts-firm-docums from the company's real registration documents),
+  // never from an automatic PINFL-vs-TIN-length inference.
   it('prefers the PINFL marker over the TIN marker when both exist', async () => {
     WordMock.initFolders.mockReturnValue(true);
     writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1', AddDays: 30 } });
@@ -521,7 +524,7 @@ describe('Yamls.fillYamlWithInfo', () => {
     fs.writeFileSync(path.join(projectDir, 'conf', 'cost', 'T1.yaml'), yaml.dump({}), 'utf8');
 
     const ymlFile = path.join(workDir, 'ALL.contract');
-    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1' }), 'utf8');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1', ComType: 'YaTT' }), 'utf8');
 
     globalThis.ymlFile = ymlFile;
     globalThis.folderCompan = path.join(workDir, 'Compan');
@@ -553,6 +556,55 @@ describe('Yamls.fillYamlWithInfo', () => {
     expect(companyInfoArg.isYatt).toBe(true);
     expect(companyInfoArg.directorPinfl).toBe('31311816590022');
     expect(companyInfoArg.ceo?.name).toBe('LI ZHENGBIN');
+
+    replaceYamlSpy.mockRestore();
+  });
+
+  // Regression: isYatt must be derived from the ComType starting-Variables
+  // field, never from comTIN.length === 14. A company can have a genuine
+  // 14-digit PINFL marker (e.g. a YaTT's director doubling as its own comTIN
+  // source) while ComType correctly identifies it as a non-YaTT entity (MChJ,
+  // XK, …) — the old length-based inference would have wrongly flagged this
+  // as isYatt=true; ComType is now the sole source of truth.
+  it('derives isYatt from ComType, not from PINFL/TIN length', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1', AddDays: 30 } });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', 'T1.yaml'), yaml.dump({}), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1', ComType: 'MChJ' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    // A 14-digit PINFL marker is present (same shape that used to force
+    // isYatt=true via comTIN.length === 14), but ComType says MChJ.
+    FilesMock.getTINFromTXT.mockReturnValue('491842367');
+    FilesMock.getPINFLFromTXT.mockReturnValue('31311816590022');
+    DidoxMock.infoByTinPinfl.mockImplementation(async (tin) =>
+      tin === '31311816590022'
+        ? { directorPinfl: '77712345', personalNum: '31311816590022', name: 'IVANOV IVAN' }
+        : null
+    );
+    MySoliqMock.companyInfo.mockResolvedValue(null);
+
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, true);
+
+    expect(FilesMock.saveInfoToFile).not.toHaveBeenCalledWith(globalThis.folderALL, '#YaTT');
+
+    const [, , companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(companyInfoArg.isYatt).toBe(false);
+    // directorPinfl is NOT force-set from comTIN when isYatt is false —
+    // it stays whatever Didox's own lookup returned.
+    expect(companyInfoArg.directorPinfl).toBe('77712345');
 
     replaceYamlSpy.mockRestore();
   });

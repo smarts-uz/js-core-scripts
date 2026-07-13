@@ -40,6 +40,14 @@ be regenerated from the git history.
 
 ### Fixed
 
+- `utils/Yamls.js` — `isYatt` (sole-proprietor/YaTT detection) is now derived from
+  the `ComType` starting-Variables field (`yamlData.ComType === 'YaTT'`) instead of
+  the old `comTIN.length === 14` auto-inference, which could misclassify a company
+  whose on-file PINFL marker happened to be 14 digits for reasons unrelated to
+  legal form. Also fixes a pre-existing casing bug in `Yamls.replaceYaml`: several
+  branches read `yamlData.isYatt` (lowercase `i`, always `undefined` since only
+  `yamlData.IsYatt` was ever assigned) instead of the correctly-cased
+  `companyInfo.isYatt`, silently disabling every YaTT-specific branch.
 - `utils/Logs.js` writes rotating logs to the OS temp dir, never leaking a `logs/`
   folder into the working directory.
 - `runs/Didox/*` import the real `didox` export from `didox.js` (was a
