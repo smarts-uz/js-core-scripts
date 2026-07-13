@@ -505,15 +505,16 @@ export class Files {
     let fileName = null;
 
     for (const file of files) {
-      // if txt file name is meet for 29.03.2017 pattern
+      // if txt/app file name is meet for 29.03.2017 pattern
 
 
-      if (file.match(/^\d{2}\.\d{2}\.\d{4}\.txt$/)) {
+      if (file.match(/^\d{2}\.\d{2}\.\d{4}\.(txt|app)$/)) {
         fileName = file;
         // filename found log
         console.log(`File found INN: ${file}`);
-        // remove txt ext
+        // remove txt/app ext
         fileName = fileName.replace('.txt', '');
+        fileName = fileName.replace('.app', '');
         console.log(`File removed ext INN: ${fileName}`);
 
         // remove spaces

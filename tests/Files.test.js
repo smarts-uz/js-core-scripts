@@ -332,6 +332,11 @@ describe('Files.getDateFromTXT', () => {
     expect(Files.getDateFromTXT(dir)).toBe('29.03.2017');
   });
 
+  it('matches a DD.MM.YYYY.app file (saveInfoToFile only ever writes .app)', () => {
+    writeTree(dir, { '02.07.2026.app': 'App' });
+    expect(Files.getDateFromTXT(dir)).toBe('02.07.2026');
+  });
+
   it('returns null when no date file is present', () => {
     writeTree(dir, { 'note.txt': 'x' });
     expect(Files.getDateFromTXT(dir)).toBeNull();
