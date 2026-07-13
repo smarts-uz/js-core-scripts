@@ -367,10 +367,10 @@ export class Files {
   }
 
 
-  static async exists(path) {
+  static async exists(filePath) {
     console.info(`[Files.exists] 🟢 Starting...`);
     try {
-      await fs.access(path);
+      await access(filePath);
       return true;   // file exists and is accessible
     } catch {
       return false;  // file does not exist or no permissions

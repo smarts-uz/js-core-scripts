@@ -662,14 +662,10 @@ describe('Files.deleteInfo', () => {
 // =============================================================================
 
 describe('Files.exists', () => {
-  // Real behavior note: exists() calls `fs.access(path)` (the callback-style API)
-  // with no callback. On modern Node that throws synchronously ("callback must be
-  // a function"); the throw is caught and `false` is returned — even for files
-  // that genuinely exist. We assert the ACTUAL returned boolean here.
-  it('returns false for a real existing file (documents the fs.access bug)', async () => {
+  it('returns true for a real existing file', async () => {
     const f = path.join(dir, 'present.txt');
     fs.writeFileSync(f, 'x', 'utf8');
-    await expect(Files.exists(f)).resolves.toBe(false);
+    await expect(Files.exists(f)).resolves.toBe(true);
   });
 
   it('returns false for a missing path', async () => {
