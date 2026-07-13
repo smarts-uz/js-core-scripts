@@ -27,7 +27,7 @@ Templates:
     WordMdRule: d:\FileType\Office\Projects\DOCX\MD-Rule\
     # Contract templates (files) — read by Word.makeContract / Yamls / Excels.generate.
     Word: d:\Humans\Building\Rentalls\Contract\Projects\Rentals 527.docx
-    Yaml: d:\Develop\Projects\ALL\ALL\ALL.contract
+    Yaml: C:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract
     Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 90.xlsx
 ChoosedChars:
     Word: cxACEHIJKMOPSTX
