@@ -1,6 +1,6 @@
 Folder
-NoClose;Make Structure;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Scanner\run.mjs" --sourceFolder "%1" --maxLevel 5
-NoClose;MHTML to HTML;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Chromes\convertFolderMhtToHtm.mjs" --folder "%1"
-NoClose;Copy HTML URLs;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Chromes\processPathsToClipboard.mjs" "%1"
-NoClose;Merge YAMLs;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Yamls\mergeYamlsInFolder.mjs" --folder "%1"
-NoClose;Merge Excels;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\mergeFiles.mjs" "%1"
+NoClose;Make Structure;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Scanner\run.mjs" --sourceFolder "%1" --maxLevel 5
+NoClose;MHTML to HTML;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Chromes\convertFolderMhtToHtm.mjs" --folder "%1"
+NoClose;Copy HTML URLs;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Chromes\processPathsToClipboard.mjs" "%1"
+NoClose;Merge YAMLs;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Yamls\mergeYamlsInFolder.mjs" --folder "%1"
+NoClose;Merge Excels;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\mergeFiles.mjs" "%1"

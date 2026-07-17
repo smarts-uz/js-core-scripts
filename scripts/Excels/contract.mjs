@@ -6,11 +6,11 @@ process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 const yargsMod = await import('yargs');
 const { hideBin } = await import('yargs/helpers');
 const yargs = yargsMod.default;
-const { Files } = await import('../../utils/Files.js');
-const { Yamls } = await import('../../utils/Yamls.js');
-const { Dates } = await import('../../utils/Dates.js');
-const { Dialogs } = await import('../../utils/Dialogs.js');
-const { Excels } = await import('../../utils/Excels.js');
+const { Files } = await import('../../classes/Files.js');
+const { Yamls } = await import('../../classes/Yamls.js');
+const { Dates } = await import('../../classes/Dates.js');
+const { Dialogs } = await import('../../classes/Dialogs.js');
+const { Excels } = await import('../../classes/Excels.js');
 
 // Per-contract step: fill yaml with info, then the action.
 async function processOne(ymlFile) {

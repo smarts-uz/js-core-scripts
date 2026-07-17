@@ -1,5 +1,5 @@
-// Unit tests for runs/_generate.mjs — the generator that emits STANDALONE
-// per-method runners (runs/<Class>/<method>.mjs). Its pure helpers
+// Unit tests for scripts/_generate.mjs — the generator that emits STANDALONE
+// per-method runners (scripts/<Class>/<method>.mjs). Its pure helpers
 // (reflectParams / buildArgsCode / runnerSource / publicStaticMethods) are
 // exported; the generation run only fires when the file is the process entry,
 // so importing it here is side-effect-free. We assert the reflection and the
@@ -15,11 +15,11 @@ import {
   buildArgsCode,
   runnerSource,
   publicStaticMethods,
-} from '../runs/_generate.mjs';
+} from '../scripts/_generate.mjs';
 
 // import.meta.dirname is undefined under jest's experimental-vm-modules; derive
 // it from import.meta.url instead.
-const RUNS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'runs');
+const RUNS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
 
 describe('reflectParams', () => {
   it('reflects a plain signature with an optional param', () => {
@@ -86,7 +86,7 @@ describe('runnerSource', () => {
       'word',
       reflectParams(function word(fileName, chars = null) {})
     );
-    expect(src).toContain("await import('../../utils/Homoglyph.js')");
+    expect(src).toContain("await import('../../classes/Homoglyph.js')");
     expect(src).toContain('Homoglyph.word(argv["file"], argv["chars"])');
     expect(src).toContain(
       "process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js')"
@@ -119,7 +119,7 @@ describe('publicStaticMethods', () => {
 });
 
 describe('generated runner files', () => {
-  it('every emitted runs/<Class>/<method>.mjs parses as valid ESM (node --check)', () => {
+  it('every emitted scripts/<Class>/<method>.mjs parses as valid ESM (node --check)', () => {
     const classDirs = readdirSync(RUNS_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name);

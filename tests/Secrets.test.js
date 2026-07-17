@@ -1,4 +1,4 @@
-// Unit tests for utils/Secrets.js — every public (non-_) static method:
+// Unit tests for classes/Secrets.js — every public (non-_) static method:
 //   get, env.
 //
 // Strategy: Secrets reads ONLY from process.env (dotenv is loaded once at import
@@ -10,7 +10,7 @@
 // but is exercised through get()'s observable output.
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
-import { Secrets } from '../utils/Secrets.js';
+import { Secrets } from '../classes/Secrets.js';
 
 // Snapshot and restore process.env so a test's writes never leak across cases.
 let savedEnv;

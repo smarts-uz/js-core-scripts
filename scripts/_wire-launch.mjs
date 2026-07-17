@@ -1,5 +1,5 @@
-// Rewrites .vscode/launch.json so every util-method debug config runs its
-// per-method runner: program → ${workspaceFolder}\runs\<Class>\<method>.mjs.
+// Rewrites .vscode/launch.json so every class-method debug config runs its
+// per-method runner: program → ${workspaceFolder}\scripts\<Class>\<method>.mjs.
 // console is 'integratedTerminal' — the runners need a real terminal (interactive
 // Dialogs.inputBox in the -ask variants, visible stdout). The ${env:...} freeze
 // is a VS Code default-shell (PowerShell) issue, fixed by setting the terminal
@@ -7,10 +7,11 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Derive the project root relatively from this script's own location — runs/ is
-// one folder below the root. Never hardcode an absolute path (the project moves).
+// Derive the project root relatively from this script's own location —
+// scripts/ is one folder below the root. Never hardcode an absolute path (the
+// project moves).
 const ROOT = path.resolve(import.meta.dirname, '..');
-const prog = (cls, method) => `\${workspaceFolder}\\runs\\${cls}\\${method}.mjs`;
+const prog = (cls, method) => `\${workspaceFolder}\\scripts\\${cls}\\${method}.mjs`;
 
 const cfg = (name, cls, method, args, outputStd = false) => ({
     type: 'node',
@@ -151,26 +152,71 @@ const configurations = [
 
     // ── Contract presets — 2 examples PER COMMAND (single --yaml + batch --all),
     //    NOT one per firm; the firm name is in the label so you can tell which path.
-    cfg('Contract Fill Yaml Single, AL-INOBAT', 'Yamls', 'contractFill', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\AL-INOBAT\\ALL.contract']),
-    cfg('Contract Fill Yaml Batch, AnvarIkr', 'Yamls', 'contractFill', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract Update Yaml Single, RASH-PHARMA', 'Yamls', 'contractUpdate', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract']),
-    cfg('Contract Update Yaml Batch, AnvarIkr', 'Yamls', 'contractUpdate', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract → Word Single, ZOKIROV', 'Word', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract']),
-    cfg('Contract → Word Batch, AnvarIkr', 'Word', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract → Excel Single, RASH-PHARMA', 'Excels', 'contract', ['--yaml', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract']),
-    cfg('Contract → Excel Batch, AnvarIkr', 'Excels', 'contract', ['--all', 'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall']),
-    cfg('Contract Convert Explicit, Act 90', 'Excels', 'contractConvert', ['--input', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx', '--output', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xlsx']),
-    cfg('Contract Convert Auto, Act 90', 'Excels', 'contractConvert', ['--input', 'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx']),
+    cfg('Contract Fill Yaml Single, AL-INOBAT', 'Yamls', 'contractFill', [
+        '--yaml',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\AL-INOBAT\\ALL.contract',
+    ]),
+    cfg('Contract Fill Yaml Batch, AnvarIkr', 'Yamls', 'contractFill', [
+        '--all',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall',
+    ]),
+    cfg('Contract Update Yaml Single, RASH-PHARMA', 'Yamls', 'contractUpdate', [
+        '--yaml',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract',
+    ]),
+    cfg('Contract Update Yaml Batch, AnvarIkr', 'Yamls', 'contractUpdate', [
+        '--all',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall',
+    ]),
+    cfg('Contract → Word Single, ZOKIROV', 'Word', 'contract', [
+        '--yaml',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract',
+    ]),
+    cfg('Contract → Word Batch, AnvarIkr', 'Word', 'contract', [
+        '--all',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall',
+    ]),
+    cfg('Contract → Excel Single, RASH-PHARMA', 'Excels', 'contract', [
+        '--yaml',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract',
+    ]),
+    cfg('Contract → Excel Batch, AnvarIkr', 'Excels', 'contract', [
+        '--all',
+        'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall',
+    ]),
+    cfg('Contract Convert Explicit, Act 90', 'Excels', 'contractConvert', [
+        '--input',
+        'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx',
+        '--output',
+        'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xlsx',
+    ]),
+    cfg('Contract Convert Auto, Act 90', 'Excels', 'contractConvert', [
+        '--input',
+        'd:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx',
+    ]),
 
     // ── OLX scrape presets — 2 examples PER COMMAND (two different data sources),
     //    NOT one per firm. Any project just swaps the --app path.
     ...[
-        ['appOne', 'App One'], ['appTwo', 'App Two'], ['appThree', 'App Three'],
-        ['offers', 'Offers'], ['pages', 'Pages'], ['phone', 'Phone'],
-        ['finder', 'Finder'], ['merge', 'Merge'], ['checker', 'Checker'], ['testing', 'Testing'],
+        ['appOne', 'App One'],
+        ['appTwo', 'App Two'],
+        ['appThree', 'App Three'],
+        ['offers', 'Offers'],
+        ['pages', 'Pages'],
+        ['phone', 'Phone'],
+        ['finder', 'Finder'],
+        ['merge', 'Merge'],
+        ['checker', 'Checker'],
+        ['testing', 'Testing'],
     ].flatMap(([m, label]) => [
-        cfg(`OLX ${label}, LED`, 'Olx', m, ['--app', 'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp']),
-        cfg(`OLX ${label}, Osmos`, 'Olx', m, ['--app', 'd:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp']),
+        cfg(`OLX ${label}, LED`, 'Olx', m, [
+            '--app',
+            'd:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp',
+        ]),
+        cfg(`OLX ${label}, Osmos`, 'Olx', m, [
+            '--app',
+            'd:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp',
+        ]),
     ]),
 ];
 

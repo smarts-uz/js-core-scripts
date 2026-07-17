@@ -1,4 +1,4 @@
-// Unit tests for utils/KapitalBank.js — a b2b-api.kapitalbank.uz payments client.
+// Unit tests for classes/KapitalBank.js — a b2b-api.kapitalbank.uz payments client.
 //
 // HTTP boundary: KapitalBank does not call fetch directly — it delegates to
 // `Chromes.fetcher(url, options, owner, duration, replace)`. We mock Chromes
@@ -25,7 +25,7 @@ const ChromesMock = {
 };
 const IjaraSoliqMock = { Owner: { SRental: 'SRental', WorkSpace: 'WorkSpace' } };
 
-// Mirror utils/Secrets.js: ('Kapital','SRental') -> KAPITAL_SRENTAL,
+// Mirror classes/Secrets.js: ('Kapital','SRental') -> KAPITAL_SRENTAL,
 // ('KapitalId','SRental') -> KAPITAL_ID_SRENTAL. Reads process.env, never config.
 const envName = (section, owner = '') => {
   const norm = (s) =>
@@ -45,7 +45,7 @@ jest.unstable_mockModule(utilsModule('Secrets.js'), () => ({ Secrets: SecretsMoc
 jest.unstable_mockModule(utilsModule('Chromes.js'), () => ({ Chromes: ChromesMock }));
 jest.unstable_mockModule(utilsModule('IjaraSoliq.js'), () => ({ IjaraSoliq: IjaraSoliqMock }));
 
-const { KapitalBank } = await import('../utils/KapitalBank.js');
+const { KapitalBank } = await import('../classes/KapitalBank.js');
 
 // Track every credential env var we set so afterEach can restore the prior value.
 const touchedEnv = new Map();

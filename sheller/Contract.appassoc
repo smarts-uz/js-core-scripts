@@ -1,1 +1,1 @@
-node.exe;.contract;"d:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Yamls\contractFill.mjs" --yaml "%1"
+node.exe;.contract;"d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Yamls\contractFill.mjs" --yaml "%1"

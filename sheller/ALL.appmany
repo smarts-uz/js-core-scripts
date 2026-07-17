@@ -1,2 +1,2 @@
 *
-NoClose;Copy URL(s) to Clipboard;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Chromes\processPathsToClipboard.mjs" $files
+NoClose;Copy URL(s) to Clipboard;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Chromes\processPathsToClipboard.mjs" $files

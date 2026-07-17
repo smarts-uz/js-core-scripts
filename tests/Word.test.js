@@ -1,4 +1,4 @@
-// Unit tests for utils/Word.js — every public (non-_) static method.
+// Unit tests for classes/Word.js — every public (non-_) static method.
 //
 // Word is a MIX of pure helpers and winax-COM driven methods:
 //  - Pure / near-pure helpers (getNumberWordOnly, getRussianMonthName,
@@ -11,7 +11,7 @@
 //    shaping and the documented error/empty branches.
 //
 // Pattern follows tests/Claude.test.js (mock the boundary, real fs on temp dirs)
-// and tests/Dates.test.js (pure assertions). No utils/ source is modified —
+// and tests/Dates.test.js (pure assertions). No classes/ source is modified —
 // where the code has a quirk, the test documents the ACTUAL behavior.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
@@ -211,7 +211,7 @@ jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 
-const { Word } = await import('../utils/Word.js');
+const { Word } = await import('../classes/Word.js');
 
 let workDir;
 

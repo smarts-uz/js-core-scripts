@@ -1,4 +1,4 @@
-// Unit tests for utils/Dialogs.js — public methods warningBox, errorBox,
+// Unit tests for classes/Dialogs.js — public methods warningBox, errorBox,
 // messageBox, openFileDialog, inputBox, multilineInputBox, plus the static
 // Buttons / Icons constant tables.
 //
@@ -22,7 +22,12 @@ jest.unstable_mockModule('child_process', () => ({ execFileSync, default: { exec
 const popup = jest.fn(() => -1);
 const winaxObject = jest.fn(() => ({ Popup: popup }));
 const winaxFake = { Object: winaxObject };
-const fakeRequire = (id) => (id === 'winax' ? winaxFake : (() => { throw new Error(`unexpected require: ${id}`); })());
+const fakeRequire = (id) =>
+  id === 'winax'
+    ? winaxFake
+    : (() => {
+        throw new Error(`unexpected require: ${id}`);
+      })();
 jest.unstable_mockModule('node:module', () => ({
   createRequire: () => fakeRequire,
   default: { createRequire: () => fakeRequire },
@@ -38,7 +43,7 @@ const fsMock = {
 };
 jest.unstable_mockModule('node:fs', () => ({ default: fsMock, ...fsMock }));
 
-const { Dialogs } = await import('../utils/Dialogs.js');
+const { Dialogs } = await import('../classes/Dialogs.js');
 
 /** The args array passed to execFileSync on its first call. */
 function firstCall() {
@@ -115,7 +120,9 @@ describe('Dialogs.messageBox', () => {
   });
 
   it('swallows COM errors and does not throw (catch branch)', () => {
-    winaxObject.mockImplementationOnce(() => { throw new Error('winax missing'); });
+    winaxObject.mockImplementationOnce(() => {
+      throw new Error('winax missing');
+    });
     expect(() => Dialogs.messageBox('boom', 'T')).not.toThrow();
   });
 });
@@ -190,7 +197,9 @@ describe('Dialogs.openFileDialog', () => {
   });
 
   it('returns null when execFileSync throws', () => {
-    execFileSync.mockImplementation(() => { throw new Error('cscript missing'); });
+    execFileSync.mockImplementation(() => {
+      throw new Error('cscript missing');
+    });
     expect(Dialogs.openFileDialog()).toBeNull();
   });
 });
@@ -226,7 +235,9 @@ describe('Dialogs.inputBox', () => {
   });
 
   it('returns null when execFileSync throws', () => {
-    execFileSync.mockImplementation(() => { throw new Error('boom'); });
+    execFileSync.mockImplementation(() => {
+      throw new Error('boom');
+    });
     expect(Dialogs.inputBox()).toBeNull();
   });
 });
@@ -245,7 +256,7 @@ describe('Dialogs.multilineInputBox', () => {
     fsMock.readFileSync.mockReturnValue('text');
     Dialogs.multilineInputBox('Type a lot', 'Editor', 'seed value');
     // first writeFileSync call is the .hta
-    const htaCall = fsMock.writeFileSync.mock.calls.find(c => /\.hta$/.test(c[0]));
+    const htaCall = fsMock.writeFileSync.mock.calls.find((c) => /\.hta$/.test(c[0]));
     expect(htaCall).toBeDefined();
     const hta = htaCall[1];
     expect(hta).toInclude('<HTA:APPLICATION');
@@ -258,7 +269,7 @@ describe('Dialogs.multilineInputBox', () => {
     fsMock.existsSync.mockReturnValue(true);
     fsMock.readFileSync.mockReturnValue('text');
     Dialogs.multilineInputBox('p', 't', 12345);
-    const htaCall = fsMock.writeFileSync.mock.calls.find(c => /\.hta$/.test(c[0]));
+    const htaCall = fsMock.writeFileSync.mock.calls.find((c) => /\.hta$/.test(c[0]));
     expect(htaCall[1]).toInclude('"12345"');
   });
 
@@ -274,7 +285,9 @@ describe('Dialogs.multilineInputBox', () => {
   });
 
   it('returns null when execFileSync throws', () => {
-    execFileSync.mockImplementation(() => { throw new Error('boom'); });
+    execFileSync.mockImplementation(() => {
+      throw new Error('boom');
+    });
     expect(Dialogs.multilineInputBox()).toBeNull();
   });
 });

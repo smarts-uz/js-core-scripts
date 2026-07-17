@@ -1,4 +1,4 @@
-// Unit tests for utils/Files.js — every public (non-_) static method.
+// Unit tests for classes/Files.js — every public (non-_) static method.
 //
 // Files is overwhelmingly a real-filesystem class, so per the test conventions
 // it is tested FOR REAL against throwaway temp dirs (helpers/tmp.js) with NO
@@ -24,7 +24,7 @@ jest.unstable_mockModule('child_process', () => ({ exec: execMock, default: { ex
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Phone.js'), () => ({ Phone: {} }));
 
-const { Files } = await import('../utils/Files.js');
+const { Files } = await import('../classes/Files.js');
 
 let dir;
 beforeEach(() => {

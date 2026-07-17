@@ -1,4 +1,4 @@
-// Unit tests for utils/IjaraSoliq.js — an ijara.soliq.uz rent-contract client.
+// Unit tests for classes/IjaraSoliq.js — an ijara.soliq.uz rent-contract client.
 //
 // HTTP boundary: IjaraSoliq delegates all network I/O to Chromes —
 // `Chromes.fetcher(...)` for contracts and `Chromes.download(...)` for the PDF.
@@ -44,7 +44,7 @@ jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMoc
 jest.unstable_mockModule(utilsModule('Secrets.js'), () => ({ Secrets: SecretsMock }));
 jest.unstable_mockModule(utilsModule('Chromes.js'), () => ({ Chromes: ChromesMock }));
 
-const { IjaraSoliq, RentType, IjaraState } = await import('../utils/IjaraSoliq.js');
+const { IjaraSoliq, RentType, IjaraState } = await import('../classes/IjaraSoliq.js');
 
 const ENV_KEY = 'IJARA_SRENTAL';
 let savedEnv;

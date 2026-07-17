@@ -1,4 +1,4 @@
-// Unit tests for utils/Scanner.js — every public (non-_) static method:
+// Unit tests for classes/Scanner.js — every public (non-_) static method:
 //   isExcluded, getTimestamp, notify, safeWriteFile, scanRecursive, toYaml,
 //   getIncrementedPath, flattenTreeForTable, generateTreeMarkdown, run.
 //
@@ -20,7 +20,12 @@ import { utilsModule } from './helpers/esm.js';
 const popup = jest.fn(() => -1);
 const winaxObject = jest.fn(() => ({ Popup: popup }));
 const winaxFake = { Object: winaxObject };
-const fakeRequire = (id) => (id === 'winax' ? winaxFake : (() => { throw new Error(`unexpected require: ${id}`); })());
+const fakeRequire = (id) =>
+  id === 'winax'
+    ? winaxFake
+    : (() => {
+        throw new Error(`unexpected require: ${id}`);
+      })();
 const YamlsMock = { getConfig: jest.fn() };
 
 jest.unstable_mockModule('node:module', () => ({
@@ -29,7 +34,7 @@ jest.unstable_mockModule('node:module', () => ({
 }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 
-const { Scanner } = await import('../utils/Scanner.js');
+const { Scanner } = await import('../classes/Scanner.js');
 
 let workDir;
 
@@ -92,7 +97,9 @@ describe('Scanner.notify', () => {
   });
 
   it('swallows COM errors', () => {
-    winaxObject.mockImplementationOnce(() => { throw new Error('boom'); });
+    winaxObject.mockImplementationOnce(() => {
+      throw new Error('boom');
+    });
     expect(() => Scanner.notify('m', 't', 1)).not.toThrow();
   });
 });

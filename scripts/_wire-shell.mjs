@@ -1,13 +1,14 @@
-// Rewrites every shell/* launcher to point at the per-method runners under
-// runs/<Class>/<method>.mjs. One menu entry = one runner file.
+// Rewrites every sheller/* launcher to point at the per-method runners under
+// scripts/<Class>/<method>.mjs. One menu entry = one runner file.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Derive the project root relatively from this script's own location — runs/ is
-// one folder below the root. Never hardcode an absolute path (the project moves).
+// Derive the project root relatively from this script's own location —
+// scripts/ is one folder below the root. Never hardcode an absolute path (the
+// project moves).
 const ROOT = path.resolve(import.meta.dirname, '..');
-const SH = path.join(ROOT, 'shell');
-const R = (cls, method) => `${ROOT}\\runs\\${cls}\\${method}.mjs`;
+const SH = path.join(ROOT, 'sheller');
+const R = (cls, method) => `${ROOT}\\scripts\\${cls}\\${method}.mjs`;
 
 // NoClose launcher line → a per-method runner
 const L = (label, cls, method, args = '') =>
@@ -136,13 +137,13 @@ const files = {
 
 for (const [name, [head, lines]] of Object.entries(files)) {
     writeFileSync(path.join(SH, name), [head, ...lines].join('\n') + '\n', 'utf8');
-    console.log(`✅ shell/${name} (${lines.length})`);
+    console.log(`✅ sheller/${name} (${lines.length})`);
 }
 
-// ALL.applnk — global registry context entry → runs/Registry/clean.mjs
+// ALL.applnk — global registry context entry → scripts/Registry/clean.mjs
 writeFileSync(
     path.join(SH, 'ALL.applnk'),
     `DevApp\\Context\nnode.exe;Registry Clean;"${R('Registry', 'clean')}"\n`,
     'utf8'
 );
-console.log('✅ shell/ALL.applnk');
+console.log('✅ sheller/ALL.applnk');

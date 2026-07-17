@@ -1,4 +1,4 @@
-// Unit tests for utils/Registry.js — public method clean, plus helpers _parseQuery
+// Unit tests for classes/Registry.js — public method clean, plus helpers _parseQuery
 // and _stamp.
 //
 // Registry.clean no longer uses PowerShell (whose UTF-16 stdout leaked garbled
@@ -46,7 +46,7 @@ jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMoc
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 
-const { Registry } = await import('../utils/Registry.js');
+const { Registry } = await import('../classes/Registry.js');
 
 const realPlatform = process.platform;
 
@@ -198,7 +198,9 @@ describe('Registry.clean — dead-token removal (real cleaning logic)', () => {
     expect(out.changes[0]).toMatchObject({ scope: 'HKCU', name: 'Path' });
     expect(out.changes[0].removed).toEqual(['%GONE%']);
     // the surviving value was written back preserving REG_EXPAND_SZ
-    const add = execFileSync.mock.calls.find((c) => c[0] === 'reg' && c[1][0] === 'add' && c[1][3] === 'Path');
+    const add = execFileSync.mock.calls.find(
+      (c) => c[0] === 'reg' && c[1][0] === 'add' && c[1][3] === 'Path'
+    );
     expect(add).toBeDefined();
     const args = add[1];
     expect(args).toEqual(expect.arrayContaining(['/t', 'REG_EXPAND_SZ']));

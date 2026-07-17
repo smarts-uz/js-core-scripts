@@ -1,4 +1,4 @@
-// Unit tests for utils/Phone.js — every public (non-_) static method.
+// Unit tests for classes/Phone.js — every public (non-_) static method.
 //
 // Phone splits cleanly into two kinds of methods:
 //   * pure string/array helpers (isPhone, isPhoneStatus, isRegion,
@@ -89,7 +89,7 @@ const ESMock = { find: jest.fn(() => []), findIn: jest.fn(() => []), execute: je
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('ES.js'), () => ({ ES: ESMock }));
 
-const { Phone } = await import('../utils/Phone.js');
+const { Phone } = await import('../classes/Phone.js');
 
 let root;
 beforeEach(() => {

@@ -7,9 +7,9 @@ process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 const yargsMod = await import('yargs');
 const { hideBin } = await import('yargs/helpers');
 const yargs = yargsMod.default;
-const { Chromes } = await import('../../utils/Chromes.js');
-const { Puppe } = await import('../../utils/Puppe.js');
-const { Phone } = await import('../../utils/Phone.js');
+const { Chromes } = await import('../../classes/Chromes.js');
+const { Puppe } = await import('../../classes/Puppe.js');
+const { Phone } = await import('../../classes/Phone.js');
 
 async function main() {
     console.log('1️⃣ Olx appTwo Start');

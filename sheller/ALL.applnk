@@ -1,2 +1,2 @@
 DevApp\Context
-node.exe;Registry Clean;"D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Registry\clean.mjs"
+node.exe;Registry Clean;"D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Registry\clean.mjs"

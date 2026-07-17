@@ -1,2 +1,2 @@
 .pptx
-NoClose;Merge PowerPoint Files;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\PowerPoints\merge.mjs" $files
+NoClose;Merge PowerPoint Files;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\PowerPoints\merge.mjs" $files

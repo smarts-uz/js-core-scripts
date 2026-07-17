@@ -1,4 +1,4 @@
-// Unit tests for utils/Homoglyph.js — every public (non-_) static method:
+// Unit tests for classes/Homoglyph.js — every public (non-_) static method:
 //   markdown, markdownAsk, word, wordAsk, excel, excelAsk, powerpoint,
 //   powerpointAsk.
 //
@@ -71,7 +71,7 @@ jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 
-const { Homoglyph } = await import('../utils/Homoglyph.js');
+const { Homoglyph } = await import('../classes/Homoglyph.js');
 
 let workDir;
 beforeEach(() => {

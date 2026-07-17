@@ -1,4 +1,4 @@
-// Unit tests for utils/Com.js — the shared Windows-COM robustness helpers used
+// Unit tests for classes/Com.js — the shared Windows-COM robustness helpers used
 // by Word / Excels / PowerPoints / Homoglyph.
 //
 // Com is pure JS (no winax import): the COM Application objects are passed in by
@@ -7,7 +7,7 @@
 // pidsOf runs the real `tasklist`, so we only assert it returns a Set.
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import path from 'path';
-import { Com } from '../utils/Com.js';
+import { Com } from '../classes/Com.js';
 
 afterEach(() => jest.restoreAllMocks());
 

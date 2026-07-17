@@ -1,4 +1,4 @@
-// Unit tests for utils/Excels.js — a large, winax-COM-heavy class. Every public
+// Unit tests for classes/Excels.js — a large, winax-COM-heavy class. Every public
 // method (name not starting with `_`) is covered; the private driver
 // `_replaceFormulaWith` is exercised only through its public wrappers
 // (replaceFormula / replaceFormula2 / replaceFormulaArray).
@@ -98,7 +98,7 @@ jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 jest.unstable_mockModule(utilsModule('Dates.js'), () => ({ Dates: DatesMock }));
 
-const { Excels } = await import('../utils/Excels.js');
+const { Excels } = await import('../classes/Excels.js');
 
 // --- COM helpers --------------------------------------------------------------
 
@@ -1377,7 +1377,7 @@ describe('Excels.mergeFiles', () => {
 
     // Target workbook: dynamic Sheets count via a mutable counter; supports
     // Add/SaveAs/Close. Each target sheet exposes a settable Name and Delete.
-    let targetSheetCount = 1;
+    const targetSheetCount = 1;
     const targetSheet = makeComProxy({ Name: 'Sheet1', Delete: jest.fn() }, 'TgtSheet');
     const TargetSheetsFn = jest.fn(() => targetSheet);
     Object.defineProperty(TargetSheetsFn, 'Count', { get: () => targetSheetCount });

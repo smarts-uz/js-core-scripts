@@ -1,4 +1,4 @@
-// Unit tests for utils/PowerPoints.js — public methods checkWinax,
+// Unit tests for classes/PowerPoints.js — public methods checkWinax,
 // getProtectedPath, protectFile, unProtectFile, protectFileAsk,
 // unProtectFileAsk.
 //
@@ -143,7 +143,7 @@ jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMoc
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 
-const { PowerPoints } = await import('../utils/PowerPoints.js');
+const { PowerPoints } = await import('../classes/PowerPoints.js');
 
 let workDir;
 

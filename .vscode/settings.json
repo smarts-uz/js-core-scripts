@@ -15,8 +15,8 @@
     },
     "eslint.useFlatConfig": true,
 
-    // Generated runners under runs/ are produced by runs/_generate.mjs — don't
-    // hand-format them (they're regenerated, and runs/ is in .prettierignore).
+    // Generated runners under scripts/ are produced by scripts/_generate.mjs —
+    // don't hand-format them (they're regenerated, and scripts/ is in .prettierignore).
     "files.watcherExclude": {
         "**/coverage/**": true
     },

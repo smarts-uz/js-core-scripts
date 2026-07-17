@@ -1,4 +1,4 @@
-// Unit tests for utils/ES.js — public methods find, findIn, execute.
+// Unit tests for classes/ES.js — public methods find, findIn, execute.
 //
 // ES is a thin wrapper around the `es.exe` (Everything CLI) invoked through
 // child_process.execSync. Per the native-boundary convention we mock ONLY
@@ -10,7 +10,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 const execSync = jest.fn();
 jest.unstable_mockModule('child_process', () => ({ execSync, default: { execSync } }));
 
-const { ES } = await import('../utils/ES.js');
+const { ES } = await import('../classes/ES.js');
 
 beforeEach(() => {
   jest.clearAllMocks();

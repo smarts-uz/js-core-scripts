@@ -1,9 +1,9 @@
-// Unit tests for utils/Dates.js — all public (non-_) static methods.
+// Unit tests for classes/Dates.js — all public (non-_) static methods.
 // Dates is pure logic (dayjs date math + string/number helpers), so it is
 // tested directly with concrete and property-based (fast-check) assertions.
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import { test as fcTest, fc } from '@fast-check/jest';
-import { Dates } from '../utils/Dates.js';
+import { Dates } from '../classes/Dates.js';
 
 describe('Dates.parseDMY', () => {
   it('parses a DD.MM.YYYY string into a local Date', () => {

@@ -17,14 +17,14 @@
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "generate:runners": "node runs/_generate.mjs",
-        "generate:readme": "node runs/_gen-readme.mjs",
-        "generate:shell": "node runs/_wire-shell.mjs",
-        "generate:launch": "node runs/_wire-launch.mjs",
+        "generate:runners": "node scripts/_generate.mjs",
+        "generate:readme": "node scripts/_gen-readme.mjs",
+        "generate:shell": "node scripts/_wire-shell.mjs",
+        "generate:launch": "node scripts/_wire-launch.mjs",
         "prepare": "husky"
     },
     "lint-staged": {
-        "!(runs/*/**).{js,mjs}": [
+        "!(scripts/*/**).{js,mjs}": [
             "eslint --fix",
             "prettier --write"
         ],

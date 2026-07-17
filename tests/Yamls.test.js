@@ -1,4 +1,4 @@
-// Unit tests for utils/Yamls.js — every public (non-_) static method:
+// Unit tests for classes/Yamls.js — every public (non-_) static method:
 //   getConfig, getYamlValue, findTextLine, replaceTextLine, loadYamlWithDeps,
 //   loadAndParseYaml, extractFirstNumber, update, fillYamlWithInfo,
 //   getPrepayMonth, replaceYaml, mergeYamlsInFolder, setConfig.
@@ -104,7 +104,7 @@ jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 jest.unstable_mockModule(utilsModule('didox.js'), () => ({ Didox: DidoxMock }));
 jest.unstable_mockModule(utilsModule('MySoliq.js'), () => ({ MySoliq: MySoliqMock }));
 
-const { Yamls } = await import('../utils/Yamls.js');
+const { Yamls } = await import('../classes/Yamls.js');
 
 let projectDir;
 let workDir;

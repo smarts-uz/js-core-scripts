@@ -1,4 +1,4 @@
-// Unit tests for utils/Didox.js — a Didox Partner API client.
+// Unit tests for classes/Didox.js — a Didox Partner API client.
 //
 // HTTP boundary: the reference-data methods (saveMeasures, getRegionInfo,
 // saveDistricts, saveRegions, saveBanks, saveRegionsTTN, saveRailwayStations,
@@ -61,7 +61,7 @@ jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMoc
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 
-const { Didox } = await import('../utils/Didox.js');
+const { Didox } = await import('../classes/Didox.js');
 
 let restApiDir;
 let folderDir;
