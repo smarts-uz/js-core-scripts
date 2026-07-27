@@ -615,4 +615,121 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml('file.yml', null, null);
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('yamlData or companyInfo is not defined!');
   });
+
+  it('warns and returns instead of throwing when ComDate cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    // No ComDate marker file in Compan/, and neither soliq nor soliqYatt supplied
+    // a registrationDate — this is the real crash scenario: ComDate falls back to
+    // an empty value, so Word.extractDate legitimately returns null instead of
+    // being force-fed a bogus date.
+    FilesMock.getDateFromTXT.mockReturnValue(null);
+    WordMock.extractDate.mockReturnValue(null);
+
+    expect(() =>
+      Yamls.replaceYaml('file.yml', { ComDate: '' }, { isYatt: false, soliq: null })
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDate is missing or invalid')
+    );
+  });
+
+  it('falls back to companyInfo.soliq.company.registrationDate (non-YaTT) when no ComDate marker file exists', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    FilesMock.getDateFromTXT.mockReturnValue(null);
+    WordMock.extractDate.mockImplementation((date) =>
+      !date ? null : { day: '10', month: '08', year: '2023' }
+    );
+
+    // soliq's own API returns registrationDate as YYYY-MM-DD; Yamls.replaceYaml
+    // must normalize it to Didox's DD.MM.YYYY before handing it to Word.extractDate.
+    // The method continues past the date block into many other companyInfo/Didox
+    // fields this fixture doesn't populate (unrelated to this fallback) — only the
+    // ComDate resolution itself is under test here.
+    try {
+      Yamls.replaceYaml(
+        'file.yml',
+        { ComDate: '', Price: '1,200,000' },
+        { isYatt: false, soliq: { company: { registrationDate: '2023-08-10' } } }
+      );
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(WordMock.extractDate).toHaveBeenCalledWith('10.08.2023');
+  });
+
+  it('falls back to companyInfo.soliqYatt.registrationDate (YaTT) when no ComDate marker file exists', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    FilesMock.getDateFromTXT.mockReturnValue(null);
+    WordMock.extractDate.mockImplementation((date) =>
+      !date ? null : { day: '17', month: '02', year: '2026' }
+    );
+
+    try {
+      Yamls.replaceYaml(
+        'file.yml',
+        { ComDate: '', Price: '1,200,000' },
+        { isYatt: true, soliqYatt: { registrationDate: '17.02.2026' } }
+      );
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(WordMock.extractDate).toHaveBeenCalledWith('17.02.2026');
+  });
+
+  it('warns and returns instead of throwing when ComDateEnd cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    // ComDate itself is valid, but ComDateEnd (derived via Dates.addDays) isn't.
+    WordMock.extractDate.mockImplementation((date) =>
+      date === '05.11.2024' ? { day: '05', month: '11', year: '2024' } : null
+    );
+
+    expect(() =>
+      Yamls.replaceYaml('file.yml', { ComDate: '05.11.2024' }, { regDate: null })
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDateEnd is missing or invalid')
+    );
+  });
+
+  it('warns and returns instead of throwing when ComDateIjara cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    // No Contract.ComDateIjara configured, and yamlData carries none either.
+    writeConfig({ Contract: { AddDays: 30 } });
+
+    // ComDate and its derived ComDateEnd (via the real Dates.addDays) both resolve
+    // fine — only the empty ComDateIjara should fail to extract.
+    WordMock.extractDate.mockImplementation((date) =>
+      !date ? null : { day: '05', month: '11', year: '2024' }
+    );
+
+    expect(() =>
+      Yamls.replaceYaml('file.yml', { ComDate: '05.11.2024', ComDateIjara: '' }, { regDate: null })
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDateIjara is missing or invalid')
+    );
+  });
 });

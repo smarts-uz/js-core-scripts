@@ -493,7 +493,13 @@ export class Yamls {
             if (comDateFromTxt) {
                 yamlData.ComDate = comDateFromTxt
             } else {
-                yamlData.ComDate = companyInfo.regDate
+                const regDate = companyInfo.isYatt
+                    ? companyInfo.soliqYatt?.registrationDate
+                    : companyInfo.soliq?.company.registrationDate
+                // registrationDate can come back as YYYY-MM-DD (soliq API) or
+                // already DD.MM.YYYY (Didox) — normalize to Didox's DD.MM.YYYY,
+                // which every downstream date helper (Dates.addDays, Word.extractDate) expects.
+                yamlData.ComDate = Dates.excelToDidox(regDate) || regDate
             }
         } else {
             Files.saveInfoToFile(globalThis.folderCompan, yamlData.ComDate)
@@ -511,16 +517,22 @@ export class Yamls {
 
 
         const comDate = Word.extractDate(yamlData.ComDate);
+        if (!comDate)
+            return Dialogs.warningBox(`ComDate is missing or invalid ("${yamlData.ComDate}") — cannot fill Day/Month/Year. Fill it in the .contract yaml or add a DD.MM.YYYY marker file in Compan/.`);
         yamlData.Day = comDate.day;
         yamlData.Month = comDate.month;
         yamlData.Year = comDate.year;
 
         const comDateEnd = Word.extractDate(yamlData.ComDateEnd);
+        if (!comDateEnd)
+            return Dialogs.warningBox(`ComDateEnd is missing or invalid ("${yamlData.ComDateEnd}") — cannot fill DayEnd/MonthEnd/YearEnd.`);
         yamlData.DayEnd = comDateEnd.day;
         yamlData.MonthEnd = comDateEnd.month;
         yamlData.YearEnd = comDateEnd.year;
 
         const comDateIjara = Word.extractDate(yamlData.ComDateIjara);
+        if (!comDateIjara)
+            return Dialogs.warningBox(`ComDateIjara is missing or invalid ("${yamlData.ComDateIjara}") — cannot fill DayIjara/MonthIjara/YearIjara. Check Contract.ComDateIjara in config.yml.`);
         yamlData.DayIjara = comDateIjara.day;
         yamlData.MonthIjara = comDateIjara.month;
         yamlData.YearIjara = comDateIjara.year;
