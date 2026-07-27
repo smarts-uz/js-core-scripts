@@ -407,24 +407,6 @@ export class Yamls {
                 companyInfo.ceo = ceo
             }
 
-            if (companyInfo.directorPinfl) {
-                if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
-                    console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
-                    yamlData.SurPINFL = companyInfo.directorPinfl
-                    companyInfo.surety = ceo
-                } else {
-                    console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
-                    let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
-                    console.log(surety, 'surety');
-
-                    if (surety) {
-                        companyInfo.surety = surety
-                    }
-                }
-            } else {
-                console.warn(`directorPinfl is empty for TIN: ${comTIN}`)
-            }
-
             if (!Files.isEmpty(yamlData.RepPINFL)) {
                 let reps = await Didox.infoByTinPinfl(yamlData.RepPINFL, globalThis.folderPartners)
                 console.log(reps, 'surety');
@@ -446,6 +428,32 @@ export class Yamls {
 
             Files.writeJson(jsonCachePath, companyInfo)
             console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
+        }
+
+        // SurPINFL/surety derivation must run for BOTH the cache path and the API
+        // path — companyInfo.directorPinfl/companyInfo.ceo are populated by both
+        // (cache mode reads them straight from the persisted ALL.json). This used
+        // to live only inside the API-only branch above, so a company processed
+        // via the cache path (rewrite=false) never got its yamlData.SurPINFL
+        // filled in, even when the cached companyInfo already had the correct
+        // directorPinfl — the empty SurPINFL was then faithfully "confirmed" back
+        // into the .contract file by replaceYaml's replaceTextLine pass.
+        if (companyInfo.directorPinfl) {
+            if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
+                console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
+                yamlData.SurPINFL = companyInfo.directorPinfl
+                companyInfo.surety = companyInfo.ceo
+            } else {
+                console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
+                let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
+                console.log(surety, 'surety');
+
+                if (surety) {
+                    companyInfo.surety = surety
+                }
+            }
+        } else {
+            console.warn(`directorPinfl is empty on companyInfo`)
         }
 
         Files.deleteInfo(globalThis.folderALL, `#From-`)

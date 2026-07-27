@@ -608,6 +608,55 @@ describe('Yamls.fillYamlWithInfo', () => {
 
     replaceYamlSpy.mockRestore();
   });
+
+  // Regression: the SurPINFL/surety derivation used to live ONLY inside the
+  // API-only branch (rewrite=true / no cache). A company processed via the
+  // cache path (rewrite=false, RestAPI/ALL.json already present) skipped that
+  // block entirely, so yamlData.SurPINFL was never filled in even though the
+  // cached companyInfo.directorPinfl already had the correct value — the
+  // empty SurPINFL was then faithfully "confirmed" back into the .contract
+  // file by replaceYaml's replaceTextLine pass. This must now fill SurPINFL
+  // from the cache too.
+  it('fills yamlData.SurPINFL from a cached companyInfo.directorPinfl (rewrite=false)', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ ComType: 'MChJ', SurPINFL: '' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    fs.mkdirSync(globalThis.folderRestAPI, { recursive: true });
+    fs.writeFileSync(
+      path.join(globalThis.folderRestAPI, 'ALL.json'),
+      JSON.stringify({
+        tin: '312808323',
+        directorTin: '572120844',
+        directorPinfl: '32706996600039',
+        ceo: { name: 'ZIYAVIDDINOV ODILJON OBIDJONOVICH', personalNum: '32706996600039' },
+      }),
+      'utf8'
+    );
+
+    const yamlData = { ComType: 'MChJ', SurPINFL: '' };
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, yamlData, true, false);
+
+    // API must never be called in cache mode.
+    expect(DidoxMock.infoByTinPinfl).not.toHaveBeenCalled();
+
+    expect(yamlData.SurPINFL).toBe('32706996600039');
+
+    const [, yamlDataArg, companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(yamlDataArg.SurPINFL).toBe('32706996600039');
+    expect(companyInfoArg.surety?.name).toBe('ZIYAVIDDINOV ODILJON OBIDJONOVICH');
+
+    replaceYamlSpy.mockRestore();
+  });
 });
 
 describe('Yamls.replaceYaml', () => {
