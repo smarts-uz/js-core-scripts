@@ -97,11 +97,54 @@ describe('Files.cleanPath', () => {
   });
 });
 
+describe('Files.normalizeApostrophe', () => {
+  it('replaces U+2018 LEFT SINGLE QUOTATION MARK with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('JO‘RABOYEVA')).toBe("JO'RABOYEVA");
+  });
+
+  it('replaces U+2019 RIGHT SINGLE QUOTATION MARK with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('O’ZBEKISTON')).toBe("O'ZBEKISTON");
+  });
+
+  it('replaces U+02BB MODIFIER LETTER TURNED COMMA with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('OʻZBEKISTON')).toBe("O'ZBEKISTON");
+  });
+
+  it('replaces U+02BC MODIFIER LETTER APOSTROPHE with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('sANʼAT')).toBe("sAN'AT");
+  });
+
+  it('leaves an already-plain apostrophe unchanged', () => {
+    expect(Files.normalizeApostrophe("JO'RABOYEVA")).toBe("JO'RABOYEVA");
+  });
+
+  it('leaves a name with no apostrophe unchanged', () => {
+    expect(Files.normalizeApostrophe('KAYA IBRAHIM BURAK')).toBe('KAYA IBRAHIM BURAK');
+  });
+
+  it('handles multiple curly apostrophes in one name', () => {
+    expect(Files.normalizeApostrophe('O‘ZBEK O’G‘LI')).toBe("O'ZBEK O'G'LI");
+  });
+
+  it('returns non-string input unchanged', () => {
+    expect(Files.normalizeApostrophe(null)).toBe(null);
+    expect(Files.normalizeApostrophe(undefined)).toBe(undefined);
+  });
+
+  it('returns an empty string unchanged', () => {
+    expect(Files.normalizeApostrophe('')).toBe('');
+  });
+});
+
 describe('Files.cleanupFileName', () => {
   it('strips Windows-illegal characters and collapses whitespace', () => {
     const out = Files.cleanupFileName('a<b>c:"d|e?f*g');
     expect(out).toBeSafeWindowsName();
     expect(out).not.toMatch(/[<>:"|?*]/);
+  });
+
+  it('normalizes a curly apostrophe to plain before other cleanup', () => {
+    expect(Files.cleanupFileName('JO‘RABOYEVA SHAXNOZAXON')).toBe("JO'RABOYEVA SHAXNOZAXON");
   });
 
   it('replaces slashes and ampersands with the replacement char', () => {

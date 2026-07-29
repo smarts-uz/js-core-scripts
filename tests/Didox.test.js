@@ -55,6 +55,7 @@ const FilesMock = {
   },
   mkdirIfNotExists: (d) => fs.mkdirSync(d, { recursive: true }),
   saveInfoToFile: jest.fn(),
+  normalizeApostrophe: (name) => (typeof name === 'string' ? name.replace(/[‘’ʻʼ]/g, "'") : name),
 };
 
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
@@ -308,6 +309,24 @@ describe('Didox.infoByTinPinfl', () => {
     expect(out).toEqual(payload);
     // person folder created under folderDirector and info written through Files
     expect(FilesMock.saveInfoToFile).toHaveBeenCalled();
+  });
+
+  it('normalizes a curly apostrophe in the API-returned name before building the person folder path', async () => {
+    state.config['Didox.BaseURL'] = 'api.example.uz';
+    state.config['Didox.SRental'] = 'token-123';
+    const payload = {
+      name: 'JO‘RABOYEVA SHAXNOZAXON BAXODIR QIZI',
+      address: 'somewhere',
+      tin: '99',
+      personalNum: '301010',
+    };
+    stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
+
+    const out = await Didox.infoByTinPinfl('1234567891');
+
+    // the returned name must have the curly apostrophe replaced with a plain one
+    expect(out.name).toBe("JO'RABOYEVA SHAXNOZAXON BAXODIR QIZI");
+    expect(out.name).not.toMatch(/[‘’ʻʼ]/);
   });
 
   it('reads from the cache file when it already exists (no fetch)', async () => {

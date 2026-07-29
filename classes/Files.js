@@ -834,10 +834,34 @@ export class Files {
   }
 
 
+  /**
+   * Replaces every curly/smart-quote apostrophe variant (U+2018 LEFT SINGLE
+   * QUOTATION MARK, U+2019 RIGHT SINGLE QUOTATION MARK, U+02BB MODIFIER LETTER
+   * TURNED COMMA, U+02BC MODIFIER LETTER APOSTROPHE) with the plain ASCII
+   * apostrophe (U+0027) — the standard this fleet uses for an Uzbek Latin-script
+   * "o'"/"g'"/glottal-stop character in ANY name (a person, a company, a place).
+   * Government registry APIs (Didox, Soliq) commonly return a curly '‘'
+   * (U+2018) in a returned "name" field, which must be normalized before that
+   * name is used to build a folder/file path.
+   *
+   * @param {string} name
+   * @returns {string}
+   */
+  static normalizeApostrophe(name) {
+    console.info(`[Files.normalizeApostrophe] 🟢 Starting...`);
+    if (typeof name !== 'string' || name.length === 0) return name;
+    const normalized = name.replace(/[‘’ʻʼ]/g, "'");
+    if (normalized !== name) {
+      console.log(`[Files.normalizeApostrophe] '${name}' -> '${normalized}'`);
+    }
+    return normalized;
+  }
+
   static cleanupFileName(filename, replaceWith = ' ') {
       console.info(`[Files.cleanupFileName] 🟢 Starting...`);
 
     console.info("cleanupFileName Before:", filename);
+    filename = Files.normalizeApostrophe(filename);
     filename = filename
       .replace(/[<>:"|?*\:]+/g, replaceWith)
       .trim()

@@ -345,6 +345,7 @@ export class Didox {
 
         let person
         if (returns.personalNum) {
+            returns.name = Files.normalizeApostrophe(returns.name);
             person = path.join(personFolder, returns.name);
 
             Files.mkdirIfNotExists(person);
