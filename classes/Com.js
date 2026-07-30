@@ -116,8 +116,24 @@ export class Com {
       console.warn(`[Com.openWord] ⚠️ Opened "${absPath}" in repair mode (OpenAndRepair=true).`);
       return doc;
     } catch (err) {
-      throw new Error(`Com.openWord: Unable to open "${absPath}" even in repair mode. Last error: ${err.message}`);
+      console.warn(`[Com.openWord] ↩️ Repair-mode open failed: ${err.message}. Trying read-only fallback…`);
     }
+
+    // Mode 3 — force ReadOnly=true. Both prior modes need an exclusive lock;
+    // when the file is already open elsewhere (another Word session holds it),
+    // both fail with the same RPC/lock error. A read-only open only needs a
+    // shared lock, so it succeeds even while the file is open elsewhere.
+    if (!readOnly) {
+      try {
+        const doc = wordApp.Documents.Open(absPath, false, true);
+        console.warn(`[Com.openWord] ⚠️ Opened "${absPath}" read-only (file locked by another process).`);
+        return doc;
+      } catch (err) {
+        throw new Error(`Com.openWord: Unable to open "${absPath}" even read-only. Last error: ${err.message}`);
+      }
+    }
+
+    throw new Error(`Com.openWord: Unable to open "${absPath}" even in repair mode.`);
   }
 
   /**
