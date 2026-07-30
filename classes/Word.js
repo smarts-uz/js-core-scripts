@@ -1,5 +1,6 @@
 import fs, { existsSync } from "fs";
 import path from "path";
+import os from "os";
 let winax;
 try {
   winax = (await import("winax")).default;
@@ -344,10 +345,22 @@ export class Word {
     word.Visible = false;
     word.DisplayAlerts = 0; // wdAlertsNone — suppress all dialogs to prevent hangs
 
+    // Copy the template to a scratch file first and open THAT copy — never the
+    // template itself. Editing (Find/Replace, SaveAs) requires an exclusive lock,
+    // which fails whenever the template is open in another Word session; a plain
+    // fs.copyFileSync only needs a shared read, so it always succeeds regardless
+    // of who else has the template open, and the real template is never touched.
+    const scratchTemplatePath = path.join(
+      os.tmpdir(),
+      `wordReplace-${Date.now()}-${path.basename(templatePath)}`,
+    );
+    console.log(`[Word.wordReplace] 📋 Copying template to scratch file: ${scratchTemplatePath}`);
+    fs.copyFileSync(templatePath, scratchTemplatePath);
+
     let doc;
     try {
-      console.log(`[Word.wordReplace] 📂 Opening template: ${path.resolve(templatePath)}`);
-      doc = this._safeOpen(word, templatePath);
+      console.log(`[Word.wordReplace] 📂 Opening scratch copy: ${scratchTemplatePath}`);
+      doc = this._safeOpen(word, scratchTemplatePath);
       console.log(`[Word.wordReplace] ✅ Template opened.`);
 
       const find = doc.Content.Find;
@@ -436,6 +449,9 @@ export class Word {
       try { word.Quit(); } catch (_) {}
       try { winax.release(word); } catch (_) {}
       this._killOrphans(before);
+      try {
+        if (existsSync(scratchTemplatePath)) fs.unlinkSync(scratchTemplatePath);
+      } catch (_) {}
       console.info(`[Word.wordReplace] 🔴 Finished.`);
     }
   }
