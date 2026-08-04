@@ -249,63 +249,37 @@ pattern). This project's concrete instantiation:
 
 ### `humanize/` — a 100%-Rust Tauri GUI app for the homoglyph checkbox-picker
 
-Owned by `smarts-app-windows`/`smarts-app-gui` → `module/gui-app.md` (the Tauri
-architecture, the Rust toolchain prerequisite, the checkbox-grid modal convention — none
-of that is restated here). This project's concrete implementation:
+Owned by **`smarts-app-gui` `type=tauri`** — the raw `IDispatch::Invoke` COM-automation
+pattern (no Node/winax sidecar), the live-progress-event mechanism, the Supabase-reqwest
+auth + per-machine device-fingerprint-lock pattern, the `reveal_in_explorer`/
+`open_in_default_app` commands, and the Cargo-integration-test verification approach for
+an unscreenshot-able native window are all **universal techniques documented there**
+(`module/tauri.md`, `module/live-progress-events.md`, `module/auth-licensing.md`,
+`module/gui-testing.md`) — none of that is restated here. This project's concrete
+fill-ins only:
 
-A GUI wrapping the Word homoglyph replace: pick a `.docx` file, a checkbox-grid modal
-lets the user check/uncheck each of the 21 `PERFECT_STEALTH` chars
-(`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives Word COM directly and writes an
-auto-incrementing `<name> L<count>.ext` output file beside the source.
-
-- **100% Rust, no Node.js/sidecar.** `src-tauri/src/com_automation.rs` hand-rolls raw
-  `IDispatch::GetIDsOfNames`/`Invoke`/`VARIANT` marshaling via the `windows` crate (no
-  pre-generated Word type-library bindings exist for this crate) — `create_com_object`,
-  `invoke_method`/`get_property`/`put_property`, an `OwnedVariant` wrapper with a `Drop`
-  impl calling `VariantClear`. `src-tauri/src/homoglyph.rs` ports `PERFECT_STEALTH` +
-  `_resolveOutputPath`'s filename convention and drives `Word.Application` (open the
-  copied source, `Content.Find.Execute` per char pair with `MatchCase`, save, close,
-  always `Quit`+`CoUninitialize`). Excel/PowerPoint are not yet ported — only `.docx` is
-  wired in `run_homoglyph`.
-- **Live progress + diff.** `apply_word` takes an `on_progress` callback fired once per
-  character pair (with the `Find.Execute` VT_BOOL found/not-found result); the
-  `run_homoglyph` Tauri command runs it via `spawn_blocking` and emits a
-  `"homoglyph-progress"` event per step, so the frontend renders a live progress bar +
-  diff list (each entry shows both characters' Unicode codepoints, since a homoglyph pair
-  renders visually identical — `A → A` alone reads as a no-op).
-- **Login gate — Supabase auth + per-machine device-fingerprint lock.** The app shows a
-  login screen before the main UI (`#login-screen` / `#app` in `index.html`, toggled by
-  `main.js`'s `showApp`/`showLogin`). `src-tauri/src/auth.rs` calls Supabase's REST Auth
-  API directly via `reqwest` (no JS SDK — the app is already 100% Rust): password grant →
-  `check_and_bind_fingerprint` RPC → session persisted to Windows Credential Manager via
-  `keyring` (`has_stored_session`/`clear_session` let a repeat launch on the same machine
-  skip the login screen). `src-tauri/src/fingerprint.rs` computes a SHA-256 digest of the
-  C: volume serial (`GetVolumeInformationW`) + registry `MachineGuid`
-  (`HKLM\SOFTWARE\Microsoft\Cryptography`, read via raw `RegOpenKeyExW`/`RegQueryValueExW`
-  — no extra crate needed, the `windows` crate already exposes these). The Supabase side
-  (`humanize/supabase/migrations/20260805000000_device_fingerprint_lock.sql`) defines a
-  `profiles` table (RLS: a user reads only their own row) and
-  `check_and_bind_fingerprint(p_fingerprint)`: NULL stored fingerprint → bind it and
-  return `true` (first login on this machine); already-bound → return `true` only on an
-  exact match, `false` otherwise (correct password, wrong machine — rejected).
-  **Public signup is disabled** (`disable_signup: true` via the Management API) —
-  accounts are admin-created only, via the Supabase Admin API
-  (`POST /auth/v1/admin/users` with the service_role key). Supabase project: `humanize`,
-  ref `kduqhvzqxongeeglhuim`, region `eu-central-1`, org `AsrorZk`. The anon key is baked
-  into `auth.rs` as a constant — this is standard Supabase practice (the anon key is
-  meant to be public; access control is enforced by RLS + the RPC's `SECURITY DEFINER`
-  logic, not by hiding the key).
-- **`reveal_in_explorer`/`open_in_default_app` Tauri commands** (via `explorer.exe
-/select,` and a bare `explorer.exe <path>` respectively) let a finished replace's
-  output be inspected without leaving the app — no extra crate needed for this either.
+- A GUI wrapping the Word homoglyph replace: pick a `.docx` file, a checkbox-grid modal
+  lets the user check/uncheck each of the 21 `PERFECT_STEALTH` chars
+  (`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives Word COM directly and writes an
+  auto-incrementing `<name> L<count>.ext` output file beside the source. Excel/PowerPoint
+  are not yet ported — only `.docx` is wired in `run_homoglyph`.
+- **Files:** `src-tauri/src/com_automation.rs` (the raw-IDispatch helper),
+  `src-tauri/src/homoglyph.rs` (ports `PERFECT_STEALTH` + the `L<count>` output-filename
+  convention, drives `Word.Application`), `src-tauri/src/auth.rs` +
+  `src-tauri/src/fingerprint.rs` (the login/device-lock implementation),
+  `humanize/supabase/migrations/20260805000000_device_fingerprint_lock.sql` (the
+  `profiles` table + `check_and_bind_fingerprint` RPC).
+- **Supabase project:** `humanize`, ref `kduqhvzqxongeeglhuim`, region `eu-central-1`,
+  org `AsrorZk`. Public signup disabled; the 3 admin-created accounts are
+  `asror.zk@gmail.com`, `gulchiroy@gmail.com`, `dr.durdona.zakirova@gmail.com` (each
+  binds to whichever machine it first logs in from).
 - **UI structure (`humanize/src/`):** card-based sections (pick file → characters →
   actions → progress), `Run Replace`/`Reset`/`Open in Explorer`/`Open in Default App` all
   on one row, the output path on its own row beneath it. Window size 920×760
   (`tauri.conf.json`), no fixed 800×600.
-- **Real end-to-end proof, not just compile-clean:** `src-tauri/tests/word_real_file.rs`
-  and `src-tauri/tests/login_real.rs` are genuine Cargo integration tests run against a
-  real sample `.docx` and the live Supabase project (not mocked) — the canonical way to
-  verify this app's Rust logic without a screenshot tool for the native webview window.
+- **Real end-to-end proof:** `src-tauri/tests/word_real_file.rs` and
+  `src-tauri/tests/login_real.rs` are genuine Cargo integration tests run against a real
+  sample `.docx` and the live Supabase project (not mocked).
 
 ---
 
