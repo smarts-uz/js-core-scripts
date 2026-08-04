@@ -24,3 +24,6 @@ coverage/
 /.claude/Fix Templates.Yaml config path/Tests/
 /.claude/Fix stray home-root scratch files/Tests/
 /.claude/Fix stray home-root scratch files/Scripts/
+/.claude/Fix missing node-pty dependency error/Scripts/
+/.claude/Fix missing module path in contract script/Scripts/
+/.claude/PriceHistory feature/Tests/
