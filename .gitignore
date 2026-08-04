@@ -27,3 +27,4 @@ coverage/
 /.claude/Fix missing node-pty dependency error/Scripts/
 /.claude/Fix missing module path in contract script/Scripts/
 /.claude/PriceHistory feature/Tests/
+/.claude/Word Homoglyph Replace Info/Caches/
