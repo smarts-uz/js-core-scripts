@@ -1,10 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 
-import { Files } from './Files.js';
-import { Yamls } from './Yamls.js';
-import { Dialogs } from './Dialogs.js';
-import { Com } from './Com.js';
+// Shared helpers stay in the project's main classes/ folder (used by 20+ other
+// classes there) — this file only moved into humanize/classes/, the helpers did not.
+import { Files } from '../../classes/Files.js';
+import { Yamls } from '../../classes/Yamls.js';
+import { Dialogs } from '../../classes/Dialogs.js';
+import { Com } from '../../classes/Com.js';
 
 let winax;
 try {
