@@ -28,3 +28,5 @@ coverage/
 /.claude/Fix missing module path in contract script/Scripts/
 /.claude/PriceHistory feature/Tests/
 /.claude/Word Homoglyph Replace Info/Caches/
+/.claude/smarts-install-rust skill build/Scripts/
+/.claude/Create smarts-install-rust skill/Scripts/
