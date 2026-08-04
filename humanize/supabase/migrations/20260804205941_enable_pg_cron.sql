@@ -1,0 +1,5 @@
+-- Supabase-managed project-provisioning migration (applied automatically at
+-- project creation, before this repo's own migrations existed). Recorded
+-- here as an empty placeholder purely so `supabase migration repair` has a
+-- local file to mark as already-applied — the real migration already ran
+-- on the hosted project when it was created.

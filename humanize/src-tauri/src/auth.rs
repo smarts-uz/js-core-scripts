@@ -3,8 +3,12 @@
 //
 //   1. POST /auth/v1/token?grant_type=password  -> access_token (JWT)
 //   2. POST /rest/v1/rpc/check_and_bind_fingerprint (Authorization: Bearer
-//      <access_token>) -> true (first login on this machine, or fingerprint
-//      already matched) / false (correct password, WRONG machine — reject).
+//      <access_token>) -> { allowed, bound_device_name }. allowed=true means
+//      first login on this machine (now bound), or fingerprint already
+//      matched. allowed=false means correct password, WRONG machine —
+//      reject, and bound_device_name names the machine it IS bound to, so
+//      the frontend can show a concrete "already registered on <name>"
+//      warning instead of a generic denial.
 //   3. On success, the session (access_token + refresh_token) is stored in
 //      Windows Credential Manager via `keyring`, so the user isn't asked to
 //      log in again on every launch of this same machine.
@@ -12,8 +16,9 @@
 // The Supabase URL + anon key are NOT secrets — Supabase's anon key is
 // designed to be embedded in a client and is only as powerful as the
 // project's Row Level Security policies allow (see
-// supabase/migrations/20260805000000_device_fingerprint_lock.sql, which
-// scopes every RPC/select to auth.uid() = the caller's own row).
+// supabase/migrations/20260805000000_device_fingerprint_lock.sql +
+// 20260805010000_device_fingerprint_name.sql, which scope every RPC/select
+// to auth.uid() = the caller's own row).
 
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
@@ -40,10 +45,31 @@ struct TokenResponse {
     msg: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct FingerprintCheckResponse {
+    allowed: bool,
+    bound_device_name: Option<String>,
+}
+
 #[derive(Serialize)]
 struct StoredSession {
     access_token: String,
     refresh_token: String,
+}
+
+/// Structured login failure — lets the frontend show a specific warning
+/// card for a wrong-machine rejection (naming the bound machine) instead of
+/// a generic error string.
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind")]
+pub enum LoginError {
+    /// Wrong email/password, or a network/parse failure.
+    InvalidCredentials { message: String },
+    /// Correct password, but this machine isn't the one the account is
+    /// bound to. `bound_device_name` is the OTHER machine's name, when the
+    /// server has one on file (older bindings created before device_name
+    /// existed have `None`).
+    WrongDevice { bound_device_name: Option<String> },
 }
 
 fn client() -> reqwest::Client {
@@ -55,7 +81,7 @@ fn client() -> reqwest::Client {
 /// Ok(()) only when the password was correct AND the fingerprint check
 /// passed (first login on this machine, or a match) — persisting the
 /// session to Windows Credential Manager on success.
-pub async fn login(email: &str, password: &str) -> Result<(), String> {
+pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
     let http = client();
 
     let token_resp = http
@@ -65,48 +91,51 @@ pub async fn login(email: &str, password: &str) -> Result<(), String> {
         .json(&PasswordGrantRequest { email, password })
         .send()
         .await
-        .map_err(|e| format!("network error contacting Supabase: {e}"))?;
+        .map_err(|e| LoginError::InvalidCredentials {
+            message: format!("network error contacting Supabase: {e}"),
+        })?;
 
     let status = token_resp.status();
-    let token: TokenResponse = token_resp
-        .json()
-        .await
-        .map_err(|e| format!("failed to parse Supabase auth response: {e}"))?;
+    let token: TokenResponse =
+        token_resp.json().await.map_err(|e| LoginError::InvalidCredentials {
+            message: format!("failed to parse Supabase auth response: {e}"),
+        })?;
 
     if !status.is_success() {
         let reason = token
             .error_description
             .or(token.msg)
             .unwrap_or_else(|| "invalid email or password".to_string());
-        return Err(reason);
+        return Err(LoginError::InvalidCredentials { message: reason });
     }
 
-    let fingerprint = crate::fingerprint::compute()?;
+    let fingerprint = crate::fingerprint::compute()
+        .map_err(|e| LoginError::InvalidCredentials { message: e })?;
+    let device_name = crate::fingerprint::device_name().unwrap_or_else(|_| "Unknown PC".to_string());
 
     let rpc_resp = http
         .post(format!("{SUPABASE_URL}/rest/v1/rpc/check_and_bind_fingerprint"))
         .header("apikey", SUPABASE_ANON_KEY)
         .header("Authorization", format!("Bearer {}", token.access_token))
         .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "p_fingerprint": fingerprint }))
+        .json(&serde_json::json!({ "p_fingerprint": fingerprint, "p_device_name": device_name }))
         .send()
         .await
-        .map_err(|e| format!("network error checking device fingerprint: {e}"))?;
+        .map_err(|e| LoginError::InvalidCredentials {
+            message: format!("network error checking device fingerprint: {e}"),
+        })?;
 
-    let allowed: bool = rpc_resp
-        .json()
-        .await
-        .map_err(|e| format!("failed to parse fingerprint-check response: {e}"))?;
+    let check: FingerprintCheckResponse =
+        rpc_resp.json().await.map_err(|e| LoginError::InvalidCredentials {
+            message: format!("failed to parse fingerprint-check response: {e}"),
+        })?;
 
-    if !allowed {
-        return Err(
-            "This account is already bound to a different PC. Login is only allowed from the \
-             machine it was first used on."
-                .to_string(),
-        );
+    if !check.allowed {
+        return Err(LoginError::WrongDevice { bound_device_name: check.bound_device_name });
     }
 
-    store_session(&token.access_token, &token.refresh_token)?;
+    store_session(&token.access_token, &token.refresh_token)
+        .map_err(|e| LoginError::InvalidCredentials { message: e })?;
     Ok(())
 }
 

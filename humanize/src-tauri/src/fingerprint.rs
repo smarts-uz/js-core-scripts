@@ -21,6 +21,7 @@ use windows::Win32::System::Registry::{
     RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ,
     REG_VALUE_TYPE,
 };
+use windows::Win32::System::SystemInformation::{ComputerNamePhysicalDnsHostname, GetComputerNameExW};
 
 fn c_drive_volume_serial() -> Result<u32, String> {
     let root: Vec<u16> = "C:\\\0".encode_utf16().collect();
@@ -117,4 +118,34 @@ pub fn compute() -> Result<String, String> {
     let digest = hasher.finalize();
 
     Ok(digest.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// This machine's human-readable network name (its DNS hostname, e.g.
+/// "DESKTOP-ABC123") — sent alongside the fingerprint purely so a rejected
+/// login (wrong machine) can tell the user WHICH machine the account is
+/// bound to, without exposing the raw fingerprint identifiers themselves.
+pub fn device_name() -> Result<String, String> {
+    // Query the required buffer size first (in WCHARs, including the NUL).
+    let mut len: u32 = 0;
+    unsafe {
+        // A too-small buffer error here is EXPECTED — it's how the size is
+        // discovered; only bail if len comes back zero (a real failure).
+        let _ = GetComputerNameExW(ComputerNamePhysicalDnsHostname, None, &mut len);
+    }
+    if len == 0 {
+        return Err("GetComputerNameExW returned an empty size".to_string());
+    }
+
+    let mut buffer = vec![0u16; len as usize];
+    unsafe {
+        GetComputerNameExW(
+            ComputerNamePhysicalDnsHostname,
+            Some(windows::core::PWSTR(buffer.as_mut_ptr())),
+            &mut len,
+        )
+        .map_err(|e| format!("GetComputerNameExW failed: {e}"))?;
+    }
+
+    String::from_utf16(&buffer[..len as usize])
+        .map_err(|e| format!("computer name was not valid UTF-16: {e}"))
 }

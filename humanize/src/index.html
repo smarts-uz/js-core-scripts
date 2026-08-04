@@ -24,6 +24,14 @@
         </div>
         <button id="login-btn" type="button" class="btn btn-primary btn-lg login-submit">Sign In</button>
         <p id="login-error" class="login-error"></p>
+
+        <div id="login-warning-card" class="login-warning-card" style="display: none">
+          <div class="login-warning-title">⚠ Account already registered on another PC</div>
+          <p class="login-warning-body">
+            This account is bound to <strong id="login-warning-device-name"></strong> and can only
+            sign in from that machine.
+          </p>
+        </div>
       </div>
     </div>
 

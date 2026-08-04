@@ -14,14 +14,29 @@ function showLogin(message) {
     document.querySelector('#login-screen').style.display = 'flex';
     document.querySelector('#app').style.display = 'none';
     document.querySelector('#login-error').textContent = message || '';
+    document.querySelector('#login-warning-card').style.display = 'none';
+}
+
+// The Rust side returns a STRUCTURED error (auth::LoginError, tagged by
+// "kind") rather than a plain string, so a wrong-machine rejection can be
+// told apart from a wrong-password rejection and rendered as its own
+// warning card naming the bound machine.
+function showWrongDeviceWarning(boundDeviceName) {
+    document.querySelector('#login-error').textContent = '';
+    const card = document.querySelector('#login-warning-card');
+    const nameEl = document.querySelector('#login-warning-device-name');
+    nameEl.textContent = boundDeviceName || 'an unknown PC';
+    card.style.display = 'block';
 }
 
 async function onLogin() {
     const email = document.querySelector('#login-email').value.trim();
     const password = document.querySelector('#login-password').value;
     const errorEl = document.querySelector('#login-error');
+    const warningCard = document.querySelector('#login-warning-card');
     const loginBtn = document.querySelector('#login-btn');
 
+    warningCard.style.display = 'none';
     if (!email || !password) {
         errorEl.textContent = 'Enter both email and password.';
         return;
@@ -32,9 +47,17 @@ async function onLogin() {
     try {
         await invoke('login', { email, password });
         document.querySelector('#login-password').value = '';
+        errorEl.textContent = '';
         showApp();
     } catch (err) {
-        errorEl.textContent = err;
+        if (err && err.kind === 'WrongDevice') {
+            showWrongDeviceWarning(err.bound_device_name);
+        } else if (err && err.kind === 'InvalidCredentials') {
+            errorEl.textContent = err.message;
+        } else {
+            // Fallback for a non-structured error (e.g. a Rust panic message).
+            errorEl.textContent = typeof err === 'string' ? err : JSON.stringify(err);
+        }
     } finally {
         loginBtn.disabled = false;
     }

@@ -110,6 +110,29 @@ body {
   color: #dc2626;
 }
 
+.login-warning-card {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.login-warning-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-bottom: 4px;
+}
+
+.login-warning-body {
+  margin: 0;
+  font-size: 12.5px;
+  color: #7f1d1d;
+  line-height: 1.4;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 22px;

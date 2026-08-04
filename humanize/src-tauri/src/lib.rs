@@ -42,11 +42,14 @@ async fn run_homoglyph(app: AppHandle, file_path: String, chars: String) -> Resu
 
 /// Attempts a login against Supabase, gated by this machine's device
 /// fingerprint (see fingerprint.rs / auth.rs). On success the session is
-/// persisted to Windows Credential Manager; on failure (wrong password, or
-/// correct password from a machine the account isn't bound to) returns the
-/// reason as an error string for the frontend to display.
+/// persisted to Windows Credential Manager; on failure, returns a
+/// STRUCTURED error (auth::LoginError) — either InvalidCredentials (bad
+/// password / network issue) or WrongDevice (correct password, but this
+/// machine isn't the one the account is bound to, naming the bound
+/// machine when known) — so the frontend can render a specific warning
+/// card instead of a generic error string.
 #[tauri::command]
-async fn login(email: String, password: String) -> Result<(), String> {
+async fn login(email: String, password: String) -> Result<(), auth::LoginError> {
   auth::login(&email, &password).await
 }
 
