@@ -152,15 +152,24 @@ export class Homoglyph {
    * @param {string} suffixKey - Config key holding the suffix (e.g. 'Word.HomoglyphSuffix').
    * @returns {string}
    */
-  static _resolveOutputPath(absPath, suffixKey) {
+  /**
+   * Builds the output path as "<basename> L<usedLettersCount>.ext", auto-incremented
+   * on collision. <usedLettersCount> is the number of distinct characters actually
+   * replaced (the size of replaceMap) — not a config-driven suffix.
+   *
+   * @param {string} absPath   - Absolute source path.
+   * @param {Record<string,string>} replaceMap - The resolved Latin→Cyrillic map used.
+   * @returns {string}
+   */
+  static _resolveOutputPath(absPath, replaceMap) {
     console.info(`[Homoglyph._resolveOutputPath] 🟢 Starting...`);
     const ext = path.extname(absPath);
     const baseName = Files.getBaseName(absPath, ext);
     const dir = path.dirname(absPath);
-    const suffix = Yamls.getConfig(suffixKey, null, ' Norm') || ' Norm';
-    const baseOutputPath = path.join(dir, `${baseName}${suffix}${ext}`);
+    const usedLettersCount = Object.keys(replaceMap).length;
+    const baseOutputPath = path.join(dir, `${baseName} L${usedLettersCount}${ext}`);
     const outputPath = Files.incrementFileName(baseOutputPath);
-    console.log(`[Homoglyph._resolveOutputPath] ${suffixKey} → ${outputPath}`);
+    console.log(`[Homoglyph._resolveOutputPath] L${usedLettersCount} → ${outputPath}`);
     return outputPath;
   }
 
@@ -222,7 +231,7 @@ export class Homoglyph {
     const replaceMap = this._buildMap(chars);
     if (this._isEmptyMap(replaceMap, 'Homoglyph.markdown')) return;
 
-    const outputPath = this._resolveOutputPath(absPath, 'Markdown.HomoglyphSuffix');
+    const outputPath = this._resolveOutputPath(absPath, replaceMap);
     const result = this._applyText(absPath, outputPath, replaceMap);
     console.log(`✅ Markdown homoglyph saved: ${result}`);
     return result;
@@ -255,7 +264,7 @@ export class Homoglyph {
     const replaceMap = this._buildMap(chars);
     if (this._isEmptyMap(replaceMap, 'Homoglyph.word')) return;
 
-    const outputPath = this._resolveOutputPath(absPath, 'Word.HomoglyphSuffix');
+    const outputPath = this._resolveOutputPath(absPath, replaceMap);
     return this._applyWord(absPath, outputPath, replaceMap);
   }
 
@@ -287,7 +296,7 @@ export class Homoglyph {
     const replaceMap = this._buildMap(chars);
     if (this._isEmptyMap(replaceMap, 'Homoglyph.excel')) return;
 
-    const outputPath = this._resolveOutputPath(absPath, 'Excel.HomoglyphSuffix');
+    const outputPath = this._resolveOutputPath(absPath, replaceMap);
     return this._applyExcel(absPath, outputPath, replaceMap);
   }
 
@@ -319,7 +328,7 @@ export class Homoglyph {
     const replaceMap = this._buildMap(chars);
     if (this._isEmptyMap(replaceMap, 'Homoglyph.powerpoint')) return;
 
-    const outputPath = this._resolveOutputPath(absPath, 'PowerPoint.HomoglyphSuffix');
+    const outputPath = this._resolveOutputPath(absPath, replaceMap);
     return this._applyPowerPoint(absPath, outputPath, replaceMap);
   }
 

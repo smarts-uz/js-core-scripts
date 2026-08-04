@@ -54,7 +54,6 @@ Scanner:
         - Samples
 Excel:
     ProtectSuffix: ' PR'
-    HomoglyphSuffix: ' Norm'
     # Contract pricing cell/column names, in order — read by Excels.generate
     # (formerly the standalone Excel.txt).
     CellNames:
@@ -80,14 +79,7 @@ Excel:
         - EEG
         - Audio
 
-Word:
-    HomoglyphSuffix: ' App'
-
-PowerPoint:
-    HomoglyphSuffix: ' App'
-
 Markdown:
-    HomoglyphSuffix: ' App'
     LineBetween: 20
 
 Registry:
