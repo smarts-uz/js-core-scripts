@@ -10,10 +10,28 @@
   </head>
 
   <body>
-    <div class="app">
+    <div id="login-screen" class="login-screen">
+      <div class="login-card">
+        <h1>Humanize</h1>
+        <p class="subtitle">Sign in to continue</p>
+        <div class="login-field">
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" autocomplete="username" />
+        </div>
+        <div class="login-field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="login-btn" type="button" class="btn btn-primary btn-lg login-submit">Sign In</button>
+        <p id="login-error" class="login-error"></p>
+      </div>
+    </div>
+
+    <div id="app" class="app" style="display: none">
       <header class="app-header">
         <h1>Humanize</h1>
         <p class="subtitle">Latin → Cyrillic homoglyph replace for Word documents</p>
+        <button id="logout-btn" type="button" class="btn btn-secondary logout-btn">Sign Out</button>
       </header>
 
       <main class="app-body">
@@ -32,15 +50,15 @@
         </section>
 
         <section class="card actions-card">
-          <div class="actions-row">
+          <div class="actions-row actions-row-top">
             <button id="ok-btn" type="button" class="btn btn-primary btn-lg">Run Replace</button>
             <button id="cancel-btn" type="button" class="btn btn-secondary btn-lg">Reset</button>
+            <div id="result-block" class="actions-row actions-row-inline" style="display: none">
+              <button id="open-explorer-btn" type="button" class="btn btn-secondary">Open in Explorer</button>
+              <button id="open-default-app-btn" type="button" class="btn btn-secondary">Open in Default App</button>
+            </div>
           </div>
           <span id="result-path" class="result-path"></span>
-          <div id="result-block" class="actions-row" style="display: none">
-            <button id="open-explorer-btn" type="button" class="btn btn-secondary">Open in Explorer</button>
-            <button id="open-default-app-btn" type="button" class="btn btn-secondary">Open in Default App</button>
-          </div>
         </section>
 
         <section id="progress-card" class="card" style="display: none">

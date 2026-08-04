@@ -32,10 +32,82 @@ body {
 }
 
 .app-header {
+  position: relative;
   flex: 0 0 auto;
   padding: 20px 28px 16px;
   background: #ffffff;
   border-bottom: 1px solid #e2e4e9;
+}
+
+.logout-btn {
+  position: absolute;
+  top: 20px;
+  right: 28px;
+}
+
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #f3f4f6;
+}
+
+.login-card {
+  width: 320px;
+  background: #ffffff;
+  border: 1px solid #e2e4e9;
+  border-radius: 10px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.login-field {
+  text-align: left;
+  margin-top: 16px;
+}
+
+.login-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.login-field input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-family: inherit;
+}
+
+.login-field input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 20px;
+  justify-content: center;
+}
+
+.login-error {
+  min-height: 18px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: #dc2626;
 }
 
 .app-header h1 {
@@ -123,9 +195,7 @@ body {
 
 .actions-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
   padding: 14px 20px;
 }
@@ -134,6 +204,11 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+}
+
+.actions-row-inline {
+  width: auto;
 }
 
 .btn {
@@ -266,16 +341,17 @@ body {
 }
 
 .result-path {
-  flex: 1 1 auto;
-  min-width: 0;
+  display: block;
+  width: 100%;
   font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 12.5px;
   color: #14532d;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-  padding: 0 8px;
+  word-break: break-all;
+  padding: 0 2px;
+}
+
+.result-path:empty {
+  display: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -296,6 +372,25 @@ body {
   .card {
     background: #1f2023;
     border-color: #2d2e32;
+  }
+
+  .login-screen {
+    background: #18181b;
+  }
+
+  .login-card {
+    background: #1f2023;
+    border-color: #2d2e32;
+  }
+
+  .login-card h1 {
+    color: #f4f4f5;
+  }
+
+  .login-field input {
+    background: #18181b;
+    border-color: #3f3f46;
+    color: #e5e7eb;
   }
 
   .file-path,

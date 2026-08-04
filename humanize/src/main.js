@@ -5,6 +5,65 @@ const { listen } = window.__TAURI__.event;
 let pickedFilePath = null;
 let lastOutputPath = null;
 
+function showApp() {
+    document.querySelector('#login-screen').style.display = 'none';
+    document.querySelector('#app').style.display = 'flex';
+}
+
+function showLogin(message) {
+    document.querySelector('#login-screen').style.display = 'flex';
+    document.querySelector('#app').style.display = 'none';
+    document.querySelector('#login-error').textContent = message || '';
+}
+
+async function onLogin() {
+    const email = document.querySelector('#login-email').value.trim();
+    const password = document.querySelector('#login-password').value;
+    const errorEl = document.querySelector('#login-error');
+    const loginBtn = document.querySelector('#login-btn');
+
+    if (!email || !password) {
+        errorEl.textContent = 'Enter both email and password.';
+        return;
+    }
+
+    loginBtn.disabled = true;
+    errorEl.textContent = 'Signing in…';
+    try {
+        await invoke('login', { email, password });
+        document.querySelector('#login-password').value = '';
+        showApp();
+    } catch (err) {
+        errorEl.textContent = err;
+    } finally {
+        loginBtn.disabled = false;
+    }
+}
+
+async function onLogout() {
+    try {
+        await invoke('logout');
+    } catch {
+        // Non-fatal — the login screen is shown regardless.
+    }
+    showLogin('');
+}
+
+// A repeat launch on the SAME machine skips the login screen if a session
+// was already stored (see auth.rs::has_stored_session) — it does not
+// re-validate the token against Supabase; a later 401 from any command
+// would need to send the user back to login, but none of this app's
+// current commands (run_homoglyph, reveal_in_explorer, …) call Supabase
+// themselves, so that path does not arise yet.
+async function bootstrapSession() {
+    const hasSession = await invoke('has_stored_session');
+    if (hasSession) {
+        showApp();
+    } else {
+        showLogin('');
+    }
+}
+
 // Cyrillic look-alikes render visually identical to their Latin counterpart
 // (that's the whole point of a "perfect stealth" homoglyph) — so the diff
 // list shows each character's Unicode codepoint too, otherwise "A → A" reads
@@ -145,7 +204,13 @@ function onCancel() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    bootstrapSession();
     loadCheckboxGrid();
+    document.querySelector('#login-btn').addEventListener('click', onLogin);
+    document.querySelector('#login-password').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') onLogin();
+    });
+    document.querySelector('#logout-btn').addEventListener('click', onLogout);
     document.querySelector('#pick-file-btn').addEventListener('click', pickFile);
     document.querySelector('#ok-btn').addEventListener('click', onOk);
     document.querySelector('#cancel-btn').addEventListener('click', onCancel);

@@ -1,4 +1,6 @@
+pub mod auth;
 pub mod com_automation;
+pub mod fingerprint;
 pub mod homoglyph;
 
 use std::path::PathBuf;
@@ -36,6 +38,29 @@ async fn run_homoglyph(app: AppHandle, file_path: String, chars: String) -> Resu
   })
   .await
   .map_err(|e| format!("task join error: {e}"))?
+}
+
+/// Attempts a login against Supabase, gated by this machine's device
+/// fingerprint (see fingerprint.rs / auth.rs). On success the session is
+/// persisted to Windows Credential Manager; on failure (wrong password, or
+/// correct password from a machine the account isn't bound to) returns the
+/// reason as an error string for the frontend to display.
+#[tauri::command]
+async fn login(email: String, password: String) -> Result<(), String> {
+  auth::login(&email, &password).await
+}
+
+/// True if a previously stored session exists on this machine — lets the
+/// frontend skip the login screen on a repeat launch.
+#[tauri::command]
+fn has_stored_session() -> bool {
+  auth::has_stored_session()
+}
+
+/// Clears the stored session (logout), forcing the login screen next launch.
+#[tauri::command]
+fn logout() -> Result<(), String> {
+  auth::clear_session()
 }
 
 /// Opens Windows Explorer with the given file pre-selected/highlighted —
@@ -77,6 +102,9 @@ pub fn run() {
     })
     .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![
+      login,
+      has_stored_session,
+      logout,
       list_homoglyph_chars,
       run_homoglyph,
       reveal_in_explorer,
