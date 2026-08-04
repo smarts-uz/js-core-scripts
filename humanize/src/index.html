@@ -10,25 +10,49 @@
   </head>
 
   <body>
-    <main class="container">
-      <h1>Humanize — Homoglyph Replace</h1>
+    <div class="app">
+      <header class="app-header">
+        <h1>Humanize</h1>
+        <p class="subtitle">Latin → Cyrillic homoglyph replace for Word documents</p>
+      </header>
 
-      <div class="row">
-        <button id="pick-file-btn" type="button">Pick a Word file (.docx)</button>
-        <span id="picked-file"></span>
-      </div>
+      <main class="app-body">
+        <section class="card">
+          <div class="card-title">1. Pick a file</div>
+          <div class="file-row">
+            <button id="pick-file-btn" type="button" class="btn btn-primary">Choose .docx file…</button>
+            <span id="picked-file" class="file-path">No file selected</span>
+          </div>
+        </section>
 
-      <fieldset id="chars-grid">
-        <legend>Characters to replace (all checked by default)</legend>
-        <div id="checkbox-list" class="checkbox-grid"></div>
-      </fieldset>
+        <section class="card">
+          <div class="card-title">2. Characters to replace</div>
+          <p class="hint">All checked by default — uncheck any character to skip it.</p>
+          <div id="checkbox-list" class="checkbox-grid"></div>
+        </section>
 
-      <div class="row">
-        <button id="ok-btn" type="button">OK</button>
-        <button id="cancel-btn" type="button">Cancel</button>
-      </div>
+        <section class="card actions-card">
+          <div class="actions-row">
+            <button id="ok-btn" type="button" class="btn btn-primary btn-lg">Run Replace</button>
+            <button id="cancel-btn" type="button" class="btn btn-secondary btn-lg">Reset</button>
+          </div>
+          <span id="result-path" class="result-path"></span>
+          <div id="result-block" class="actions-row" style="display: none">
+            <button id="open-explorer-btn" type="button" class="btn btn-secondary">Open in Explorer</button>
+            <button id="open-default-app-btn" type="button" class="btn btn-secondary">Open in Default App</button>
+          </div>
+        </section>
 
-      <p id="result-msg"></p>
-    </main>
+        <section id="progress-card" class="card" style="display: none">
+          <div class="card-title">Progress</div>
+          <div class="progress-row">
+            <progress id="progress-bar" value="0" max="1"></progress>
+            <span id="progress-label" class="progress-label"></span>
+          </div>
+          <p id="result-msg" class="result-msg"></p>
+          <ul id="diff-list" class="diff-list"></ul>
+        </section>
+      </main>
+    </div>
   </body>
 </html>

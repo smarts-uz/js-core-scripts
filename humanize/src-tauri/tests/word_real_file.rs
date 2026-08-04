@@ -10,8 +10,15 @@ fn replaces_homoglyphs_in_a_real_sample_docx() {
     );
     assert!(source.exists(), "sample file must exist for this real test to run");
 
-    let result = app_lib::homoglyph::apply_word(source, Some("AC"));
+    let mut progress_events = Vec::new();
+    let result = app_lib::homoglyph::apply_word(source, Some("AC"), |p| progress_events.push(p.latin.clone()));
     let output_path = result.expect("apply_word should succeed against a real Word install");
+
+    assert_eq!(
+        progress_events,
+        vec!["A".to_string(), "C".to_string()],
+        "on_progress must fire once per requested char pair, in order"
+    );
 
     assert!(output_path.exists(), "output file must be written to disk");
     let file_name = output_path.file_name().unwrap().to_string_lossy();

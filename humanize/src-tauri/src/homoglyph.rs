@@ -6,8 +6,20 @@ use crate::com_automation::{
     create_com_object, get_property, invoke_method, put_property, variant_from_bool,
     variant_from_i32, variant_from_str,
 };
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use windows::core::Result;
+
+/// One step of replace progress, emitted as a Tauri event ("homoglyph-progress")
+/// while `apply_word` runs — drives the frontend's progress bar + running diff.
+#[derive(Clone, Serialize)]
+pub struct ReplaceProgress {
+    pub index: usize,
+    pub total: usize,
+    pub latin: String,
+    pub cyrillic: String,
+    pub found: bool,
+}
 
 /// The shared Latin→Cyrillic homoglyph map — identical to
 /// classes/Homoglyph.js's PERFECT_STEALTH, kept as the single source of truth
@@ -76,7 +88,15 @@ pub fn resolve_output_path(source: &Path, used_letters_count: usize) -> PathBuf 
 /// output path first (the source is never opened/modified directly), opens
 /// the copy, runs one Find/Replace per mapped pair with MatchCase, saves, and
 /// closes — mirroring classes/Homoglyph.js's `_applyWord` exactly.
-pub fn apply_word(source: &Path, chars: Option<&str>) -> Result<PathBuf> {
+///
+/// `on_progress` fires once per character pair, right after that pair's
+/// Find.Execute call returns — lets the caller (the Tauri command) emit a
+/// live progress/diff event to the frontend while the COM loop is running.
+pub fn apply_word(
+    source: &Path,
+    chars: Option<&str>,
+    mut on_progress: impl FnMut(ReplaceProgress),
+) -> Result<PathBuf> {
     let map = build_map(chars);
     let output_path = resolve_output_path(source, map.len());
 
@@ -108,7 +128,8 @@ pub fn apply_word(source: &Path, chars: Option<&str>) -> Result<PathBuf> {
         let find_variant = get_property(&content_dispatch, "Find")?;
         let find = variant_to_dispatch(&find_variant.0)?;
 
-        for (latin, cyrillic) in &map {
+        let total = map.len();
+        for (index, (latin, cyrillic)) in map.iter().enumerate() {
             invoke_method(&find, "ClearFormatting", &mut [])?;
             let replacement = get_property(&find, "Replacement")?;
             let replacement_dispatch = variant_to_dispatch(&replacement.0)?;
@@ -133,7 +154,16 @@ pub fn apply_word(source: &Path, chars: Option<&str>) -> Result<PathBuf> {
                 variant_from_str(&cyrillic.to_string()),
                 variant_from_i32(2), // wdReplaceAll
             ];
-            invoke_method(&find, "Execute", &mut execute_args)?;
+            let found_variant = invoke_method(&find, "Execute", &mut execute_args)?;
+            let found = variant_to_bool(&found_variant.0);
+
+            on_progress(ReplaceProgress {
+                index: index + 1,
+                total,
+                latin: latin.to_string(),
+                cyrillic: cyrillic.to_string(),
+                found,
+            });
         }
 
         invoke_method(&doc, "Save", &mut [])?;
@@ -150,6 +180,18 @@ pub fn apply_word(source: &Path, chars: Option<&str>) -> Result<PathBuf> {
 
     result?;
     Ok(output_path)
+}
+
+/// Reads a VT_BOOL VARIANT (Find.Execute's return value: -1/true = a match
+/// was found and replaced, 0/false = no match) as a plain Rust bool.
+fn variant_to_bool(variant: &windows::Win32::System::Variant::VARIANT) -> bool {
+    unsafe {
+        let v00 = &variant.Anonymous.Anonymous;
+        if v00.vt != windows::Win32::System::Variant::VT_BOOL {
+            return false;
+        }
+        v00.Anonymous.boolVal.0 != 0
+    }
 }
 
 fn variant_to_dispatch(variant: &windows::Win32::System::Variant::VARIANT) -> Result<windows::Win32::System::Com::IDispatch> {
