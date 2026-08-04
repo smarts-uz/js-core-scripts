@@ -201,6 +201,24 @@ heuristic that a 14-digit PINFL could produce for reasons unrelated to legal for
 
 `Files.exists(filePath)` (in `classes/Files.js`) awaits `access(filePath)` — the **Promise-based** `access` imported from `node:fs/promises`. It must **never** be changed to call `fs.access(filePath)` off the default `fs` import (`import fs from 'fs'`) — that is the **callback-style** API, and calling it with no callback argument throws synchronously (`"cb" argument must be of type function`), which the surrounding `try/catch` silently swallows, making the method **always return `false`** — even for a file that genuinely exists. This exact bug shipped for a real stretch of time and was previously only _documented_ as a known issue in a test title rather than fixed, silently breaking every guard that depends on `Files.exists` (e.g. `Yamls.update`'s template-existence check always failed regardless of whether `Templates.Yaml` pointed at a real file).
 
+### `PriceHistory` — one entry per calendar month, always written on every contract fill
+
+Every `.contract` yaml automatically gets a `PriceHistory:` array written directly after its `ActDateEnd:` line, one entry per calendar month across the contract's active period, each shaped as a single `"Month Year": price` mapping:
+
+```yaml
+ActDateEnd:
+PriceHistory:
+    - July 2025: 390,000
+    - August 2025: 390,000
+    - September 2025: 390,000
+```
+
+- **`Dates.monthsBetween(startExcel, endExcel)`** (`classes/Dates.js`) — returns every calendar-month label (`'March 2026'`) from `startExcel` through `endExcel` inclusive, both `YYYY-MM-DD` Excel-format strings.
+- **`Yamls.writePriceHistory(filePath, priceHistory)`** (`classes/Yamls.js`) — idempotently inserts/replaces the `PriceHistory:` block right after the `ActDateEnd:` line (strips any previously-written block first, so re-running never duplicates it); falls back to appending at end-of-file with a warning if `ActDateEnd:` is missing.
+- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after the final `replaceTextLine` write loop, over the range `yamlData.StartDateExcel`..`yamlData.ComDateEndExcel` (the contract's real active period, already computed earlier in `replaceYaml`) at the current `yamlData.Price` — **not** gated behind `Excels.generate`/Excel report generation. This means every `Yamls.fillYamlWithInfo`/`Yamls.update` run (the normal contract-fill pipeline) writes/refreshes it, regardless of whether an Excel `ActReco` file is ever produced for that run.
+- **Real-world proof:** run against `d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract` (Tariff `1-390k-6M`, `ActDate` 09.07.2025 → `ComDateEnd` 30.12.2026) produced 18 monthly entries (July 2025 through December 2026) at `390,000` each.
+- Regression tests: `tests/Dates.test.js` → `Dates.monthsBetween`; `tests/Yamls.test.js` → `Yamls.writePriceHistory` + `Yamls.replaceYaml` → _"always writes one PriceHistory entry per month across the contract period"_.
+
 ### Launchers — concrete `sheller/` files
 
 Owned by `smarts-app-windows` → `module/launchers.md` (every entry → a runner; `.appshell`/`.appmany`/`.applnk` forms; `NoClose` keeps the window open; launch.json mirrors). This project's concrete files: `Docx`/`Xlsx`/`Md`/`Pptx`/`Yml`/`Mht`/`Mhtml`/`Folder` `.appshell`+`.appmany`, **`Olx.appshell`** (`.mhtml` → the OLX scraper runners), and `ALL.applnk` (→ `scripts/Registry/clean.mjs`). The Yml/Xlsx menus also carry the contract runners. Separate `Contract.appshell`/`Contract.appassoc` (+ `ContractALL.*`) launch the `scripts/Word/contract.mjs` / `scripts/Excels/contract.mjs` / `scripts/Yamls/contract{Fill,Update}.mjs` runners (no `cmd/` reference); `xltx.appshell` → `scripts/Excels/contractConvert.mjs`. Every `launch.json` config points at a real `scripts/` program — there are **no** stray configs for non-existent tools (the old `ai-rename.js` / `ai-rename-gemini.js` / `chat-export.js` `raw()` configs were removed since those files do not exist here). **`scripts/_wire-shell.mjs` and `scripts/_wire-launch.mjs` derive their project `ROOT` relatively via `path.resolve(import.meta.dirname, '..')` — never a hardcoded absolute; sheller launchers embed absolute runner paths built from that derived root, launch.json uses `${workspaceFolder}`.**
