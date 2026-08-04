@@ -3,7 +3,7 @@ Contract:
     Format: '{Prefix}-{ComName}-{Year}-{Month}-{Day}'
     PrepayMonth: 1
     PdfFormatCode: 17
-    ComDateIjara: 31.12.2029
+    ComDateIjara: 31.12.2030
     AddDays: 363
     DefaultBank: SRental-Kapital
     DefaultTariff: 1-450k
