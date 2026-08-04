@@ -22,12 +22,10 @@ const ROOT = path.resolve(RUNS_DIR, '..');
 const UTILS_DIR = path.join(ROOT, 'classes');
 
 // Per-class import-path override: a class living outside the default classes/
-// folder (its own feature folder, e.g. humanize/classes/) maps its own
-// relative import path here — everything else resolves at ../../classes/<Class>.js
-// as usual. Add an entry here whenever a class is deliberately relocated.
-const LIB_OVERRIDES = {
-    Homoglyph: '../../humanize/classes/Homoglyph.js',
-};
+// folder (its own feature folder) maps its own relative import path here —
+// everything else resolves at ../../classes/<Class>.js as usual. Add an entry
+// here whenever a class is deliberately relocated; currently empty.
+const LIB_OVERRIDES = {};
 const libImportPath = (className) => LIB_OVERRIDES[className] || `../../classes/${className}.js`;
 
 // Per-parameter CLI flag aliases (generation-time): chooses the flag name(s) a

@@ -11,7 +11,6 @@ export default [
     ignores: [
       'node_modules/**',
       'classes/**', // kept excluded (formerly the symlinked utils/ tree)
-      'humanize/classes/**', // Homoglyph.js's own feature-folder copy, same convention as classes/
       'humanize/src-tauri/**', // Rust backend — not JS source
       'conf/**', // data/config trees (data JSON, bank/cost YAML) — not source
       'coverage/**',
@@ -49,6 +48,16 @@ export default [
     rules: {
       'no-unused-vars': 'off',
       'no-control-regex': 'off',
+    },
+  },
+  {
+    // humanize/src/ is the Tauri app's BROWSER-side frontend (loaded in the
+    // webview, not Node) — window/document are real globals there, not Node's.
+    files: ['humanize/src/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
     },
   },
 ];

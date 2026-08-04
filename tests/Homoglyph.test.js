@@ -71,7 +71,7 @@ jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 
-const { Homoglyph } = await import('../humanize/classes/Homoglyph.js');
+const { Homoglyph } = await import('../classes/Homoglyph.js');
 
 let workDir;
 beforeEach(() => {
