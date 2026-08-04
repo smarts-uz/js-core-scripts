@@ -266,6 +266,68 @@ describe('Yamls.replaceTextLine', () => {
   });
 });
 
+describe('Yamls.writePriceHistory', () => {
+  it('inserts the PriceHistory array directly after the ActDateEnd: line', () => {
+    const f = path.join(workDir, 't.contract');
+    fs.writeFileSync(f, 'ActDate: 09.07.2025\nActDateEnd: \nPrepayMonth: \n', 'utf8');
+
+    Yamls.writePriceHistory(f, [{ 'March 2026': '450,000' }]);
+
+    const lines = read(workDir, 't.contract').split('\n');
+    const actEndIdx = lines.findIndex((l) => l.startsWith('ActDateEnd:'));
+    expect(lines[actEndIdx + 1]).toBe('PriceHistory:');
+    expect(lines[actEndIdx + 2]).toBe('  - March 2026: 450,000');
+  });
+
+  it('replaces an existing PriceHistory block instead of duplicating it', () => {
+    const f = path.join(workDir, 't2.contract');
+    fs.writeFileSync(f, 'ActDateEnd: \nPrepayMonth: \n', 'utf8');
+
+    Yamls.writePriceHistory(f, [{ 'January 2026': '100,000' }]);
+    Yamls.writePriceHistory(f, [{ 'January 2026': '200,000' }]);
+
+    const content = read(workDir, 't2.contract');
+    expect(content.match(/^PriceHistory:/gm)).toHaveLength(1);
+    expect(content).toContain('January 2026: 200,000');
+    expect(content).not.toContain('January 2026: 100,000');
+    expect(content).toContain('PrepayMonth:');
+  });
+
+  it('supports multiple history entries, written in order', () => {
+    const f = path.join(workDir, 't3.contract');
+    fs.writeFileSync(f, 'ActDateEnd: \n', 'utf8');
+
+    Yamls.writePriceHistory(f, [
+      { 'January 2026': '450,000' },
+      { 'February 2026': '450,000' },
+    ]);
+
+    const lines = read(workDir, 't3.contract').split('\n');
+    expect(lines.slice(1, 4)).toEqual([
+      'PriceHistory:',
+      '  - January 2026: 450,000',
+      '  - February 2026: 450,000',
+    ]);
+  });
+
+  it('warns and does nothing when priceHistory is empty', () => {
+    const f = path.join(workDir, 't4.contract');
+    const before = 'ActDateEnd: \n';
+    fs.writeFileSync(f, before, 'utf8');
+    Yamls.writePriceHistory(f, []);
+    expect(read(workDir, 't4.contract')).toBe(before);
+  });
+
+  it('appends at end of file with a warning when ActDateEnd: is missing', () => {
+    const f = path.join(workDir, 't5.contract');
+    fs.writeFileSync(f, 'Foo: bar\n', 'utf8');
+    Yamls.writePriceHistory(f, [{ 'January 2026': '1' }]);
+    const content = read(workDir, 't5.contract');
+    expect(content).toContain('Foo: bar');
+    expect(content).toContain('PriceHistory:');
+  });
+});
+
 describe('Yamls.extractFirstNumber', () => {
   it('returns the leading run of digits as a string', () => {
     expect(Yamls.extractFirstNumber('123abc')).toBe('123');
@@ -780,5 +842,42 @@ describe('Yamls.replaceYaml', () => {
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       expect.stringContaining('ComDateIjara is missing or invalid')
     );
+  });
+
+  it('always writes one PriceHistory entry per month across the contract period', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, 'ActDate: 09.07.2025\nActDateEnd: \n', 'utf8');
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      { ComDate: '01.01.2026', Price: '4,200,000', SurEnable: false, RepEnable: false },
+      {
+        isYatt: false,
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('PriceHistory:');
+    // ComDate 01.01.2026 + AddDays 30 -> ComDateEnd 31.01.2026: a single month.
+    expect(content).toContain('January 2026: 4,200,000');
   });
 });

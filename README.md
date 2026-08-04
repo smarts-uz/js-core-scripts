@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 289 runnable methods.
+**Coverage:** 23 classes, 292 runnable methods.
 
 ---
 # Category
@@ -580,7 +580,7 @@ node scripts/Com/pidsOf.mjs --imageName <imageName>
 
 # Dates
 
-Runners: `scripts/Dates/` — 16 public static method(s).
+Runners: `scripts/Dates/` — 17 public static method(s).
 
 ## addDays(dateStr, days)
 
@@ -669,6 +669,19 @@ node scripts/Dates/getMinusOneDay.mjs --dateStr <dateStr>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `dateStr` | no | — |
+
+## monthsBetween(startExcel, endExcel)
+
+**Run:**
+
+```bash
+node scripts/Dates/monthsBetween.mjs --startExcel <startExcel>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `startExcel` | no | — |
+| `endExcel` | no | — |
 
 ## normalizeUzAccordingToRule(raw)
 
@@ -1783,7 +1796,7 @@ node scripts/ExcelsJS/replaceFormula.mjs --file "<path>"
 
 # Files
 
-Runners: `scripts/Files/` — 40 public static method(s).
+Runners: `scripts/Files/` — 41 public static method(s).
 
 ## archiveFolder(folder, fileName)
 
@@ -2125,6 +2138,20 @@ node scripts/Files/moveFolder.mjs --src <src>
 | `src` | no | — |
 | `dest` | no | — |
 | `rename` | yes (default `false`) | — |
+
+## normalizeApostrophe(name)
+
+Replaces every curly/smart-quote apostrophe variant (U+2018 LEFT SINGLE QUOTATION MARK, U+2019 RIGHT SINGLE QUOTATION MARK, U+02BB MODIFIER LETTER TURNED COMMA, U+02BC MODIFIER LETTER APOSTROPHE) with the plain ASCII apostrophe (U+0027) — the standard this fleet uses for an Uzbek Latin-script "o'"/"g'"/glottal-stop character in ANY name (a person, a company, a place). Government registry APIs (Didox, Soliq) commonly return a curly '‘' (U+2018) in a returned "name" field, which must be normalized before that name is used to build a folder/file path.
+
+**Run:**
+
+```bash
+node scripts/Files/normalizeApostrophe.mjs --name <name>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `name` | no | — |
 
 ## openFile(file)
 
@@ -3731,7 +3758,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 13 public static method(s).
+Runners: `scripts/Yamls/` — 14 public static method(s).
 
 ## extractFirstNumber(str)
 
@@ -3905,4 +3932,17 @@ node scripts/Yamls/update.mjs --file "<path>"
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
+
+## writePriceHistory(filePath, priceHistory)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceHistory.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceHistory` | no | — |
 

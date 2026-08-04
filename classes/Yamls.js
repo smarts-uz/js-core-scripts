@@ -129,6 +129,56 @@ export class Yamls {
         console.log(`File ${filePath} has been updated.`, value);
     }
 
+    // Writes/replaces the PriceHistory: array block directly after the
+    // ActDateEnd: line in the .contract yaml — one entry per calendar month
+    // across the contract's active period, each a single "Month Year": amount
+    // mapping:
+    //   PriceHistory:
+    //     - March 2026: 450,000
+    //     - April 2026: 450,000
+    static writePriceHistory(filePath, priceHistory) {
+        console.info(`[Yamls.writePriceHistory] 🟢 Starting...`);
+
+        if (!Array.isArray(priceHistory) || priceHistory.length === 0) {
+            console.warn(`writePriceHistory: priceHistory is empty, nothing to write for ${filePath}.`);
+            return;
+        }
+
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const lines = fileContent.split('\n');
+
+        const block = yaml.dump({ PriceHistory: priceHistory }, { lineWidth: -1 }).trimEnd().split('\n');
+
+        // Strip any previously-written PriceHistory: block (the key line plus
+        // every indented line under it) so re-running never duplicates it.
+        const stripped = [];
+        let skipping = false;
+        for (const line of lines) {
+            if (/^PriceHistory:/.test(line)) {
+                skipping = true;
+                continue;
+            }
+            if (skipping) {
+                if (/^\s/.test(line)) continue; // still inside the old block
+                skipping = false; // first non-indented line ends the block
+            }
+            stripped.push(line);
+        }
+
+        const actDateEndIdx = stripped.findIndex(line => /^ActDateEnd:/.test(line));
+
+        if (actDateEndIdx === -1) {
+            console.warn(`writePriceHistory: "ActDateEnd:" line not found in ${filePath}; appending PriceHistory at end of file.`);
+            stripped.push(...block);
+        } else {
+            stripped.splice(actDateEndIdx + 1, 0, ...block);
+        }
+
+        fs.writeFileSync(filePath, stripped.join('\n'));
+
+        console.log(`File ${filePath} has been updated with PriceHistory.`, priceHistory);
+    }
+
     static loadYamlWithDeps(ymlFile) {
         console.info(`[Yamls.loadYamlWithDeps] 🟢 Starting...`);
 
@@ -890,6 +940,13 @@ export class Yamls {
             this.replaceTextLine(ymlFile, key, value);
         }
 
+        // Always record one PriceHistory entry per calendar month across the
+        // contract's active period (StartDateExcel..ComDateEndExcel) — runs
+        // every time the .contract is filled/updated, not only when an Excel
+        // report is generated separately.
+        const monthLabels = Dates.monthsBetween(yamlData.StartDateExcel, yamlData.ComDateEndExcel);
+        const priceHistory = monthLabels.map(label => ({ [label]: yamlData.Price }));
+        Yamls.writePriceHistory(ymlFile, priceHistory);
 
     }
 

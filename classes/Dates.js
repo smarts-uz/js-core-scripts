@@ -64,6 +64,28 @@ export class Dates {
   }
 
 
+  // Every calendar month label ('March 2026') from startExcel through
+  // endExcel, inclusive, both in 'YYYY-MM-DD' Excel format. Used to build a
+  // per-month price history entry across a contract's full active period.
+  static monthsBetween(startExcel, endExcel) {
+    console.info(`[Dates.monthsBetween] 🟢 Starting...`);
+    console.log("monthsBetween startExcel", startExcel, "endExcel", endExcel);
+
+    if (!startExcel || !endExcel) return [];
+
+    let cursor = dayjs(startExcel, 'YYYY-MM-DD').startOf('month');
+    const end = dayjs(endExcel, 'YYYY-MM-DD').startOf('month');
+
+    const months = [];
+    while (cursor.isBefore(end) || cursor.isSame(end)) {
+      months.push(cursor.format('MMMM YYYY'));
+      cursor = cursor.add(1, 'month');
+    }
+
+    console.log("monthsBetween months", months);
+    return months;
+  }
+
   // static func get date of last day of future moths
   static futureDateByMonth(months, prevMonthLastDate = false) {
       console.info(`[Dates.futureDateByMonth] 🟢 Starting...`);

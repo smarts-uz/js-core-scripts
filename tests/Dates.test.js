@@ -119,6 +119,25 @@ describe('Dates.futureDateByMonth', () => {
   });
 });
 
+describe('Dates.monthsBetween', () => {
+  it('returns one "Month Year" label per calendar month, inclusive of both ends', () => {
+    expect(Dates.monthsBetween('2026-01-01', '2026-03-31')).toEqual([
+      'January 2026',
+      'February 2026',
+      'March 2026',
+    ]);
+  });
+
+  it('returns a single label when start and end fall in the same month', () => {
+    expect(Dates.monthsBetween('2026-01-01', '2026-01-31')).toEqual(['January 2026']);
+  });
+
+  it('returns [] when either date is missing', () => {
+    expect(Dates.monthsBetween('', '2026-01-31')).toEqual([]);
+    expect(Dates.monthsBetween('2026-01-01', '')).toEqual([]);
+  });
+});
+
 describe('Dates.randomInt', () => {
   it('returns a value within [min, max] inclusive', () => {
     for (let i = 0; i < 200; i++) {
