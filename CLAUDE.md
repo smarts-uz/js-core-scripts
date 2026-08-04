@@ -234,62 +234,39 @@ Both are the project-specific instances of the universal auto-register and defau
 
 ### A class can live outside `classes/` — `scripts/_generate.mjs`'s `LIB_OVERRIDES`
 
-`classes/Homoglyph.js` was relocated to **`humanize/classes/Homoglyph.js`** (its own
-feature folder, ahead of the in-progress `humanize` Tauri GUI app below) — its relative
-imports of the shared helpers (`Files`, `Yamls`, `Dialogs`, `Com`) climb back out to the
-project's main `classes/` folder (`../../classes/Files.js`, etc.); those shared helpers
-were **not** duplicated or moved.
+Owned by `smarts-app-windows` → `module/gui-app.md`'s "Relocating a class into its own
+GUI-feature folder" section (the general shared-helper-import + generator-override
+pattern). This project's concrete instantiation:
 
-- **`scripts/_generate.mjs` has a `LIB_OVERRIDES` map** (`{ Homoglyph:
-'../../humanize/classes/Homoglyph.js' }`) so the reflection generator still resolves,
-  reflects, and regenerates `Homoglyph`'s 8 runners (`scripts/Homoglyph/*.mjs`) from its
-  new location — both the runner-emit import line and the generator's own `importClass()`
-  resolution honor this override. A no-args `node scripts/_generate.mjs` run includes every
-  `LIB_OVERRIDES` key in addition to scanning `classes/`, so `Homoglyph` regenerates on a
-  full run without being named explicitly.
-- **Adding a second relocated class**: add its own `LIB_OVERRIDES` entry (its path relative
-  to `scripts/_generate.mjs`'s own folder, i.e. `../../<folder>/<Class>.js`) — no other
-  generator change needed.
-- **`eslint.config.mjs` excludes both `humanize/classes/**` and `humanize/src-tauri/**`**
-  (the same convention as the main `classes/` exclusion, plus the Rust backend isn't JS
-  source at all).
+- `classes/Homoglyph.js` was relocated to **`humanize/classes/Homoglyph.js`** (its own
+  feature folder, ahead of the `humanize` Tauri GUI app below); its imports of the shared
+  helpers (`Files`, `Yamls`, `Dialogs`, `Com`) climb back to `../../classes/<Helper>.js` —
+  those helpers were **not** duplicated or moved.
+- `scripts/_generate.mjs`'s `LIB_OVERRIDES` map has one entry: `{ Homoglyph:
+'../../humanize/classes/Homoglyph.js' }`.
+- `eslint.config.mjs` excludes both `humanize/classes/**` and `humanize/src-tauri/**` (the
+  same convention as the main `classes/` exclusion, plus the Rust backend isn't JS source).
 
 ### `humanize/` — a Tauri GUI app for the homoglyph checkbox-picker (in progress)
+
+Owned by `smarts-app-windows` → `module/gui-app.md` (the Tauri architecture, the Rust
+toolchain prerequisite, the sidecar pattern, the checkbox-grid modal convention — none of
+that is restated here). This project's concrete fill-ins:
 
 A GUI wrapping `Homoglyph.{word,excel,powerpoint}`: pick a Word/Excel/PowerPoint file, a
 checkbox-grid modal lets the user check/uncheck each of the 21 `PERFECT_STEALTH` chars
 (`AaCcEeHIiJKMOoPpSTXxy`), OK runs the replace and writes an increment-versioned output
-file. Built via `smarts-app-windows`'s new `type=gui-app` subsystem (Tauri: Rust backend +
-webview frontend); the existing `winax`-COM `Homoglyph.js` logic is meant to run as a
-compiled Node.js **sidecar** (no Rust COM equivalent exists), reusing `type=compile`'s own
-engine internally.
+file.
 
-- **Current state: `src-tauri/` is scaffolded** (`cargo tauri init` output — `Cargo.toml`,
-  `tauri.conf.json` with `identifier: "com.jsaicategory.humanize"`, icons, `lib.rs`/
-  `main.rs`) and **committed**, but a real `cargo build` has **not yet succeeded** — see the
-  toolchain blocker below. The frontend (`humanize/frontend/`), the checkbox-grid modal, the
-  sidecar wrapper, and the actual Tauri commands are **not yet written**.
-- **Toolchain blocker (as of 2026-08-04): no working Rust build target on this machine.**
-  Rust (GNU target, `x86_64-pc-windows-gnu`) is installed via Chocolatey (`choco install
-rust`), but the GNU target needs `dlltool.exe` (part of a MinGW-w64 toolchain), which is
-  **not installed** — `cargo build` fails with `error calling dlltool 'dlltool.exe': program
-not found`. Three separate automated attempts to install the MSVC C++ Build Tools workload
-  (`choco install visualstudio2022buildtools --package-parameters "--add
-Microsoft.VisualStudio.Workload.VCTools ..."`, a direct `setup.exe modify` call, and the
-  `vs_buildtools.exe` bootstrapper with `--quiet --wait`) all reported success (exit code 0)
-  without actually installing the VC++ toolset — each time, the installer child process
-  exited immediately after committing the package _selection_ to its internal graph,
-  never actually downloading/installing the real components; `vswhere.exe -requires
-Microsoft.VisualStudio.Component.VC.Tools.x86.x64` is _not_ reliable proof of a genuinely
-  installed component (it lists candidate instances, not confirmed package ownership) —
-  cross-check the VS instance's own `packages[]` list (via `vswhere.exe -format json`) for
-  the literal `Microsoft.VisualStudio.Component.VC.Tools.x86.x64` id instead. This looks like
-  an environment limitation of this session's own background-task mechanism, not
-  reproducible advice to give a future session confidence in — **the next session picking
-  this up should either (a) install MinGW-w64 (`choco install mingw`) so the existing GNU
-  Rust target can link, or (b) get the MSVC workload installed by some other means (a human
-  driving the VS Installer GUI directly is the most reliable fallback tried so far) — before
-  attempting `cargo build` again.**
+- **Current state (2026-08-04): `src-tauri/` is scaffolded and committed**
+  (`tauri.conf.json` with `identifier: "com.jsaicategory.humanize"`), but a real `cargo
+build` has **not yet succeeded** on this machine — see `smarts-app-windows`'s own
+  Rust-toolchain-prerequisite section for the general MSVC-vs-GNU/`dlltool.exe`/
+  installer-verification gotchas this project ran into. The frontend
+  (`humanize/frontend/`), the checkbox-grid modal, the sidecar wrapper, and the actual
+  Tauri commands are **not yet written**. Next session: get a genuinely working Rust link
+  target (MinGW-w64 via `choco install mingw` for the already-installed GNU target, or the
+  MSVC C++ workload installed by some other means) before attempting `cargo build` again.
 - **`@tauri-apps/cli` 2.11.4 is installed** in the shared npm store (`~/.node/`) and
   confirmed working (`tauri --version`, `tauri init` both ran for real).
 
