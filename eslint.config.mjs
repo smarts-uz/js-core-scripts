@@ -11,6 +11,8 @@ export default [
     ignores: [
       'node_modules/**',
       'classes/**', // kept excluded (formerly the symlinked utils/ tree)
+      'humanize/classes/**', // Homoglyph.js's own feature-folder copy, same convention as classes/
+      'humanize/src-tauri/**', // Rust backend — not JS source
       'conf/**', // data/config trees (data JSON, bank/cost YAML) — not source
       'coverage/**',
       'cmd/**', // loose .cmd/.js utility scripts, not part of the linted source
