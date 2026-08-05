@@ -234,132 +234,18 @@ Both are the project-specific instances of the universal auto-register and defau
 
 ### A class can live outside `classes/` — `scripts/_generate.mjs`'s `LIB_OVERRIDES`
 
-Owned by `smarts-app-gui` → `module/tauri.md`'s "Relocating a class into its own
-GUI-feature folder" section (the general shared-helper-import pattern); the
-`scripts/_generate.mjs` `LIB_OVERRIDES` generator-override mechanism itself is a
-`smarts-app-cmd` → `module/runner-tree.md` concern. This project's concrete instantiation:
+Owned by `smarts-app-cmd` → `module/runner-tree.md` (the general generator-override
+mechanism). `classes/Homoglyph.js` lives in the project's own `classes/` folder like every
+other class — `LIB_OVERRIDES` is currently empty (`{}`), with no active overrides in this
+project.
 
-- `classes/Homoglyph.js` was relocated to **`humanize/classes/Homoglyph.js`** (its own
-  feature folder, ahead of the `humanize` Tauri GUI app below); its imports of the shared
-  helpers (`Files`, `Yamls`, `Dialogs`, `Com`) climb back to `../../classes/<Helper>.js` —
-  those helpers were **not** duplicated or moved.
-- `scripts/_generate.mjs`'s `LIB_OVERRIDES` map has one entry: `{ Homoglyph:
-'../../humanize/classes/Homoglyph.js' }`.
-- `eslint.config.mjs` excludes both `humanize/classes/**` and `humanize/src-tauri/**` (the
-  same convention as the main `classes/` exclusion, plus the Rust backend isn't JS source).
+### `humanize/` — now its own standalone repo
 
-### `humanize/` — a 100%-Rust Tauri GUI app for the homoglyph checkbox-picker
-
-Owned by **`smarts-app-gui` `type=tauri`** — the raw `IDispatch::Invoke` COM-automation
-pattern (no Node/winax sidecar), the live-progress-event mechanism, the Supabase-reqwest
-auth + per-machine device-fingerprint-lock pattern, the `reveal_in_explorer`/
-`open_in_default_app` commands, and the Cargo-integration-test verification approach for
-an unscreenshot-able native window are all **universal techniques documented there**
-(`module/tauri.md`, `module/live-progress-events.md`, `module/auth-licensing.md`,
-`module/gui-testing.md`) — none of that is restated here. This project's concrete
-fill-ins only:
-
-- A GUI wrapping the homoglyph replace across **Word, Excel, PowerPoint, Markdown, and
-  plain text** — `.docx`/`.doc`, `.xlsx`/`.xlsm`/`.xls`, `.pptx`/`.ppt`, `.md`/`.txt` are
-  all fully supported. A checkbox-grid modal lets the user check/uncheck each of the 21
-  `PERFECT_STEALTH` chars (`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives the matching
-  Office app's COM (or a plain read/replace/write for `.md`/`.txt`) and writes an
-  auto-incrementing `<name> L<count>.ext` output file beside the source. `run_homoglyph`
-  dispatches by extension. **The legacy binary formats (`.doc`/`.xls`/`.ppt`) reuse the
-  SAME `apply_word`/`apply_excel`/`apply_powerpoint` functions unchanged** — Office's own
-  `Open()` transparently reads the old format, and `Save()` (never `SaveAs`, so no format
-  argument needed) preserves whichever format the file was already opened in; proven by
-  `tests/legacy_office_formats.rs` asserting the output extension never silently
-  upconverts to the modern OOXML equivalent.
-- **Files:** `src-tauri/src/com_automation.rs` (the raw-IDispatch helper — also the
-  `get_item` indexed-collection accessor for `Sheets(n)`/`Cells(r,c)`/`Slides(n)`/
-  `Shapes(n)`, and `variant_to_i32`/`variant_to_string`), `src-tauri/src/homoglyph.rs`
-  (Word, both `.docx`/`.doc`), `src-tauri/src/excel.rs` (Excel, both
-  `.xlsx`/`.xlsm`/`.xls` — walks every non-excluded sheet's UsedRange),
-  `src-tauri/src/powerpoint.rs` (PowerPoint, both `.pptx`/`.ppt` — walks every
-  slide/shape with a text frame), `src-tauri/src/text.rs` (`.md`/`.txt` — no COM, a
-  direct read/replace/write), `src-tauri/src/auth.rs` + `src-tauri/src/fingerprint.rs`
-  (the login/device-lock implementation). **`Shape.HasTextFrame`/`TextFrame.HasText`
-  marshal as `VT_I4` (MsoTriState), NOT `VT_BOOL`** like Word's `Find.Execute` —
-  `com_automation.rs`'s `variant_to_bool` handles both (a real bug caught by the
-  PowerPoint integration test: without this, every shape was skipped as "no text").
-- **`src-tauri/config.json` (+ `CONFIG.md`) holds EVERY non-secret tunable value —
-  never a hardcoded Rust `const`.** Embedded into the compiled binary at build time via
-  `include_str!` (`src-tauri/src/config.rs`'s `CONFIG: LazyLock<Config>` — a malformed
-  `config.json` panics at first access, since this is build-time-embedded data under our
-  own control, not a runtime condition to handle gracefully). Holds the Supabase
-  `url`/`anonKey`/`projectRef`, `session.ttlSecs` (the 24h TTL), `keyring.service`/`user`
-  (the Windows Credential Manager identifiers), `excel.excludedSheets` (mirrors the rest
-  of this project's `config.yml`'s `Excel.ExcludedSheets`), and `homoglyph.perfectStealth`
-  (the full 21 Latin→Cyrillic character-mapping table, per user's explicit
-  never-hardcode-any-static-value direction — moved here even though it's arguably app
-  logic data rather than a tunable setting). See `smarts-app-gui`'s own config-embedding
-  pattern (added this session) for the general Tauri mechanic; this project's fill-in is
-  only the concrete `config.json` content.
-- **`SUPABASE_ACCESS_TOKEN` (the Management API token) is the ONE exception — an env var,
-  never `config.json`.** `config.json` is compiled INTO the distributed binary, so a real
-  secret placed there ships to every machine running the app; the Management API token is
-  only used by test/maintenance scripts (never the compiled app itself), read via
-  `std::env::var("SUPABASE_ACCESS_TOKEN")` — the same var the `supabase` CLI itself
-  populates on `supabase login`.
-- **Supabase project:** `humanize`, ref `kduqhvzqxongeeglhuim`, region `eu-central-1`,
-  org `AsrorZk`. Public signup disabled; the 3 admin-created accounts are
-  `asror.zk@gmail.com`, `gulchiroy@gmail.com`, `dr.durdona.zakirova@gmail.com` (each
-  binds to whichever machine it first logs in from). Schema:
-  `humanize/supabase/migrations/20260805000000_device_fingerprint_lock.sql` (`profiles`
-  table + `check_and_bind_fingerprint` RPC) and `…20260805010000_device_fingerprint_name.sql`
-  (adds `device_name`, changes the RPC's return to `{allowed, bound_device_name}` so a
-  wrong-machine rejection can show which PC the account is actually bound to).
-- **Full machine-info snapshot recorded on EVERY successful login** — not just the
-  opaque fingerprint hash. `src-tauri/src/wmi.rs` (a thin `IWbemServices`/`ExecQuery`
-  helper over the `windows` crate's REAL generated WMI COM bindings — unlike Office,
-  WMI ships a genuine type library, so this is typed COM, not late-bound `IDispatch`)
-    - `src-tauri/src/machine_info.rs` (`collect()` queries `Win32_OperatingSystem`,
-      `Win32_ComputerSystem`, `Win32_Processor`, `Win32_PhysicalMemory`, `Win32_DiskDrive`,
-      `Win32_VideoController`, `Win32_BaseBoard`, `Win32_BIOS` — full OS version/build, CPU
-      model/cores, every RAM stick, every disk with model+size, GPU, motherboard, BIOS).
-      `auth::send_machine_info` runs it via `tokio::task::spawn_blocking` (**not**
-      `tauri::async_runtime::spawn_blocking` — that one hangs forever in a plain Cargo test
-      binary since it needs Tauri's own runtime already initialized, which a test binary
-      never sets up) right after a successful `check_and_bind_fingerprint`, POSTing the
-      JSON snapshot to the `record_login_machine_info` RPC — best-effort, a collection or
-      network failure here never fails the login itself. Schema:
-      `…20260805020000_login_machine_info.sql` — a SEPARATE `login_machine_info` table (FK
-      to `auth.users`/`profiles` via `user_id`, RLS-scoped to the caller's own rows), one
-      new row per login (never an update), so a full history of every machine that has used
-      an account is kept, not just the most recent snapshot.
-- **Session lasts 24h, then re-prompts login — even on the same machine.**
-  `auth.rs`'s `StoredSession` carries a `stored_at` Unix timestamp; `has_stored_session()`
-  clears the Windows-Credential-Manager entry and returns `false` once
-  `config.json`'s `session.ttlSecs` (24h) has elapsed, regardless of whether the
-  underlying Supabase token is still valid. A genuinely different machine is rejected by
-  the device-fingerprint RPC itself (see above), independent of this TTL.
-- **CLI/file-association passthrough:** `get_launch_file_path()` reads the first
-  supported file path off `argv`, and the frontend pre-fills it as the picked file right
-  after login (`applyLaunchFileIfAny()` in `main.js`) — wired into
-  `sheller/Docx.appshell`/`Xlsx.appshell`/`Pptx.appshell` as a "Homoglyph Replace
-  (Humanize)" right-click entry pointing at `target/release/app.exe` directly (see
-  `scripts/_wire-shell.mjs`'s `H()` helper). **`get_launch_file_path()` MUST
-  `canonicalize()` the raw argv path before returning it** — a forward-slash path (e.g.
-  from a test launch, or any caller not using native Windows separators) passes Rust's
-  own `Path::is_file()` check fine, but COM Automation's `Documents.Open`/equivalent is
-  far stricter and fails with a "couldn't find your file" error on it; `canonicalize()`
-  resolves to an absolute, backslash-separated path (stripping the `\\?\` extended-path
-  prefix it adds on Windows).
-- **UI structure (`humanize/src/`):** card-based sections (pick file → characters →
-  actions → progress), `Run Replace`/`Reset`/`Open in Explorer`/`Open in Default App` all
-  on one row, the output path on its own row beneath it. Window size 920×760
-  (`tauri.conf.json`), no fixed 800×600.
-- **A hardcoded secret in a committed test file is a real, live risk — GitHub's push
-  protection caught a Supabase Management API token hardcoded in
-  `src-tauri/tests/login_real.rs` before it reached the remote.** The fix: read it from
-  the `SUPABASE_ACCESS_TOKEN` env var (the same variable the `supabase` CLI itself
-  populates on `supabase login`) via `std::env::var(...).expect(...)`, never a `const`
-  string literal — this applies to every test/script in this app that needs the
-  Management API, not just this one file.
-- **Real end-to-end proof:** `src-tauri/tests/word_real_file.rs` and
-  `src-tauri/tests/login_real.rs` are genuine Cargo integration tests run against a real
-  sample `.docx` and the live Supabase project (not mocked).
+The `humanize/` folder (a 100%-Rust Tauri GUI app for the homoglyph checkbox-picker) was
+extracted into its own git repository (full history preserved via `git subtree split`) and
+is no longer part of this project's requirements. The folder itself remains on disk at
+`humanize/` until relocated to its own location — its own repo carries all the
+project-specific documentation this section used to hold.
 
 ---
 
