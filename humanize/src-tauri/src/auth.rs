@@ -159,7 +159,53 @@ pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
     }
 
     store_session(&access_token, &refresh_token).map_err(|e| LoginError::InvalidCredentials { message: e })?;
+
+    // Best-effort: record this machine's full OS/hardware snapshot on every
+    // successful login. A collection or network failure here never fails
+    // the login itself — the account is already validated and bound at
+    // this point — it's only logged for troubleshooting.
+    send_machine_info(&access_token).await;
+
     Ok(())
+}
+
+/// Collects a full OS/user/hardware snapshot (machine_info.rs, via WMI —
+/// blocking COM calls, so run via spawn_blocking off the async runtime)
+/// and sends it to Supabase's record_login_machine_info RPC. One new row
+/// per login (never an update), so the DB accumulates a full history of
+/// every machine that has used this account. Best-effort: any failure
+/// (collection or network) is logged and swallowed, never surfaced to the
+/// user or allowed to fail the login itself.
+async fn send_machine_info(access_token: &str) {
+    // Plain tokio::task::spawn_blocking, not tauri::async_runtime::spawn_blocking
+    // — the latter requires Tauri's own runtime to already be initialized
+    // (normally done by tauri::Builder::run()), which a plain Cargo test
+    // binary never sets up, so it hangs forever there. tokio's own
+    // spawn_blocking works in both the real app (which already runs on a
+    // tokio runtime under the hood) and a #[tokio::test] test binary.
+    let info = match tokio::task::spawn_blocking(crate::machine_info::collect).await {
+        Ok(info) => info,
+        Err(e) => {
+            log::warn!("machine-info collection task panicked: {e}");
+            return;
+        }
+    };
+
+    let http = client();
+    let result = http
+        .post(format!("{}/rest/v1/rpc/record_login_machine_info", CONFIG.supabase.url))
+        .header("apikey", &CONFIG.supabase.anon_key)
+        .header("Authorization", format!("Bearer {access_token}"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "p_machine_info": info }))
+        .send()
+        .await;
+
+    match result {
+        Ok(resp) if resp.status().is_success() => {}
+        Ok(resp) => log::warn!("record_login_machine_info returned {}", resp.status()),
+        Err(e) => log::warn!("network error sending machine info: {e}"),
+    }
 }
 
 fn now_unix_secs() -> u64 {

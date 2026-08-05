@@ -4,8 +4,10 @@ pub mod config;
 pub mod excel;
 pub mod fingerprint;
 pub mod homoglyph;
+pub mod machine_info;
 pub mod powerpoint;
 pub mod text;
+pub mod wmi;
 
 use config::CONFIG;
 use std::path::PathBuf;

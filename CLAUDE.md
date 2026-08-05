@@ -310,6 +310,24 @@ fill-ins only:
   table + `check_and_bind_fingerprint` RPC) and `…20260805010000_device_fingerprint_name.sql`
   (adds `device_name`, changes the RPC's return to `{allowed, bound_device_name}` so a
   wrong-machine rejection can show which PC the account is actually bound to).
+- **Full machine-info snapshot recorded on EVERY successful login** — not just the
+  opaque fingerprint hash. `src-tauri/src/wmi.rs` (a thin `IWbemServices`/`ExecQuery`
+  helper over the `windows` crate's REAL generated WMI COM bindings — unlike Office,
+  WMI ships a genuine type library, so this is typed COM, not late-bound `IDispatch`)
+    - `src-tauri/src/machine_info.rs` (`collect()` queries `Win32_OperatingSystem`,
+      `Win32_ComputerSystem`, `Win32_Processor`, `Win32_PhysicalMemory`, `Win32_DiskDrive`,
+      `Win32_VideoController`, `Win32_BaseBoard`, `Win32_BIOS` — full OS version/build, CPU
+      model/cores, every RAM stick, every disk with model+size, GPU, motherboard, BIOS).
+      `auth::send_machine_info` runs it via `tokio::task::spawn_blocking` (**not**
+      `tauri::async_runtime::spawn_blocking` — that one hangs forever in a plain Cargo test
+      binary since it needs Tauri's own runtime already initialized, which a test binary
+      never sets up) right after a successful `check_and_bind_fingerprint`, POSTing the
+      JSON snapshot to the `record_login_machine_info` RPC — best-effort, a collection or
+      network failure here never fails the login itself. Schema:
+      `…20260805020000_login_machine_info.sql` — a SEPARATE `login_machine_info` table (FK
+      to `auth.users`/`profiles` via `user_id`, RLS-scoped to the caller's own rows), one
+      new row per login (never an update), so a full history of every machine that has used
+      an account is kept, not just the most recent snapshot.
 - **Session lasts 24h, then re-prompts login — even on the same machine.**
   `auth.rs`'s `StoredSession` carries a `stored_at` Unix timestamp; `has_stored_session()`
   clears the Windows-Credential-Manager entry and returns `false` once
