@@ -5,3 +5,4 @@ NoClose;Word Homoglyph (Chars...);node.exe "D:\Develop\Projects\DevApp\Execute\J
 NoClose;Word Homoglyph (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Homoglyph\wordAsk.mjs" --file "%1"
 NoClose;Protect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Word\protectFileAsk.mjs" --file "%1"
 NoClose;Unprotect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Word\unProtectFileAsk.mjs" --file "%1"
+NoClose;Homoglyph Replace (Humanize);"D:\Develop\Projects\DevApp\Execute\JS\Sources\humanize\src-tauri\target\release\app.exe" "%1"

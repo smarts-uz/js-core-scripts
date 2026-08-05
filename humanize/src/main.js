@@ -8,6 +8,19 @@ let lastOutputPath = null;
 function showApp() {
     document.querySelector('#login-screen').style.display = 'none';
     document.querySelector('#app').style.display = 'flex';
+    applyLaunchFileIfAny();
+}
+
+// When the app was launched with a file path on the command line (a
+// right-click "Open with Humanize" Explorer verb, or `app.exe "<path>"`
+// directly), pre-fill it as the picked file once the user reaches the main
+// screen — so they aren't asked to choose it again after signing in.
+async function applyLaunchFileIfAny() {
+    const launchPath = await invoke('get_launch_file_path');
+    if (launchPath) {
+        pickedFilePath = launchPath;
+        document.querySelector('#picked-file').textContent = launchPath;
+    }
 }
 
 function showLogin(message) {
@@ -140,7 +153,12 @@ async function loadCheckboxGrid() {
 async function pickFile() {
     const selected = await open({
         multiple: false,
-        filters: [{ name: 'Word Document', extensions: ['docx'] }],
+        filters: [
+            { name: 'Word / Excel / PowerPoint', extensions: ['docx', 'xlsx', 'xlsm', 'pptx'] },
+            { name: 'Word Document', extensions: ['docx'] },
+            { name: 'Excel Workbook', extensions: ['xlsx', 'xlsm'] },
+            { name: 'PowerPoint Presentation', extensions: ['pptx'] },
+        ],
     });
     if (selected) {
         pickedFilePath = selected;

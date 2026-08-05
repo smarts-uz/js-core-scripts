@@ -4,7 +4,7 @@
 
 use crate::com_automation::{
     create_com_object, get_property, invoke_method, put_property, variant_from_bool,
-    variant_from_i32, variant_from_str,
+    variant_from_i32, variant_from_str, variant_to_bool, variant_to_dispatch,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -180,33 +180,4 @@ pub fn apply_word(
 
     result?;
     Ok(output_path)
-}
-
-/// Reads a VT_BOOL VARIANT (Find.Execute's return value: -1/true = a match
-/// was found and replaced, 0/false = no match) as a plain Rust bool.
-fn variant_to_bool(variant: &windows::Win32::System::Variant::VARIANT) -> bool {
-    unsafe {
-        let v00 = &variant.Anonymous.Anonymous;
-        if v00.vt != windows::Win32::System::Variant::VT_BOOL {
-            return false;
-        }
-        v00.Anonymous.boolVal.0 != 0
-    }
-}
-
-fn variant_to_dispatch(variant: &windows::Win32::System::Variant::VARIANT) -> Result<windows::Win32::System::Com::IDispatch> {
-    unsafe {
-        let v00 = &variant.Anonymous.Anonymous;
-        if v00.vt != windows::Win32::System::Variant::VT_DISPATCH {
-            return Err(windows::core::Error::new(
-                windows::core::HRESULT(-1),
-                "expected VT_DISPATCH".to_string(),
-            ));
-        }
-        v00.Anonymous
-            .pdispVal
-            .as_ref()
-            .cloned()
-            .ok_or_else(|| windows::core::Error::new(windows::core::HRESULT(-1), "null IDispatch".to_string()))
-    }
 }

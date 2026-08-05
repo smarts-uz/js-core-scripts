@@ -4,3 +4,4 @@ NoClose;PPT Homoglyph (Chars...);node.exe "D:\Develop\Projects\DevApp\Execute\JS
 NoClose;PPT Homoglyph (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Homoglyph\powerpointAsk.mjs" --file "%1"
 NoClose;Protect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\PowerPoints\protectFileAsk.mjs" --file "%1"
 NoClose;Unprotect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\PowerPoints\unProtectFileAsk.mjs" --file "%1"
+NoClose;Homoglyph Replace (Humanize);"D:\Develop\Projects\DevApp\Execute\JS\Sources\humanize\src-tauri\target\release\app.exe" "%1"

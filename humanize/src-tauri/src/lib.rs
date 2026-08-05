@@ -1,11 +1,20 @@
 pub mod auth;
 pub mod com_automation;
+pub mod excel;
 pub mod fingerprint;
 pub mod homoglyph;
+pub mod powerpoint;
 
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Emitter};
+
+/// Sheet names Excel homoglyph replace skips — mirrors config.yml's
+/// `Excel.ExcludedSheets` from the rest of this project's Node.js tools.
+/// This Tauri app has no config.yml of its own, so the list is a fixed
+/// constant here rather than read from a config file.
+const EXCEL_EXCLUDED_SHEETS: &[&str] =
+  &["Results", "Lookup", "ALL", "App", "Stroop", "TMT", "DST", "LMWT", "NS", "EEG"];
 
 /// The 21 PERFECT_STEALTH characters, in order — the frontend renders one
 /// checkbox per entry, defaulting to all-checked.
@@ -14,9 +23,12 @@ fn list_homoglyph_chars() -> Vec<String> {
   homoglyph::PERFECT_STEALTH.iter().map(|(latin, _)| latin.to_string()).collect()
 }
 
-/// Runs the homoglyph replace on a real Word document, via direct Rust COM
-/// automation (no Node.js/sidecar involved). `chars` is the user's checked
-/// subset from the frontend modal, joined into one string (e.g. "ACE").
+/// Runs the homoglyph replace on a real Word/Excel/PowerPoint document, via
+/// direct Rust COM automation (no Node.js/sidecar involved). `chars` is the
+/// user's checked subset from the frontend modal, joined into one string
+/// (e.g. "ACE"). Dispatches by file extension to the matching module —
+/// `.docx` → homoglyph::apply_word, `.xlsx`/`.xlsm` → excel::apply_excel,
+/// `.pptx` → powerpoint::apply_powerpoint.
 ///
 /// Runs on Tauri's async runtime via spawn_blocking (COM automation is
 /// synchronous/blocking) so "homoglyph-progress" events reach the frontend
@@ -28,13 +40,26 @@ async fn run_homoglyph(app: AppHandle, file_path: String, chars: String) -> Resu
   let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase().to_string();
   let chars_opt = if chars.is_empty() { None } else { Some(chars.clone()) };
 
-  tauri::async_runtime::spawn_blocking(move || match ext.as_str() {
-    "docx" => homoglyph::apply_word(&path, chars_opt.as_deref(), |progress| {
+  tauri::async_runtime::spawn_blocking(move || {
+    let on_progress = |progress: homoglyph::ReplaceProgress| {
       let _ = app.emit("homoglyph-progress", &progress);
-    })
-    .map(|p| p.to_string_lossy().to_string())
-    .map_err(|e| e.to_string()),
-    other => Err(format!("Unsupported file extension: .{other} (only .docx is wired so far)")),
+    };
+    match ext.as_str() {
+      "docx" => homoglyph::apply_word(&path, chars_opt.as_deref(), on_progress)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string()),
+      "xlsx" | "xlsm" => {
+        excel::apply_excel(&path, chars_opt.as_deref(), EXCEL_EXCLUDED_SHEETS, on_progress)
+          .map(|p| p.to_string_lossy().to_string())
+          .map_err(|e| e.to_string())
+      }
+      "pptx" => powerpoint::apply_powerpoint(&path, chars_opt.as_deref(), on_progress)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string()),
+      other => {
+        Err(format!("Unsupported file extension: .{other} (supported: .docx, .xlsx, .xlsm, .pptx)"))
+      }
+    }
   })
   .await
   .map_err(|e| format!("task join error: {e}"))?
@@ -90,6 +115,41 @@ fn open_in_default_app(file_path: String) -> Result<(), String> {
     .map_err(|e| e.to_string())
 }
 
+/// The file path passed on the command line at launch (e.g. via a
+/// right-click "Open with Humanize" Explorer verb, or `app.exe "C:\...\
+/// doc.docx"` directly) — the first argv entry that looks like a real,
+/// existing supported file. Returns None when the app was launched with no
+/// file argument (a plain double-click / debug run). The frontend calls
+/// this once, after login, to pre-fill the picked-file state so the user
+/// isn't asked to choose the file a second time.
+#[tauri::command]
+fn get_launch_file_path() -> Option<String> {
+  std::env::args().skip(1).find_map(|arg| {
+    let path = std::path::Path::new(&arg);
+    if !path.is_file() {
+      return None;
+    }
+    let is_supported = matches!(
+      path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).as_deref(),
+      Some("docx") | Some("xlsx") | Some("xlsm") | Some("pptx")
+    );
+    if !is_supported {
+      return None;
+    }
+    // canonicalize() resolves to an absolute, backslash-separated path (and
+    // resolves any . / .. / symlinks) — COM Automation's Documents.Open
+    // (and Excel/PowerPoint's equivalents) are far stricter about path
+    // format than Rust's own Path API, so a forward-slash path that
+    // `is_file()` happily accepts can still fail inside Word/Excel/
+    // PowerPoint with a "couldn't find your file" COM error. Falling back
+    // to the raw arg on failure keeps this best-effort rather than losing
+    // the launch file entirely over an edge case canonicalize() can't handle
+    // (e.g. a UNC path quirk).
+    let normalized = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    Some(normalized.to_string_lossy().trim_start_matches(r"\\?\").to_string())
+  })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -111,7 +171,8 @@ pub fn run() {
       list_homoglyph_chars,
       run_homoglyph,
       reveal_in_explorer,
-      open_in_default_app
+      open_in_default_app,
+      get_launch_file_path
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -29,6 +29,12 @@ const SUPABASE_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi
 const KEYRING_SERVICE: &str = "com.jsaicategory.humanize";
 const KEYRING_USER: &str = "session";
 
+/// A stored session is only honored for this long — past it,
+/// has_stored_session() reports false (and clears the stale entry) so the
+/// login screen reappears once per day, even though the underlying
+/// Supabase refresh token itself may still be valid for longer.
+const SESSION_TTL_SECS: u64 = 24 * 60 * 60;
+
 #[derive(Serialize)]
 struct PasswordGrantRequest<'a> {
     email: &'a str,
@@ -51,10 +57,13 @@ struct FingerprintCheckResponse {
     bound_device_name: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct StoredSession {
     access_token: String,
     refresh_token: String,
+    /// Unix timestamp (seconds) of when this session was stored — checked
+    /// against SESSION_TTL_SECS by has_stored_session().
+    stored_at: u64,
 }
 
 /// Structured login failure — lets the frontend show a specific warning
@@ -139,22 +148,54 @@ pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
     Ok(())
 }
 
+fn now_unix_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 fn store_session(access_token: &str, refresh_token: &str) -> Result<(), String> {
     let entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
         .map_err(|e| format!("failed to open credential store: {e}"))?;
     let payload = serde_json::to_string(&StoredSession {
         access_token: access_token.to_string(),
         refresh_token: refresh_token.to_string(),
+        stored_at: now_unix_secs(),
     })
     .map_err(|e| format!("failed to serialize session: {e}"))?;
     entry.set_password(&payload).map_err(|e| format!("failed to store session: {e}"))
 }
 
-/// True if a previously stored session exists (does not itself re-validate
-/// against Supabase — a stale/expired token still returns true here; the
-/// frontend should retry login if a subsequent action fails with 401).
+/// True if a previously stored session exists AND is still within its
+/// SESSION_TTL_SECS (24h) window — a session past that window is treated
+/// as absent (and its keyring entry is cleared), so the login screen
+/// reappears once a day even though the underlying Supabase token might
+/// still technically be valid. Does not itself re-validate the token
+/// against Supabase beyond the age check; the frontend should retry login
+/// if a subsequent action fails with 401.
 pub fn has_stored_session() -> bool {
-    Entry::new(KEYRING_SERVICE, KEYRING_USER).and_then(|e| e.get_password()).is_ok()
+    let Ok(entry) = Entry::new(KEYRING_SERVICE, KEYRING_USER) else {
+        return false;
+    };
+    let Ok(payload) = entry.get_password() else {
+        return false;
+    };
+    let Ok(session) = serde_json::from_str::<StoredSession>(&payload) else {
+        // A pre-existing session stored before stored_at was added won't
+        // parse into the new shape — treat it as expired rather than
+        // erroring, so the user is just asked to log in again once.
+        let _ = entry.delete_credential();
+        return false;
+    };
+
+    let age = now_unix_secs().saturating_sub(session.stored_at);
+    if age > SESSION_TTL_SECS {
+        let _ = entry.delete_credential();
+        return false;
+    }
+
+    true
 }
 
 /// Clears the stored session (logout).

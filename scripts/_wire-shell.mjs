@@ -14,6 +14,15 @@ const R = (cls, method) => `${ROOT}\\scripts\\${cls}\\${method}.mjs`;
 const L = (label, cls, method, args = '') =>
     `NoClose;${label};node.exe "${R(cls, method)}"${args ? ' ' + args : ''}`;
 
+// Launcher line → the compiled humanize Tauri app.exe directly, using the
+// SAME "NoClose;Label;command" shape as every other entry (the app itself
+// manages its own window once launched; NoClose here just keeps the
+// launcher's own console channel consistent with every other entry in this
+// file). Opens with the clicked file pre-filled (via get_launch_file_path,
+// see humanize/src-tauri/src/lib.rs) instead of the user picking it again.
+const HUMANIZE_EXE = `${ROOT}\\humanize\\src-tauri\\target\\release\\app.exe`;
+const H = (label) => `NoClose;${label};"${HUMANIZE_EXE}" "%1"`;
+
 const files = {
     'Docx.appshell': [
         '.docx',
@@ -24,6 +33,7 @@ const files = {
             L('Word Homoglyph (Ask)', 'Homoglyph', 'wordAsk', '--file "%1"'),
             L('Protect File (Ask)', 'Word', 'protectFileAsk', '--file "%1"'),
             L('Unprotect File (Ask)', 'Word', 'unProtectFileAsk', '--file "%1"'),
+            H('Homoglyph Replace (Humanize)'),
         ],
     ],
     'Xlsx.appshell': [
@@ -40,6 +50,7 @@ const files = {
             L('Excel Homoglyph (Ask)', 'Homoglyph', 'excelAsk', '--file "%1"'),
             // Contract .xltx → .xlsx convert (self-contained runner over Excels)
             L('Contract Convert (.xltx→.xlsx)', 'Excels', 'contractConvert', '--input "%1"'),
+            H('Homoglyph Replace (Humanize)'),
         ],
     ],
     'Md.appshell': [
@@ -69,6 +80,7 @@ const files = {
             L('PPT Homoglyph (Ask)', 'Homoglyph', 'powerpointAsk', '--file "%1"'),
             L('Protect File (Ask)', 'PowerPoints', 'protectFileAsk', '--file "%1"'),
             L('Unprotect File (Ask)', 'PowerPoints', 'unProtectFileAsk', '--file "%1"'),
+            H('Homoglyph Replace (Humanize)'),
         ],
     ],
     'Mht.appshell': [

@@ -16,7 +16,7 @@ use windows::Win32::System::Com::{
     CLSCTX_LOCAL_SERVER, CoCreateInstance, DISPATCH_METHOD, DISPATCH_PROPERTYGET,
     DISPATCH_PROPERTYPUT, DISPPARAMS, EXCEPINFO, IDispatch,
 };
-use windows::Win32::System::Ole::DISPID_PROPERTYPUT;
+use windows::Win32::System::Ole::{DISPID_PROPERTYPUT, DISPID_VALUE};
 use windows::Win32::System::Variant::{VARIANT, VT_BSTR, VT_BOOL, VT_DISPATCH, VT_I4};
 use std::mem::ManuallyDrop;
 
@@ -204,6 +204,102 @@ fn invoke(
             )
             .map_err(|e| annotate_dispatch_error(e, name, &exception))?;
         Ok(OwnedVariant(result))
+    }
+}
+
+/// Calls a COM collection's DEFAULT indexed member — the Rust equivalent of
+/// `collection(index)` in VBScript/winax (e.g. `Sheets(1)`, `Cells(r, c)`,
+/// `Slides(1)`, `Shapes(1)`). This is DISPID_VALUE (0), invoked with
+/// DISPATCH_METHOD|DISPATCH_PROPERTYGET (Excel/Office collections expose
+/// their default member as either, and some hosts only accept one of the
+/// two flags — combining both is the standard late-bound-automation trick
+/// for "call whichever the object actually implements").
+pub fn get_item(dispatch: &IDispatch, args: &mut [VARIANT]) -> Result<OwnedVariant> {
+    unsafe {
+        args.reverse();
+        let params = DISPPARAMS {
+            rgvarg: args.as_mut_ptr(),
+            rgdispidNamedArgs: std::ptr::null_mut(),
+            cArgs: args.len() as u32,
+            cNamedArgs: 0,
+        };
+        let mut result = VARIANT::default();
+        let mut exception = EXCEPINFO::default();
+        let flags = DISPATCH_METHOD | DISPATCH_PROPERTYGET;
+        dispatch
+            .Invoke(
+                DISPID_VALUE as i32,
+                &windows::core::GUID::zeroed(),
+                LOCALE_USER_DEFAULT,
+                flags,
+                &params,
+                Some(&mut result),
+                Some(&mut exception),
+                None,
+            )
+            .map_err(|e| annotate_dispatch_error(e, "(default indexed member)", &exception))?;
+        Ok(OwnedVariant(result))
+    }
+}
+
+/// Reads a boolean-shaped VARIANT as a plain Rust bool. Handles BOTH real
+/// VT_BOOL (COM VARIANT_BOOL: -1=true, 0=false — Word's Find.Execute return
+/// value) AND VT_I4 (some Office object models, notably PowerPoint's
+/// MsoTriState — e.g. Shape.HasTextFrame, TextFrame.HasText — marshal their
+/// tri-state boolean as a plain 4-byte integer over COM: msoTrue=-1,
+/// msoFalse=0, msoTriStateMixed=-2, msoTriStateToggle=-3; nonzero reads as
+/// true here, matching how VBScript/winax's own truthy-coercion treats it).
+/// Any other VARIANT type reads as false.
+pub fn variant_to_bool(variant: &VARIANT) -> bool {
+    unsafe {
+        let v00 = &variant.Anonymous.Anonymous;
+        if v00.vt == VT_BOOL {
+            return v00.Anonymous.boolVal.0 != 0;
+        }
+        if v00.vt == VT_I4 {
+            return v00.Anonymous.lVal != 0;
+        }
+        false
+    }
+}
+
+/// Reads a VT_I4 VARIANT as an i32 (e.g. Rows.Count, Columns.Count,
+/// Sheets.Count, Slides.Count, Shapes.Count).
+pub fn variant_to_i32(variant: &VARIANT) -> Result<i32> {
+    unsafe {
+        let v00 = &variant.Anonymous.Anonymous;
+        if v00.vt != VT_I4 {
+            return Err(Error::new(HRESULT(-1), format!("expected VT_I4, got vt={:?}", v00.vt)));
+        }
+        Ok(v00.Anonymous.lVal)
+    }
+}
+
+/// Reads a VT_BSTR VARIANT as a Rust String (e.g. Sheet.Name,
+/// TextRange.Text, Cell.Value when it's text).
+pub fn variant_to_string(variant: &VARIANT) -> Result<String> {
+    unsafe {
+        let v00 = &variant.Anonymous.Anonymous;
+        if v00.vt != VT_BSTR {
+            return Err(Error::new(HRESULT(-1), format!("expected VT_BSTR, got vt={:?}", v00.vt)));
+        }
+        Ok(v00.Anonymous.bstrVal.to_string())
+    }
+}
+
+/// Extracts the IDispatch from a VT_DISPATCH VARIANT (e.g. the result of a
+/// property/method call that returns another COM object).
+pub fn variant_to_dispatch(variant: &VARIANT) -> Result<IDispatch> {
+    unsafe {
+        let v00 = &variant.Anonymous.Anonymous;
+        if v00.vt != VT_DISPATCH {
+            return Err(Error::new(HRESULT(-1), "expected VT_DISPATCH".to_string()));
+        }
+        v00.Anonymous
+            .pdispVal
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| Error::new(HRESULT(-1), "null IDispatch".to_string()))
     }
 }
 
