@@ -120,16 +120,30 @@ describe('Dates.futureDateByMonth', () => {
 });
 
 describe('Dates.monthsBetween', () => {
-  it('returns one "Month Year" label per calendar month, inclusive of both ends', () => {
+  it('returns one {start,end} range per full calendar month, inclusive of both ends', () => {
     expect(Dates.monthsBetween('2026-01-01', '2026-03-31')).toEqual([
-      'January 2026',
-      'February 2026',
-      'March 2026',
+      { start: '2026-01-01', end: '2026-01-31' },
+      { start: '2026-02-01', end: '2026-02-28' },
+      { start: '2026-03-01', end: '2026-03-31' },
     ]);
   });
 
-  it('returns a single label when start and end fall in the same month', () => {
-    expect(Dates.monthsBetween('2026-01-01', '2026-01-31')).toEqual(['January 2026']);
+  it('returns a single range when start and end fall in the same month', () => {
+    expect(Dates.monthsBetween('2026-01-01', '2026-01-31')).toEqual([
+      { start: '2026-01-01', end: '2026-01-31' },
+    ]);
+  });
+
+  it("clamps the first range's start and the last range's end to the real dates, not month boundaries", () => {
+    expect(Dates.monthsBetween('2025-07-09', '2026-01-15')).toEqual([
+      { start: '2025-07-09', end: '2025-07-31' },
+      { start: '2025-08-01', end: '2025-08-31' },
+      { start: '2025-09-01', end: '2025-09-30' },
+      { start: '2025-10-01', end: '2025-10-31' },
+      { start: '2025-11-01', end: '2025-11-30' },
+      { start: '2025-12-01', end: '2025-12-31' },
+      { start: '2026-01-01', end: '2026-01-15' },
+    ]);
   });
 
   it('returns [] when either date is missing', () => {

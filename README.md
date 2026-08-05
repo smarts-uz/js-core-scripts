@@ -3933,16 +3933,16 @@ node scripts/Yamls/update.mjs --file "<path>"
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
 
-## writePriceHistory(filePath, priceHistory)
+## writePricings(filePath, pricings)
 
 **Run:**
 
 ```bash
-node scripts/Yamls/writePriceHistory.mjs --file "<path>"
+node scripts/Yamls/writePricings.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `filePath` | no | — |
-| `priceHistory` | no | — |
+| `pricings` | no | — |
 

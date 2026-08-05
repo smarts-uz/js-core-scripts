@@ -266,30 +266,48 @@ describe('Yamls.replaceTextLine', () => {
   });
 });
 
-describe('Yamls.writePriceHistory', () => {
-  it('inserts the PriceHistory array directly after the ActDateEnd: line', () => {
+describe('Yamls.writePricings', () => {
+  it('inserts the Pricings array directly after the ActDateEnd: line', () => {
     const f = path.join(workDir, 't.contract');
     fs.writeFileSync(f, 'ActDate: 09.07.2025\nActDateEnd: \nPrepayMonth: \n', 'utf8');
 
-    Yamls.writePriceHistory(f, [{ 'March 2026': '450,000' }]);
+    Yamls.writePricings(f, [{ '2026-03-01#2026-03-31': '450,000' }]);
 
     const lines = read(workDir, 't.contract').split('\n');
     const actEndIdx = lines.findIndex((l) => l.startsWith('ActDateEnd:'));
-    expect(lines[actEndIdx + 1]).toBe('PriceHistory:');
-    expect(lines[actEndIdx + 2]).toBe('  - March 2026: 450,000');
+    expect(lines[actEndIdx + 1]).toBe('Pricings:');
+    expect(lines[actEndIdx + 2]).toBe('  - 2026-03-01#2026-03-31: 450,000');
   });
 
-  it('replaces an existing PriceHistory block instead of duplicating it', () => {
+  it('replaces an existing Pricings block instead of duplicating it', () => {
     const f = path.join(workDir, 't2.contract');
     fs.writeFileSync(f, 'ActDateEnd: \nPrepayMonth: \n', 'utf8');
 
-    Yamls.writePriceHistory(f, [{ 'January 2026': '100,000' }]);
-    Yamls.writePriceHistory(f, [{ 'January 2026': '200,000' }]);
+    Yamls.writePricings(f, [{ '2026-01-01#2026-01-31': '100,000' }]);
+    Yamls.writePricings(f, [{ '2026-01-01#2026-01-31': '200,000' }]);
 
     const content = read(workDir, 't2.contract');
-    expect(content.match(/^PriceHistory:/gm)).toHaveLength(1);
-    expect(content).toContain('January 2026: 200,000');
-    expect(content).not.toContain('January 2026: 100,000');
+    expect(content.match(/^Pricings:/gm)).toHaveLength(1);
+    expect(content).toContain('2026-01-01#2026-01-31: 200,000');
+    expect(content).not.toContain('2026-01-01#2026-01-31: 100,000');
+    expect(content).toContain('PrepayMonth:');
+  });
+
+  it('strips a legacy PriceHistory: block (the old key name) when writing Pricings:', () => {
+    const f = path.join(workDir, 't2b.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nPriceHistory:\n  - July 2025: 390,000\n  - August 2025: 390,000\n\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    Yamls.writePricings(f, [{ '2025-07-09#2025-07-31': '390,000' }]);
+
+    const content = read(workDir, 't2b.contract');
+    expect(content).not.toContain('PriceHistory:');
+    expect(content).not.toContain('July 2025');
+    expect(content.match(/^Pricings:/gm)).toHaveLength(1);
+    expect(content).toContain('2025-07-09#2025-07-31: 390,000');
     expect(content).toContain('PrepayMonth:');
   });
 
@@ -297,34 +315,34 @@ describe('Yamls.writePriceHistory', () => {
     const f = path.join(workDir, 't3.contract');
     fs.writeFileSync(f, 'ActDateEnd: \n', 'utf8');
 
-    Yamls.writePriceHistory(f, [
-      { 'January 2026': '450,000' },
-      { 'February 2026': '450,000' },
+    Yamls.writePricings(f, [
+      { '2026-01-01#2026-01-31': '450,000' },
+      { '2026-02-01#2026-02-28': '450,000' },
     ]);
 
     const lines = read(workDir, 't3.contract').split('\n');
     expect(lines.slice(1, 4)).toEqual([
-      'PriceHistory:',
-      '  - January 2026: 450,000',
-      '  - February 2026: 450,000',
+      'Pricings:',
+      '  - 2026-01-01#2026-01-31: 450,000',
+      '  - 2026-02-01#2026-02-28: 450,000',
     ]);
   });
 
-  it('warns and does nothing when priceHistory is empty', () => {
+  it('warns and does nothing when pricings is empty', () => {
     const f = path.join(workDir, 't4.contract');
     const before = 'ActDateEnd: \n';
     fs.writeFileSync(f, before, 'utf8');
-    Yamls.writePriceHistory(f, []);
+    Yamls.writePricings(f, []);
     expect(read(workDir, 't4.contract')).toBe(before);
   });
 
   it('appends at end of file with a warning when ActDateEnd: is missing', () => {
     const f = path.join(workDir, 't5.contract');
     fs.writeFileSync(f, 'Foo: bar\n', 'utf8');
-    Yamls.writePriceHistory(f, [{ 'January 2026': '1' }]);
+    Yamls.writePricings(f, [{ '2026-01-01#2026-01-31': '1' }]);
     const content = read(workDir, 't5.contract');
     expect(content).toContain('Foo: bar');
-    expect(content).toContain('PriceHistory:');
+    expect(content).toContain('Pricings:');
   });
 });
 
@@ -844,7 +862,7 @@ describe('Yamls.replaceYaml', () => {
     );
   });
 
-  it('always writes one PriceHistory entry per month across the contract period', () => {
+  it('always writes one Pricings entry per month across the contract period', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
@@ -876,8 +894,8 @@ describe('Yamls.replaceYaml', () => {
     );
 
     const content = fs.readFileSync(ymlFile, 'utf8');
-    expect(content).toContain('PriceHistory:');
-    // ComDate 01.01.2026 + AddDays 30 -> ComDateEnd 31.01.2026: a single month.
-    expect(content).toContain('January 2026: 4,200,000');
+    expect(content).toContain('Pricings:');
+    // ComDate 01.01.2026 + AddDays 30 -> ComDateEnd 31.01.2026: a single full-month range.
+    expect(content).toContain('2026-01-01#2026-01-31: 4,200,000');
   });
 });

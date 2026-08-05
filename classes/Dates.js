@@ -64,8 +64,11 @@ export class Dates {
   }
 
 
-  // Every calendar month label ('March 2026') from startExcel through
-  // endExcel, inclusive, both in 'YYYY-MM-DD' Excel format. Used to build a
+  // Every calendar-month {start, end} date range ('YYYY-MM-DD' each) from
+  // startExcel through endExcel, inclusive — one entry per month. The first
+  // entry's start and the last entry's end are clamped to the real
+  // startExcel/endExcel (never forced to the 1st/last-day of that month); every
+  // month in between spans its own full calendar range. Used to build a
   // per-month price history entry across a contract's full active period.
   static monthsBetween(startExcel, endExcel) {
     console.info(`[Dates.monthsBetween] 🟢 Starting...`);
@@ -73,17 +76,26 @@ export class Dates {
 
     if (!startExcel || !endExcel) return [];
 
-    let cursor = dayjs(startExcel, 'YYYY-MM-DD').startOf('month');
-    const end = dayjs(endExcel, 'YYYY-MM-DD').startOf('month');
+    const realStart = dayjs(startExcel, 'YYYY-MM-DD');
+    const realEnd = dayjs(endExcel, 'YYYY-MM-DD');
 
-    const months = [];
-    while (cursor.isBefore(end) || cursor.isSame(end)) {
-      months.push(cursor.format('MMMM YYYY'));
+    let cursor = realStart.startOf('month');
+    const lastMonth = realEnd.startOf('month');
+
+    const ranges = [];
+    while (cursor.isBefore(lastMonth) || cursor.isSame(lastMonth)) {
+      const isFirst = cursor.isSame(realStart, 'month');
+      const isLast = cursor.isSame(lastMonth, 'month');
+
+      const start = isFirst ? realStart : cursor.startOf('month');
+      const end = isLast ? realEnd : cursor.endOf('month');
+
+      ranges.push({ start: start.format('YYYY-MM-DD'), end: end.format('YYYY-MM-DD') });
       cursor = cursor.add(1, 'month');
     }
 
-    console.log("monthsBetween months", months);
-    return months;
+    console.log("monthsBetween ranges", ranges);
+    return ranges;
   }
 
   // static func get date of last day of future moths

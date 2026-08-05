@@ -129,32 +129,34 @@ export class Yamls {
         console.log(`File ${filePath} has been updated.`, value);
     }
 
-    // Writes/replaces the PriceHistory: array block directly after the
+    // Writes/replaces the Pricings: array block directly after the
     // ActDateEnd: line in the .contract yaml — one entry per calendar month
-    // across the contract's active period, each a single "Month Year": amount
-    // mapping:
-    //   PriceHistory:
-    //     - March 2026: 450,000
-    //     - April 2026: 450,000
-    static writePriceHistory(filePath, priceHistory) {
-        console.info(`[Yamls.writePriceHistory] 🟢 Starting...`);
+    // across the contract's active period, each a single "start#end": amount
+    // date-interval mapping:
+    //   Pricings:
+    //     - 2026-03-01#2026-03-31: 450,000
+    //     - 2026-04-01#2026-04-30: 450,000
+    static writePricings(filePath, pricings) {
+        console.info(`[Yamls.writePricings] 🟢 Starting...`);
 
-        if (!Array.isArray(priceHistory) || priceHistory.length === 0) {
-            console.warn(`writePriceHistory: priceHistory is empty, nothing to write for ${filePath}.`);
+        if (!Array.isArray(pricings) || pricings.length === 0) {
+            console.warn(`writePricings: pricings is empty, nothing to write for ${filePath}.`);
             return;
         }
 
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const lines = fileContent.split('\n');
 
-        const block = yaml.dump({ PriceHistory: priceHistory }, { lineWidth: -1 }).trimEnd().split('\n');
+        const block = yaml.dump({ Pricings: pricings }, { lineWidth: -1 }).trimEnd().split('\n');
 
-        // Strip any previously-written PriceHistory: block (the key line plus
-        // every indented line under it) so re-running never duplicates it.
+        // Strip any previously-written Pricings: block, AND the legacy
+        // PriceHistory: block this feature used before its rename, (the key
+        // line plus every indented line under it) so re-running never
+        // duplicates it and an old-format file converges to the new key/shape.
         const stripped = [];
         let skipping = false;
         for (const line of lines) {
-            if (/^PriceHistory:/.test(line)) {
+            if (/^Pricings:/.test(line) || /^PriceHistory:/.test(line)) {
                 skipping = true;
                 continue;
             }
@@ -168,7 +170,7 @@ export class Yamls {
         const actDateEndIdx = stripped.findIndex(line => /^ActDateEnd:/.test(line));
 
         if (actDateEndIdx === -1) {
-            console.warn(`writePriceHistory: "ActDateEnd:" line not found in ${filePath}; appending PriceHistory at end of file.`);
+            console.warn(`writePricings: "ActDateEnd:" line not found in ${filePath}; appending Pricings at end of file.`);
             stripped.push(...block);
         } else {
             stripped.splice(actDateEndIdx + 1, 0, ...block);
@@ -176,7 +178,7 @@ export class Yamls {
 
         fs.writeFileSync(filePath, stripped.join('\n'));
 
-        console.log(`File ${filePath} has been updated with PriceHistory.`, priceHistory);
+        console.log(`File ${filePath} has been updated with Pricings.`, pricings);
     }
 
     static loadYamlWithDeps(ymlFile) {
@@ -940,13 +942,14 @@ export class Yamls {
             this.replaceTextLine(ymlFile, key, value);
         }
 
-        // Always record one PriceHistory entry per calendar month across the
+        // Always record one Pricings entry per calendar month across the
         // contract's active period (StartDateExcel..ComDateEndExcel) — runs
         // every time the .contract is filled/updated, not only when an Excel
-        // report is generated separately.
-        const monthLabels = Dates.monthsBetween(yamlData.StartDateExcel, yamlData.ComDateEndExcel);
-        const priceHistory = monthLabels.map(label => ({ [label]: yamlData.Price }));
-        Yamls.writePriceHistory(ymlFile, priceHistory);
+        // report is generated separately. Each key is a "start#end" date
+        // interval (YYYY-MM-DD#YYYY-MM-DD).
+        const monthRanges = Dates.monthsBetween(yamlData.StartDateExcel, yamlData.ComDateEndExcel);
+        const pricings = monthRanges.map(({ start, end }) => ({ [`${start}#${end}`]: yamlData.Price }));
+        Yamls.writePricings(ymlFile, pricings);
 
     }
 

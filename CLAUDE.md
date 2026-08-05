@@ -201,23 +201,23 @@ heuristic that a 14-digit PINFL could produce for reasons unrelated to legal for
 
 `Files.exists(filePath)` (in `classes/Files.js`) awaits `access(filePath)` — the **Promise-based** `access` imported from `node:fs/promises`. It must **never** be changed to call `fs.access(filePath)` off the default `fs` import (`import fs from 'fs'`) — that is the **callback-style** API, and calling it with no callback argument throws synchronously (`"cb" argument must be of type function`), which the surrounding `try/catch` silently swallows, making the method **always return `false`** — even for a file that genuinely exists. This exact bug shipped for a real stretch of time and was previously only _documented_ as a known issue in a test title rather than fixed, silently breaking every guard that depends on `Files.exists` (e.g. `Yamls.update`'s template-existence check always failed regardless of whether `Templates.Yaml` pointed at a real file).
 
-### `PriceHistory` — one entry per calendar month, always written on every contract fill
+### `Pricings` — one entry per calendar month, always written on every contract fill
 
-Every `.contract` yaml automatically gets a `PriceHistory:` array written directly after its `ActDateEnd:` line, one entry per calendar month across the contract's active period, each shaped as a single `"Month Year": price` mapping:
+Every `.contract` yaml automatically gets a `Pricings:` array written directly after its `ActDateEnd:` line, one entry per calendar month across the contract's active period, each key a `"YYYY-MM-DD#YYYY-MM-DD"` date interval (start`#`end) mapped to the price. (Named `Pricings` deliberately distinct from `globalThis.folderPricings`/`Excels.processPricing`'s own `Pricings/` marker-file folder mechanism — same word, unrelated mechanism, no code coupling between them.)
 
 ```yaml
 ActDateEnd:
-PriceHistory:
-    - July 2025: 390,000
-    - August 2025: 390,000
-    - September 2025: 390,000
+Pricings:
+    - 2025-07-09#2025-07-31: 390,000
+    - 2025-08-01#2025-08-31: 390,000
+    - 2025-09-01#2025-09-30: 390,000
 ```
 
-- **`Dates.monthsBetween(startExcel, endExcel)`** (`classes/Dates.js`) — returns every calendar-month label (`'March 2026'`) from `startExcel` through `endExcel` inclusive, both `YYYY-MM-DD` Excel-format strings.
-- **`Yamls.writePriceHistory(filePath, priceHistory)`** (`classes/Yamls.js`) — idempotently inserts/replaces the `PriceHistory:` block right after the `ActDateEnd:` line (strips any previously-written block first, so re-running never duplicates it); falls back to appending at end-of-file with a warning if `ActDateEnd:` is missing.
+- **`Dates.monthsBetween(startExcel, endExcel)`** (`classes/Dates.js`) — returns one `{start, end}` range (both `YYYY-MM-DD`) per calendar month from `startExcel` through `endExcel` inclusive; the first range's `start` and the last range's `end` are clamped to the real `startExcel`/`endExcel` (never forced to the 1st/last day of that month) — every month in between spans its own full calendar range.
+- **`Yamls.writePricings(filePath, pricings)`** (`classes/Yamls.js`) — idempotently inserts/replaces the `Pricings:` block right after the `ActDateEnd:` line (strips any previously-written block first, so re-running never duplicates it); falls back to appending at end-of-file with a warning if `ActDateEnd:` is missing. Each array item is a single `"start#end": price` mapping — the key is built in `Yamls.replaceYaml` as `` `${start}#${end}` `` from a `Dates.monthsBetween` range.
 - **Always runs unconditionally inside `Yamls.replaceYaml`**, right after the final `replaceTextLine` write loop, over the range `yamlData.StartDateExcel`..`yamlData.ComDateEndExcel` (the contract's real active period, already computed earlier in `replaceYaml`) at the current `yamlData.Price` — **not** gated behind `Excels.generate`/Excel report generation. This means every `Yamls.fillYamlWithInfo`/`Yamls.update` run (the normal contract-fill pipeline) writes/refreshes it, regardless of whether an Excel `ActReco` file is ever produced for that run.
-- **Real-world proof:** run against `d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract` (Tariff `1-390k-6M`, `ActDate` 09.07.2025 → `ComDateEnd` 30.12.2026) produced 18 monthly entries (July 2025 through December 2026) at `390,000` each.
-- Regression tests: `tests/Dates.test.js` → `Dates.monthsBetween`; `tests/Yamls.test.js` → `Yamls.writePriceHistory` + `Yamls.replaceYaml` → _"always writes one PriceHistory entry per month across the contract period"_.
+- **Real-world proof:** run against `d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract` (Tariff `1-390k-6M`, `ActDate` 09.07.2025 → `ComDateEnd` 30.12.2026) produced 18 monthly date-interval entries (`2025-07-09#2025-07-31` through `2026-12-01#2026-12-30`) at `390,000` each — the first interval starts at the real `ActDate` (not the 1st of July) and the last ends at the real `ComDateEnd` (not the 31st of December).
+- Regression tests: `tests/Dates.test.js` → `Dates.monthsBetween` (including the start/end clamping case); `tests/Yamls.test.js` → `Yamls.writePricings` + `Yamls.replaceYaml` → _"always writes one Pricings entry per month across the contract period"_.
 
 ### Launchers — concrete `sheller/` files
 
