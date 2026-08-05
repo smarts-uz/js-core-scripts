@@ -259,25 +259,60 @@ an unscreenshot-able native window are all **universal techniques documented the
 `module/gui-testing.md`) — none of that is restated here. This project's concrete
 fill-ins only:
 
-- A GUI wrapping the Word homoglyph replace: pick a `.docx` file, a checkbox-grid modal
-  lets the user check/uncheck each of the 21 `PERFECT_STEALTH` chars
-  (`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives Word COM directly and writes an
-  auto-incrementing `<name> L<count>.ext` output file beside the source. Excel/PowerPoint
-  are not yet ported — only `.docx` is wired in `run_homoglyph`.
-- **Files:** `src-tauri/src/com_automation.rs` (the raw-IDispatch helper),
-  `src-tauri/src/homoglyph.rs` (ports `PERFECT_STEALTH` + the `L<count>` output-filename
-  convention, drives `Word.Application`), `src-tauri/src/auth.rs` +
-  `src-tauri/src/fingerprint.rs` (the login/device-lock implementation),
-  `humanize/supabase/migrations/20260805000000_device_fingerprint_lock.sql` (the
-  `profiles` table + `check_and_bind_fingerprint` RPC).
+- A GUI wrapping the homoglyph replace across **Word, Excel, and PowerPoint** — pick a
+  `.docx`/`.xlsx`/`.xlsm`/`.pptx` file, a checkbox-grid modal lets the user check/uncheck
+  each of the 21 `PERFECT_STEALTH` chars (`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives the
+  matching Office app's COM directly and writes an auto-incrementing `<name> L<count>.ext`
+  output file beside the source. `run_homoglyph` dispatches by extension.
+- **Files:** `src-tauri/src/com_automation.rs` (the raw-IDispatch helper — also the
+  `get_item` indexed-collection accessor for `Sheets(n)`/`Cells(r,c)`/`Slides(n)`/
+  `Shapes(n)`, and `variant_to_i32`/`variant_to_string`), `src-tauri/src/homoglyph.rs`
+  (Word), `src-tauri/src/excel.rs` (Excel — walks every non-excluded sheet's UsedRange;
+  `EXCEL_EXCLUDED_SHEETS` in `lib.rs` mirrors `config.yml`'s `Excel.ExcludedSheets` since
+  this app has no config file of its own), `src-tauri/src/powerpoint.rs` (PowerPoint —
+  walks every slide/shape with a text frame), `src-tauri/src/auth.rs` +
+  `src-tauri/src/fingerprint.rs` (the login/device-lock implementation).
+  **`Shape.HasTextFrame`/`TextFrame.HasText` marshal as `VT_I4` (MsoTriState), NOT
+  `VT_BOOL`** like Word's `Find.Execute` — `com_automation.rs`'s `variant_to_bool` handles
+  both (a real bug caught by the PowerPoint integration test: without this, every shape
+  was skipped as "no text").
 - **Supabase project:** `humanize`, ref `kduqhvzqxongeeglhuim`, region `eu-central-1`,
   org `AsrorZk`. Public signup disabled; the 3 admin-created accounts are
   `asror.zk@gmail.com`, `gulchiroy@gmail.com`, `dr.durdona.zakirova@gmail.com` (each
-  binds to whichever machine it first logs in from).
+  binds to whichever machine it first logs in from). Schema:
+  `humanize/supabase/migrations/20260805000000_device_fingerprint_lock.sql` (`profiles`
+  table + `check_and_bind_fingerprint` RPC) and `…20260805010000_device_fingerprint_name.sql`
+  (adds `device_name`, changes the RPC's return to `{allowed, bound_device_name}` so a
+  wrong-machine rejection can show which PC the account is actually bound to).
+- **Session lasts 24h, then re-prompts login — even on the same machine.**
+  `auth.rs`'s `StoredSession` carries a `stored_at` Unix timestamp; `has_stored_session()`
+  clears the Windows-Credential-Manager entry and returns `false` once
+  `SESSION_TTL_SECS` (24h) has elapsed, regardless of whether the underlying Supabase
+  token is still valid. A genuinely different machine is rejected by the device-fingerprint
+  RPC itself (see above), independent of this TTL.
+- **CLI/file-association passthrough:** `get_launch_file_path()` reads the first
+  supported file path off `argv`, and the frontend pre-fills it as the picked file right
+  after login (`applyLaunchFileIfAny()` in `main.js`) — wired into
+  `sheller/Docx.appshell`/`Xlsx.appshell`/`Pptx.appshell` as a "Homoglyph Replace
+  (Humanize)" right-click entry pointing at `target/release/app.exe` directly (see
+  `scripts/_wire-shell.mjs`'s `H()` helper). **`get_launch_file_path()` MUST
+  `canonicalize()` the raw argv path before returning it** — a forward-slash path (e.g.
+  from a test launch, or any caller not using native Windows separators) passes Rust's
+  own `Path::is_file()` check fine, but COM Automation's `Documents.Open`/equivalent is
+  far stricter and fails with a "couldn't find your file" error on it; `canonicalize()`
+  resolves to an absolute, backslash-separated path (stripping the `\\?\` extended-path
+  prefix it adds on Windows).
 - **UI structure (`humanize/src/`):** card-based sections (pick file → characters →
   actions → progress), `Run Replace`/`Reset`/`Open in Explorer`/`Open in Default App` all
   on one row, the output path on its own row beneath it. Window size 920×760
   (`tauri.conf.json`), no fixed 800×600.
+- **A hardcoded secret in a committed test file is a real, live risk — GitHub's push
+  protection caught a Supabase Management API token hardcoded in
+  `src-tauri/tests/login_real.rs` before it reached the remote.** The fix: read it from
+  the `SUPABASE_ACCESS_TOKEN` env var (the same variable the `supabase` CLI itself
+  populates on `supabase login`) via `std::env::var(...).expect(...)`, never a `const`
+  string literal — this applies to every test/script in this app that needs the
+  Management API, not just this one file.
 - **Real end-to-end proof:** `src-tauri/tests/word_real_file.rs` and
   `src-tauri/tests/login_real.rs` are genuine Cargo integration tests run against a real
   sample `.docx` and the live Supabase project (not mocked).
