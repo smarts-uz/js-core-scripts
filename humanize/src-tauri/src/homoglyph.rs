@@ -6,6 +6,7 @@ use crate::com_automation::{
     create_com_object, get_property, invoke_method, put_property, variant_from_bool,
     variant_from_i32, variant_from_str, variant_to_bool, variant_to_dispatch,
 };
+use crate::config::CONFIG;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use windows::core::Result;
@@ -21,46 +22,42 @@ pub struct ReplaceProgress {
     pub found: bool,
 }
 
-/// The shared Latin→Cyrillic homoglyph map — identical to
-/// classes/Homoglyph.js's PERFECT_STEALTH, kept as the single source of truth
-/// for BOTH the Node.js path (still used by the rest of this project's CLI
-/// tools) and this Tauri app's own Rust path.
-pub const PERFECT_STEALTH: &[(char, char)] = &[
-    ('A', 'А'),
-    ('a', 'а'),
-    ('C', 'С'),
-    ('c', 'с'),
-    ('E', 'Е'),
-    ('e', 'е'),
-    ('H', 'Н'),
-    ('I', 'І'),
-    ('i', 'і'),
-    ('J', 'Ј'),
-    ('K', 'К'),
-    ('M', 'М'),
-    ('O', 'О'),
-    ('o', 'о'),
-    ('P', 'Р'),
-    ('p', 'р'),
-    ('S', 'Ѕ'),
-    ('T', 'Т'),
-    ('X', 'Х'),
-    ('x', 'х'),
-    ('y', 'у'),
-];
+/// The Latin→Cyrillic homoglyph map, read from config.json's
+/// `homoglyph.perfectStealth` (see CONFIG.md) — identical data to
+/// classes/Homoglyph.js's PERFECT_STEALTH, kept as the single source of
+/// truth for BOTH the Node.js path (still used by the rest of this
+/// project's CLI tools) and this Tauri app's own Rust path. Each pair's
+/// `latin`/`cyrillic` in config.json is a single-character string; parsed
+/// into `char` here (a config authoring mistake — an empty or multi-char
+/// entry — surfaces as a panic at first access, same as a malformed
+/// config.json shape, since this is build-time-embedded data under our own
+/// control).
+pub fn perfect_stealth() -> Vec<(char, char)> {
+    CONFIG
+        .homoglyph
+        .perfect_stealth
+        .iter()
+        .map(|pair| {
+            let latin = pair.latin.chars().next().expect("homoglyph.perfectStealth.latin must be one character");
+            let cyrillic = pair
+                .cyrillic
+                .chars()
+                .next()
+                .expect("homoglyph.perfectStealth.cyrillic must be one character");
+            (latin, cyrillic)
+        })
+        .collect()
+}
 
-/// Filters PERFECT_STEALTH down to the requested characters; `None` = every
-/// mapped character (mirrors Homoglyph._buildMap(null)).
+/// Filters the configured homoglyph map down to the requested characters;
+/// `None` = every mapped character (mirrors Homoglyph._buildMap(null)).
 pub fn build_map(chars: Option<&str>) -> Vec<(char, char)> {
+    let all = perfect_stealth();
     match chars {
-        None => PERFECT_STEALTH.to_vec(),
+        None => all,
         Some(requested) => {
             let requested: std::collections::HashSet<char> = requested.chars().collect();
-            PERFECT_STEALTH
-                .iter()
-                .filter(|(latin, _)| requested.contains(latin))
-                .cloned()
-                .collect()
+            all.into_iter().filter(|(latin, _)| requested.contains(latin)).collect()
         }
     }
 }

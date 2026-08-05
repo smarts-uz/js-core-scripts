@@ -1,26 +1,21 @@
 pub mod auth;
 pub mod com_automation;
+pub mod config;
 pub mod excel;
 pub mod fingerprint;
 pub mod homoglyph;
 pub mod powerpoint;
 
+use config::CONFIG;
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Emitter};
 
-/// Sheet names Excel homoglyph replace skips — mirrors config.yml's
-/// `Excel.ExcludedSheets` from the rest of this project's Node.js tools.
-/// This Tauri app has no config.yml of its own, so the list is a fixed
-/// constant here rather than read from a config file.
-const EXCEL_EXCLUDED_SHEETS: &[&str] =
-  &["Results", "Lookup", "ALL", "App", "Stroop", "TMT", "DST", "LMWT", "NS", "EEG"];
-
-/// The 21 PERFECT_STEALTH characters, in order — the frontend renders one
-/// checkbox per entry, defaulting to all-checked.
+/// The configured homoglyph characters (config.json's `homoglyph.perfectStealth`),
+/// in order — the frontend renders one checkbox per entry, defaulting to all-checked.
 #[tauri::command]
 fn list_homoglyph_chars() -> Vec<String> {
-  homoglyph::PERFECT_STEALTH.iter().map(|(latin, _)| latin.to_string()).collect()
+  homoglyph::perfect_stealth().iter().map(|(latin, _)| latin.to_string()).collect()
 }
 
 /// Runs the homoglyph replace on a real Word/Excel/PowerPoint document, via
@@ -49,7 +44,8 @@ async fn run_homoglyph(app: AppHandle, file_path: String, chars: String) -> Resu
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string()),
       "xlsx" | "xlsm" => {
-        excel::apply_excel(&path, chars_opt.as_deref(), EXCEL_EXCLUDED_SHEETS, on_progress)
+        let excluded: Vec<&str> = CONFIG.excel.excluded_sheets.iter().map(String::as_str).collect();
+        excel::apply_excel(&path, chars_opt.as_deref(), &excluded, on_progress)
           .map(|p| p.to_string_lossy().to_string())
           .map_err(|e| e.to_string())
       }

@@ -267,15 +267,32 @@ fill-ins only:
 - **Files:** `src-tauri/src/com_automation.rs` (the raw-IDispatch helper — also the
   `get_item` indexed-collection accessor for `Sheets(n)`/`Cells(r,c)`/`Slides(n)`/
   `Shapes(n)`, and `variant_to_i32`/`variant_to_string`), `src-tauri/src/homoglyph.rs`
-  (Word), `src-tauri/src/excel.rs` (Excel — walks every non-excluded sheet's UsedRange;
-  `EXCEL_EXCLUDED_SHEETS` in `lib.rs` mirrors `config.yml`'s `Excel.ExcludedSheets` since
-  this app has no config file of its own), `src-tauri/src/powerpoint.rs` (PowerPoint —
-  walks every slide/shape with a text frame), `src-tauri/src/auth.rs` +
-  `src-tauri/src/fingerprint.rs` (the login/device-lock implementation).
-  **`Shape.HasTextFrame`/`TextFrame.HasText` marshal as `VT_I4` (MsoTriState), NOT
-  `VT_BOOL`** like Word's `Find.Execute` — `com_automation.rs`'s `variant_to_bool` handles
-  both (a real bug caught by the PowerPoint integration test: without this, every shape
-  was skipped as "no text").
+  (Word), `src-tauri/src/excel.rs` (Excel — walks every non-excluded sheet's UsedRange),
+  `src-tauri/src/powerpoint.rs` (PowerPoint — walks every slide/shape with a text frame),
+  `src-tauri/src/auth.rs` + `src-tauri/src/fingerprint.rs` (the login/device-lock
+  implementation). **`Shape.HasTextFrame`/`TextFrame.HasText` marshal as `VT_I4`
+  (MsoTriState), NOT `VT_BOOL`** like Word's `Find.Execute` — `com_automation.rs`'s
+  `variant_to_bool` handles both (a real bug caught by the PowerPoint integration test:
+  without this, every shape was skipped as "no text").
+- **`src-tauri/config.json` (+ `CONFIG.md`) holds EVERY non-secret tunable value —
+  never a hardcoded Rust `const`.** Embedded into the compiled binary at build time via
+  `include_str!` (`src-tauri/src/config.rs`'s `CONFIG: LazyLock<Config>` — a malformed
+  `config.json` panics at first access, since this is build-time-embedded data under our
+  own control, not a runtime condition to handle gracefully). Holds the Supabase
+  `url`/`anonKey`/`projectRef`, `session.ttlSecs` (the 24h TTL), `keyring.service`/`user`
+  (the Windows Credential Manager identifiers), `excel.excludedSheets` (mirrors the rest
+  of this project's `config.yml`'s `Excel.ExcludedSheets`), and `homoglyph.perfectStealth`
+  (the full 21 Latin→Cyrillic character-mapping table, per user's explicit
+  never-hardcode-any-static-value direction — moved here even though it's arguably app
+  logic data rather than a tunable setting). See `smarts-app-gui`'s own config-embedding
+  pattern (added this session) for the general Tauri mechanic; this project's fill-in is
+  only the concrete `config.json` content.
+- **`SUPABASE_ACCESS_TOKEN` (the Management API token) is the ONE exception — an env var,
+  never `config.json`.** `config.json` is compiled INTO the distributed binary, so a real
+  secret placed there ships to every machine running the app; the Management API token is
+  only used by test/maintenance scripts (never the compiled app itself), read via
+  `std::env::var("SUPABASE_ACCESS_TOKEN")` — the same var the `supabase` CLI itself
+  populates on `supabase login`.
 - **Supabase project:** `humanize`, ref `kduqhvzqxongeeglhuim`, region `eu-central-1`,
   org `AsrorZk`. Public signup disabled; the 3 admin-created accounts are
   `asror.zk@gmail.com`, `gulchiroy@gmail.com`, `dr.durdona.zakirova@gmail.com` (each
@@ -287,9 +304,9 @@ fill-ins only:
 - **Session lasts 24h, then re-prompts login — even on the same machine.**
   `auth.rs`'s `StoredSession` carries a `stored_at` Unix timestamp; `has_stored_session()`
   clears the Windows-Credential-Manager entry and returns `false` once
-  `SESSION_TTL_SECS` (24h) has elapsed, regardless of whether the underlying Supabase
-  token is still valid. A genuinely different machine is rejected by the device-fingerprint
-  RPC itself (see above), independent of this TTL.
+  `config.json`'s `session.ttlSecs` (24h) has elapsed, regardless of whether the
+  underlying Supabase token is still valid. A genuinely different machine is rejected by
+  the device-fingerprint RPC itself (see above), independent of this TTL.
 - **CLI/file-association passthrough:** `get_launch_file_path()` reads the first
   supported file path off `argv`, and the frontend pre-fills it as the picked file right
   after login (`applyLaunchFileIfAny()` in `main.js`) — wired into

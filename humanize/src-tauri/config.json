@@ -1,0 +1,53 @@
+{
+    "supabase": {
+        "url": "https://kduqhvzqxongeeglhuim.supabase.co",
+        "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkdXFodnpxeG9uZ2VlZ2xodWltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NzE1MDUsImV4cCI6MjEwMTQ0NzUwNX0.uuWUKsMyLlQ4cAUat3OAnEzJ0Su6awe19VEVF6iMkUE",
+        "projectRef": "kduqhvzqxongeeglhuim"
+    },
+    "session": {
+        "ttlSecs": 86400
+    },
+    "keyring": {
+        "service": "com.jsaicategory.humanize",
+        "user": "session"
+    },
+    "excel": {
+        "excludedSheets": [
+            "Results",
+            "Lookup",
+            "ALL",
+            "App",
+            "Stroop",
+            "TMT",
+            "DST",
+            "LMWT",
+            "NS",
+            "EEG"
+        ]
+    },
+    "homoglyph": {
+        "perfectStealth": [
+            { "latin": "A", "cyrillic": "А" },
+            { "latin": "a", "cyrillic": "а" },
+            { "latin": "C", "cyrillic": "С" },
+            { "latin": "c", "cyrillic": "с" },
+            { "latin": "E", "cyrillic": "Е" },
+            { "latin": "e", "cyrillic": "е" },
+            { "latin": "H", "cyrillic": "Н" },
+            { "latin": "I", "cyrillic": "І" },
+            { "latin": "i", "cyrillic": "і" },
+            { "latin": "J", "cyrillic": "Ј" },
+            { "latin": "K", "cyrillic": "К" },
+            { "latin": "M", "cyrillic": "М" },
+            { "latin": "O", "cyrillic": "О" },
+            { "latin": "o", "cyrillic": "о" },
+            { "latin": "P", "cyrillic": "Р" },
+            { "latin": "p", "cyrillic": "р" },
+            { "latin": "S", "cyrillic": "Ѕ" },
+            { "latin": "T", "cyrillic": "Т" },
+            { "latin": "X", "cyrillic": "Х" },
+            { "latin": "x", "cyrillic": "х" },
+            { "latin": "y", "cyrillic": "у" }
+        ]
+    }
+}

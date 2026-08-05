@@ -51,7 +51,24 @@ async fn rejects_wrong_password() {
     let result = app_lib::auth::login("asror.zk@gmail.com", "definitely-wrong-password").await;
     assert!(result.is_err(), "a wrong password must be rejected");
     match result.unwrap_err() {
-        app_lib::auth::LoginError::InvalidCredentials { .. } => {}
+        // Assert the MESSAGE, not just the variant — a real bug here
+        // previously slipped past this test entirely: TokenResponse's
+        // access_token/refresh_token were non-optional, so a genuine
+        // Supabase error response (which has neither field) failed to
+        // deserialize at all, and the resulting error message was the
+        // opaque "failed to parse Supabase auth response: error decoding
+        // response body" instead of a clean "Invalid email or password."
+        // Both paths return InvalidCredentials, so checking only the enum
+        // variant (as this test previously did) passed either way and
+        // masked the bug — checking the message text is what actually
+        // catches it.
+        app_lib::auth::LoginError::InvalidCredentials { message } => {
+            assert!(
+                !message.to_lowercase().contains("failed to parse"),
+                "a wrong-password rejection must show a clean message, not a raw parse-error \
+                 leak — got: {message}"
+            );
+        }
         other => panic!("expected InvalidCredentials for a wrong password, got: {other:?}"),
     }
 }

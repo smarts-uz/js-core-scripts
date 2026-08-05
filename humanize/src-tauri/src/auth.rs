@@ -18,22 +18,16 @@
 // project's Row Level Security policies allow (see
 // supabase/migrations/20260805000000_device_fingerprint_lock.sql +
 // 20260805010000_device_fingerprint_name.sql, which scope every RPC/select
-// to auth.uid() = the caller's own row).
+// to auth.uid() = the caller's own row). Both live in config.json (see
+// CONFIG.md), never hardcoded here.
 
+use crate::config::CONFIG;
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 
-const SUPABASE_URL: &str = "https://kduqhvzqxongeeglhuim.supabase.co";
-const SUPABASE_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkdXFodnpxeG9uZ2VlZ2xodWltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NzE1MDUsImV4cCI6MjEwMTQ0NzUwNX0.uuWUKsMyLlQ4cAUat3OAnEzJ0Su6awe19VEVF6iMkUE";
-
-const KEYRING_SERVICE: &str = "com.jsaicategory.humanize";
-const KEYRING_USER: &str = "session";
-
-/// A stored session is only honored for this long — past it,
-/// has_stored_session() reports false (and clears the stale entry) so the
-/// login screen reappears once per day, even though the underlying
-/// Supabase refresh token itself may still be valid for longer.
-const SESSION_TTL_SECS: u64 = 24 * 60 * 60;
+fn keyring_entry() -> keyring::Result<Entry> {
+    Entry::new(&CONFIG.keyring.service, &CONFIG.keyring.user)
+}
 
 #[derive(Serialize)]
 struct PasswordGrantRequest<'a> {
@@ -41,10 +35,22 @@ struct PasswordGrantRequest<'a> {
     password: &'a str,
 }
 
+// Supabase's password-grant endpoint returns TWO genuinely different JSON
+// shapes on the SAME endpoint depending on outcome: a success body has
+// access_token/refresh_token (and no error_code); a failure body (e.g.
+// invalid_credentials) has NEITHER of those, only error_code/msg
+// (sometimes error_description instead of msg). Both access_token and
+// refresh_token MUST be Optional here — making them required strings, as
+// an earlier version of this struct did, meant deserializing a genuine
+// wrong-password response failed the whole struct outright (missing
+// required fields), which surfaced as an opaque "failed to parse Supabase
+// auth response: error decoding response body" instead of the real,
+// clean "Invalid login credentials" message — every wrong password showed
+// this confusing error, 100% of the time, not just on a rare parse glitch.
 #[derive(Deserialize)]
 struct TokenResponse {
-    access_token: String,
-    refresh_token: String,
+    access_token: Option<String>,
+    refresh_token: Option<String>,
     #[serde(default)]
     error_description: Option<String>,
     #[serde(default)]
@@ -94,8 +100,8 @@ pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
     let http = client();
 
     let token_resp = http
-        .post(format!("{SUPABASE_URL}/auth/v1/token?grant_type=password"))
-        .header("apikey", SUPABASE_ANON_KEY)
+        .post(format!("{}/auth/v1/token?grant_type=password", CONFIG.supabase.url))
+        .header("apikey", &CONFIG.supabase.anon_key)
         .header("Content-Type", "application/json")
         .json(&PasswordGrantRequest { email, password })
         .send()
@@ -110,12 +116,21 @@ pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
             message: format!("failed to parse Supabase auth response: {e}"),
         })?;
 
-    if !status.is_success() {
+    // A failure response (wrong password, unknown email, etc.) has neither
+    // access_token nor refresh_token — check this BEFORE `!status.is_success()`
+    // alone, since a non-2xx status with a real access_token is not a shape
+    // Supabase's API produces, but treating "both tokens present" as the
+    // actual success signal is the more robust check either way.
+    let (Some(access_token), Some(refresh_token)) = (token.access_token, token.refresh_token) else {
         let reason = token
-            .error_description
-            .or(token.msg)
-            .unwrap_or_else(|| "invalid email or password".to_string());
+            .msg
+            .or(token.error_description)
+            .unwrap_or_else(|| "Invalid email or password.".to_string());
         return Err(LoginError::InvalidCredentials { message: reason });
+    };
+
+    if !status.is_success() {
+        return Err(LoginError::InvalidCredentials { message: "Invalid email or password.".to_string() });
     }
 
     let fingerprint = crate::fingerprint::compute()
@@ -123,9 +138,9 @@ pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
     let device_name = crate::fingerprint::device_name().unwrap_or_else(|_| "Unknown PC".to_string());
 
     let rpc_resp = http
-        .post(format!("{SUPABASE_URL}/rest/v1/rpc/check_and_bind_fingerprint"))
-        .header("apikey", SUPABASE_ANON_KEY)
-        .header("Authorization", format!("Bearer {}", token.access_token))
+        .post(format!("{}/rest/v1/rpc/check_and_bind_fingerprint", CONFIG.supabase.url))
+        .header("apikey", &CONFIG.supabase.anon_key)
+        .header("Authorization", format!("Bearer {access_token}"))
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({ "p_fingerprint": fingerprint, "p_device_name": device_name }))
         .send()
@@ -143,8 +158,7 @@ pub async fn login(email: &str, password: &str) -> Result<(), LoginError> {
         return Err(LoginError::WrongDevice { bound_device_name: check.bound_device_name });
     }
 
-    store_session(&token.access_token, &token.refresh_token)
-        .map_err(|e| LoginError::InvalidCredentials { message: e })?;
+    store_session(&access_token, &refresh_token).map_err(|e| LoginError::InvalidCredentials { message: e })?;
     Ok(())
 }
 
@@ -156,8 +170,7 @@ fn now_unix_secs() -> u64 {
 }
 
 fn store_session(access_token: &str, refresh_token: &str) -> Result<(), String> {
-    let entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("failed to open credential store: {e}"))?;
+    let entry = keyring_entry().map_err(|e| format!("failed to open credential store: {e}"))?;
     let payload = serde_json::to_string(&StoredSession {
         access_token: access_token.to_string(),
         refresh_token: refresh_token.to_string(),
@@ -175,7 +188,7 @@ fn store_session(access_token: &str, refresh_token: &str) -> Result<(), String> 
 /// against Supabase beyond the age check; the frontend should retry login
 /// if a subsequent action fails with 401.
 pub fn has_stored_session() -> bool {
-    let Ok(entry) = Entry::new(KEYRING_SERVICE, KEYRING_USER) else {
+    let Ok(entry) = keyring_entry() else {
         return false;
     };
     let Ok(payload) = entry.get_password() else {
@@ -190,7 +203,7 @@ pub fn has_stored_session() -> bool {
     };
 
     let age = now_unix_secs().saturating_sub(session.stored_at);
-    if age > SESSION_TTL_SECS {
+    if age > CONFIG.session.ttl_secs {
         let _ = entry.delete_credential();
         return false;
     }
@@ -200,8 +213,7 @@ pub fn has_stored_session() -> bool {
 
 /// Clears the stored session (logout).
 pub fn clear_session() -> Result<(), String> {
-    let entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("failed to open credential store: {e}"))?;
+    let entry = keyring_entry().map_err(|e| format!("failed to open credential store: {e}"))?;
     match entry.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("failed to clear session: {e}")),
