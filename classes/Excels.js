@@ -796,10 +796,17 @@ export class Excels {
 
 
 
-    // Replace {KEY} placeholders
+    // Replace {KEY} placeholders — skip array-valued keys (Accrual, every
+    // Excel.CellNames key: Bank-OT, EHF-IN, …). These are never rendered as a
+    // {key} placeholder; they are written cell-by-cell by processPricing/
+    // processFolders above. Passing an array/object straight to Excel COM's
+    // Cells.Replace crashes ("DispInvoke: Replace The remote procedure call
+    // failed.") since it only accepts a string/primitive.
     for (const key of Object.keys(yamlData)) {
 
       const value = yamlData[key];
+
+      if (Array.isArray(value)) continue;
 
       const placeholder = `{${key}}`;
 

@@ -1072,6 +1072,78 @@ describe('Excels.generate', () => {
     );
     killSpy.mockRestore();
   });
+
+  // Regression: a real run against ASHALIFE PHARMA crashed with
+  // "DispInvoke: Replace The remote procedure call failed." — the {KEY}
+  // placeholder loop passed yamlData.Accrual (an array of {"start#end": price}
+  // objects, written by Yamls.replaceYaml) straight to Excel COM's
+  // Cells.Replace, which only accepts a string/primitive. Array-valued keys
+  // (Accrual, every Excel.CellNames key) must never reach replaceInSheet.
+  it('skips array-valued yamlData keys (Accrual, Excel.CellNames entries) in the {KEY} placeholder loop', () => {
+    globalThis.folderActReco = path.join(workDir, 'ActReco3');
+    globalThis.folderALL = path.join(workDir, 'ALL3');
+    fs.mkdirSync(globalThis.folderALL, { recursive: true });
+    const template = makeFile('Tpl3.xlsx', 'tpl');
+
+    YamlsMock.getConfig.mockImplementation((key) => {
+      if (key === 'Templates.Excel') return template;
+      if (key === 'Excel.CellNames') return ['Bank-OT'];
+      return null;
+    });
+    YamlsMock.loadYamlWithDeps.mockReturnValue({
+      ComName: 'Acme',
+      Accrual: [{ '2025-07-09#2025-07-31': '390,000' }],
+      'Bank-OT': [{ '2025-07-11': '2340000' }],
+    });
+
+    const cellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    cellsFn.Find = jest.fn(() => makeComProxy({ Row: 1, Column: 1 }, 'found'));
+    cellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: cellsFn }, 'AppSheet');
+    const wb = makeComProxy(
+      { Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() },
+      'Workbook'
+    );
+    installApp(wb, {
+      ExecuteExcel4Macro: jest.fn(() => 222),
+      CalculateFull: jest.fn(),
+      Quit: jest.fn(),
+    });
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+    expect(() => Excels.generate(path.join(workDir, 'e.yml'))).not.toThrow();
+
+    // The array-valued keys never reach Cells.Replace as a {KEY} placeholder.
+    expect(sheet.Cells.Replace).not.toHaveBeenCalledWith(
+      '{Accrual}',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+    expect(sheet.Cells.Replace).not.toHaveBeenCalledWith(
+      '{Bank-OT}',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+    // A plain string-valued key still goes through normally.
+    expect(sheet.Cells.Replace).toHaveBeenCalledWith(
+      '{ComName}',
+      'Acme',
+      2,
+      2,
+      false,
+      false,
+      false
+    );
+    killSpy.mockRestore();
+  });
 });
 
 // =============================================================================
