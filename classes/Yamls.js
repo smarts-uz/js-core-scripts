@@ -129,34 +129,33 @@ export class Yamls {
         console.log(`File ${filePath} has been updated.`, value);
     }
 
-    // Writes/replaces the Pricings: array block directly after the
-    // ActDateEnd: line in the .contract yaml — one entry per calendar month
-    // across the contract's active period, each a single "start#end": amount
-    // date-interval mapping:
-    //   Pricings:
-    //     - 2026-03-01#2026-03-31: 450,000
-    //     - 2026-04-01#2026-04-30: 450,000
-    static writePricings(filePath, pricings) {
-        console.info(`[Yamls.writePricings] 🟢 Starting...`);
+    // Generic writer for a single top-level "Key:" array block in a .contract
+    // yaml — inserts/replaces it directly after the line matching `afterKey`
+    // (e.g. "ActDateEnd" or "Accrual"), stripping any of `legacyKeys` (old
+    // names this key used to have) so a re-run never duplicates it and an
+    // old-format file converges to the current key/shape. An empty `entries`
+    // array is still written as "Key: []" when allowEmpty is true (the
+    // default) — the caller decides whether "no data yet" should still leave
+    // the key present (empty) or be skipped entirely.
+    static writeYamlArraySection(filePath, key, entries, afterKey, legacyKeys = [], allowEmpty = true) {
+        console.info(`[Yamls.writeYamlArraySection] 🟢 Starting... key=${key}`);
 
-        if (!Array.isArray(pricings) || pricings.length === 0) {
-            console.warn(`writePricings: pricings is empty, nothing to write for ${filePath}.`);
+        if (!Array.isArray(entries)) entries = [];
+        if (entries.length === 0 && !allowEmpty) {
+            console.warn(`writeYamlArraySection: ${key} is empty and allowEmpty=false, nothing to write for ${filePath}.`);
             return;
         }
 
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const lines = fileContent.split('\n');
 
-        const block = yaml.dump({ Pricings: pricings }, { lineWidth: -1 }).trimEnd().split('\n');
+        const block = yaml.dump({ [key]: entries }, { lineWidth: -1 }).trimEnd().split('\n');
 
-        // Strip any previously-written Pricings: block, AND the legacy
-        // PriceHistory: block this feature used before its rename, (the key
-        // line plus every indented line under it) so re-running never
-        // duplicates it and an old-format file converges to the new key/shape.
+        const keysToStrip = [key, ...legacyKeys].map(k => new RegExp(`^${k}:`));
         const stripped = [];
         let skipping = false;
         for (const line of lines) {
-            if (/^Pricings:/.test(line) || /^PriceHistory:/.test(line)) {
+            if (keysToStrip.some(re => re.test(line))) {
                 skipping = true;
                 continue;
             }
@@ -167,18 +166,96 @@ export class Yamls {
             stripped.push(line);
         }
 
-        const actDateEndIdx = stripped.findIndex(line => /^ActDateEnd:/.test(line));
+        const afterIdx = stripped.findIndex(line => new RegExp(`^${afterKey}:`).test(line));
 
-        if (actDateEndIdx === -1) {
-            console.warn(`writePricings: "ActDateEnd:" line not found in ${filePath}; appending Pricings at end of file.`);
+        if (afterIdx === -1) {
+            console.warn(`writeYamlArraySection: "${afterKey}:" line not found in ${filePath}; appending ${key} at end of file.`);
             stripped.push(...block);
         } else {
-            stripped.splice(actDateEndIdx + 1, 0, ...block);
+            // Insert after the WHOLE afterKey block, not just its own key
+            // line — skip past every indented child line (its array items)
+            // first, so a chained insertion (Bank-OT after Accrual, Bonuses
+            // after Bank-OT, ...) lands after each key's own data, never
+            // splitting a block apart.
+            let insertIdx = afterIdx + 1;
+            while (insertIdx < stripped.length && /^\s/.test(stripped[insertIdx])) {
+                insertIdx++;
+            }
+            stripped.splice(insertIdx, 0, ...block);
         }
 
         fs.writeFileSync(filePath, stripped.join('\n'));
 
-        console.log(`File ${filePath} has been updated with Pricings.`, pricings);
+        console.log(`File ${filePath} has been updated with ${key}.`, entries);
+    }
+
+    // Writes/replaces the Accrual: array block directly after the
+    // ActDateEnd: line in the .contract yaml — one entry per calendar month
+    // across the contract's active period, each a single "start#end": amount
+    // date-interval mapping (the accrued rent charge for that month):
+    //   Accrual:
+    //     - 2026-03-01#2026-03-31: 450,000
+    //     - 2026-04-01#2026-04-30: 450,000
+    static writeAccrual(filePath, accrual) {
+        console.info(`[Yamls.writeAccrual] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'Accrual', accrual, 'ActDateEnd', ['Pricings', 'PriceHistory'], false);
+    }
+
+    // Scans <folderALL>/<key>/ for dated subfolders (ported from
+    // Excels.scanSubFolder + Excels.processFolders — same "YYYY-MM-DD amount"
+    // naming, same numeric sort) and returns [{date, amount}], sorted, amount
+    // stripped of commas/spaces. Returns [] when the folder doesn't exist —
+    // this is what lets a key be written as an empty array by default.
+    static scanCellFolder(folderALL, key) {
+        console.info(`[Yamls.scanCellFolder] 🟢 Starting... key=${key}`);
+
+        const folderPath = path.join(folderALL, key);
+        if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+            return [];
+        }
+
+        const subFolders = fs.readdirSync(folderPath)
+            .map(f => path.join(folderPath, f))
+            .filter(f => fs.statSync(f).isDirectory());
+
+        subFolders.sort((a, b) =>
+            path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
+        );
+
+        const entries = [];
+        for (const folder of subFolders) {
+            const name = path.basename(folder);
+            const match = name.match(/^(\d{4}-\d{2}-\d{2})\s+([\d,]+)$/);
+            if (!match) continue;
+
+            const date = match[1];
+            const amount = match[2].replace(/,/g, '').replace(/\s/g, '');
+            entries.push({ [date]: amount });
+        }
+
+        console.log(`scanCellFolder: ${key} -> ${entries.length} entr(y/ies)`, entries);
+        return entries;
+    }
+
+    // Writes every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
+    // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses — the same set
+    // Excels.generate reads via config.yml) into the .contract yaml as its own
+    // array block, right after Accrual: — each populated from
+    // scanCellFolder(folderALL, key) when that folder exists, or left as an
+    // empty array ("KeyName: []") when it doesn't, so every key is always
+    // present even with no data yet.
+    static writeCellArrays(ymlFile, folderALL) {
+        console.info(`[Yamls.writeCellArrays] 🟢 Starting...`);
+
+        const cellNames = this.getConfig('Excel.CellNames', 'array', []);
+        console.log('writeCellArrays: cellNames', cellNames);
+
+        let afterKey = 'Accrual';
+        for (const key of cellNames) {
+            const entries = this.scanCellFolder(folderALL, key);
+            this.writeYamlArraySection(ymlFile, key, entries, afterKey, [], true);
+            afterKey = key;
+        }
     }
 
     static loadYamlWithDeps(ymlFile) {
@@ -407,31 +484,29 @@ export class Yamls {
             if (!rewrite && !cacheExists)
                 console.warn(`[Yamls.fillYamlWithInfo] ⚠️ rewrite=false lekin cache topilmadi — API dan olinmoqda.`);
 
-            // A Compan folder can carry BOTH a 9-digit TIN marker and a 14-digit
-            // PINFL marker (a sole proprietor/YaTT registered under their own
-            // personal ID). The PINFL is the stronger signal — it identifies an
-            // individual, not a company with a separate director — so it takes
-            // priority over the TIN when both are present.
-            let comTIN = Files.getPINFLFromTXT(globalThis.folderCompan);
-            console.info("comTIN ComPINFL:", comTIN);
+            // ComType is a starting-Variables field (filled by smarts-firm-docums from
+            // the company's real registration documents: Statute, IP/YaTT certificate,
+            // registry extract) — the human-confirmed legal form is the source of
+            // truth for whether this company is a sole proprietor, replacing the old
+            // automatic PINFL-vs-TIN-length inference (comTIN.length === 14). It also
+            // decides which marker file comTIN resolves from: a Compan folder can
+            // carry BOTH a 9-digit TIN marker and a 14-digit PINFL marker (the
+            // director's/surety's own personal PINFL happens to live in the same
+            // folder for an ordinary company, or the YaTT owner's ID marker for a
+            // sole proprietor) — only ComType, never "which marker happens to exist",
+            // decides which one IS this company's identity.
+            const isYatt = yamlData.ComType === 'YaTT';
+            console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
 
-            if (!comTIN) {
-                comTIN = Files.getTINFromTXT(globalThis.folderCompan);
-                console.info("comTIN:", comTIN);
-            }
+            let comTIN = isYatt
+                ? Files.getPINFLFromTXT(globalThis.folderCompan)
+                : Files.getTINFromTXT(globalThis.folderCompan);
+            console.info("comTIN (from ComType-selected marker):", comTIN, "isYatt:", isYatt);
 
             if (!comTIN) {
                 Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
                 return null;
             }
-
-            // ComType is a starting-Variables field (filled by smarts-firm-docums from
-            // the company's real registration documents: Statute, IP/YaTT certificate,
-            // registry extract) — the human-confirmed legal form is the source of
-            // truth for whether this company is a sole proprietor, replacing the old
-            // automatic PINFL-vs-TIN-length inference (comTIN.length === 14).
-            const isYatt = yamlData.ComType === 'YaTT';
-            console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
 
             if (isYatt)
                 Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
@@ -548,10 +623,18 @@ export class Yamls {
         console.log(yamlData, 'yamlData');
         console.log(companyInfo, 'companyInfo');
 
-        if (Files.isEmpty(yamlData.ComDate)) {
+        // Every "_"-suffixed key ALWAYS holds a DD.MM.YYYY date (ComDate_,
+        // ComDateEnd_, ComDateIjara_, ActDate_, ActDateEnd_); the matching
+        // bare-named key (no "_", formerly the "*Excel" suffix) ALWAYS holds
+        // the same date converted to YYYY-MM-DD (ComDate, ComDateEnd,
+        // ComDateIjara, ActDate, ActDateEnd, plus the derived StartDate/
+        // FutureDate/FutureDateApp). The "_" suffix exists ONLY to free up the
+        // bare name for the YYYY-MM-DD counterpart — both forms of the same
+        // date are always kept in sync below.
+        if (Files.isEmpty(yamlData.ComDate_)) {
             let comDateFromTxt = Files.getDateFromTXT(globalThis.folderCompan)
             if (comDateFromTxt) {
-                yamlData.ComDate = comDateFromTxt
+                yamlData.ComDate_ = comDateFromTxt
             } else {
                 const regDate = companyInfo.isYatt
                     ? companyInfo.soliqYatt?.registrationDate
@@ -559,76 +642,76 @@ export class Yamls {
                 // registrationDate can come back as YYYY-MM-DD (soliq API) or
                 // already DD.MM.YYYY (Didox) — normalize to Didox's DD.MM.YYYY,
                 // which every downstream date helper (Dates.addDays, Word.extractDate) expects.
-                yamlData.ComDate = Dates.excelToDidox(regDate) || regDate
+                yamlData.ComDate_ = Dates.excelToDidox(regDate) || regDate
             }
         } else {
-            Files.saveInfoToFile(globalThis.folderCompan, yamlData.ComDate)
+            Files.saveInfoToFile(globalThis.folderCompan, yamlData.ComDate_)
         }
 
-        if (Files.isEmpty(yamlData.ComDateIjara)) {
-            yamlData.ComDateIjara = Yamls.getConfig('Contract.ComDateIjara');
-            console.info('yamlData.ComDateIjara', yamlData.ComDateIjara);
+        if (Files.isEmpty(yamlData.ComDateIjara_)) {
+            yamlData.ComDateIjara_ = Yamls.getConfig('Contract.ComDateIjara');
+            console.info('yamlData.ComDateIjara_', yamlData.ComDateIjara_);
         }
 
         const addDays = Yamls.getConfig('Contract.AddDays');
         console.log(`addDays from Yaml: ${addDays}`);
-        yamlData.ComDateEnd = Dates.addDays(yamlData.ComDate, addDays)
-        console.info('yamlData.ComDateEnd', yamlData.ComDateEnd);
+        yamlData.ComDateEnd_ = Dates.addDays(yamlData.ComDate_, addDays)
+        console.info('yamlData.ComDateEnd_', yamlData.ComDateEnd_);
 
 
-        const comDate = Word.extractDate(yamlData.ComDate);
+        const comDate = Word.extractDate(yamlData.ComDate_);
         if (!comDate)
-            return Dialogs.warningBox(`ComDate is missing or invalid ("${yamlData.ComDate}") — cannot fill Day/Month/Year. Fill it in the .contract yaml or add a DD.MM.YYYY marker file in Compan/.`);
+            return Dialogs.warningBox(`ComDate_ is missing or invalid ("${yamlData.ComDate_}") — cannot fill Day/Month/Year. Fill it in the .contract yaml or add a DD.MM.YYYY marker file in Compan/.`);
         yamlData.Day = comDate.day;
         yamlData.Month = comDate.month;
         yamlData.Year = comDate.year;
 
-        const comDateEnd = Word.extractDate(yamlData.ComDateEnd);
+        const comDateEnd = Word.extractDate(yamlData.ComDateEnd_);
         if (!comDateEnd)
-            return Dialogs.warningBox(`ComDateEnd is missing or invalid ("${yamlData.ComDateEnd}") — cannot fill DayEnd/MonthEnd/YearEnd.`);
+            return Dialogs.warningBox(`ComDateEnd_ is missing or invalid ("${yamlData.ComDateEnd_}") — cannot fill DayEnd/MonthEnd/YearEnd.`);
         yamlData.DayEnd = comDateEnd.day;
         yamlData.MonthEnd = comDateEnd.month;
         yamlData.YearEnd = comDateEnd.year;
 
-        const comDateIjara = Word.extractDate(yamlData.ComDateIjara);
+        const comDateIjara = Word.extractDate(yamlData.ComDateIjara_);
         if (!comDateIjara)
-            return Dialogs.warningBox(`ComDateIjara is missing or invalid ("${yamlData.ComDateIjara}") — cannot fill DayIjara/MonthIjara/YearIjara. Check Contract.ComDateIjara in config.yml.`);
+            return Dialogs.warningBox(`ComDateIjara_ is missing or invalid ("${yamlData.ComDateIjara_}") — cannot fill DayIjara/MonthIjara/YearIjara. Check Contract.ComDateIjara in config.yml.`);
         yamlData.DayIjara = comDateIjara.day;
         yamlData.MonthIjara = comDateIjara.month;
         yamlData.YearIjara = comDateIjara.year;
 
 
-        yamlData.ActDateExcel = Dates.didoxToExcel(yamlData.ActDate);
-        yamlData.ActDateEndExcel = Dates.didoxToExcel(yamlData.ActDateEnd);
+        yamlData.ActDate = Dates.didoxToExcel(yamlData.ActDate_);
+        yamlData.ActDateEnd = Dates.didoxToExcel(yamlData.ActDateEnd_);
 
-        yamlData.ComDateExcel = Dates.didoxToExcel(yamlData.ComDate);
-        yamlData.ComDateEndExcel = Dates.didoxToExcel(yamlData.ComDateEnd);
-        yamlData.ComDateIjaraExcel = Dates.didoxToExcel(yamlData.ComDateIjara);
+        yamlData.ComDate = Dates.didoxToExcel(yamlData.ComDate_);
+        yamlData.ComDateEnd = Dates.didoxToExcel(yamlData.ComDateEnd_);
+        yamlData.ComDateIjara = Dates.didoxToExcel(yamlData.ComDateIjara_);
 
-        if (!yamlData.ActDate) {
-            yamlData.StartDateExcel = yamlData.ComDateExcel
-            console.log('StartDateExcel from ComDateExcel', yamlData.StartDateExcel);
+        if (!yamlData.ActDate_) {
+            yamlData.StartDate = yamlData.ComDate
+            console.log('StartDate from ComDate', yamlData.StartDate);
         }
         else {
-            yamlData.StartDateExcel = Dates.didoxToExcel(yamlData.ActDate)
-            console.log('StartDateExcel from ActDate', yamlData.StartDateExcel);
+            yamlData.StartDate = Dates.didoxToExcel(yamlData.ActDate_)
+            console.log('StartDate from ActDate_', yamlData.StartDate);
         }
 
 
         const prepayMonth = Yamls.getPrepayMonth(yamlData);
         console.log(prepayMonth, 'prepayMonth');
 
-        if (!yamlData.ActDateEnd) {
-            yamlData.FutureDateExcel = Dates.futureDateByMonth(prepayMonth, false)
-            console.log('FutureDateExcel from prepayMonth', yamlData.FutureDateExcel);
+        if (!yamlData.ActDateEnd_) {
+            yamlData.FutureDate = Dates.futureDateByMonth(prepayMonth, false)
+            console.log('FutureDate from prepayMonth', yamlData.FutureDate);
         }
         else {
-            yamlData.FutureDateExcel = Dates.didoxToExcel(yamlData.ActDateEnd)
-            console.log('FutureDateExcel from ActDateEnd', yamlData.FutureDateExcel);
+            yamlData.FutureDate = Dates.didoxToExcel(yamlData.ActDateEnd_)
+            console.log('FutureDate from ActDateEnd_', yamlData.FutureDate);
         }
 
-        yamlData.FutureDateAppExcel = Dates.getMinusOneDay(yamlData.FutureDateExcel)
-        console.log(yamlData.FutureDateAppExcel, 'yamlData.FutureDateAppExcel');
+        yamlData.FutureDateApp = Dates.getMinusOneDay(yamlData.FutureDate)
+        console.log(yamlData.FutureDateApp, 'yamlData.FutureDateApp');
 
 
 
@@ -904,7 +987,7 @@ export class Yamls {
 
         Files.deleteInfo(globalThis.folderALL, '#VAT')
 
-        const ComDate = Dates.parseDMY(yamlData.ComDate);
+        const ComDate = Dates.parseDMY(yamlData.ComDate_);
         const ComVATDateReg = Dates.parseDMY(yamlData.ComVATDateReg);
 
         // if ComDate is greater than ComVATDateReg 
@@ -942,14 +1025,22 @@ export class Yamls {
             this.replaceTextLine(ymlFile, key, value);
         }
 
-        // Always record one Pricings entry per calendar month across the
-        // contract's active period (StartDateExcel..ComDateEndExcel) — runs
-        // every time the .contract is filled/updated, not only when an Excel
-        // report is generated separately. Each key is a "start#end" date
-        // interval (YYYY-MM-DD#YYYY-MM-DD).
-        const monthRanges = Dates.monthsBetween(yamlData.StartDateExcel, yamlData.ComDateEndExcel);
-        const pricings = monthRanges.map(({ start, end }) => ({ [`${start}#${end}`]: yamlData.Price }));
-        Yamls.writePricings(ymlFile, pricings);
+        // Always record one Accrual entry (the accrued rent charge) per
+        // calendar month across the contract's active period
+        // (StartDate..ComDateEnd, both YYYY-MM-DD) — runs every time the
+        // .contract is filled/updated, not only when an Excel report is
+        // generated separately. Each key is a "start#end" date interval
+        // (YYYY-MM-DD#YYYY-MM-DD).
+        const monthRanges = Dates.monthsBetween(yamlData.StartDate, yamlData.ComDateEnd);
+        const accrual = monthRanges.map(({ start, end }) => ({ [`${start}#${end}`]: yamlData.Price }));
+        Yamls.writeAccrual(ymlFile, accrual);
+
+        // Every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
+        // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses) — same folder-scan data
+        // Excels.generate used to write only into the Excel report — is now
+        // ALSO written straight into the .contract yaml on every fill, so the
+        // yaml itself carries the real transaction history, not just Excel.
+        Yamls.writeCellArrays(ymlFile, globalThis.folderALL);
 
     }
 

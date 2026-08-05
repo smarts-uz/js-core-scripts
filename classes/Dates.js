@@ -65,11 +65,12 @@ export class Dates {
 
 
   // Every calendar-month {start, end} date range ('YYYY-MM-DD' each) from
-  // startExcel through endExcel, inclusive — one entry per month. The first
-  // entry's start and the last entry's end are clamped to the real
-  // startExcel/endExcel (never forced to the 1st/last-day of that month); every
-  // month in between spans its own full calendar range. Used to build a
-  // per-month price history entry across a contract's full active period.
+  // startExcel through endExcel, inclusive — one entry per month. Only the
+  // FIRST entry's start is clamped to the real startExcel (never forced back
+  // to the 1st of that month); every entry's end — including the first and
+  // the last — always runs through the full last day of its own calendar
+  // month, never clamped to the real endExcel. Used to build a per-month
+  // price history entry across a contract's full active period.
   static monthsBetween(startExcel, endExcel) {
     console.info(`[Dates.monthsBetween] 🟢 Starting...`);
     console.log("monthsBetween startExcel", startExcel, "endExcel", endExcel);
@@ -85,10 +86,9 @@ export class Dates {
     const ranges = [];
     while (cursor.isBefore(lastMonth) || cursor.isSame(lastMonth)) {
       const isFirst = cursor.isSame(realStart, 'month');
-      const isLast = cursor.isSame(lastMonth, 'month');
 
       const start = isFirst ? realStart : cursor.startOf('month');
-      const end = isLast ? realEnd : cursor.endOf('month');
+      const end = cursor.endOf('month');
 
       ranges.push({ start: start.format('YYYY-MM-DD'), end: end.format('YYYY-MM-DD') });
       cursor = cursor.add(1, 'month');

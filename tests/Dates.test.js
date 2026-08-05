@@ -134,7 +134,7 @@ describe('Dates.monthsBetween', () => {
     ]);
   });
 
-  it("clamps the first range's start and the last range's end to the real dates, not month boundaries", () => {
+  it("clamps only the FIRST range's start to the real startExcel — every end (including the first and last) always runs through the end of its own month, never clamped to endExcel", () => {
     expect(Dates.monthsBetween('2025-07-09', '2026-01-15')).toEqual([
       { start: '2025-07-09', end: '2025-07-31' },
       { start: '2025-08-01', end: '2025-08-31' },
@@ -142,7 +142,13 @@ describe('Dates.monthsBetween', () => {
       { start: '2025-10-01', end: '2025-10-31' },
       { start: '2025-11-01', end: '2025-11-30' },
       { start: '2025-12-01', end: '2025-12-31' },
-      { start: '2026-01-01', end: '2026-01-15' },
+      { start: '2026-01-01', end: '2026-01-31' },
+    ]);
+  });
+
+  it('even a single-month range ends on the last day of that month, never clamped to a mid-month endExcel', () => {
+    expect(Dates.monthsBetween('2026-01-10', '2026-01-15')).toEqual([
+      { start: '2026-01-10', end: '2026-01-31' },
     ]);
   });
 

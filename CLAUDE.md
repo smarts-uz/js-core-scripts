@@ -201,23 +201,66 @@ heuristic that a 14-digit PINFL could produce for reasons unrelated to legal for
 
 `Files.exists(filePath)` (in `classes/Files.js`) awaits `access(filePath)` — the **Promise-based** `access` imported from `node:fs/promises`. It must **never** be changed to call `fs.access(filePath)` off the default `fs` import (`import fs from 'fs'`) — that is the **callback-style** API, and calling it with no callback argument throws synchronously (`"cb" argument must be of type function`), which the surrounding `try/catch` silently swallows, making the method **always return `false`** — even for a file that genuinely exists. This exact bug shipped for a real stretch of time and was previously only _documented_ as a known issue in a test title rather than fixed, silently breaking every guard that depends on `Files.exists` (e.g. `Yamls.update`'s template-existence check always failed regardless of whether `Templates.Yaml` pointed at a real file).
 
-### `Pricings` — one entry per calendar month, always written on every contract fill
+### `Accrual` — the accrued monthly rent charge, one entry per calendar month, always written on every contract fill
 
-Every `.contract` yaml automatically gets a `Pricings:` array written directly after its `ActDateEnd:` line, one entry per calendar month across the contract's active period, each key a `"YYYY-MM-DD#YYYY-MM-DD"` date interval (start`#`end) mapped to the price. (Named `Pricings` deliberately distinct from `globalThis.folderPricings`/`Excels.processPricing`'s own `Pricings/` marker-file folder mechanism — same word, unrelated mechanism, no code coupling between them.)
+Every `.contract` yaml automatically gets an `Accrual:` array written directly after its `ActDateEnd:` line — one entry per calendar month across the contract's active period, each key a `"YYYY-MM-DD#YYYY-MM-DD"` date interval (start`#`end) mapped to that month's accrued rent charge (начисление — the rent payment calculated/due for that specific month). (Named `Accrual` — renamed from the earlier `Pricings`/`PriceHistory` names during development; `Accrual` is deliberately distinct from `globalThis.folderPricings`/`Excels.processPricing`'s own unrelated `Pricings/` marker-file folder mechanism.)
 
 ```yaml
 ActDateEnd:
-Pricings:
+Accrual:
     - 2025-07-09#2025-07-31: 390,000
     - 2025-08-01#2025-08-31: 390,000
     - 2025-09-01#2025-09-30: 390,000
 ```
 
-- **`Dates.monthsBetween(startExcel, endExcel)`** (`classes/Dates.js`) — returns one `{start, end}` range (both `YYYY-MM-DD`) per calendar month from `startExcel` through `endExcel` inclusive; the first range's `start` and the last range's `end` are clamped to the real `startExcel`/`endExcel` (never forced to the 1st/last day of that month) — every month in between spans its own full calendar range.
-- **`Yamls.writePricings(filePath, pricings)`** (`classes/Yamls.js`) — idempotently inserts/replaces the `Pricings:` block right after the `ActDateEnd:` line (strips any previously-written block first, so re-running never duplicates it); falls back to appending at end-of-file with a warning if `ActDateEnd:` is missing. Each array item is a single `"start#end": price` mapping — the key is built in `Yamls.replaceYaml` as `` `${start}#${end}` `` from a `Dates.monthsBetween` range.
-- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after the final `replaceTextLine` write loop, over the range `yamlData.StartDateExcel`..`yamlData.ComDateEndExcel` (the contract's real active period, already computed earlier in `replaceYaml`) at the current `yamlData.Price` — **not** gated behind `Excels.generate`/Excel report generation. This means every `Yamls.fillYamlWithInfo`/`Yamls.update` run (the normal contract-fill pipeline) writes/refreshes it, regardless of whether an Excel `ActReco` file is ever produced for that run.
-- **Real-world proof:** run against `d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract` (Tariff `1-390k-6M`, `ActDate` 09.07.2025 → `ComDateEnd` 30.12.2026) produced 18 monthly date-interval entries (`2025-07-09#2025-07-31` through `2026-12-01#2026-12-30`) at `390,000` each — the first interval starts at the real `ActDate` (not the 1st of July) and the last ends at the real `ComDateEnd` (not the 31st of December).
-- Regression tests: `tests/Dates.test.js` → `Dates.monthsBetween` (including the start/end clamping case); `tests/Yamls.test.js` → `Yamls.writePricings` + `Yamls.replaceYaml` → _"always writes one Pricings entry per month across the contract period"_.
+- **`Dates.monthsBetween(startExcel, endExcel)`** (`classes/Dates.js`) — returns one `{start, end}` range (both `YYYY-MM-DD`) per calendar month from `startExcel` through `endExcel` inclusive. Only the **first** range's `start` is clamped to the real `startExcel` (never forced back to the 1st of that month); every range's `end` — including the first and the last — always runs through the **full last day of its own calendar month**, never clamped to the real `endExcel`.
+- **`Yamls.writeAccrual(filePath, accrual)`** (`classes/Yamls.js`) — idempotently inserts/replaces the `Accrual:` block right after the `ActDateEnd:` line (strips any previously-written `Accrual:` block, plus the legacy `Pricings:`/`PriceHistory:` key names from earlier in development, so an old-format file converges to the current key/shape on the next write); falls back to appending at end-of-file with a warning if `ActDateEnd:` is missing. Each array item is a single `"start#end": price` mapping — the key is built in `Yamls.replaceYaml` as `` `${start}#${end}` `` from a `Dates.monthsBetween` range.
+- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after the final `replaceTextLine` write loop, over the range `yamlData.StartDate`..`yamlData.ComDateEnd` (both YYYY-MM-DD, the contract's real active period, already computed earlier in `replaceYaml`) at the current `yamlData.Price` — **not** gated behind `Excels.generate`/Excel report generation. This means every `Yamls.fillYamlWithInfo`/`Yamls.update` run (the normal contract-fill pipeline) writes/refreshes it, regardless of whether an Excel `ActReco` file is ever produced for that run.
+- Regression tests: `tests/Dates.test.js` → `Dates.monthsBetween` (including the always-full-month-end case, even for a single-month range); `tests/Yamls.test.js` → `Yamls.writeAccrual` (including the legacy `Pricings:`/`PriceHistory:` migration case) + `Yamls.replaceYaml` → _"always writes one Accrual entry per month across the contract period"_.
+
+### `Excel.CellNames` keys (`Bank-OT`/`Bank-IN`/`EHF-IN`/`Trans-OT`/`BaaR-OT`/`BaaR-IN`/`Card-OT`/`Card-IN`/`Bonuses`) — also written into the .contract yaml, ported from `Excels.generate`'s folder-scan
+
+The same 9 keys `Excels.generate` already reads from `config.yml`'s `Excel.CellNames` (used to place `{Bank-OT}`-style placeholders on the `App` sheet of a generated `ActReco` Excel file — confirmed against a real file, `d:\Humans\Building\Rentalls\ActReco\Projects\Act 91.xlsx`, whose row-1 headers read `Начисление`/`Перечисления ООО`/`Возвраты ООО`/`Счет Фактуры`/`Перечисления Физ. лицо`/`Перечисления AR`/`Возвраты AR`/`Залоговая сумма`/`Возвраты залога`/`Распределения` for `Accrual`/`Bank-OT`/`Bank-IN`/`EHF-IN`/`Trans-OT`/`BaaR-OT`/`BaaR-IN`/`Card-OT`/`Card-IN`/`Bonuses` respectively) are **also** written straight into the `.contract` yaml on every fill — the same folder-scan data is no longer Excel-only.
+
+```yaml
+ActDateEnd:
+Accrual:
+    - 2025-07-09#2025-07-31: 390,000
+Bank-OT:
+    - '2025-07-09': '4200000'
+Bank-IN: []
+EHF-IN: []
+Trans-OT: []
+BaaR-OT: []
+BaaR-IN: []
+Card-OT: []
+Card-IN: []
+Bonuses: []
+```
+
+- **`Yamls.scanCellFolder(folderALL, key)`** (`classes/Yamls.js`) — ported from `Excels.scanSubFolder`/`Excels.processFolders`: scans `<folderALL>/<key>/` for subfolders named `"YYYY-MM-DD amount"` (numeric-sorted by folder name, same as the Excel path), returns `[{date: amount}]` with the amount stripped of commas/spaces. Returns `[]` when the key's folder doesn't exist on disk — this is what lets a key with no real data yet still be written as an empty array.
+- **`Yamls.writeYamlArraySection(filePath, key, entries, afterKey, legacyKeys, allowEmpty)`** (`classes/Yamls.js`) — the generic block-writer `Yamls.writeAccrual` itself is now built on: inserts/replaces a single `"Key:"` array block directly after the line matching `afterKey`, stripping any of `legacyKeys` (old names) first. Unlike `writeAccrual` (which skips writing when `accrual` is empty), the `Excel.CellNames` keys pass `allowEmpty: true` so an empty array is still written as `"Key: []"` — every key is always present in the file, populated or not.
+- **`Yamls.writeCellArrays(ymlFile, folderALL)`** (`classes/Yamls.js`) — reads `Excel.CellNames` from `config.yml` and writes each key as its own array block, chained one after another starting right after `Accrual:` (`Bank-OT` after `Accrual`, `Bank-IN` after `Bank-OT`, and so on in `Excel.CellNames`'s configured order).
+- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after `Yamls.writeAccrual`, so every `Yamls.fillYamlWithInfo`/`Yamls.update` run keeps all 9 keys' data current in the `.contract` yaml itself — not only in a generated Excel `ActReco` report.
+- Regression tests: `tests/Yamls.test.js` → `Yamls.scanCellFolder` + `Yamls.writeCellArrays` (empty-folder-still-writes-`[]` case, chained-insertion-order case).
+
+### `_`-suffixed date keys are ALWAYS DD.MM.YYYY input; the bare-named counterpart is ALWAYS the auto-computed YYYY-MM-DD value
+
+`ComDate`, `ComDateEnd`, `ComDateIjara`, `ActDate`, `ActDateEnd` (formerly `ComDateExcel`, `ComDateEndExcel`, `ComDateIjaraExcel`, `ActDateExcel`, `ActDateEndExcel`) are the **auto-resolved, YYYY-MM-DD** counterparts computed by `Yamls.replaceYaml`. The **input** fields that used to carry these exact bare names now carry a trailing `_` — `ComDate_`, `ComDateEnd_`, `ComDateIjara_`, `ActDate_`, `ActDateEnd_` — and always hold **DD.MM.YYYY**. `StartDate`/`FutureDate`/`FutureDateApp` (formerly `StartDateExcel`/`FutureDateExcel`/`FutureDateAppExcel`) have no `_`-suffixed counterpart — they were never input fields, only ever computed.
+
+- **The rule, stated once, applies everywhere:** a `_`-suffixed key is DD.MM.YYYY, hand-filled or resolved from a `Compan/` marker file/registry API (never touched by `replaceYaml`'s date-conversion block); its bare-named twin is the same date converted to YYYY-MM-DD via `Dates.didoxToExcel`, written by `replaceYaml` into an already-existing template line via `replaceTextLine`.
+- **The shared `templa\ALL.contract` template** (owned by the `smarts-firm-docums` skill, prompt-first — edited via that skill's `prompt/ALL.md`, never hand-edited directly) carries both forms as separate lines: the `_`-suffixed inputs above the `#################` divider (in the starting-Variables section), the bare-named `#Auto` placeholders below it (in the auto-resolved section) — `Yamls.replaceYaml`'s per-key `replaceTextLine` loop can only update a line that already exists, so a bare-named auto-computed key that isn't already present as a blank placeholder line in the file is silently never written; this is why the template (not just the code) had to be updated for this rename.
+- **A pre-existing real `.contract` file predating this rename needs a one-time migration** before its next `fillYamlWithInfo`/`update` run: rename its `ComDate:`/`ComDateIjara:`/`ActDate:`/`ActDateEnd:` lines to their `_`-suffixed form (values preserved), drop the stale `PriceHistory:`/`ComDateEnd:`/`*Excel:` lines (they get recomputed fresh), and add blank placeholder lines for the new bare names (`ComDate:`, `ComDateEnd:`, `ComDateIjara:`, `ActDate:`, `ActDateEnd:`, `StartDate:`, `FutureDate:`, `FutureDateApp:`) so `replaceTextLine` has something to fill. Done for `d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract` as the first real-world migration; a `Yamls.fillYamlWithInfo`/`Yamls.update` run on any other still-old-format `.contract` file needs the same one-time fix first (a genuinely blank/undefined `ComDate_` with no `Compan/` marker file to recover it from surfaces as the "ComDate_ is missing or invalid" warning — the tell that a file still needs migrating).
+- Regression tests: `tests/Yamls.test.js` → `Yamls.replaceYaml`'s five `_`-suffixed-input warning/fallback tests (`ComDate_`/`ComDateEnd_`/`ComDateIjara_` missing-or-invalid, PINFL/TIN-marker fallback) + the end-to-end Accrual test's fixture (mirrors the template's split `_`-suffixed-input/bare-named-auto-resolved line shape).
+
+### `Excels.js` reads pricing/transaction data straight from the .contract yaml — no more folder-scanning
+
+`Excels.processPricing` and `Excels.processFolders` used to scan `Pricings/`/`<Excel.CellNames-key>/` subfolders on disk for `"YYYY-MM-DD amount"`-named entries. Since `Yamls.replaceYaml` now writes this exact data into the `.contract` yaml itself (`Accrual`, per the section above, and every `Excel.CellNames` key, per the section above that), `Excels.js` reads it from there instead — the `.contract` yaml is the single source of truth; the folder scan is retired from this path.
+
+- **`Excels.processPricing(yamlData)`** — reads `yamlData.Accrual` (an array of `{"start#end": price}` mappings) and writes one row per entry (the interval's `start` date + the price) starting at the `{Pricings}` placeholder's cell — no `globalThis.folderPricings`/`scanSubFilesTxt` call anymore.
+- **`Excels.processFolders(entries, found)`** — signature changed from `(folder, found)` (folder name + on-disk scan) to `(entries, found)` (an already-resolved `[{date: amount}]` array) — writes one row per entry starting at `found`'s cell. `Excels.generate`'s own loop over `Excel.CellNames` now reads `yamlData[cellName]` directly (already populated by `Yamls.writeCellArrays`) instead of checking `fs.existsSync(path.join(globalThis.folderALL, cellName))` and scanning that folder.
+- **`Excels.scanSubFolder`/`Excels.scanSubFilesTxt` remain as standalone utility methods** (still public, still tested, still runnable) — they are simply no longer called internally by `processPricing`/`processFolders`; nothing else in this project currently uses them, but they were not deleted since removing public API surface wasn't asked for.
+- Regression tests: `tests/Excels.test.js` → `Excels.processPricing` (writes from `yamlData.Accrual`, no-op on empty/missing) + `Excels.processFolders` (writes from a passed-in entries array) + `Excels.generate` (its `Excel.CellNames` loop reads `yamlData[cellName]`).
 
 ### Launchers — concrete `sheller/` files
 

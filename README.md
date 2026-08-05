@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 292 runnable methods.
+**Coverage:** 23 classes, 295 runnable methods.
 
 ---
 # Category
@@ -1429,17 +1429,17 @@ node scripts/Excels/openWorkbookSafely.mjs --excelApp <excelApp>
 | `filePath` | no | — |
 | `opts` | yes (default `{}`) | — |
 
-## processFolders(folder, found)
+## processFolders(entries, found)
 
 **Run:**
 
 ```bash
-node scripts/Excels/processFolders.mjs --file "<path>"
+node scripts/Excels/processFolders.mjs --entries <entries>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `folder` | no | — |
+| `entries` | no | — |
 | `found` | no | — |
 
 ## processPricing(yamlData)
@@ -3758,7 +3758,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 14 public static method(s).
+Runners: `scripts/Yamls/` — 17 public static method(s).
 
 ## extractFirstNumber(str)
 
@@ -3906,6 +3906,19 @@ node scripts/Yamls/replaceYaml.mjs --file "<path>"
 | `yamlData` | no | — |
 | `companyInfo` | no | — |
 
+## scanCellFolder(folderALL, key)
+
+**Run:**
+
+```bash
+node scripts/Yamls/scanCellFolder.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `folderALL` | no | — |
+| `key` | no | — |
+
 ## setConfig(keyPath, value)
 
 Write a value at a nested dot-path into config.yml. e.g. setConfig('ChoosedChars.Word', 'ABCabc') Preserves all other keys in the file.
@@ -3933,16 +3946,46 @@ node scripts/Yamls/update.mjs --file "<path>"
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
 
-## writePricings(filePath, pricings)
+## writeAccrual(filePath, accrual)
 
 **Run:**
 
 ```bash
-node scripts/Yamls/writePricings.mjs --file "<path>"
+node scripts/Yamls/writeAccrual.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `filePath` | no | — |
-| `pricings` | no | — |
+| `accrual` | no | — |
+
+## writeCellArrays(ymlFile, folderALL)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeCellArrays.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `ymlFile` | no | — |
+| `folderALL` | no | — |
+
+## writeYamlArraySection(filePath, key, entries, afterKey, [legacyKeys], [allowEmpty])
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeYamlArraySection.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `key` | no | — |
+| `entries` | no | — |
+| `afterKey` | no | — |
+| `legacyKeys` | yes (default `[]`) | — |
+| `allowEmpty` | yes (default `true`) | — |
 

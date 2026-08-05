@@ -1,5 +1,5 @@
 // utils.js
-import fs, { existsSync } from 'fs';
+import fs from 'fs';
 import path from 'path';
 let winax;
 try {
@@ -10,7 +10,6 @@ try {
 import { Files } from './Files.js';
 import { Yamls } from './Yamls.js';
 import { Dialogs } from './Dialogs.js';
-import { Dates } from './Dates.js';
 import { Word } from './Word.js';
 import { Com } from './Com.js';
 
@@ -190,122 +189,46 @@ export class Excels {
       .map(f => path.join(folderPath, f));
   }
 
+  // Reads yamlData.Accrual — the "start#end": amount date-interval array
+  // Yamls.replaceYaml already writes into the .contract yaml — and writes one
+  // row per entry (interval start date, amount) starting at the {Pricings}
+  // placeholder's cell. No folder scan: the .contract yaml is the single
+  // source of truth for this data now.
   static processPricing(yamlData) {
     console.info(`[Excels.processPricing] 🟢 Starting...`);
     const found = this.findColumn('Pricings');
     let row = found.Row;
 
-    let dateApp, amountApp
+    const accrual = Array.isArray(yamlData.Accrual) ? yamlData.Accrual : [];
+    console.log(`processPricing: ${accrual.length} Accrual entr(y/ies)`, accrual);
 
-    if (existsSync(globalThis.folderPricings)) {
+    for (const entry of accrual) {
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      const [start] = intervalKey.split('#');
 
-      const items = this.scanSubFilesTxt(globalThis.folderPricings);
+      globalThis.excelSheet.Cells(row, found.Column).Value = start;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
-      // Sort dateFiles
-      items.sort((a, b) =>
-        path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
-      );
-
-      // Process date files
-      items.forEach(filePath => {
-        const fileName = path.basename(filePath, '.txt');
-        const match = fileName.match(/^(\d{4}-\d{2}-\d{2})\s+([\d,]+)$/);
-        if (!match) return;
-
-        const date = match[1];
-        dateApp = date
-        let amount = match[2];
-        // amount replace , and space
-        amount = amount.replace(/,/g, '').replace(/\s/g, '');
-
-        globalThis.excelSheet.Cells(row, found.Column).Value = date;
-        globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
-
-        row++;
-      });
-
-      // Process date files
-      items.forEach(filePath => {
-        const fileName = path.basename(filePath, '.txt');
-        const match = fileName.match(/^ALL\s+([\d,]+)$/);
-        if (!match) return;
-
-        amountApp = match[1];
-        // amount replace , and space
-        amountApp = amountApp.replace(/,/g, '').replace(/\s/g, '');
-      })
-
+      row++;
     }
-
-    // consoler log amountApp, dateapp
-    console.info(`amountApp: ${amountApp}`);
-    console.info(`dateApp: ${dateApp}`);
-
-
-    if (!amountApp)
-      amountApp = yamlData.Price;
-
-    console.info(`amountApp Last: ${amountApp}`);
-
-
-    // Check if dateApp is defined
-
-    if (dateApp) {
-      console.info(`dateApp: ${dateApp}`);
-
-      const lastDate = Dates.parseDMYExcel(dateApp);
-      const futureDate = Dates.parseDMYExcel(yamlData.FutureDateExcel);
-
-      if (lastDate < futureDate) {
-        console.log(`lastDate < futureDate`);
-        globalThis.excelSheet.Cells(row, found.Column).Value = yamlData.FutureDateExcel;
-        globalThis.excelSheet.Cells(row, found.Column + 1).Value = amountApp;
-
-      }
-
-    } else {
-      console.log(`dateApp not defined`);
-
-      globalThis.excelSheet.Cells(row, found.Column).Value = yamlData.FutureDateExcel;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amountApp;
-
-    }
-
   }
 
-  // === PROCESS FOLDERS AND WRITE DATA ===
-  static processFolders(folder, found) {
+  // Writes one row per {date: amount} entry from yamlData[cellName] — the
+  // array Yamls.writeCellArrays already wrote into the .contract yaml for
+  // this Excel.CellNames key (Bank-OT, EHF-IN, …). No folder scan: the
+  // .contract yaml is the single source of truth for this data now.
+  static processFolders(entries, found) {
     console.info(`[Excels.processFolders] 🟢 Starting...`);
     let row = found.Row;
 
-    const folderPath = path.join(globalThis.folderALL, folder);
-    const dateFiles = this.scanSubFolder(folderPath);
-
-    // Sort dateFiles
-    dateFiles.sort((a, b) =>
-      path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
-    );
-
-    // Process date files
-    dateFiles.forEach(filePath => {
-      const fileName = path.basename(filePath);
-      const match = fileName.match(/^(\d{4}-\d{2}-\d{2})\s+([\d,]+)$/);
-      if (!match) return;
-
-      const date = match[1];
-      let amount = match[2];
-      // amount replace , and space
-      amount = amount.replace(/,/g, '').replace(/\s/g, '');
+    for (const entry of entries) {
+      const [date, amount] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
-    });
-
-
-
-
+    }
   }
 
 
@@ -857,16 +780,16 @@ export class Excels {
 
     this.processPricing(yamlData);
 
-    for (const folderName of cellNames) {
-      const found = this.findColumn(folderName);
+    for (const cellName of cellNames) {
+      const found = this.findColumn(cellName);
 
-      const folderPath = path.join(globalThis.folderALL, folderName)
-      if (fs.existsSync(folderPath)) {
-        this.processFolders(folderName, found);
+      const entries = Array.isArray(yamlData[cellName]) ? yamlData[cellName] : [];
+      if (entries.length > 0) {
+        this.processFolders(entries, found);
 
       } else {
-        console.warn(`🚫 Folder "${folderPath}" not found`);
-        this.replaceInSheet(`{${folderName}}`, '');
+        console.warn(`🚫 No ${cellName} entries in yamlData`);
+        this.replaceInSheet(`{${cellName}}`, '');
       }
 
     }

@@ -84,19 +84,10 @@ const WordMock = {
   initFolders: jest.fn(),
 };
 
-// Real Dates.parseDMYExcel (it parses YYYY-MM-DD into a Date).
-const DatesMock = {
-  parseDMYExcel: jest.fn((s) => {
-    const [y, m, d] = String(s).split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }),
-};
-
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
-jest.unstable_mockModule(utilsModule('Dates.js'), () => ({ Dates: DatesMock }));
 
 const { Excels } = await import('../classes/Excels.js');
 
@@ -448,72 +439,54 @@ describe('Excels.processPricing', () => {
     return sheet;
   }
 
-  it('uses yamlData.Price and FutureDateExcel when no pricing files exist', () => {
-    installSheet({ Row: 3, Column: 4 });
-    globalThis.folderPricings = path.join(workDir, 'no-such');
+  it("writes one row per yamlData.Accrual entry, using each interval's start date", () => {
+    const sheet = installSheet({ Row: 5, Column: 2 });
 
-    Excels.processPricing({ Price: '999', FutureDateExcel: '2030-01-01' });
+    Excels.processPricing({
+      Accrual: [{ '2025-07-09#2025-07-31': '390,000' }, { '2025-08-01#2025-08-31': '390,000' }],
+    });
 
-    // dateApp undefined → writes FutureDateExcel + Price into the found cell.
-    expect(globalThis.excelSheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
   });
 
-  it('reads dated pricing txt files and writes date/amount rows', () => {
-    const pricings = path.join(workDir, 'pricings');
-    writeTree(pricings, { '2025-01-01 1,000.txt': '', '2025-02-01 2,000.txt': '' });
-    globalThis.folderPricings = pricings;
-    installSheet({ Row: 1, Column: 1 });
+  it('writes nothing when yamlData.Accrual is empty or missing', () => {
+    const sheet = installSheet({ Row: 1, Column: 1 });
 
-    // future date later than the last file's date → also writes a future row.
-    expect(() =>
-      Excels.processPricing({ Price: '500', FutureDateExcel: '2099-12-31' })
-    ).not.toThrow();
-    expect(DatesMock.parseDMYExcel).toHaveBeenCalled();
-  });
-
-  it('honors an ALL <amount> file as the override amount', () => {
-    const pricings = path.join(workDir, 'pricings2');
-    writeTree(pricings, { 'ALL 7,500.txt': '' });
-    globalThis.folderPricings = pricings;
-    installSheet();
-
-    expect(() =>
-      Excels.processPricing({ Price: '1', FutureDateExcel: '2099-01-01' })
-    ).not.toThrow();
+    expect(() => Excels.processPricing({})).not.toThrow();
+    expect(() => Excels.processPricing({ Accrual: [] })).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Pricings');
   });
 });
 
 // =============================================================================
-// processFolders — reads dated sub-folders, writes to globalThis.excelSheet
+// processFolders — writes one row per {date: amount} entry (from yamlData,
+// no folder scan)
 // =============================================================================
 describe('Excels.processFolders', () => {
-  it('writes date/amount cells for each dated sub-folder', () => {
-    const all = path.join(workDir, 'ALL');
-    writeTree(all, { myfolder: { '2025-03-01 1,200': {}, '2025-04-01 3,400': {}, 'skip-me': {} } });
-    globalThis.folderALL = all;
-
-    const setCells = [];
+  it('writes date/amount cells for each entry', () => {
     const sheet = makeComProxy(
-      {
-        Cells: jest.fn((r, c) => makeComProxy({}, `Cell(${r},${c})`)),
-      },
+      { Cells: jest.fn((r, c) => makeComProxy({}, `Cell(${r},${c})`)) },
       'Sheet'
     );
     globalThis.excelSheet = sheet;
 
-    expect(() => Excels.processFolders('myfolder', { Row: 2, Column: 3 })).not.toThrow();
-    // Cells was invoked (two date cells + two amount cells for two valid folders).
-    expect(sheet.Cells).toHaveBeenCalled();
-    void setCells;
+    const entries = [{ '2025-03-01': '1200' }, { '2025-04-01': '3400' }];
+
+    expect(() => Excels.processFolders(entries, { Row: 2, Column: 3 })).not.toThrow();
+    expect(sheet.Cells).toHaveBeenCalledWith(2, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(2, 4);
+    expect(sheet.Cells).toHaveBeenCalledWith(3, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(3, 4);
   });
 
-  it('does nothing harmful when the folder has no dated sub-folders', () => {
-    const all = path.join(workDir, 'ALL2');
-    writeTree(all, { empty: {} });
-    globalThis.folderALL = all;
+  it('does nothing harmful for an empty entries array', () => {
     globalThis.excelSheet = makeComProxy({ Cells: jest.fn(() => makeComProxy()) }, 'Sheet');
 
-    expect(() => Excels.processFolders('empty', { Row: 1, Column: 1 })).not.toThrow();
+    expect(() => Excels.processFolders([], { Row: 1, Column: 1 })).not.toThrow();
   });
 });
 
@@ -1022,7 +995,7 @@ describe('Excels.generate', () => {
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
       Price: '100',
-      FutureDateExcel: '2099-01-01',
+      FutureDate: '2099-01-01',
     });
     YamlsMock.getPrepayMonth.mockReturnValue(2);
 
