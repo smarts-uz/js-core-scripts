@@ -154,10 +154,14 @@ async function pickFile() {
     const selected = await open({
         multiple: false,
         filters: [
-            { name: 'Word / Excel / PowerPoint', extensions: ['docx', 'xlsx', 'xlsm', 'pptx'] },
-            { name: 'Word Document', extensions: ['docx'] },
-            { name: 'Excel Workbook', extensions: ['xlsx', 'xlsm'] },
-            { name: 'PowerPoint Presentation', extensions: ['pptx'] },
+            {
+                name: 'All supported files',
+                extensions: ['docx', 'doc', 'xlsx', 'xlsm', 'xls', 'pptx', 'ppt', 'md', 'txt'],
+            },
+            { name: 'Word Document', extensions: ['docx', 'doc'] },
+            { name: 'Excel Workbook', extensions: ['xlsx', 'xlsm', 'xls'] },
+            { name: 'PowerPoint Presentation', extensions: ['pptx', 'ppt'] },
+            { name: 'Markdown / Text', extensions: ['md', 'txt'] },
         ],
     });
     if (selected) {

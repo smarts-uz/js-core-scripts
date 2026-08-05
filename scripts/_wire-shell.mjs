@@ -70,6 +70,7 @@ const files = {
             L('MD Homoglyph (All)', 'Homoglyph', 'markdown', '--file "%1"'),
             L('MD Homoglyph (Chars...)', 'Homoglyph', 'markdown', '--file "%1" --chars "%2"'),
             L('MD Homoglyph (Ask)', 'Homoglyph', 'markdownAsk', '--file "%1"'),
+            H('Homoglyph Replace (Humanize)'),
         ],
     ],
     'Pptx.appshell': [

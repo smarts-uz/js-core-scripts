@@ -259,21 +259,30 @@ an unscreenshot-able native window are all **universal techniques documented the
 `module/gui-testing.md`) — none of that is restated here. This project's concrete
 fill-ins only:
 
-- A GUI wrapping the homoglyph replace across **Word, Excel, and PowerPoint** — pick a
-  `.docx`/`.xlsx`/`.xlsm`/`.pptx` file, a checkbox-grid modal lets the user check/uncheck
-  each of the 21 `PERFECT_STEALTH` chars (`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives the
-  matching Office app's COM directly and writes an auto-incrementing `<name> L<count>.ext`
-  output file beside the source. `run_homoglyph` dispatches by extension.
+- A GUI wrapping the homoglyph replace across **Word, Excel, PowerPoint, Markdown, and
+  plain text** — `.docx`/`.doc`, `.xlsx`/`.xlsm`/`.xls`, `.pptx`/`.ppt`, `.md`/`.txt` are
+  all fully supported. A checkbox-grid modal lets the user check/uncheck each of the 21
+  `PERFECT_STEALTH` chars (`AaCcEeHIiJKMOoPpSTXxy`), Run Replace drives the matching
+  Office app's COM (or a plain read/replace/write for `.md`/`.txt`) and writes an
+  auto-incrementing `<name> L<count>.ext` output file beside the source. `run_homoglyph`
+  dispatches by extension. **The legacy binary formats (`.doc`/`.xls`/`.ppt`) reuse the
+  SAME `apply_word`/`apply_excel`/`apply_powerpoint` functions unchanged** — Office's own
+  `Open()` transparently reads the old format, and `Save()` (never `SaveAs`, so no format
+  argument needed) preserves whichever format the file was already opened in; proven by
+  `tests/legacy_office_formats.rs` asserting the output extension never silently
+  upconverts to the modern OOXML equivalent.
 - **Files:** `src-tauri/src/com_automation.rs` (the raw-IDispatch helper — also the
   `get_item` indexed-collection accessor for `Sheets(n)`/`Cells(r,c)`/`Slides(n)`/
   `Shapes(n)`, and `variant_to_i32`/`variant_to_string`), `src-tauri/src/homoglyph.rs`
-  (Word), `src-tauri/src/excel.rs` (Excel — walks every non-excluded sheet's UsedRange),
-  `src-tauri/src/powerpoint.rs` (PowerPoint — walks every slide/shape with a text frame),
-  `src-tauri/src/auth.rs` + `src-tauri/src/fingerprint.rs` (the login/device-lock
-  implementation). **`Shape.HasTextFrame`/`TextFrame.HasText` marshal as `VT_I4`
-  (MsoTriState), NOT `VT_BOOL`** like Word's `Find.Execute` — `com_automation.rs`'s
-  `variant_to_bool` handles both (a real bug caught by the PowerPoint integration test:
-  without this, every shape was skipped as "no text").
+  (Word, both `.docx`/`.doc`), `src-tauri/src/excel.rs` (Excel, both
+  `.xlsx`/`.xlsm`/`.xls` — walks every non-excluded sheet's UsedRange),
+  `src-tauri/src/powerpoint.rs` (PowerPoint, both `.pptx`/`.ppt` — walks every
+  slide/shape with a text frame), `src-tauri/src/text.rs` (`.md`/`.txt` — no COM, a
+  direct read/replace/write), `src-tauri/src/auth.rs` + `src-tauri/src/fingerprint.rs`
+  (the login/device-lock implementation). **`Shape.HasTextFrame`/`TextFrame.HasText`
+  marshal as `VT_I4` (MsoTriState), NOT `VT_BOOL`** like Word's `Find.Execute` —
+  `com_automation.rs`'s `variant_to_bool` handles both (a real bug caught by the
+  PowerPoint integration test: without this, every shape was skipped as "no text").
 - **`src-tauri/config.json` (+ `CONFIG.md`) holds EVERY non-secret tunable value —
   never a hardcoded Rust `const`.** Embedded into the compiled binary at build time via
   `include_str!` (`src-tauri/src/config.rs`'s `CONFIG: LazyLock<Config>` — a malformed

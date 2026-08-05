@@ -23,11 +23,18 @@ coverage/
 .husky/_/
 
 # Cargo test-fixture OUTPUT copies — each run of excel_real_file.rs /
-# powerpoint_real_file.rs writes a fresh "sample L<n>[ <m>].ext" beside the
-# tracked source fixture (sample.xlsx / sample.pptx). Only the source
-# fixtures are tracked; the auto-incrementing run outputs are regenerable.
+# powerpoint_real_file.rs / legacy_office_formats.rs / text_formats.rs
+# writes a fresh "sample[-legacy] L<n>[ <m>].ext" beside the tracked
+# source fixture (sample.xlsx / sample.pptx / sample-legacy.doc / etc).
+# Only the source fixtures are tracked; the auto-incrementing run
+# outputs are regenerable.
 humanize/src-tauri/tests/fixtures/sample L*.xlsx
 humanize/src-tauri/tests/fixtures/sample L*.pptx
+humanize/src-tauri/tests/fixtures/sample L*.md
+humanize/src-tauri/tests/fixtures/sample L*.txt
+humanize/src-tauri/tests/fixtures/sample-legacy L*.doc
+humanize/src-tauri/tests/fixtures/sample-legacy L*.xls
+humanize/src-tauri/tests/fixtures/sample-legacy L*.ppt
 
 # Stray empty scratch dir from an early `supabase` CLI call run from the
 # wrong cwd (the real one is humanize/supabase/) — left in place per the

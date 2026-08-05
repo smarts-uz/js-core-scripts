@@ -5,6 +5,7 @@ pub mod excel;
 pub mod fingerprint;
 pub mod homoglyph;
 pub mod powerpoint;
+pub mod text;
 
 use config::CONFIG;
 use std::path::PathBuf;
@@ -40,21 +41,25 @@ async fn run_homoglyph(app: AppHandle, file_path: String, chars: String) -> Resu
       let _ = app.emit("homoglyph-progress", &progress);
     };
     match ext.as_str() {
-      "docx" => homoglyph::apply_word(&path, chars_opt.as_deref(), on_progress)
+      "docx" | "doc" => homoglyph::apply_word(&path, chars_opt.as_deref(), on_progress)
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string()),
-      "xlsx" | "xlsm" => {
+      "xlsx" | "xlsm" | "xls" => {
         let excluded: Vec<&str> = CONFIG.excel.excluded_sheets.iter().map(String::as_str).collect();
         excel::apply_excel(&path, chars_opt.as_deref(), &excluded, on_progress)
           .map(|p| p.to_string_lossy().to_string())
           .map_err(|e| e.to_string())
       }
-      "pptx" => powerpoint::apply_powerpoint(&path, chars_opt.as_deref(), on_progress)
+      "pptx" | "ppt" => powerpoint::apply_powerpoint(&path, chars_opt.as_deref(), on_progress)
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string()),
-      other => {
-        Err(format!("Unsupported file extension: .{other} (supported: .docx, .xlsx, .xlsm, .pptx)"))
-      }
+      "md" | "txt" => text::apply_text(&path, chars_opt.as_deref(), on_progress)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string()),
+      other => Err(format!(
+        "Unsupported file extension: .{other} (supported: .docx, .doc, .xlsx, .xlsm, .xls, \
+         .pptx, .ppt, .md, .txt)"
+      )),
     }
   })
   .await
@@ -127,7 +132,15 @@ fn get_launch_file_path() -> Option<String> {
     }
     let is_supported = matches!(
       path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).as_deref(),
-      Some("docx") | Some("xlsx") | Some("xlsm") | Some("pptx")
+      Some("docx")
+        | Some("doc")
+        | Some("xlsx")
+        | Some("xlsm")
+        | Some("xls")
+        | Some("pptx")
+        | Some("ppt")
+        | Some("md")
+        | Some("txt")
     );
     if !is_supported {
       return None;
