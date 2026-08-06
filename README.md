@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 300 runnable methods.
+**Coverage:** 23 classes, 309 runnable methods.
 
 ---
 # Category
@@ -580,7 +580,7 @@ node scripts/Com/pidsOf.mjs --imageName <imageName>
 
 # Dates
 
-Runners: `scripts/Dates/` — 18 public static method(s).
+Runners: `scripts/Dates/` — 19 public static method(s).
 
 ## addDays(dateStr, days)
 
@@ -633,6 +633,18 @@ node scripts/Dates/daysBetween.mjs --startExcel <startExcel>
 |-----------|----------|-------------|
 | `startExcel` | no | — |
 | `endExcel` | no | — |
+
+## daysInMonth(dateExcel)
+
+**Run:**
+
+```bash
+node scripts/Dates/daysInMonth.mjs --dateExcel <dateExcel>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dateExcel` | no | — |
 
 ## didoxToExcel(date)
 
@@ -1192,7 +1204,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 42 public static method(s).
+Runners: `scripts/Excels/` — 44 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1442,6 +1454,18 @@ node scripts/Excels/openWorkbookSafely.mjs --excelApp <excelApp>
 | `filePath` | no | — |
 | `opts` | yes (default `{}`) | — |
 
+## processAccrual(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Excels/processAccrual.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
 ## processFolders(entries, found)
 
 **Run:**
@@ -1455,24 +1479,36 @@ node scripts/Excels/processFolders.mjs --entries <entries>
 | `entries` | no | — |
 | `found` | no | — |
 
-## processPricing(yamlData)
+## processLoaners(yamlData)
 
 **Run:**
 
 ```bash
-node scripts/Excels/processPricing.mjs --file "<path>"
+node scripts/Excels/processLoaners.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `yamlData` | no | — |
 
-## processPunish(yamlData)
+## processPayment(yamlData)
 
 **Run:**
 
 ```bash
-node scripts/Excels/processPunish.mjs --file "<path>"
+node scripts/Excels/processPayment.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPenalty(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Excels/processPenalty.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
@@ -3783,7 +3819,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 20 public static method(s).
+Runners: `scripts/Yamls/` — 26 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3797,21 +3833,61 @@ node scripts/Yamls/actualPayments.mjs --file "<path>"
 |-----------|----------|-------------|
 | `yamlData` | no | — |
 
-## computePunish(accrual, payments, perDayFine, capRatio, todayExcel)
+## applyPriceMaxToDebtMonths(accrual, loaners, startDate, priceMax)
 
 **Run:**
 
 ```bash
-node scripts/Yamls/computePunish.mjs --accrual <accrual>
+node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `loaners` | no | — |
+| `startDate` | no | — |
+| `priceMax` | no | — |
+
+## buildAccrualEntries(startDate, futureDate, price)
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildAccrualEntries.mjs --startDate <startDate>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `startDate` | no | — |
+| `futureDate` | no | — |
+| `price` | no | — |
+
+## computePaymentChain(accrual, payments)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computePaymentChain.mjs --accrual <accrual>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `accrual` | no | — |
 | `payments` | no | — |
-| `perDayFine` | no | — |
+
+## computePenalty(accrual, loaners, capRatio)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computePenalty.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `loaners` | no | — |
 | `capRatio` | no | — |
-| `todayExcel` | no | — |
 
 ## extractFirstNumber(str)
 
@@ -3931,6 +4007,22 @@ node scripts/Yamls/mergeYamlsInFolder.mjs --file "<path>"
 |-----------|----------|-------------|
 | `folderPath` | no | — |
 
+## recomputeChain(startDate, futureDate, price, priceMax, payments)
+
+**Run:**
+
+```bash
+node scripts/Yamls/recomputeChain.mjs --startDate <startDate>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `startDate` | no | — |
+| `futureDate` | no | — |
+| `price` | no | — |
+| `priceMax` | no | — |
+| `payments` | no | — |
+
 ## replaceTextLine(filePath, key, value)
 
 **Run:**
@@ -4025,18 +4117,44 @@ node scripts/Yamls/writeCellArrays.mjs --file "<path>"
 | `ymlFile` | no | — |
 | `folderALL` | no | — |
 
-## writePunish(filePath, punish)
+## writeLoaners(filePath, loaners)
 
 **Run:**
 
 ```bash
-node scripts/Yamls/writePunish.mjs --file "<path>"
+node scripts/Yamls/writeLoaners.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `filePath` | no | — |
-| `punish` | no | — |
+| `loaners` | no | — |
+
+## writePayment(filePath, payment)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePayment.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `payment` | no | — |
+
+## writePenalty(filePath, penalty)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePenalty.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `penalty` | no | — |
 
 ## writeYamlArraySection(filePath, key, entries, afterKey, [legacyKeys], [allowEmpty])
 
