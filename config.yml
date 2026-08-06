@@ -52,6 +52,12 @@ Scanner:
         - RealStat
         - Sample
         - Samples
+Punish:
+    # Contract §21.2/§21.3 late rent-payment penalty (пеня/неустойка):
+    # a fixed sum per calendar day of delay, capped at CapRatio of the total
+    # rent due for the whole contract period. Read by Yamls.replaceYaml.
+    PerDay: 50000
+    CapRatio: 0.5
 Excel:
     ProtectSuffix: ' PR'
     # Contract pricing cell/column names, in order — read by Excels.generate

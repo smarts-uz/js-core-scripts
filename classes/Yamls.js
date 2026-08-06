@@ -201,11 +201,136 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Accrual', accrual, 'ActDateEnd', ['Pricings', 'PriceHistory'], false);
     }
 
+    // Contract §21.2/§21.3 (late rent-payment penalty, пеня/неустойка):
+    // — a FIXED 50,000 sum per calendar day of delay in paying rent (§21.2);
+    // — capped so the TOTAL penalty across the whole contract period never
+    //   exceeds 50% of the total rent due for that period (§21.3).
+    //
+    // Computed ONE ENTRY PER MONTH (never a single lump sum): for each
+    // Accrual month (due = that month's rent, owed by the month's own end
+    // date per §3.7/§3.8), cumulative rent due through that month is compared
+    // against cumulative actual cash payments received by the SAME due date.
+    // A shortfall on a given month means every calendar day from that month's
+    // due date up to the day it is finally covered by a later payment (or, if
+    // still uncovered, up to `todayExcel`) accrues the fixed per-day penalty.
+    // The running total is clamped to the §21.3 cap; once the cap is reached,
+    // every later month is written with a 0 penalty (the cap already spent).
+    //
+    // accrual: the same [{ "start#end": amount }] array Accrual: holds.
+    // payments: a flat [{ date: amount }] array of actual cash-in entries
+    // (Bank-OT + Card-OT — see Yamls.actualPayments below); EHF-IN/Bank-IN/
+    // Card-IN/Trans-OT/BaaR-* are never real incoming cash and are excluded.
+    // todayExcel: 'YYYY-MM-DD', the date "as of" which an unpaid month's delay
+    // is measured (defaults to the real current date).
+    //
+    // Returns [{ "monthStart#monthEnd": penaltyAmount }], one entry per
+    // Accrual month, penaltyAmount as a plain (comma-free) numeric string —
+    // e.g. [{ "2026-07-01#2026-07-31": "1350000" }].
+    static computePunish(accrual, payments, perDayFine, capRatio, todayExcel) {
+        console.info(`[Yamls.computePunish] 🟢 Starting... perDayFine=${perDayFine} capRatio=${capRatio} todayExcel=${todayExcel}`);
+
+        if (!Array.isArray(accrual) || accrual.length === 0) return [];
+
+        const months = accrual.map(entry => {
+            const [intervalKey, amount] = Object.entries(entry)[0];
+            const [start, end] = intervalKey.split('#');
+            return { start, end, due: Number(String(amount).replace(/,/g, '')) || 0 };
+        });
+
+        const paid = (Array.isArray(payments) ? payments : []).map(entry => {
+            const [date, amount] = Object.entries(entry)[0];
+            return { date, amount: Number(String(amount).replace(/,/g, '')) || 0 };
+        }).sort((a, b) => a.date.localeCompare(b.date));
+
+        const totalDue = months.reduce((sum, m) => sum + m.due, 0);
+        const cap = Math.round(totalDue * capRatio);
+
+        // Cumulative-payments-received-by(date) lookup, computed once.
+        const paidByDate = (asOf) => paid.reduce((sum, p) => p.date <= asOf ? sum + p.amount : sum, 0);
+
+        let cumulativeDue = 0;
+        let totalPenalty = 0;
+        const result = [];
+
+        for (const month of months) {
+            cumulativeDue += month.due;
+
+            const paidByDueDate = paidByDate(month.end);
+            const shortfall = cumulativeDue - paidByDueDate;
+
+            if (shortfall <= 0 || totalPenalty >= cap) {
+                result.push({ [`${month.start}#${month.end}`]: '0' });
+                continue;
+            }
+
+            // First date on/after the due date on which cumulative payments
+            // finally cover cumulativeDue (i.e. the shortfall clears) — or,
+            // if never covered, todayExcel (still outstanding "as of today").
+            const settleEntry = paid.find(p => p.date > month.end && paidByDate(p.date) >= cumulativeDue);
+            const settledOn = settleEntry ? settleEntry.date : todayExcel;
+
+            const delayDays = Math.max(0, Dates.daysBetween(month.end, settledOn));
+            let penalty = delayDays * perDayFine;
+
+            if (totalPenalty + penalty > cap) {
+                penalty = Math.max(0, cap - totalPenalty);
+            }
+
+            totalPenalty += penalty;
+            // Comma-formatted like every other money value this codebase
+            // writes into the .contract yaml (Accrual, ComBusinessFund, …) —
+            // never a bare digit string, which js-yaml would otherwise quote
+            // to keep it from being re-parsed as a number.
+            result.push({ [`${month.start}#${month.end}`]: penalty.toLocaleString('en-US') });
+        }
+
+        console.log(`computePunish: totalDue=${totalDue} cap=${cap} totalPenalty=${totalPenalty}`, result);
+        return result;
+    }
+
+    // The real incoming-cash columns among Excel.CellNames — Bank-OT (bank
+    // transfer out from the tenant, i.e. IN to the landlord) and Card-OT
+    // (card payment out from the tenant). EHF-IN is an e-invoice record, not
+    // cash; Bank-IN/Card-IN are refunds BACK to the tenant; Trans-OT/BaaR-*
+    // are unrelated transfer/bonus ledgers — none of these count as rent paid.
+    static actualPayments(yamlData) {
+        console.info(`[Yamls.actualPayments] 🟢 Starting...`);
+
+        const bankOT = Array.isArray(yamlData['Bank-OT']) ? yamlData['Bank-OT'] : [];
+        const cardOT = Array.isArray(yamlData['Card-OT']) ? yamlData['Card-OT'] : [];
+
+        const payments = [...bankOT, ...cardOT];
+        console.log(`actualPayments: ${payments.length} entr(y/ies)`, payments);
+        return payments;
+    }
+
+    // Writes/replaces the Punish: array block directly after the Accrual:
+    // block in the .contract yaml — one late-payment penalty entry per
+    // calendar month, mirroring writeAccrual's own shape:
+    //   Punish:
+    //     - 2026-07-01#2026-07-31: 1350000
+    //     - 2026-08-01#2026-08-31: 0
+    static writePunish(filePath, punish) {
+        console.info(`[Yamls.writePunish] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'Punish', punish, 'Accrual', [], true);
+    }
+
     // Scans <folderALL>/<key>/ for dated subfolders (ported from
     // Excels.scanSubFolder + Excels.processFolders — same "YYYY-MM-DD amount"
     // naming, same numeric sort) and returns [{date, amount}], sorted, amount
     // stripped of commas/spaces. Returns [] when the folder doesn't exist —
     // this is what lets a key be written as an empty array by default.
+    //
+    // The folder-name whitespace/comma formatting is NOT normalized on disk —
+    // "2026-02-03 2,340,000" (single space), "2026-02-03  2,340,000" (double
+    // space), and both with/without the thousands comma are all accepted by
+    // the same regex (\s+ = one-or-more spaces, [\d,]+ = digits with optional
+    // commas). But TWO differently-formatted folders for the SAME underlying
+    // date+amount (e.g. a single- and a double-space variant of the same
+    // payment, created by mistake) must never be double-counted as two
+    // separate payments — the result is deduplicated by normalized
+    // "date|amount" key, keeping the FIRST folder encountered in sorted
+    // order.
     static scanCellFolder(folderALL, key) {
         console.info(`[Yamls.scanCellFolder] 🟢 Starting... key=${key}`);
 
@@ -223,6 +348,7 @@ export class Yamls {
         );
 
         const entries = [];
+        const seen = new Set();
         for (const folder of subFolders) {
             const name = path.basename(folder);
             const match = name.match(/^(\d{4}-\d{2}-\d{2})\s+([\d,]+)$/);
@@ -230,6 +356,14 @@ export class Yamls {
 
             const date = match[1];
             const amount = match[2].replace(/,/g, '').replace(/\s/g, '');
+
+            const dedupeKey = `${date}|${amount}`;
+            if (seen.has(dedupeKey)) {
+                console.warn(`⚠️ scanCellFolder: ${key} — duplicate date+amount folder for ${dedupeKey} ("${name}"), skipping.`);
+                continue;
+            }
+            seen.add(dedupeKey);
+
             entries.push({ [date]: amount });
         }
 
@@ -240,7 +374,8 @@ export class Yamls {
     // Writes every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
     // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses — the same set
     // Excels.generate reads via config.yml) into the .contract yaml as its own
-    // array block, right after Accrual: — each populated from
+    // array block, right after Punish: (which itself sits right after
+    // Accrual: — see writePunish) — each populated from
     // scanCellFolder(folderALL, key) when that folder exists, or left as an
     // empty array ("KeyName: []") when it doesn't, so every key is always
     // present even with no data yet.
@@ -250,7 +385,7 @@ export class Yamls {
         const cellNames = this.getConfig('Excel.CellNames', 'array', []);
         console.log('writeCellArrays: cellNames', cellNames);
 
-        let afterKey = 'Accrual';
+        let afterKey = 'Punish';
         for (const key of cellNames) {
             const entries = this.scanCellFolder(folderALL, key);
             this.writeYamlArraySection(ymlFile, key, entries, afterKey, [], true);
@@ -1034,6 +1169,19 @@ export class Yamls {
         const monthRanges = Dates.monthsBetween(yamlData.StartDate, yamlData.ComDateEnd);
         const accrual = monthRanges.map(({ start, end }) => ({ [`${start}#${end}`]: yamlData.Price }));
         Yamls.writeAccrual(ymlFile, accrual);
+
+        // Always record one Punish entry (§21.2/§21.3 late rent-payment
+        // penalty, пеня/неустойка) per calendar month, right after Accrual —
+        // computed from the SAME real cash-in folder scan writeCellArrays
+        // below uses (Bank-OT/Card-OT under folderALL), not from yamlData,
+        // since a freshly-filled contract has no in-memory payment history yet.
+        const punishPerDay = Yamls.getConfig('Punish.PerDay', 'number', 50000);
+        const punishCapRatio = Yamls.getConfig('Punish.CapRatio', 'number', 0.5);
+        const bankOT = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-OT');
+        const cardOT = Yamls.scanCellFolder(globalThis.folderALL, 'Card-OT');
+        const todayExcel = new Intl.DateTimeFormat('en-CA').format(new Date());
+        const punish = Yamls.computePunish(accrual, [...bankOT, ...cardOT], punishPerDay, punishCapRatio, todayExcel);
+        Yamls.writePunish(ymlFile, punish);
 
         // Every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
         // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses) — same folder-scan data

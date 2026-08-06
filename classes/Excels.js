@@ -213,6 +213,46 @@ export class Excels {
     }
   }
 
+  // Reads yamlData.Punish — the "start#end": amount per-month late-payment
+  // penalty (пеня/неустойка, §21.2/§21.3) array Yamls.replaceYaml already
+  // writes into the .contract yaml — and writes one row per entry (interval
+  // start date, penalty amount) starting at the {Punish} placeholder's cell.
+  // Only runs when yamlData.PunishEnable === true; when false (or missing),
+  // this is a no-op and the {Punish} placeholder is left for the ordinary
+  // {KEY} placeholder-clear pass in generate() to blank out. When
+  // PunishEnable is true but the template has no {Punish} placeholder cell
+  // (an older Excel template predating this feature), warns and skips
+  // instead of crashing.
+  static processPunish(yamlData) {
+    console.info(`[Excels.processPunish] 🟢 Starting...`);
+
+    if (yamlData.PunishEnable !== true) {
+      console.log('processPunish: PunishEnable is not true, skipping.');
+      return;
+    }
+
+    const found = this.findColumn('Punish');
+    if (!found) {
+      console.warn('⚠️ processPunish: {Punish} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const punish = Array.isArray(yamlData.Punish) ? yamlData.Punish : [];
+    console.log(`processPunish: ${punish.length} Punish entr(y/ies)`, punish);
+
+    for (const entry of punish) {
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      const [start] = intervalKey.split('#');
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = start;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+
+      row++;
+    }
+  }
+
   // Writes one row per {date: amount} entry from yamlData[cellName] — the
   // array Yamls.writeCellArrays already wrote into the .contract yaml for
   // this Excel.CellNames key (Bank-OT, EHF-IN, …). No folder scan: the
@@ -779,6 +819,7 @@ export class Excels {
     this.fileOpen(newFilePath);
 
     this.processPricing(yamlData);
+    this.processPunish(yamlData);
 
     for (const cellName of cellNames) {
       const found = this.findColumn(cellName);
@@ -796,12 +837,13 @@ export class Excels {
 
 
 
-    // Replace {KEY} placeholders — skip array-valued keys (Accrual, every
-    // Excel.CellNames key: Bank-OT, EHF-IN, …). These are never rendered as a
-    // {key} placeholder; they are written cell-by-cell by processPricing/
-    // processFolders above. Passing an array/object straight to Excel COM's
-    // Cells.Replace crashes ("DispInvoke: Replace The remote procedure call
-    // failed.") since it only accepts a string/primitive.
+    // Replace {KEY} placeholders — skip array-valued keys (Accrual, Punish,
+    // every Excel.CellNames key: Bank-OT, EHF-IN, …). These are never
+    // rendered as a {key} placeholder; they are written cell-by-cell by
+    // processPricing/processPunish/processFolders above. Passing an
+    // array/object straight to Excel COM's Cells.Replace crashes
+    // ("DispInvoke: Replace The remote procedure call failed.") since it
+    // only accepts a string/primitive.
     for (const key of Object.keys(yamlData)) {
 
       const value = yamlData[key];

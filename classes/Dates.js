@@ -98,6 +98,23 @@ export class Dates {
     return ranges;
   }
 
+  // Whole calendar days between two 'YYYY-MM-DD' dates (end - start). Negative
+  // when end is before start; 0 when equal. Used to turn a payment-delay
+  // date range into a day count for a fixed-per-day penalty (пеня/неустойка).
+  static daysBetween(startExcel, endExcel) {
+    console.info(`[Dates.daysBetween] 🟢 Starting...`);
+    console.log("daysBetween startExcel", startExcel, "endExcel", endExcel);
+
+    if (!startExcel || !endExcel) return 0;
+
+    const start = dayjs(startExcel, 'YYYY-MM-DD');
+    const end = dayjs(endExcel, 'YYYY-MM-DD');
+
+    const days = end.diff(start, 'day');
+    console.log("daysBetween days", days);
+    return days;
+  }
+
   // static func get date of last day of future moths
   static futureDateByMonth(months, prevMonthLastDate = false) {
       console.info(`[Dates.futureDateByMonth] 🟢 Starting...`);

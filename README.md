@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 295 runnable methods.
+**Coverage:** 23 classes, 300 runnable methods.
 
 ---
 # Category
@@ -580,7 +580,7 @@ node scripts/Com/pidsOf.mjs --imageName <imageName>
 
 # Dates
 
-Runners: `scripts/Dates/` — 17 public static method(s).
+Runners: `scripts/Dates/` — 18 public static method(s).
 
 ## addDays(dateStr, days)
 
@@ -620,6 +620,19 @@ node scripts/Dates/compareDatesDMY.mjs --a <a>
 |-----------|----------|-------------|
 | `a` | no | — |
 | `b` | no | — |
+
+## daysBetween(startExcel, endExcel)
+
+**Run:**
+
+```bash
+node scripts/Dates/daysBetween.mjs --startExcel <startExcel>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `startExcel` | no | — |
+| `endExcel` | no | — |
 
 ## didoxToExcel(date)
 
@@ -1179,7 +1192,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 41 public static method(s).
+Runners: `scripts/Excels/` — 42 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1448,6 +1461,18 @@ node scripts/Excels/processFolders.mjs --entries <entries>
 
 ```bash
 node scripts/Excels/processPricing.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPunish(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Excels/processPunish.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
@@ -3758,7 +3783,35 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 17 public static method(s).
+Runners: `scripts/Yamls/` — 20 public static method(s).
+
+## actualPayments(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Yamls/actualPayments.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## computePunish(accrual, payments, perDayFine, capRatio, todayExcel)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computePunish.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `payments` | no | — |
+| `perDayFine` | no | — |
+| `capRatio` | no | — |
+| `todayExcel` | no | — |
 
 ## extractFirstNumber(str)
 
@@ -3971,6 +4024,19 @@ node scripts/Yamls/writeCellArrays.mjs --file "<path>"
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
 | `folderALL` | no | — |
+
+## writePunish(filePath, punish)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePunish.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `punish` | no | — |
 
 ## writeYamlArraySection(filePath, key, entries, afterKey, [legacyKeys], [allowEmpty])
 

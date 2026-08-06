@@ -346,6 +346,123 @@ describe('Yamls.writeAccrual', () => {
   });
 });
 
+describe('Yamls.actualPayments', () => {
+  it('concatenates Bank-OT and Card-OT only', () => {
+    const yamlData = {
+      'Bank-OT': [{ '2025-07-11': '2340000' }],
+      'Card-OT': [{ '2026-02-03': '2340000' }],
+      'Bank-IN': [{ '2025-08-01': '100000' }],
+      'EHF-IN': [{ '2025-09-10': '2340000' }],
+    };
+    expect(Yamls.actualPayments(yamlData)).toEqual([
+      { '2025-07-11': '2340000' },
+      { '2026-02-03': '2340000' },
+    ]);
+  });
+
+  it('returns [] when neither Bank-OT nor Card-OT is an array', () => {
+    expect(Yamls.actualPayments({})).toEqual([]);
+  });
+});
+
+describe('Yamls.computePunish', () => {
+  const accrual = [
+    { '2026-01-01#2026-01-31': '390,000' },
+    { '2026-02-01#2026-02-28': '390,000' },
+    { '2026-03-01#2026-03-31': '390,000' },
+  ];
+
+  it('writes a 0 penalty for every month when payments fully cover cumulative rent on time', () => {
+    const payments = [
+      { '2026-01-15': '390000' },
+      { '2026-02-10': '390000' },
+      { '2026-03-05': '390000' },
+    ];
+    const result = Yamls.computePunish(accrual, payments, 50000, 0.5, '2026-03-31');
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '0' },
+      { '2026-02-01#2026-02-28': '0' },
+      { '2026-03-01#2026-03-31': '0' },
+    ]);
+  });
+
+  it('accrues 50,000/day from the month-end due date until a later payment covers the shortfall', () => {
+    // January's 390,000 is only paid on 2026-02-10 — 10 calendar days late
+    // (2026-01-31 -> 2026-02-10). February/March are paid on time.
+    const payments = [
+      { '2026-02-10': '390000' },
+      { '2026-02-15': '390000' },
+      { '2026-03-05': '390000' },
+    ];
+    const result = Yamls.computePunish(accrual, payments, 50000, 0.5, '2026-03-31');
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '500,000' }, // 10 days * 50,000
+      { '2026-02-01#2026-02-28': '0' },
+      { '2026-03-01#2026-03-31': '0' },
+    ]);
+  });
+
+  it('measures delay up to todayExcel when a month is still unpaid', () => {
+    // Uncapped this would be 5 days * 50,000 = 250,000, but a single-month
+    // 390,000 rent caps the penalty at 50% = 195,000 (§21.3) — this test
+    // deliberately uses a high capRatio so the cap never binds, isolating
+    // the day-count math from the cap.
+    const result = Yamls.computePunish(
+      [{ '2026-01-01#2026-01-31': '390,000' }],
+      [],
+      50000,
+      1,
+      '2026-02-05'
+    );
+    // 2026-01-31 -> 2026-02-05 = 5 days
+    expect(result).toEqual([{ '2026-01-01#2026-01-31': '250,000' }]);
+  });
+
+  it('caps the running total penalty at capRatio * total rent due for the whole period', () => {
+    // Total rent = 3 * 390,000 = 1,170,000; cap at 50% = 585,000.
+    // Every month left fully unpaid as of a date far past all three due dates.
+    const result = Yamls.computePunish(accrual, [], 50000, 0.5, '2026-12-31');
+    const total = result.reduce(
+      (sum, entry) => sum + Number(String(Object.values(entry)[0]).replace(/,/g, '')),
+      0
+    );
+    expect(total).toBe(585000);
+  });
+
+  it('returns [] when accrual is empty', () => {
+    expect(Yamls.computePunish([], [], 50000, 0.5, '2026-01-01')).toEqual([]);
+  });
+});
+
+describe('Yamls.writePunish', () => {
+  it('inserts the Punish array directly after the Accrual: block', () => {
+    const f = path.join(workDir, 't.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    Yamls.writePunish(f, [{ '2026-01-01#2026-01-31': '500,000' }]);
+
+    const lines = read(workDir, 't.contract').split('\n');
+    const accrualIdx = lines.findIndex((l) => l.startsWith('Accrual:'));
+    expect(lines[accrualIdx + 1]).toBe('  - 2026-01-01#2026-01-31: 390,000');
+    expect(lines[accrualIdx + 2]).toBe('Punish:');
+    expect(lines[accrualIdx + 3]).toBe('  - 2026-01-01#2026-01-31: 500,000');
+    expect(read(workDir, 't.contract')).toContain('PrepayMonth:');
+  });
+
+  it('writes an empty Punish: [] block (allowEmpty=true) when punish is empty', () => {
+    const f = path.join(workDir, 't2.contract');
+    fs.writeFileSync(f, 'Accrual:\n  - 2026-01-01#2026-01-31: 390,000\n', 'utf8');
+
+    Yamls.writePunish(f, []);
+
+    expect(read(workDir, 't2.contract')).toContain('Punish: []');
+  });
+});
+
 describe('Yamls.scanCellFolder', () => {
   it('returns [] when the key folder does not exist', () => {
     expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([]);
@@ -362,6 +479,32 @@ describe('Yamls.scanCellFolder', () => {
       { '2025-07-09': '4200000' },
       { '2025-08-01': '4200000' },
     ]);
+  });
+
+  it('accepts single-space, double-space, comma, and no-comma folder-name variants alike', () => {
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-07-11 2,340,000': {}, // single space, comma
+    });
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+
+    fs.rmSync(path.join(workDir, 'Bank-OT'), { recursive: true, force: true });
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-07-11  2340000': {}, // double space, no comma
+    });
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+  });
+
+  it('deduplicates two differently-formatted folders that resolve to the SAME date+amount (never double-counted)', () => {
+    // A real incident: an already-existing "2025-07-11  2,340,000" (double
+    // space) folder plus a mistakenly-created "2025-07-11 2,340,000" (single
+    // space) sibling both matched the regex and were counted as two separate
+    // payments — silently doubling the recorded rent payment.
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-07-11 2,340,000': {},
+      '2025-07-11  2,340,000': {},
+    });
+
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
   });
 });
 
@@ -1013,5 +1156,59 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('Accrual:');
     // ComDate 01.01.2026 + AddDays 30 -> ComDateEnd 31.01.2026: a single full-month range.
     expect(content).toContain('2026-01-01#2026-01-31: 4,200,000');
+  });
+
+  it('always writes one Punish (late-payment penalty) entry per month, computed from real Bank-OT/Card-OT folders', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({
+      Contract: { ComDateIjara: '01.01.2024', AddDays: 30 },
+      Punish: { PerDay: 50000, CapRatio: 1 }, // capRatio=1 isolates the day-count math from the cap
+      Excel: { CellNames: [] },
+    });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(
+      ymlFile,
+      'ActDate_: 01.01.2026\nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n',
+      'utf8'
+    );
+
+    // Rent (4,200,000) for the single Jan 2026 month is paid 5 days late:
+    // due 2026-01-31, actually paid 2026-02-05.
+    writeTree(path.join(workDir, 'Bank-OT'), { '2026-02-05 4,200,000': {} });
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      { ComDate_: '01.01.2026', Price: '4,200,000', SurEnable: false, RepEnable: false },
+      {
+        isYatt: false,
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('Punish:');
+    // 5 days * 50,000/day = 250,000.
+    expect(content).toContain('2026-01-01#2026-01-31: 250,000');
+
+    const lines = content.split('\n');
+    const accrualIdx = lines.findIndex((l) => l.startsWith('Accrual:'));
+    const punishIdx = lines.findIndex((l) => l.startsWith('Punish:'));
+    expect(punishIdx).toBeGreaterThan(accrualIdx);
   });
 });

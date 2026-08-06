@@ -463,6 +463,59 @@ describe('Excels.processPricing', () => {
 });
 
 // =============================================================================
+// processPunish — drives globalThis.excelSheet via findColumn, gated on
+// yamlData.PunishEnable
+// =============================================================================
+describe('Excels.processPunish', () => {
+  function installSheet(found = { Row: 5, Column: 2 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('does nothing and never searches for {Punish} when PunishEnable is not true', () => {
+    const sheet = installSheet();
+
+    expect(() =>
+      Excels.processPunish({
+        PunishEnable: false,
+        Punish: [{ '2026-01-01#2026-01-31': '500,000' }],
+      })
+    ).not.toThrow();
+    expect(() => Excels.processPunish({})).not.toThrow();
+
+    expect(sheet.Cells.Find).not.toHaveBeenCalled();
+  });
+
+  it("writes one row per yamlData.Punish entry, using each interval's start date, when PunishEnable is true", () => {
+    const sheet = installSheet({ Row: 5, Column: 2 });
+
+    Excels.processPunish({
+      PunishEnable: true,
+      Punish: [{ '2026-01-01#2026-01-31': '250,000' }, { '2026-02-01#2026-02-28': '0' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Punish');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
+  });
+
+  it('warns and does not throw when PunishEnable is true but {Punish} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+
+    expect(() =>
+      Excels.processPunish({ PunishEnable: true, Punish: [{ '2026-01-01#2026-01-31': '250,000' }] })
+    ).not.toThrow();
+  });
+});
+
+// =============================================================================
 // processFolders — writes one row per {date: amount} entry (from yamlData,
 // no folder scan)
 // =============================================================================

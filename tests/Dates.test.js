@@ -158,6 +158,29 @@ describe('Dates.monthsBetween', () => {
   });
 });
 
+describe('Dates.daysBetween', () => {
+  it('returns the whole-day count between two YYYY-MM-DD dates', () => {
+    expect(Dates.daysBetween('2026-07-31', '2026-08-10')).toBe(10);
+  });
+
+  it('returns 0 when the dates are equal', () => {
+    expect(Dates.daysBetween('2026-07-31', '2026-07-31')).toBe(0);
+  });
+
+  it('returns a negative count when end is before start', () => {
+    expect(Dates.daysBetween('2026-08-10', '2026-07-31')).toBe(-10);
+  });
+
+  it('crosses month/year boundaries correctly', () => {
+    expect(Dates.daysBetween('2025-12-25', '2026-01-05')).toBe(11);
+  });
+
+  it('returns 0 when either date is missing', () => {
+    expect(Dates.daysBetween('', '2026-01-31')).toBe(0);
+    expect(Dates.daysBetween('2026-01-01', '')).toBe(0);
+  });
+});
+
 describe('Dates.randomInt', () => {
   it('returns a value within [min, max] inclusive', () => {
     for (let i = 0; i < 200; i++) {
