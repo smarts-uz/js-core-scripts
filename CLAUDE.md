@@ -315,4 +315,14 @@ project-specific documentation this section used to hold.
 
 ## Project-Specific Business Requirements
 
-_(None — this project is a document-processing tool set with no business/monetization domain. The external-integration credentials and config that ride along in `classes/` are documented separately in [INTEGRATIONS.md](INTEGRATIONS.md); they are not business logic implemented by these scripts.)_
+The document-processing tool set itself has no business/monetization domain — the external-integration credentials and config that ride along in `classes/` are documented separately in [INTEGRATIONS.md](INTEGRATIONS.md); they are not business logic implemented by these scripts.
+
+### Rental reconciliation (ActReco) — monthly penalty/debt calculation rule
+
+`Excels.generate` builds a per-tenant rental reconciliation act from real evidence folders (`Bank-OT`, `Card-OT`, `EHF-IN`, `BaaR-OT`, etc., named per `Excel.CellNames` in `config.yml`, each a sibling of the tenant's own `.yml` under `folderALL`). When manually verifying or recomputing a reconciliation act's debt/penalty figures (as opposed to trusting the workbook's own `SUM`-based formulas blindly), the correct calculation rule is:
+
+- **Monthly periods are anchored to the rental start date (`RENT_START`), never to when a payment happens to arrive.** Period _N_ runs from `RENT_START + (N-1) months` to `RENT_START + N months`; its due date is the end of that window (same day-of-month as `RENT_START`, one month later).
+- **Each real payment covers a chain of consecutive whole months, starting right where the previous payment's coverage left off** — `floor(amount / monthlyRate)` months, chained onto `coveredUpToIdx + 1`. A payment never retroactively re-covers an earlier already-covered month, and it never "banks" leftover credit into the indefinite future beyond the whole months it actually buys.
+- **A period fully inside some payment's coverage chain is PAID — zero qarz (debt), zero penya (penalty) — regardless of which calendar date the covering payment itself arrived on.** (Real incident: an earlier cumulative-sum model wrongly used the _payment's arrival date_ vs. each period's own due date to decide "OK", which produced a coincidentally-correct total but the wrong reasoning — corrected to the chained-coverage model above per direct user correction in this project's history.)
+- **A period NOT covered by any payment's chain is unpaid from its own due date** — `Сумма задолженности` (qarzdorlik) accrues at the monthly rate for that period, and if today's date is past that period's due date, `пеня` (penalty) accrues at the contract's fixed daily rate (this project's ASHALIFE PHARMA contract: 50,000 UZS/day, per §21.2), capped at 50% of that period's monthly rent (§21.3) — never carried further once the cap is hit for that month.
+- **Never assume a single large prepayment recurs as a pattern for future months** — a tenant paying 6 months at once in the past does not imply every future gap will also self-resolve; each period's coverage is derived strictly from the actual payment chain that exists on disk, never extrapolated.
