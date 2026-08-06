@@ -227,16 +227,20 @@ export class Excels {
   // start date, penalty amount) starting at the {Penalty} placeholder's
   // cell. The trailing { ALL: sum } entry is skipped (no "ALL" date to
   // write a row for). Only runs when yamlData.PenaltyON === true; when
-  // false (or missing), this is a no-op and the {Penalty} placeholder is
-  // left for the ordinary {KEY} placeholder-clear pass in generate() to
-  // blank out. When PenaltyON is true but the template has no {Penalty}
-  // placeholder cell (an older Excel template predating this feature),
-  // warns and skips instead of crashing.
+  // false (or missing), the {Penalty} placeholder cell is blanked out
+  // directly here (the ordinary {KEY} placeholder-clear pass in generate()
+  // never reaches it — that pass only replaces SCALAR yamlData keys and
+  // explicitly skips every array-valued one, and Penalty is always an
+  // array — so leaving the blanking to that pass would silently leave the
+  // literal "{Penalty}" text sitting in the report). When PenaltyON is true
+  // but the template has no {Penalty} placeholder cell (an older Excel
+  // template predating this feature), warns and skips instead of crashing.
   static processPenalty(yamlData) {
     console.info(`[Excels.processPenalty] 🟢 Starting...`);
 
     if (yamlData.PenaltyON !== true) {
-      console.log('processPenalty: PenaltyON is not true, skipping.');
+      console.log('processPenalty: PenaltyON is not true, blanking the {Penalty} placeholder.');
+      this.replaceInSheet('{Penalty}', '');
       return;
     }
 
