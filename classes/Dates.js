@@ -98,6 +98,15 @@ export class Dates {
     return ranges;
   }
 
+  // Number of calendar days in the month containing 'YYYY-MM-DD' dateExcel.
+  static daysInMonth(dateExcel) {
+    console.info(`[Dates.daysInMonth] 🟢 Starting...`);
+    const d = dayjs(dateExcel, 'YYYY-MM-DD');
+    const days = d.daysInMonth();
+    console.log("daysInMonth days", days);
+    return days;
+  }
+
   // Whole calendar days between two 'YYYY-MM-DD' dates (end - start). Negative
   // when end is before start; 0 when equal. Used to turn a payment-delay
   // date range into a day count for a fixed-per-day penalty (пеня/неустойка).
