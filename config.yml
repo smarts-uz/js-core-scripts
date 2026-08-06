@@ -28,7 +28,7 @@ Templates:
     # Contract templates (files) — read by Word.makeContract / Yamls / Excels.generate.
     Word: d:\Humans\Building\Rentalls\Contract\Projects\Rentals 527.docx
     Yaml: C:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract
-    Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 90.xlsx
+    Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 92.xlsx
 ChoosedChars:
     Word: cxACEHIJKMOPSTX
     Markdown: cxACEHIJKMOPSTX
