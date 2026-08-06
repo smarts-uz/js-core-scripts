@@ -192,10 +192,17 @@ export class Excels {
   // Reads yamlData.Accrual — the "start#end": amount date-interval array
   // Yamls.recomputeChain/writeAccrual already writes into the .contract
   // yaml — and writes one row per entry (interval start date, amount)
-  // starting at the {Accrual} placeholder's cell. The trailing
-  // { ALL: sum } entry is skipped (no "ALL" date to write a row for). No
-  // folder scan: the .contract yaml is the single source of truth for this
-  // data now.
+  // starting at the {Accrual} placeholder's cell (found.Column = C, so
+  // dates go to C and amounts to D). The SAME amount is ALSO written to
+  // column F (found.Column + 3), the sheet's own "Сумма" total column,
+  // whose row-3 cell (F3) carries a real =SUM(F4:F172) formula that
+  // re-derives the Accrual grand total — this is the one Excel-native
+  // formula this session's "keraklisini qoldir" (keep what's needed)
+  // decision preserved (all the stale DATEDIF/LET per-row proration
+  // formulas in E/F were removed instead; SUM totals were kept). The
+  // trailing { ALL: sum } entry from the .yml array is skipped here (no
+  // "ALL" date to write a row for) — F3's own SUM formula recomputes the
+  // same total live in Excel, so it is never written as a static value.
   static processAccrual(yamlData) {
     console.info(`[Excels.processAccrual] 🟢 Starting...`);
     const found = this.findColumn('Accrual');
@@ -216,6 +223,7 @@ export class Excels {
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 3).Value = amount;
 
       row++;
     }
