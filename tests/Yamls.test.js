@@ -548,6 +548,89 @@ describe('Yamls.writeCellArrays', () => {
   });
 });
 
+describe('Yamls.computeFaktura', () => {
+  const accrual = [
+    { '2026-01-01#2026-01-31': '390,000' },
+    { '2026-02-01#2026-02-28': '390,000' },
+    { '2026-03-01#2026-03-31': '390,000' },
+    { ALL: '1,170,000' }, // trailing ALL entry must be ignored, like Loaners/Penalty do
+  ];
+
+  it('distributes EHF-IN across accrual periods in order, chained like Payment', () => {
+    const ehfIn = [{ '2025-09-10': '500000' }];
+    const result = Yamls.computeFaktura(accrual, ehfIn);
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '390,000' },
+      { '2026-02-01#2026-02-28': '110,000' },
+      { '2026-03-01#2026-03-31': '0' },
+      { ALL: '500,000' },
+    ]);
+  });
+
+  it('writes 0 for every period once the whole EHF-IN sum is exhausted', () => {
+    const ehfIn = [{ '2025-09-10': '390000' }];
+    const result = Yamls.computeFaktura(accrual, ehfIn);
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '390,000' },
+      { '2026-02-01#2026-02-28': '0' },
+      { '2026-03-01#2026-03-31': '0' },
+      { ALL: '390,000' },
+    ]);
+  });
+
+  it('never over-distributes beyond the real Accrual owed for a period', () => {
+    // EHF-IN total (2,000,000) far exceeds the 3-month Accrual (1,170,000) —
+    // each period still only ever gets its own Accrual amount, never more.
+    const ehfIn = [{ '2025-09-10': '2000000' }];
+    const result = Yamls.computeFaktura(accrual, ehfIn);
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '390,000' },
+      { '2026-02-01#2026-02-28': '390,000' },
+      { '2026-03-01#2026-03-31': '390,000' },
+      { ALL: '1,170,000' },
+    ]);
+  });
+
+  it('returns 0 for every period and ALL: 0 when there is no EHF-IN at all', () => {
+    const result = Yamls.computeFaktura(accrual, []);
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '0' },
+      { '2026-02-01#2026-02-28': '0' },
+      { '2026-03-01#2026-03-31': '0' },
+      { ALL: '0' },
+    ]);
+  });
+});
+
+describe('Yamls.writeFaktura', () => {
+  it('inserts the Faktura array directly after the Payment: block', () => {
+    const f = path.join(workDir, 't.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\nPayment:\n  - 2026-01-01#2026-01-31: 390,000\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    Yamls.writeFaktura(f, [{ '2026-01-01#2026-01-31': '390,000' }, { ALL: '390,000' }]);
+
+    const lines = read(workDir, 't.contract').split('\n');
+    const paymentIdx = lines.findIndex((l) => l.startsWith('Payment:'));
+    const fakturaIdx = lines.findIndex((l) => l.startsWith('Faktura:'));
+    expect(fakturaIdx).toBeGreaterThan(paymentIdx);
+    expect(lines[fakturaIdx + 1]).toBe('  - 2026-01-01#2026-01-31: 390,000');
+    expect(read(workDir, 't.contract')).toContain('PrepayMonth:');
+  });
+
+  it('writes an empty Faktura: [] block (allowEmpty=true) when faktura is empty', () => {
+    const f = path.join(workDir, 't2.contract');
+    fs.writeFileSync(f, 'Payment:\n  - 2026-01-01#2026-01-31: 390,000\n', 'utf8');
+
+    Yamls.writeFaktura(f, []);
+
+    expect(read(workDir, 't2.contract')).toContain('Faktura: []');
+  });
+});
+
 describe('Yamls.extractFirstNumber', () => {
   it('returns the leading run of digits as a string', () => {
     expect(Yamls.extractFirstNumber('123abc')).toBe('123');

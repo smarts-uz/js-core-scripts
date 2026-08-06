@@ -291,6 +291,31 @@ export class Yamls {
         return { payment, loaners };
     }
 
+    // Distributes the real EHF-IN invoice amounts across the FINAL (already
+    // recomputeChain-settled) Accrual periods, same "start#end" shape as
+    // Payment — chains the total invoiced sum across accrual's periods in
+    // order via computePaymentChain, keeping only its `payment` half (a
+    // month's own Loaners-vs-invoice split has no meaning here, EHF-IN is a
+    // document, not cash). Once the whole EHF-IN sum is exhausted, every
+    // remaining period gets 0 — computePaymentChain already produces exactly
+    // that once its running `remaining` pool hits zero.
+    //
+    // Returns [{ "monthStart#monthEnd": amount }, ..., { ALL: sum }], same
+    // order/shape as Payment/Loaners (accrual's own trailing { ALL } entry is
+    // skipped — computePaymentChain expects bare period entries).
+    static computeFaktura(accrual, ehfIn) {
+        console.info(`[Yamls.computeFaktura] 🟢 Starting...`);
+
+        const periods = accrual.filter(e => !('ALL' in e));
+        const { payment: faktura } = Yamls.computePaymentChain(periods, ehfIn);
+
+        const sum = faktura.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
+        const result = [...faktura, { ALL: sum.toLocaleString('en-US') }];
+
+        console.log(`computeFaktura: sum=${sum}`, result);
+        return result;
+    }
+
     // Recomputes Accrual/Payment/Loaners to a fixed point: applying PriceMax
     // to debt months can change which months are in debt (a higher Accrual
     // for one month can push a later month into debt too, or a lower one out
@@ -411,7 +436,7 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Payment', payment, 'Accrual', [], true);
     }
 
-    // Writes/replaces the Loaners: array block directly after Payment: —
+    // Writes/replaces the Loaners: array block directly after Faktura: —
     // per-period outstanding debt (the mirror of Payment).
     //   Loaners:
     //     - 2026-03-01#2026-03-31: 0
@@ -419,7 +444,7 @@ export class Yamls {
     //     - ALL: 450,000
     static writeLoaners(filePath, loaners) {
         console.info(`[Yamls.writeLoaners] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Loaners', loaners, 'Payment', [], true);
+        this.writeYamlArraySection(filePath, 'Loaners', loaners, 'Faktura', [], true);
     }
 
     // Writes/replaces the Penalty: array block directly after Loaners: —
@@ -432,6 +457,18 @@ export class Yamls {
     static writePenalty(filePath, penalty) {
         console.info(`[Yamls.writePenalty] 🟢 Starting...`);
         this.writeYamlArraySection(filePath, 'Penalty', penalty, 'Loaners', ['Punish'], true);
+    }
+
+    // Writes/replaces the Faktura: array block directly after Payment: — the
+    // real EHF-IN invoice sum distributed across the final Accrual periods
+    // (see computeFaktura), same shape as Payment.
+    //   Faktura:
+    //     - 2026-03-01#2026-03-31: 450,000
+    //     - 2026-04-01#2026-04-30: 0
+    //     - ALL: 450,000
+    static writeFaktura(filePath, faktura) {
+        console.info(`[Yamls.writeFaktura] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'Faktura', faktura, 'Payment', [], true);
     }
 
     // Scans <folderALL>/<key>/ for dated subfolders (ported from
@@ -494,10 +531,11 @@ export class Yamls {
     // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses — the same set
     // Excels.generate reads via config.yml) into the .contract yaml as its own
     // array block, right after Penalty: (which itself sits right after
-    // Loaners: — see writePenalty) — each populated from
-    // scanCellFolder(folderALL, key) when that folder exists, or left as an
-    // empty array ("KeyName: []") when it doesn't, so every key is always
-    // present even with no data yet.
+    // Loaners:, which sits right after Faktura:, which sits right after
+    // Payment: — see writePayment/writeFaktura/writeLoaners/writePenalty) —
+    // each populated from scanCellFolder(folderALL, key) when that folder
+    // exists, or left as an empty array ("KeyName: []") when it doesn't, so
+    // every key is always present even with no data yet.
     static writeCellArrays(ymlFile, folderALL) {
         console.info(`[Yamls.writeCellArrays] 🟢 Starting...`);
 
@@ -1303,6 +1341,19 @@ export class Yamls {
         );
         Yamls.writeAccrual(ymlFile, accrual);
         Yamls.writePayment(ymlFile, payment);
+
+        // Faktura: the real EHF-IN invoice sum (scanned fresh from
+        // folderALL, same as Bank-OT/Trans-OT/Card-OT above), distributed
+        // across the FINAL, already-recomputeChain-settled Accrual periods —
+        // once the whole EHF-IN sum is distributed, every remaining period
+        // gets 0. Must run AFTER recomputeChain, against its returned
+        // `accrual` (the fixed-point one, already re-priced at PriceMax on
+        // any debt month), never the pre-recompute baseline. Written directly
+        // after Payment:, before Loaners:/Penalty:.
+        const ehfIn = Yamls.scanCellFolder(globalThis.folderALL, 'EHF-IN');
+        const faktura = Yamls.computeFaktura(accrual, ehfIn);
+        Yamls.writeFaktura(ymlFile, faktura);
+
         Yamls.writeLoaners(ymlFile, loaners);
 
         // Penalty (§21.2/§21.3): 50% of a debt month's own Accrual, applied
