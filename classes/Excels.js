@@ -190,20 +190,28 @@ export class Excels {
   }
 
   // Reads yamlData.Accrual — the "start#end": amount date-interval array
-  // Yamls.replaceYaml already writes into the .contract yaml — and writes one
-  // row per entry (interval start date, amount) starting at the {Pricings}
-  // placeholder's cell. No folder scan: the .contract yaml is the single
-  // source of truth for this data now.
-  static processPricing(yamlData) {
-    console.info(`[Excels.processPricing] 🟢 Starting...`);
-    const found = this.findColumn('Pricings');
+  // Yamls.recomputeChain/writeAccrual already writes into the .contract
+  // yaml — and writes one row per entry (interval start date, amount)
+  // starting at the {Accrual} placeholder's cell. The trailing
+  // { ALL: sum } entry is skipped (no "ALL" date to write a row for). No
+  // folder scan: the .contract yaml is the single source of truth for this
+  // data now.
+  static processAccrual(yamlData) {
+    console.info(`[Excels.processAccrual] 🟢 Starting...`);
+    const found = this.findColumn('Accrual');
+    if (!found) {
+      console.warn('⚠️ processAccrual: {Accrual} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
     let row = found.Row;
 
     const accrual = Array.isArray(yamlData.Accrual) ? yamlData.Accrual : [];
-    console.log(`processPricing: ${accrual.length} Accrual entr(y/ies)`, accrual);
+    console.log(`processAccrual: ${accrual.length} Accrual entr(y/ies)`, accrual);
 
     for (const entry of accrual) {
       const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
       const [start] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -213,37 +221,102 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Punish — the "start#end": amount per-month late-payment
+  // Reads yamlData.Penalty — the "start#end": amount per-month late-payment
   // penalty (пеня/неустойка, §21.2/§21.3) array Yamls.replaceYaml already
   // writes into the .contract yaml — and writes one row per entry (interval
-  // start date, penalty amount) starting at the {Punish} placeholder's cell.
-  // Only runs when yamlData.PunishEnable === true; when false (or missing),
-  // this is a no-op and the {Punish} placeholder is left for the ordinary
-  // {KEY} placeholder-clear pass in generate() to blank out. When
-  // PunishEnable is true but the template has no {Punish} placeholder cell
-  // (an older Excel template predating this feature), warns and skips
-  // instead of crashing.
-  static processPunish(yamlData) {
-    console.info(`[Excels.processPunish] 🟢 Starting...`);
+  // start date, penalty amount) starting at the {Penalty} placeholder's
+  // cell. The trailing { ALL: sum } entry is skipped (no "ALL" date to
+  // write a row for). Only runs when yamlData.PenaltyON === true; when
+  // false (or missing), this is a no-op and the {Penalty} placeholder is
+  // left for the ordinary {KEY} placeholder-clear pass in generate() to
+  // blank out. When PenaltyON is true but the template has no {Penalty}
+  // placeholder cell (an older Excel template predating this feature),
+  // warns and skips instead of crashing.
+  static processPenalty(yamlData) {
+    console.info(`[Excels.processPenalty] 🟢 Starting...`);
 
-    if (yamlData.PunishEnable !== true) {
-      console.log('processPunish: PunishEnable is not true, skipping.');
+    if (yamlData.PenaltyON !== true) {
+      console.log('processPenalty: PenaltyON is not true, skipping.');
       return;
     }
 
-    const found = this.findColumn('Punish');
+    const found = this.findColumn('Penalty');
     if (!found) {
-      console.warn('⚠️ processPunish: {Punish} placeholder not found in Excel template; skipping.');
+      console.warn('⚠️ processPenalty: {Penalty} placeholder not found in Excel template; skipping.');
       return;
     }
 
     let row = found.Row;
 
-    const punish = Array.isArray(yamlData.Punish) ? yamlData.Punish : [];
-    console.log(`processPunish: ${punish.length} Punish entr(y/ies)`, punish);
+    const penalty = Array.isArray(yamlData.Penalty) ? yamlData.Penalty : [];
+    console.log(`processPenalty: ${penalty.length} Penalty entr(y/ies)`, penalty);
 
-    for (const entry of punish) {
+    for (const entry of penalty) {
       const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
+      const [start] = intervalKey.split('#');
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = start;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+
+      row++;
+    }
+  }
+
+  // Reads yamlData.Payment — the "start#end": amount per-period real cash
+  // received array Yamls.recomputeChain/writePayment writes into the
+  // .contract yaml — and writes one row per entry (interval start date,
+  // paid amount) starting at the {Payment} placeholder's cell. The
+  // trailing { ALL: sum } entry is skipped. Always runs (no ON/OFF flag,
+  // unlike Penalty) — mirrors processAccrual's own unconditional shape.
+  static processPayment(yamlData) {
+    console.info(`[Excels.processPayment] 🟢 Starting...`);
+
+    const found = this.findColumn('Payment');
+    if (!found) {
+      console.warn('⚠️ processPayment: {Payment} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const payment = Array.isArray(yamlData.Payment) ? yamlData.Payment : [];
+    console.log(`processPayment: ${payment.length} Payment entr(y/ies)`, payment);
+
+    for (const entry of payment) {
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
+      const [start] = intervalKey.split('#');
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = start;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+
+      row++;
+    }
+  }
+
+  // Reads yamlData.Loaners — the "start#end": amount per-period outstanding
+  // debt array Yamls.recomputeChain/writeLoaners writes into the .contract
+  // yaml — and writes one row per entry (interval start date, debt amount)
+  // starting at the {Loaners} placeholder's cell. The trailing
+  // { ALL: sum } entry is skipped. Always runs — mirrors processPayment.
+  static processLoaners(yamlData) {
+    console.info(`[Excels.processLoaners] 🟢 Starting...`);
+
+    const found = this.findColumn('Loaners');
+    if (!found) {
+      console.warn('⚠️ processLoaners: {Loaners} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const loaners = Array.isArray(yamlData.Loaners) ? yamlData.Loaners : [];
+    console.log(`processLoaners: ${loaners.length} Loaners entr(y/ies)`, loaners);
+
+    for (const entry of loaners) {
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
       const [start] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -818,8 +891,10 @@ export class Excels {
 
     this.fileOpen(newFilePath);
 
-    this.processPricing(yamlData);
-    this.processPunish(yamlData);
+    this.processAccrual(yamlData);
+    this.processPayment(yamlData);
+    this.processLoaners(yamlData);
+    this.processPenalty(yamlData);
 
     for (const cellName of cellNames) {
       const found = this.findColumn(cellName);
@@ -837,10 +912,11 @@ export class Excels {
 
 
 
-    // Replace {KEY} placeholders — skip array-valued keys (Accrual, Punish,
-    // every Excel.CellNames key: Bank-OT, EHF-IN, …). These are never
-    // rendered as a {key} placeholder; they are written cell-by-cell by
-    // processPricing/processPunish/processFolders above. Passing an
+    // Replace {KEY} placeholders — skip array-valued keys (Accrual, Payment,
+    // Loaners, Penalty, every Excel.CellNames key: Bank-OT, EHF-IN, …).
+    // These are never rendered as a {key} placeholder; they are written
+    // cell-by-cell by processAccrual/processPayment/processLoaners/
+    // processPenalty/processFolders above. Passing an
     // array/object straight to Excel COM's Cells.Replace crashes
     // ("DispInvoke: Replace The remote procedure call failed.") since it
     // only accepts a string/primitive.
