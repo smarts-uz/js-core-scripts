@@ -137,6 +137,15 @@ export class Yamls {
     // array is still written as "Key: []" when allowEmpty is true (the
     // default) — the caller decides whether "no data yet" should still leave
     // the key present (empty) or be skipped entirely.
+    //
+    // Blank-line convention: exactly ONE blank line always separates every
+    // top-level block from its neighbors (never zero, never two+) — this is
+    // enforced on every write, both around the inserted/replaced block and
+    // for any pre-existing consecutive-blank-line runs elsewhere in the file
+    // (collapsed to one), so repeated calls (writeAccrual, writePayment,
+    // writeFaktura, writeLoaners, writePenalty, writeCellArrays' own N keys,
+    // all chained on top of each other in one replaceYaml run) never
+    // accumulate stray blank lines or squash the separators away entirely.
     static writeYamlArraySection(filePath, key, entries, afterKey, legacyKeys = [], allowEmpty = true) {
         console.info(`[Yamls.writeYamlArraySection] 🟢 Starting... key=${key}`);
 
@@ -170,21 +179,45 @@ export class Yamls {
 
         if (afterIdx === -1) {
             console.warn(`writeYamlArraySection: "${afterKey}:" line not found in ${filePath}; appending ${key} at end of file.`);
+            if (stripped.length > 0 && stripped[stripped.length - 1] !== '') stripped.push('');
             stripped.push(...block);
         } else {
             // Insert after the WHOLE afterKey block, not just its own key
             // line — skip past every indented child line (its array items)
             // first, so a chained insertion (Bank-OT after Accrual, Bonuses
             // after Bank-OT, ...) lands after each key's own data, never
-            // splitting a block apart.
+            // splitting a block apart. Any blank line(s) immediately
+            // following the afterKey block belong to the SEPARATOR after our
+            // own newly-inserted block, not before it — so they are skipped
+            // here too (consumed below) rather than left sitting between
+            // afterKey and the new block.
             let insertIdx = afterIdx + 1;
-            while (insertIdx < stripped.length && /^\s/.test(stripped[insertIdx])) {
+            while (insertIdx < stripped.length && /^\s/.test(stripped[insertIdx]) && stripped[insertIdx] !== '') {
                 insertIdx++;
             }
-            stripped.splice(insertIdx, 0, ...block);
+            let afterBlankRun = insertIdx;
+            while (afterBlankRun < stripped.length && stripped[afterBlankRun] === '') {
+                afterBlankRun++;
+            }
+
+            const toInsert = ['', ...block];
+            // Only add a trailing separator blank line when something follows
+            // (avoid a dangling blank line at end-of-file).
+            if (afterBlankRun < stripped.length) toInsert.push('');
+
+            stripped.splice(insertIdx, afterBlankRun - insertIdx, ...toInsert);
         }
 
-        fs.writeFileSync(filePath, stripped.join('\n'));
+        // Collapse any run of 2+ consecutive blank lines anywhere in the file
+        // down to exactly one — repairs stray accumulation left over from
+        // earlier buggy writes, and keeps every future write from drifting.
+        const normalized = [];
+        for (const line of stripped) {
+            if (line === '' && normalized.length > 0 && normalized[normalized.length - 1] === '') continue;
+            normalized.push(line);
+        }
+
+        fs.writeFileSync(filePath, normalized.join('\n'));
 
         console.log(`File ${filePath} has been updated with ${key}.`, entries);
     }

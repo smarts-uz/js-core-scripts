@@ -267,7 +267,7 @@ describe('Yamls.replaceTextLine', () => {
 });
 
 describe('Yamls.writeAccrual', () => {
-  it('inserts the Accrual array directly after the ActDateEnd: line', () => {
+  it('inserts the Accrual array directly after the ActDateEnd: line, separated by exactly one blank line', () => {
     const f = path.join(workDir, 't.contract');
     fs.writeFileSync(f, 'ActDate: 09.07.2025\nActDateEnd: \nPrepayMonth: \n', 'utf8');
 
@@ -275,8 +275,9 @@ describe('Yamls.writeAccrual', () => {
 
     const lines = read(workDir, 't.contract').split('\n');
     const actEndIdx = lines.findIndex((l) => l.startsWith('ActDateEnd:'));
-    expect(lines[actEndIdx + 1]).toBe('Accrual:');
-    expect(lines[actEndIdx + 2]).toBe('  - 2026-03-01#2026-03-31: 450,000');
+    expect(lines[actEndIdx + 1]).toBe('');
+    expect(lines[actEndIdx + 2]).toBe('Accrual:');
+    expect(lines[actEndIdx + 3]).toBe('  - 2026-03-01#2026-03-31: 450,000');
   });
 
   it('replaces an existing Accrual block instead of duplicating it', () => {
@@ -321,7 +322,8 @@ describe('Yamls.writeAccrual', () => {
     ]);
 
     const lines = read(workDir, 't3.contract').split('\n');
-    expect(lines.slice(1, 4)).toEqual([
+    expect(lines.slice(1, 5)).toEqual([
+      '',
       'Accrual:',
       '  - 2026-01-01#2026-01-31: 450,000',
       '  - 2026-02-01#2026-02-28: 450,000',
@@ -343,6 +345,52 @@ describe('Yamls.writeAccrual', () => {
     const content = read(workDir, 't5.contract');
     expect(content).toContain('Foo: bar');
     expect(content).toContain('Accrual:');
+  });
+
+  it('chaining writeAccrual/writePayment/writeFaktura/writeLoaners/writePenalty preserves exactly one blank line between every block (real incident: repeated calls silently collapsed all separators and piled up stray blank lines elsewhere)', () => {
+    const f = path.join(workDir, 'chain.contract');
+    fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
+
+    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
+    Yamls.writePayment(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
+    Yamls.writeFaktura(f, [{ '2026-01-01#2026-01-31': '0' }]);
+    Yamls.writeLoaners(f, [{ '2026-01-01#2026-01-31': '0' }]);
+    Yamls.writePenalty(f, [{ '2026-01-01#2026-01-31': '0' }]);
+
+    expect(read(workDir, 'chain.contract')).toBe(
+      [
+        'ActDateEnd:',
+        '',
+        'Accrual:',
+        '  - 2026-01-01#2026-01-31: 450,000',
+        '',
+        'Payment:',
+        '  - 2026-01-01#2026-01-31: 450,000',
+        '',
+        'Faktura:',
+        "  - 2026-01-01#2026-01-31: '0'",
+        '',
+        'Loaners:',
+        "  - 2026-01-01#2026-01-31: '0'",
+        '',
+        'Penalty:',
+        "  - 2026-01-01#2026-01-31: '0'",
+        '',
+        'ComBase: x',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('collapses a pre-existing run of 2+ consecutive blank lines down to exactly one (repairs stray accumulation from an earlier buggy write)', () => {
+    const f = path.join(workDir, 'stray.contract');
+    fs.writeFileSync(f, 'ActDateEnd:\n\n\n\n\nComBase: x\n', 'utf8');
+
+    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
+
+    const content = read(workDir, 'stray.contract');
+    expect(content).not.toMatch(/\n\n\n/);
+    expect(content).toContain('ComBase: x');
   });
 });
 
