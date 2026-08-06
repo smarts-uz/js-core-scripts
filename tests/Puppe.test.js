@@ -1,4 +1,4 @@
-// Unit tests for utils/Puppe.js — every public (non-_) static method:
+// Unit tests for classes/Puppe.js — every public (non-_) static method:
 //   humanScroll, autoScroll, scrollUntilSelector, extractOffers, extractUserId,
 //   extractContent, extractApp, extractAppPhone, extractID, showPhone,
 //   saveAsMhtml, scrapeOffers, scrapePhone, scrapeUser, offersCount,
@@ -88,7 +88,7 @@ jest.unstable_mockModule(utilsModule('ES.js'), () => ({ ES }));
 jest.unstable_mockModule(utilsModule('Phone.js'), () => ({ Phone }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls }));
 
-const { Puppe } = await import('../utils/Puppe.js');
+const { Puppe } = await import('../classes/Puppe.js');
 
 // --- shared helpers ----------------------------------------------------------
 

@@ -1,7 +1,7 @@
-# utils/ test suite
+# classes/ test suite
 
 Unit tests for every public method (name **not** starting with `_`) of every
-class under [`utils/`](../utils). Built on **Jest** (native ESM) with the
+class under [`classes/`](../classes). Built on **Jest** (native ESM) with the
 trending plugins **jest-extended**, **@fast-check/jest**, **jest-when**,
 **jest-watch-typeahead** and **jest-junit**.
 
@@ -34,7 +34,7 @@ writeTree(dir, { 'a.txt': 'hi', sub: { 'b.json': '{}' } });
 afterEach(() => cleanupAllTmpDirs());
 ```
 
-Import the class directly: `import { Files } from '../utils/Files.js';`
+Import the class directly: `import { Files } from '../classes/Files.js';`
 
 ### 2. Native / OS / network boundary — mock only the boundary
 
@@ -53,7 +53,7 @@ import { makeWinaxMock, makeComProxy, makePuppeteerMock, spawnResult } from './h
 jest.unstable_mockModule('child_process', () => ({ execSync: jest.fn(), default: {} }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: { messageBox: jest.fn() } }));
 
-const { Excels } = await import('../utils/Excels.js');   // import AFTER mocks
+const { Excels } = await import('../classes/Excels.js');   // import AFTER mocks
 ```
 
 - Local sibling deps (`./Files.js`, `./Dialogs.js`, …) **must** be keyed with
@@ -71,7 +71,7 @@ const { Excels } = await import('../utils/Excels.js');   // import AFTER mocks
   cases, empty/invalid input, and error branches. For thin native wrappers,
   assert the boundary was called with the right arguments and the return is
   shaped correctly.
-- **Never modify `utils/` source** to make a test pass. If a method has a bug,
+- **Never modify `classes/` source** to make a test pass. If a method has a bug,
   write a test that documents the actual behavior and add a comment.
 - Prefer **jest-extended** (`toBeArray`, `toBeOneOf`, `toContainAllKeys`, …) and
   the custom matchers in [`setup/matchers.js`](setup/matchers.js)

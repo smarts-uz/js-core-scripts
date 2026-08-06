@@ -2,15 +2,15 @@
 
 This file holds **only the requirements specific to this project** — both project-specific **technical** and project-specific **business** requirements, comprehensively. The universal prompt-maintenance mechanism (the two-file split, reading, removals, workflow, in-place editing) lives in the global `~/.claude/CLAUDE.md` under _Requirements_; this file never restates it — it only records what is specific to this project.
 
-**The generic command-line-app architecture requirements are owned by the `smarts-app-cmdline` skill.** This project is a command-line app of exactly the shape that skill conforms — a reflection-generated `runs/<Class>/<method>` runner tree over a `utils/` class library, a one-file-per-class test suite, `.env`-only secrets, the symlinked-`node_modules` hazard, quality gates, `shell/` launchers, `.vscode/launch.json` debug configs, and external-service integrations. The reusable *shape and conventions* of all of that live in `smarts-app-cmdline` (`prompt/ALL.md` and its `module/*.md`); **this file records only the concrete, project-specific values** that fill that shape in for `js_ai_category`. To regenerate or re-conform the architecture, run the `smarts-app-cmdline` skill in this workspace. Per-feature pointers below name the owning skill module.
+**The generic command-line-app architecture requirements are owned by the `smarts-app-cmd` skill (`type=architecture`).** This project is a command-line app of exactly the shape that skill conforms — a reflection-generated `scripts/<Class>/<method>` runner tree over a `classes/` class library, a one-file-per-class test suite, `.env`-only secrets, the symlinked-`node_modules` hazard, quality gates, `sheller/` launchers, `.vscode/launch.json` debug configs, and external-service integrations. The reusable _shape and conventions_ of all of that live in `smarts-app-cmd` (`prompt/ALL.md` and its `module/*.md`); **this file records only the concrete, project-specific values** that fill that shape in for `js_ai_category`. To regenerate or re-conform the architecture, run the `smarts-app-cmd` skill in this workspace. The project's `humanize/` GUI sub-app is a separate `smarts-app-gui` (`type=tauri`) concern — see its own section below. Per-feature pointers below name the owning skill module.
 
 ---
 
 ## What This Project Is
 
-A collection of **Node.js (ESM) tools for processing Office and Markdown documents** on Windows. Every operation is a **public static method of a class under [`utils/`](utils/)**, exposed as a CLI through a **per-method runner** at `runs/<Class>/<method>.mjs`. Runners are launched directly with `node`, from Windows right-click context menus via the `shell/` launchers, or from VS Code debug configs. There is **no server, UI, or build step**. The project carries a `package.json` (jest test scripts + dev tooling only) and a `jest` unit-test suite under `tests/`.
+A collection of **Node.js (ESM) tools for processing Office and Markdown documents** on Windows. Every operation is a **public static method of a class under [`classes/`](classes/)**, exposed as a CLI through a **per-method runner** at `scripts/<Class>/<method>.mjs`. Runners are launched directly with `node`, from Windows right-click context menus via the `sheller/` launchers, or from VS Code debug configs. There is **no server, UI, or build step**. The project carries a `package.json` (jest test scripts + dev tooling only) and a `jest` unit-test suite under `tests/`.
 
-Operation families (each a method on a `utils/` class, runnable via `runs/<Class>/<method>.mjs`):
+Operation families (each a method on a `classes/` class, runnable via `scripts/<Class>/<method>.mjs`):
 
 - **Conversion** — Word→Markdown and Markdown→DOCX/HTML: `Word.wordToMD`, `Markdown.convertToWord`, `Markdown.convertToWordTOC`, `Markdown.convertToHtml`.
 - **Homoglyph normalization** — Latin→Cyrillic look-alike replacement across four formats: `Homoglyph.{word,excel,powerpoint,markdown}` plus their interactive `*Ask` variants.
@@ -22,43 +22,44 @@ Operation families (each a method on a `utils/` class, runnable via `runs/<Class
 
 ## Project-Specific Technical Requirements
 
-> The architecture *conventions* (runner-tree generation, class authoring, tests, config/secrets, dependencies, quality, launchers, integrations) are owned by **`smarts-app-cmdline`**. Each subsection below records only this project's concrete fill-ins and links the owning skill module.
+> The architecture _conventions_ (runner-tree generation, class authoring, tests, config/secrets, dependencies, quality, launchers, integrations) are owned by **`smarts-app-cmd`**. Each subsection below records only this project's concrete fill-ins and links the owning skill module.
 
 ### Runtime & module system — concrete values
 
-Owned by `smarts-app-cmdline` → `module/runner-tree.md`, `module/dependencies.md`. This project's fill-ins:
+Owned by `smarts-app-cmd` → `module/runner-tree.md`, `module/dependencies.md`. This project's fill-ins:
 
-- **Node.js ESM**. Runners are `.mjs` under `runs/<Class>/`; `utils/` and the rest are `.js` with `"type": "module"`. A runner runs directly: `node runs/Word/wordToMD.mjs --file <file>`.
-- **CLI parser = `yargs`** (`hideBin(process.argv)`), one `.option()` per method parameter, inside each standalone `runs/<Class>/<method>.mjs` runner generated by `runs/_generate.mjs`. Primary file flag `--file`/`-f`; array params take positional arrays (`a.docx b.docx …`); object params take `--key value`.
-- **`package.json` carries scripts + dev tooling only — runtime deps resolve through the symlinked `node_modules`.** It declares `"type": "module"`, `engines.node >= 20`, the jest scripts (`test`, `test:watch`, `test:coverage`, each `cross-env NODE_OPTIONS=--experimental-vm-modules jest`), the quality scripts (`lint`, `lint:fix`, `format`, `format:check`), the `generate:*` scripts (`runners`/`readme`/`shell`/`launch` → the `runs/_*.mjs` tools), and `devDependencies` (eslint, prettier, husky, lint-staged, @eslint/js, globals).
-- **CRITICAL — never run a plain `npm install` in this project root.** `node_modules` is a **symlink** into the shared tree (`d:\Develop\Projects\DevApp\Execute\JS\Develop\node_modules`). A plain `npm install` here deletes that symlink and breaks the runtime (missing `winax`, `yargs`, `puppeteer`, …). To add a dev tool, install it into the shared tree (`cd d:\Develop\Projects\DevApp\Execute\JS\Develop && npm install --no-save <pkg>`). Restore a clobbered symlink: `cmd //c mklink //D "node_modules" "d:\Develop\Projects\DevApp\Execute\JS\Develop\node_modules"`.
+- **Node.js ESM**. Runners are `.mjs` under `scripts/<Class>/`; `classes/` and the rest are `.js` with `"type": "module"`. A runner runs directly: `node scripts/Word/wordToMD.mjs --file <file>`.
+- **CLI parser = `yargs`** (`hideBin(process.argv)`), one `.option()` per method parameter, inside each standalone `scripts/<Class>/<method>.mjs` runner generated by `scripts/_generate.mjs`. Primary file flag `--file`/`-f`; array params take positional arrays (`a.docx b.docx …`); object params take `--key value`.
+- **`node_modules/` at this project root is a real Windows directory symlink → `C:\Users\Administrator\.node\node_modules`** — the CURRENT shared npm/node store (`smarts-install-js`'s case-3 convention; owned end-to-end by that skill's `module/dependencies.md`). **The store has relocated twice**: originally this project's own local tree, then `~/.ai/node/` (2026-07-19), and since 2026-08-01 to its current, canonical `~/.node/` location — `~/.ai/node/` no longer exists on disk at all (confirmed 2026-08-04: the folder is gone entirely, not merely stale). Because this project is pure ESM (`"type": "module"`), a `NODE_PATH` env var alone cannot fix module resolution here (`NODE_PATH` only ever affects CommonJS `require()`, never the ESM `import`/dynamic `import()` resolution algorithm, by permanent Node.js design) — the real symlink is what makes every `scripts/<Class>/<method>.mjs` runner resolve its imports correctly. Re-verified 2026-08-04 after repointing the symlink to `~/.node/`: `fs.lstatSync('node_modules').isSymbolicLink()` → `true`, target `C:\Users\Administrator\.node\node_modules`, and a real `import('@lydell/node-pty')`/`import('yargs')` both resolved. **If this symlink is ever found missing, broken, or pointed at a stale location (`~/.ai/node/` or any earlier path) again, recreate it**: `cmd /c rmdir node_modules` (removes the symlink only, never touches the real target) then `cmd /c mklink /D node_modules C:\Users\Administrator\.node\node_modules` — **not** Git Bash's `ln -s`, which silently falls back to a full recursive **copy** instead of a real link when linking across drives (confirmed by comparing `stat` inode/device numbers on both sides in an earlier investigation). Run the jest suite with `NODE_OPTIONS=--experimental-vm-modules` set (via `cross-env`, per the npm `test` script) — invoking `jest-runtime`'s bin directly without that flag fails every suite with `Cannot use import statement outside a module`; that failure is an invocation mistake, not a symlink/module-resolution problem.
+- **`package.json`'s real content (runtime deps + dev tooling) now lives ONLY at `C:\Users\Administrator\.node\package.json`.** It still declares `"type": "module"`, `engines.node >= 20`, the jest scripts, the quality scripts, the `generate:*` scripts, `dependencies` (every runtime package `classes/`/`scripts/` imports — `winax`, `yargs`, `puppeteer`, `js-yaml`, `turndown`, `xlsx`, `pino`, `dotenv`, etc. — plus the vendored global CLI tools, see below), and `devDependencies`. Before trusting it, cross-check `C:\Users\Administrator\.node\node_modules\<pkg>` actually exists for anything `classes/`/`scripts/` imports — a whole-file rewrite has previously dropped the entire real `dependencies` block by accident (see the CLI-tools note below).
+- **Global CLI tools are ALSO vendored as regular `dependencies`** (`@anthropic-ai/claude-code`, `@openai/codex`, `@google/gemini-cli`, `vercel`, `supabase`, `npm`, `pnpm`, `yarn`, `bun`, `corepack`, `skills`, and others) — added deliberately so `npm install` places their binaries in `node_modules/.bin` instead of relying on a global install that gets wiped whenever the active Node version is switched (via `fnm`). **When adding a new package to `dependencies`, always keep the real runtime deps too** — a whole-file rewrite of `package.json` (e.g. a large scaffolding commit adding CI/lint/husky config) has previously dropped the entire real `dependencies` block by accident, silently breaking every `scripts/` runner (`ERR_MODULE_NOT_FOUND` for `winax`, then `yargs`) until a later session diffed `package.json` against git history and restored it.
 
 ### Per-method runners — concrete fill-ins
 
-Owned by `smarts-app-cmdline` → `module/runner-tree.md` (the generation shape: reflection-generated, idempotent, self-contained runners, sibling generators, the `argv[1]` caveat, no orphans). This project's concrete values:
+Owned by `smarts-app-cmd` → `module/runner-tree.md` (the generation shape: reflection-generated, idempotent, self-contained runners, sibling generators, the `argv[1]` caveat, no orphans). This project's concrete values:
 
-- **Generator** = `runs/_generate.mjs`; **README generator** = `runs/_gen-readme.mjs`; **launcher wiring** = `runs/_wire-shell.mjs` / `runs/_wire-launch.mjs`.
+- **Generator** = `scripts/_generate.mjs`; **README generator** = `scripts/_gen-readme.mjs`; **launcher wiring** = `scripts/_wire-shell.mjs` / `scripts/_wire-launch.mjs`.
 - **Wrapper helpers** imported by each runner: `Yamls`/`Dates`/`Dialogs`, with the `CmdLine.TryCatch` toggle, `CmdLine.ExitTimeout`/`ExitTimeoutError` sleeps, numbered `1️⃣ Start` / `3️⃣ Done` logs, `Dialogs.warningBox` on error, return-value printing. (When the target class itself is one of `Yamls`/`Dates`/`Dialogs`, the generator skips re-importing it.)
-- **`argv[1]` caveat (concrete depth):** `utils/Yamls.js` resolves `config.yml` and `utils/Secrets.js` loads `.env` from `dirname(process.argv[1])`. Each runner, two levels below root, sets `process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js')` as its first statement, then uses dynamic `await import()` for the class + helpers + yargs.
-- **`FLAG` alias table** (`runs/_generate.mjs`): `fileName`/`filePath`/`path`/`source` → `--file`/`-f`; `folder`/`folderPath` → `--folder`; `mhtPath`/`mhtmlPath` → `--mhtml`; `yamlPath`/`ymlFile` → `--yaml`; `chars`→`-c`, `searchStr`→`-s`, `replaceStr`→`-r`, `sheetFilter`→`--sheet`, `fontName`→`--font`, `genPdf`→`--gen-pdf`, etc.
-- **`ARRAY_PARAMS`:** `filePaths`, `folderPaths`, `files`, `folders`, `paths`, `fileNames` → positional-array command (`$0 [files..]`), so merges run as `node runs/Word/merge.mjs a.docx b.docx c.docx`.
-- **Object params:** e.g. `Scanner.run({ sourceFolder, aicFolder, maxLevel = 5, exclusions = [] })` → one `--key` per declared key → `node runs/Scanner/run.mjs --sourceFolder "d:\Statistic" --maxLevel 5`.
+- **`argv[1]` caveat (concrete depth):** `classes/Yamls.js` resolves `config.yml` and `classes/Secrets.js` loads `.env` from `dirname(process.argv[1])`. Each runner, two levels below root, sets `process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js')` as its first statement, then uses dynamic `await import()` for the class + helpers + yargs.
+- **`FLAG` alias table** (`scripts/_generate.mjs`): `fileName`/`filePath`/`path`/`source` → `--file`/`-f`; `folder`/`folderPath` → `--folder`; `mhtPath`/`mhtmlPath` → `--mhtml`; `yamlPath`/`ymlFile` → `--yaml`; `chars`→`-c`, `searchStr`→`-s`, `replaceStr`→`-r`, `sheetFilter`→`--sheet`, `fontName`→`--font`, `genPdf`→`--gen-pdf`, etc.
+- **`ARRAY_PARAMS`:** `filePaths`, `folderPaths`, `files`, `folders`, `paths`, `fileNames` → positional-array command (`$0 [files..]`), so merges run as `node scripts/Word/merge.mjs a.docx b.docx c.docx`.
+- **Object params:** e.g. `Scanner.run({ sourceFolder, aicFolder, maxLevel = 5, exclusions = [] })` → one `--key` per declared key → `node scripts/Scanner/run.mjs --sourceFolder "d:\Statistic" --maxLevel 5`.
 - The generator's pure helpers (`reflectParams`, `buildArgsCode`, `runnerSource`, `publicStaticMethods`) are exported and unit-tested in [tests/runs-generate.test.js](tests/runs-generate.test.js) (which also `node --check`s every emitted runner).
 
-### Shared libraries (symlinked) — concrete
+### Shared libraries — concrete
 
-Owned by `smarts-app-cmdline` → `module/classes.md`, `module/dependencies.md`. This project's concrete helpers and paths:
+Owned by `smarts-app-cmd` → `module/classes.md`, `module/dependencies.md`. This project's concrete helpers and paths:
 
-- [utils/](utils/) and `node_modules/` are the runtime library + deps. Import shared helpers by **relative path**: `./utils/Yamls.js`, `./utils/Word.js`, etc. **The shared `d:\Develop\Projects\DevApp\Execute\JS\Develop\` tree does not exist on this machine** — `utils/` is a real tracked folder here and `node_modules/` lives in this root; if a `node_modules` symlink is ever expected, it points at this project's own tree, not the absent shared one.
-- **The app reads its data folders straight from `conf/` — NO root-level `data/`/`bank/`/`cost/` symlinks.** The real files live under `conf/data/` (banks/districts/regions/measures JSON), `conf/bank/` (`<WhoAmI>.yaml`), `conf/cost/` (`<Tariff>.yaml`), plus `conf/IX/`, `conf/IXGo/`. The code resolves them there directly: `utils/didox.js` imports `../conf/data/banks.json` (+ districts, regions); `utils/Yamls.js` builds `path.join(Files.currentDir(), 'conf', 'bank', …)` and `…'conf','cost',…`; the tests (`tests/Didox.test.js`, `tests/Yamls.test.js`) mirror the `conf/` layout. Do **not** re-introduce a root `data/`/`bank/`/`cost/` symlink — the `conf/` path is the single source of truth (these were moved into `conf/` and the code updated to match).
-- **`utils/Logs.js` writes its rotating log files to `os.tmpdir()/js-core-scripts-logs`, NEVER to the CWD** — a `logs/` folder in the project root is a bug (it used to leak there via `../logs` beside `utils/`).
+- [classes/](classes/) is the runtime class library, a real local folder in this root — imported by **relative path** (`./classes/Yamls.js`, `./classes/Word.js`, etc.). `node_modules/` itself is **not** local anymore — see the `node_modules` note above (a working symlink to `C:\Users\Administrator\.node\node_modules`).
+- **The app reads its data folders straight from `conf/` — NO root-level `data/`/`bank/`/`cost/` symlinks.** The real files live under `conf/data/` (banks/districts/regions/measures JSON), `conf/bank/` (`<WhoAmI>.yaml`), `conf/cost/` (`<Tariff>.yaml`), plus `conf/IX/`, `conf/IXGo/`. The code resolves them there directly: `classes/didox.js` imports `../conf/data/banks.json` (+ districts, regions); `classes/Yamls.js` builds `path.join(Files.currentDir(), 'conf', 'bank', …)` and `…'conf','cost',…`; the tests (`tests/Didox.test.js`, `tests/Yamls.test.js`) mirror the `conf/` layout. Do **not** re-introduce a root `data/`/`bank/`/`cost/` symlink — the `conf/` path is the single source of truth (these were moved into `conf/` and the code updated to match).
+- **`classes/Logs.js` writes its rotating log files to `os.tmpdir()/js-core-scripts-logs`, NEVER to the CWD** — a `logs/` folder in the project root is a bug.
 - Helpers in use: `Yamls` (config + YAML merge), `Dates` (`sleep`), `Dialogs` (`warningBox`, `inputBox`), `Files` (`incrementFileName`, `getLatestMatchingFile`, `currentDir`), `Markdown`, `Word`, `Excels` (COM), `PowerPoints`, `Homoglyph`, `Chromes` (MHTML/URL), `Scanner`, `Category`, `Registry`.
 - **COM automation uses `winax`** (Word/Excel/PowerPoint `.Application`), loaded inside ESM via `createRequire`. `Homoglyph._checkWinax(...)` guards COM formats and throws if winax is unavailable.
-- `utils/` resolves to the `smarts-uz/js-core-scripts` repo and is **tracked as plain files in this repo too** — a `utils/*.js` change appears in **both** repos and is committed in **both** (per the global "treat symlinks as local files/folders" rule).
+- **`classes/` is a real local folder, tracked directly in this repo — it is NOT a symlink into any separate repo.** This repo's own git `origin` points at `smarts-uz/js-core-scripts.git` — this repo **is** that project, not a consumer of it.
 
 ### Configuration — `config.yml` (concrete keys)
 
-Owned by `smarts-app-cmdline` → `module/config-secrets.md` (config-file shape: single YAML, dotted-path reads via a helper resolving from `dirname(argv[1])`, secret-free, config-value-authoritative). This project's concrete keys:
+Owned by `smarts-app-cmd` → `module/config-secrets.md` (config-file shape: single YAML, dotted-path reads via a helper resolving from `dirname(argv[1])`, secret-free, config-value-authoritative). This project's concrete keys:
 
 - Read via `Yamls.getConfig('Section.Key')` (dotted path; values come back as **strings**).
 - **Global keys:** `CmdLine.TryCatch` (`"true"`/`"false"`), `CmdLine.ExitTimeout` (`3000` ms success), `CmdLine.ExitTimeoutError` (`30000` ms error).
@@ -74,15 +75,15 @@ Owned by `smarts-app-cmdline` → `module/config-secrets.md` (config-file shape:
 
 ### Secrets — `.env` only (concrete helper)
 
-Owned by `smarts-app-cmdline` → `module/config-secrets.md`. This project's concrete mapping:
+Owned by `smarts-app-cmd` → `module/config-secrets.md`. This project's concrete mapping:
 
-- All API tokens/keys/passwords live in a gitignored `.env` at the project root (variable names in [INTEGRATIONS.md](INTEGRATIONS.md)), read via `dotenv` through `utils/Secrets.js` — never `config.yml`, never hardcoded.
+- All API tokens/keys/passwords live in a gitignored `.env` at the project root (variable names in [INTEGRATIONS.md](INTEGRATIONS.md)), read via `dotenv` through `classes/Secrets.js` — never `config.yml`, never hardcoded.
 - **`Secrets.get('Section', 'Owner')`** maps to env var `<SECTION>_<OWNER>` (upper-snake-cased); **`Secrets.env('NAME')`** reads an exact var. `dotenv` is loaded from `dirname(process.argv[1])`.
 - The concrete integration credentials, env-var names, and the Didox base-URL config are in [INTEGRATIONS.md](INTEGRATIONS.md) — an unrelated external integration, not this tool set's own logic.
 
 ### The homoglyph utility (centralized) — project-specific
 
-- All homoglyph scripts delegate to a single `utils/Homoglyph.js` — **one `PERFECT_STEALTH` Latin→Cyrillic look-alike map** (21 pairs: `A→А a→а C→С c→с E→Е e→е H→Н I→І i→і J→Ј K→К M→М O→О o→о P→Р p→р S→Ѕ T→Т X→Х x→х y→у`) shared across Word/Excel/PowerPoint/Markdown.
+- All homoglyph scripts delegate to a single `classes/Homoglyph.js` — **one `PERFECT_STEALTH` Latin→Cyrillic look-alike map** (21 pairs: `A→А a→а C→С c→с E→Е e→е H→Н I→І i→і J→Ј K→К M→М O→О o→о P→Р p→р S→Ѕ T→Т X→Х x→х y→у`) shared across Word/Excel/PowerPoint/Markdown.
 - Public API per format: `Homoglyph.{markdown,word,excel,powerpoint}(file, chars)` and the `*Ask(file)` interactive variants. Plain variant takes optional `--chars`/`-c` (subset; omit = all); `-ask` variant prompts via `Dialogs.inputBox()`, filters to known mappings, and persists to `ChoosedChars.*`.
 - Format application: Markdown = read→regex→write; Word = COM `Find.Execute` with `MatchCase=true`; Excel = COM cell iteration honoring `ExcludedSheets`; PowerPoint = COM slide/shape iteration. Each copies the source first, then edits the copy.
 
@@ -103,59 +104,215 @@ All three COM classes expose a parallel `merge` (explicit files, array param `$f
 
 ### COM robustness — concrete per-class
 
-Owned by `smarts-app-cmdline` → `module/classes.md` (safe-open-with-repair, orphaned-process cleanup, `null` not `undefined` for skipped COM args). This project's concrete implementations:
+Owned by `smarts-app-cmd` → `module/classes.md` (safe-open-with-repair, orphaned-process cleanup, `null` not `undefined` for skipped COM args). This project's concrete implementations:
 
-- **Safe-open:** `Excels.openWorkbookSafely` uses `CorruptLoad` (1 = `xlRepairFile`, 2 = `xlExtractData`); `Word._safeOpen` retries `Documents.Open(..., OpenAndRepair=true)`; `PowerPoints._safeOpen` falls back to read-only (PowerPoint has no `CorruptLoad`).
+- **Safe-open:** `Excels.openWorkbookSafely` uses `CorruptLoad` (1 = `xlRepairFile`, 2 = `xlExtractData`); `Word._safeOpen` (via `Com.openWord`) retries `Documents.Open(..., OpenAndRepair=true)`, then a plain read-only open when repair also fails (both a plain and a repair open need an exclusive lock, which fails identically when the file is already open in another Word session — a read-only open only needs a shared lock, so it succeeds regardless); `PowerPoints._safeOpen` falls back to read-only (PowerPoint has no `CorruptLoad`).
 - **Orphan kill:** each class has private `_pidsOf(imageName)` (`tasklist /FO CSV` via `execSync`) + `_killOrphans(before)`: snapshot the image's PIDs (`WINWORD.EXE` / `POWERPNT.EXE` / Excel via `ExecuteExcel4Macro`) before, then in `finally` (after `Quit()`/`winax.release()`) `process.kill` only the new PIDs this run spawned.
+- **`Word.wordReplace` (the contract-fill path) never opens the template itself — it copies it to a scratch file in `os.tmpdir()` first and opens/edits/saves the copy.** A read-only fallback open (above) is not enough for this method specifically, because `Find.Execute`/`SaveAs` require write access — a read-only doc throws `DispInvoke: Execute The remote procedure call failed.` the moment a replace is attempted. Copying to a scratch file sidesteps the lock entirely (a plain file copy only needs a shared read, regardless of who else has the template open), so the contract template can be edited even while it's open elsewhere. The scratch file is deleted in the `finally` block; the real template is never touched.
+
+### Dialogs / notifications / registry — NO PowerShell (winax COM + cscript/mshta + reg.exe)
+
+`Dialogs`, `Scanner.notify` and `Registry.clean` must **never** shell out to PowerShell. The old PowerShell path invoked `powershell -EncodedCommand <utf16le base64>` via `execSync`/`spawnSync`, and its **UTF-16 stdout leaked into the console byte-swapped**, rendering as garbled "Chinese-looking" glyphs (each 2 ASCII bytes → 1 CJK char). PowerShell is also forbidden by the global rules. Every such call was replaced with a clean, UTF-8 path:
+
+- **`Dialogs.messageBox` / `warningBox` / `errorBox`** → **winax COM** `new (require('winax').Object)('WScript.Shell').Popup(text, secondsToWait=0, title, buttons+icon)` — a native message box that writes **nothing** to stdout. `messageBox(message, title, icon)` takes an optional icon (default `Icons.Information`); `Popup` type = `Buttons.OK (0)` + the icon code.
+- **`Dialogs.inputBox` / `openFileDialog`** → **`cscript //nologo <temp .vbs>`** via `execFileSync` (cscript emits clean UTF-8). `inputBox` uses VBScript's built-in `InputBox()`; `openFileDialog` uses the `UserAccounts.CommonDialog` COM object. Shared helper `Dialogs._runVbs(vbsScript)` writes a temp `.vbs` (latin1), runs cscript, returns trimmed stdout, deletes the file; `Dialogs._vbsStr(s)` escapes a JS string into a VBScript literal (doubled `"`, newlines via `& vbCrLf &`).
+- **`Dialogs.multilineInputBox`** → **`mshta <temp .hta>`** via `execFileSync`; the HTA writes the entered text to a temp UTF-16 file, which is read back (`fs.readFileSync(..., 'utf16le')`, BOM stripped, CRLF→LF) and deleted. No WinForms, no PowerShell.
+- **`Scanner.notify`** → **winax COM** `WScript.Shell.Popup(message, timeoutSeconds, title, type)` (type 64 = Information, 16 = Error).
+- **`Registry.clean`** → **`reg.exe`** via `execFileSync` (clean UTF-8), all logic in Node: `reg query` the User (`HKCU\Environment`) and System (`HKLM\…\Session Manager\Environment`) keys (parsed by `Registry._parseQuery` → `[{name, kind, value}]`), drop dead `Path`/`Path_*` tokens (`%VAR%` refs to undefined vars, or literal dirs that no longer exist), `reg add … /t <kind> /d <kept> /f` to rewrite each survivor **preserving its registry type**, `reg export` for the backup (folder `%USERPROFILE%\registry-path-backup-<stamp>`, stamp from `Registry._stamp` = `yyyyMMdd_HHmmss`), and a `rundll32 user32.dll,UpdatePerUserSystemParameters` broadcast. Elevation is inferred from whether an HKLM `reg add` actually succeeds.
+- **Tests** (`tests/Dialogs.test.js`, `tests/Scanner.test.js`, `tests/Registry.test.js`) mock these boundaries: **winax** by mocking `node:module`'s `createRequire` (the COM object is loaded via `createRequire('winax')`, which bypasses `jest.unstable_mockModule('winax', …)`), and `cscript`/`mshta`/`reg.exe` via a mocked `child_process.execFileSync` (plus `node:fs` for the temp files).
 
 ### Testing — jest suite (concrete)
 
-Owned by `smarts-app-cmdline` → `module/tests.md` (one-file-per-class 1:1, native-ESM no-Babel, `tests/ALL.mjs` scan-runner, real-vs-boundary-mock style, modest coverage floor, the `argv[1]` test caveat). This project's concrete setup:
+Owned by `smarts-app-cmd` → `module/tests.md` (one-file-per-class 1:1, native-ESM no-Babel, `tests/ALL.mjs` scan-runner, real-vs-boundary-mock style, modest coverage floor, the `argv[1]` test caveat). This project's concrete setup:
 
-- The suite is in [tests/](tests/), one spec per `utils/` class (`tests/<Class>.test.js` ↔ `utils/<Class>.js`), committed in **both** repos that track `utils/`.
+- The suite is in [tests/](tests/), one spec per `classes/` class (`tests/<Class>.test.js` ↔ `classes/<Class>.js`).
 - Runs under `NODE_OPTIONS=--experimental-vm-modules` (via `cross-env` in the test scripts); [jest.config.mjs](jest.config.mjs) sets `transform: {}`, `testMatch: ['<rootDir>/tests/**/*.test.js']`, `setupFilesAfterEnv` (`jest-extended/all` + `tests/setup/jest.setup.js`).
 - **`node tests/ALL.mjs`** discovers every `*.test.js` directly in `tests/` (non-recursive), excludes any `@`-prefixed folder, sets the ESM flag, accepts name filters (`node tests/ALL.mjs Word Secrets`) + pass-through jest flags.
-- Pure/fs methods tested for real against `tests/helpers/tmp.js`; native/COM/network/GUI methods mock the boundary via `jest.unstable_mockModule` keyed by `tests/helpers/esm.js`'s `utilsModule(...)`.
+- Pure/fs methods tested for real against `tests/helpers/tmp.js`; native/COM/network/GUI methods mock the boundary via `jest.unstable_mockModule` keyed by `tests/helpers/esm.js`'s `utilsModule(...)` (helper name kept as-is; it resolves paths under `classes/`).
 - **`conf/data/*.json` must be present** (specs import `../conf/data/banks.json`/etc.). Integration-credential test conventions are in [INTEGRATIONS.md](INTEGRATIONS.md).
-- **Coverage thresholds** in [jest.config.mjs](jest.config.mjs): statements/functions/lines 50, branches 40; the check is skipped when the `utils/` symlink yields `0/0` instrumentation.
+- **Coverage thresholds** in [jest.config.mjs](jest.config.mjs): statements/functions/lines 50, branches 40.
 
 ### Dev tooling & quality gates (concrete)
 
-Owned by `smarts-app-cmdline` → `module/quality.md`. This project's concrete config:
+Owned by `smarts-app-cmd` → `module/quality.md`. This project's concrete config:
 
-- **ESLint** ([eslint.config.mjs](eslint.config.mjs), flat) lints `**/*.{js,mjs}` but ignores the symlinked `utils/`, the `conf/` data tree, `cmd/`, `coverage/`, `node_modules/`, `.claude/`, `README.md`. `ecmaVersion: 2025`; `no-console` off; test files also disable `no-unused-vars` + `no-control-regex`.
-- **Prettier** ([.prettierrc.json](.prettierrc.json): 4-space, single-quote, 100 width; tests + `eslint.config.mjs` 2-space). Runs on save ([.vscode/settings.json](.vscode/settings.json) + `esbenp.prettier-vscode`), in a Husky + lint-staged pre-commit hook ([.husky/pre-commit](.husky/pre-commit), non-blocking), and in CI. Generated runners (`runs/*/`) are in [.prettierignore](.prettierignore); the hand-authored `runs/_*.mjs` tooling is formatted.
+- **ESLint** ([eslint.config.mjs](eslint.config.mjs), flat) lints `**/*.{js,mjs}` but ignores `classes/` (kept excluded per its prior symlinked-repo convention), the `conf/` data tree, `cmd/`, `coverage/`, `node_modules/`, `.claude/`, `README.md`. `ecmaVersion: 2025`; `no-console` off; test files also disable `no-unused-vars` + `no-control-regex`.
+- **Prettier** ([.prettierrc.json](.prettierrc.json): 4-space, single-quote, 100 width; tests + `eslint.config.mjs` 2-space). Runs on save ([.vscode/settings.json](.vscode/settings.json) + `esbenp.prettier-vscode`), in a Husky + lint-staged pre-commit hook ([.husky/pre-commit](.husky/pre-commit), non-blocking), and in CI. Generated runners (`scripts/*/`) are in [.prettierignore](.prettierignore); the hand-authored `scripts/_*.mjs` tooling is formatted.
 - **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs `lint`+`format:check` on Ubuntu and jest on **Windows** (COM is Windows-only). Dependabot, PR/issue templates, `CODEOWNERS`, MIT [LICENSE](LICENSE), [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), and [jsconfig.json](jsconfig.json) (`checkJs`) are present.
 
 ### Conventions (project-specific)
 
 - **Word→MD table cleaning** iterates Turndown NodeLists safely (do not assume a live/array-like list).
 - **`-ask` suffix** = an interactive variant that prompts (password or character set) via `Dialogs.inputBox()` before acting.
-- **Homoglyph logic is centralized** in `utils/Homoglyph.js` — runners call into it, never re-implementing replacement.
+- **Homoglyph logic is centralized** in `classes/Homoglyph.js` — runners call into it, never re-implementing replacement.
 
 ### Contract + OLX runners (formerly the `cmd/` sub-projects) — project-specific
 
-The two standalone `cmd/` sub-projects (`js-winax-contract`, `js-scraper-olx.uz`) were **fully ported into `runs/` and deleted** — there is no `cmd/<project>/` folder anymore (only the loose `cmd/*.cmd` utility batch files remain). Their features now live as **self-contained runners that call `utils/` methods directly** (no spawning, no per-folder symlinks):
+The two standalone `cmd/` sub-projects (`js-winax-contract`, `js-scraper-olx.uz`) were **fully ported into `scripts/` and deleted** — there is no `cmd/<project>/` folder anymore (only the loose `cmd/*.cmd` utility batch files remain). Their features now live as **self-contained runners that call `classes/` methods directly** (no spawning, no per-folder symlinks):
 
-- **Contract workflow** (was `js-winax-contract`): `runs/Word/contract.mjs` (`Yamls.fillYamlWithInfo` + `Word.makeContract`), `runs/Yamls/contractFill.mjs` (`Yamls.fillYamlWithInfo`), `runs/Yamls/contractUpdate.mjs` (`Yamls.update` + fill), `runs/Excels/contract.mjs` (`Excels.generate`), `runs/Excels/contractConvert.mjs` (`Excels.convertXltxToXlsx`/`…Auto`). Each takes a single `--yaml <file>` **or** batch `--all <index>` (iterating `Files.findAllContractFiles`), wrapped in the `CmdLine.TryCatch`/`ExitTimeout` pattern.
-- **OLX scraper** (was `js-scraper-olx.uz`): `runs/Olx/*` (10 runners — appOne/Two/Three, offers, pages, phone, finder, merge, checker, testing), each `--app <data.mhtml>` running the `Chromes.initFolders → Puppe.*`/`Phone.* → Chromes.finish` pipeline.
-- These are **hand-written self-contained runners, not reflection-generated** (no matching `utils/` class named `Olx`/`Contract`), so `runs/_generate.mjs` neither creates nor deletes them — they are maintained by hand. `Contract.appshell`/`ContractALL.appshell` (+ `.appassoc`) and `Olx.appshell` launch these `runs/` runners directly (no `cmd/` reference remains).
+- **Contract workflow** (was `js-winax-contract`): `scripts/Word/contract.mjs` (`Yamls.fillYamlWithInfo` + `Word.makeContract`), `scripts/Yamls/contractFill.mjs` (`Yamls.fillYamlWithInfo`), `scripts/Yamls/contractUpdate.mjs` (`Yamls.update` + fill), `scripts/Excels/contract.mjs` (`Excels.generate`), `scripts/Excels/contractConvert.mjs` (`Excels.convertXltxToXlsx`/`…Auto`). Each takes a single `--yaml <file>` **or** batch `--all <index>` (iterating `Files.findAllContractFiles`), wrapped in the `CmdLine.TryCatch`/`ExitTimeout` pattern.
+- **OLX scraper** (was `js-scraper-olx.uz`): `scripts/Olx/*` (10 runners — appOne/Two/Three, offers, pages, phone, finder, merge, checker, testing), each `--app <data.mhtml>` running the `Chromes.initFolders → Puppe.*`/`Phone.* → Chromes.finish` pipeline.
+- These are **hand-written self-contained runners, not reflection-generated** (no matching `classes/` class named `Olx`/`Contract`), so `scripts/_generate.mjs` neither creates nor deletes them — they are maintained by hand. `Contract.appshell`/`ContractALL.appshell` (+ `.appassoc`) and `Olx.appshell` launch these `scripts/` runners directly (no `cmd/` reference remains).
 
-### Launchers — concrete `shell/` files
+### `Yamls.fillYamlWithInfo` — TIN-vs-PINFL priority for a sole proprietor (YaTT)
 
-Owned by `smarts-app-cmdline` → `module/launchers.md` (every entry → a runner; `.appshell`/`.appmany`/`.applnk` forms; `NoClose` keeps the window open; launch.json mirrors). This project's concrete files: `Docx`/`Xlsx`/`Md`/`Pptx`/`Yml`/`Mht`/`Mhtml`/`Folder` `.appshell`+`.appmany`, **`Olx.appshell`** (`.mhtml` → the OLX scraper runners), and `ALL.applnk` (→ `runs/Registry/clean.mjs`). The Yml/Xlsx menus also carry the contract runners. Separate `Contract.appshell`/`Contract.appassoc` (+ `ContractALL.*`) launch the `runs/Word/contract.mjs` / `runs/Excels/contract.mjs` / `runs/Yamls/contract{Fill,Update}.mjs` runners (no `cmd/` reference); `xltx.appshell` → `runs/Excels/contractConvert.mjs`. Every `launch.json` config points at a real `runs/` program — there are **no** stray configs for non-existent tools (the old `ai-rename.js` / `ai-rename-gemini.js` / `chat-export.js` `raw()` configs were removed since those files do not exist here). **`runs/_wire-shell.mjs` and `runs/_wire-launch.mjs` derive their project `ROOT` relatively via `path.resolve(import.meta.dirname, '..')` — never a hardcoded absolute; shell launchers embed absolute runner paths built from that derived root, launch.json uses `${workspaceFolder}`.**
+A target folder's `Compan/` can carry **both** a 9-digit TIN marker file (`491842367.txt`/`.app`) **and** a 14-digit PINFL marker file (`31311816590022.txt`) — this happens for a sole proprietor (YaTT) registered under their own personal ID, where the "company" and the individual are the same legal person. `Yamls.fillYamlWithInfo` resolves `comTIN` by checking **`Files.getPINFLFromTXT` first, falling back to `Files.getTINFromTXT`** — the PINFL is the stronger signal (it identifies an individual, never a company with a separate director) and must win when both markers are present.
+
+- **Why the order matters:** Didox's `infoByTinPinfl` lookup keyed on a 9-digit TIN for a sole proprietor returns `directorPinfl: ""` and `director: null` — there is no separate director record, because the entrepreneur _is_ the registered entity. Before this fix, `getTINFromTXT` was checked first, so a YaTT target with both markers present resolved `comTIN` to the 9-digit TIN, `isYatt` stayed `false`, and `DirName`/`SurName`/`SurTIN`/etc. were left permanently blank (the generate step "did nothing" from the user's perspective) while `Compan/null.app` and `Compan/Director null.app` marker files got written as a side effect of `ceo`/`ceo.name` resolving to `null`.
+- **`isYatt` is derived from `ComType`, resolved BEFORE `comTIN`'s own resolution order matters for the `#YaTT` marker/`directorPinfl` self-correction** — see the dedicated section below; this section's PINFL-vs-TIN priority for `comTIN` itself is unaffected by that change.
+- **A stray `null`/`undefined`-named `.app` marker file found in a `Compan/`/`Contract/` folder is a symptom of this bug having run previously** — it is old, garbled output from before the fix, not a new-format marker. Leave it in place (never delete per the standing "nothing is ever deleted" rule) rather than treating it as intentional data.
+- Regression test: `tests/Yamls.test.js` → `Yamls.fillYamlWithInfo` → _"prefers the PINFL marker over the TIN marker when both exist"_.
+
+### `ComType` (not PINFL/TIN length) is the sole source of truth for `isYatt`
+
+`isYatt` (whether the target company is a sole proprietor/YaTT) is derived from the
+`ComType` starting-Variables field — `yamlData.ComType === 'YaTT'` — read directly off
+the loaded `.contract` YAML, **never** from `comTIN.length === 14` (the old
+auto-inference). `ComType` is filled by the `smarts-firm-docums` skill from the
+company's own real registration documents (a Statute, an IP/YaTT registration
+certificate, a registry extract) — a human-grounded classification, not a length
+heuristic that a 14-digit PINFL could produce for reasons unrelated to legal form.
+
+- **Why the change:** a PINFL is 14 digits regardless of whether its holder is a
+  YaTT sole proprietor or, for example, the director of an MChJ whose own personal
+  PINFL happens to be the marker on file in `Compan/` — length alone cannot
+  distinguish these cases. `ComType` is a real, document-grounded fact instead.
+- **`companyInfo.isYatt` remains the single carried value throughout the pipeline**
+  (set once in `fillYamlWithInfo` from `yamlData.ComType`, then read by every
+  downstream branch, including inside `replaceYaml` where it arrives as the
+  `companyInfo` parameter).
+- **Fixed a related pre-existing casing bug while making this change:** several
+  branches in `replaceYaml` read `yamlData.isYatt` (lowercase `i`) — but the actual
+  assignment was `yamlData.IsYatt = companyInfo.isYatt` (uppercase `I`, the `#Auto`
+  output field the external contract-generation application consumes). Since
+  JavaScript object keys are case-sensitive, `yamlData.isYatt` was **always
+  `undefined`**, so `if (!yamlData.isYatt)` was **always `true`** — every YaTT-specific
+  branch (`ComOKEDName`, `ComNa1NameLat`, `ComStatusNameLat`, the `#YaTT-Active`/
+  `#YaTT-Inactive` marker, and the whole `ComOpf`/`ComRegDate`/`ComTaxMode`/etc. block)
+  was silently unreachable for every company, YaTT or not. Fixed by reading
+  `companyInfo.isYatt` (correctly cased, already carried through) at every one of
+  these branch points instead of the never-set `yamlData.isYatt`.
+- Regression tests: `tests/Yamls.test.js` → `Yamls.fillYamlWithInfo` → _"prefers the
+  PINFL marker over the TIN marker when both exist"_ (now sets `ComType: 'YaTT'` in
+  its fixture) and _"derives isYatt from ComType, not from PINFL/TIN length"_ (a
+  PINFL-bearing company with `ComType: 'MChJ'` is correctly treated as non-YaTT).
+
+### `Files.exists()` — must use the Promise-based `fs.promises.access`, never the callback-style `fs.access`
+
+`Files.exists(filePath)` (in `classes/Files.js`) awaits `access(filePath)` — the **Promise-based** `access` imported from `node:fs/promises`. It must **never** be changed to call `fs.access(filePath)` off the default `fs` import (`import fs from 'fs'`) — that is the **callback-style** API, and calling it with no callback argument throws synchronously (`"cb" argument must be of type function`), which the surrounding `try/catch` silently swallows, making the method **always return `false`** — even for a file that genuinely exists. This exact bug shipped for a real stretch of time and was previously only _documented_ as a known issue in a test title rather than fixed, silently breaking every guard that depends on `Files.exists` (e.g. `Yamls.update`'s template-existence check always failed regardless of whether `Templates.Yaml` pointed at a real file).
+
+### `Accrual` — the accrued monthly rent charge, one entry per calendar month, always written on every contract fill
+
+Every `.contract` yaml automatically gets an `Accrual:` array written directly after its `ActDateEnd:` line — one entry per calendar month across the contract's active period, each key a `"YYYY-MM-DD#YYYY-MM-DD"` date interval (start`#`end) mapped to that month's accrued rent charge (начисление — the rent payment calculated/due for that specific month). (Named `Accrual` — renamed from the earlier `Pricings`/`PriceHistory` names during development; `Accrual` is deliberately distinct from `globalThis.folderPricings`/`Excels.processPricing`'s own unrelated `Pricings/` marker-file folder mechanism.)
+
+```yaml
+ActDateEnd:
+Accrual:
+    - 2025-07-09#2025-07-31: 390,000
+    - 2025-08-01#2025-08-31: 390,000
+    - 2025-09-01#2025-09-30: 390,000
+```
+
+- **`Dates.monthsBetween(startExcel, endExcel)`** (`classes/Dates.js`) — returns one `{start, end}` range (both `YYYY-MM-DD`) per calendar month from `startExcel` through `endExcel` inclusive. Only the **first** range's `start` is clamped to the real `startExcel` (never forced back to the 1st of that month); every range's `end` — including the first and the last — always runs through the **full last day of its own calendar month**, never clamped to the real `endExcel`.
+- **`Yamls.writeAccrual(filePath, accrual)`** (`classes/Yamls.js`) — idempotently inserts/replaces the `Accrual:` block right after the `ActDateEnd:` line (strips any previously-written `Accrual:` block, plus the legacy `Pricings:`/`PriceHistory:` key names from earlier in development, so an old-format file converges to the current key/shape on the next write); falls back to appending at end-of-file with a warning if `ActDateEnd:` is missing. Each array item is a single `"start#end": price` mapping — the key is built in `Yamls.replaceYaml` as `` `${start}#${end}` `` from a `Dates.monthsBetween` range.
+- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after the final `replaceTextLine` write loop, over the range `yamlData.StartDate`..`yamlData.ComDateEnd` (both YYYY-MM-DD, the contract's real active period, already computed earlier in `replaceYaml`) at the current `yamlData.Price` — **not** gated behind `Excels.generate`/Excel report generation. This means every `Yamls.fillYamlWithInfo`/`Yamls.update` run (the normal contract-fill pipeline) writes/refreshes it, regardless of whether an Excel `ActReco` file is ever produced for that run.
+- Regression tests: `tests/Dates.test.js` → `Dates.monthsBetween` (including the always-full-month-end case, even for a single-month range); `tests/Yamls.test.js` → `Yamls.writeAccrual` (including the legacy `Pricings:`/`PriceHistory:` migration case) + `Yamls.replaceYaml` → _"always writes one Accrual entry per month across the contract period"_.
+
+### `Excel.CellNames` keys (`Bank-OT`/`Bank-IN`/`EHF-IN`/`Trans-OT`/`BaaR-OT`/`BaaR-IN`/`Card-OT`/`Card-IN`/`Bonuses`) — also written into the .contract yaml, ported from `Excels.generate`'s folder-scan
+
+The same 9 keys `Excels.generate` already reads from `config.yml`'s `Excel.CellNames` (used to place `{Bank-OT}`-style placeholders on the `App` sheet of a generated `ActReco` Excel file — confirmed against a real file, `d:\Humans\Building\Rentalls\ActReco\Projects\Act 91.xlsx`, whose row-1 headers read `Начисление`/`Перечисления ООО`/`Возвраты ООО`/`Счет Фактуры`/`Перечисления Физ. лицо`/`Перечисления AR`/`Возвраты AR`/`Залоговая сумма`/`Возвраты залога`/`Распределения` for `Accrual`/`Bank-OT`/`Bank-IN`/`EHF-IN`/`Trans-OT`/`BaaR-OT`/`BaaR-IN`/`Card-OT`/`Card-IN`/`Bonuses` respectively) are **also** written straight into the `.contract` yaml on every fill — the same folder-scan data is no longer Excel-only.
+
+```yaml
+ActDateEnd:
+Accrual:
+    - 2025-07-09#2025-07-31: 390,000
+Bank-OT:
+    - '2025-07-09': '4200000'
+Bank-IN: []
+EHF-IN: []
+Trans-OT: []
+BaaR-OT: []
+BaaR-IN: []
+Card-OT: []
+Card-IN: []
+Bonuses: []
+```
+
+- **`Yamls.scanCellFolder(folderALL, key)`** (`classes/Yamls.js`) — ported from `Excels.scanSubFolder`/`Excels.processFolders`: scans `<folderALL>/<key>/` for subfolders named `"YYYY-MM-DD amount"` (numeric-sorted by folder name, same as the Excel path), returns `[{date: amount}]` with the amount stripped of commas/spaces. Returns `[]` when the key's folder doesn't exist on disk — this is what lets a key with no real data yet still be written as an empty array.
+- **`Yamls.writeYamlArraySection(filePath, key, entries, afterKey, legacyKeys, allowEmpty)`** (`classes/Yamls.js`) — the generic block-writer `Yamls.writeAccrual` itself is now built on: inserts/replaces a single `"Key:"` array block directly after the line matching `afterKey`, stripping any of `legacyKeys` (old names) first. Unlike `writeAccrual` (which skips writing when `accrual` is empty), the `Excel.CellNames` keys pass `allowEmpty: true` so an empty array is still written as `"Key: []"` — every key is always present in the file, populated or not.
+- **`Yamls.writeCellArrays(ymlFile, folderALL)`** (`classes/Yamls.js`) — reads `Excel.CellNames` from `config.yml` and writes each key as its own array block, chained one after another starting right after `Accrual:` (`Bank-OT` after `Accrual`, `Bank-IN` after `Bank-OT`, and so on in `Excel.CellNames`'s configured order).
+- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after `Yamls.writeAccrual`, so every `Yamls.fillYamlWithInfo`/`Yamls.update` run keeps all 9 keys' data current in the `.contract` yaml itself — not only in a generated Excel `ActReco` report.
+- Regression tests: `tests/Yamls.test.js` → `Yamls.scanCellFolder` + `Yamls.writeCellArrays` (empty-folder-still-writes-`[]` case, chained-insertion-order case).
+
+### `_`-suffixed date keys are ALWAYS DD.MM.YYYY input; the bare-named counterpart is ALWAYS the auto-computed YYYY-MM-DD value
+
+`ComDate`, `ComDateEnd`, `ComDateIjara`, `ActDate`, `ActDateEnd` (formerly `ComDateExcel`, `ComDateEndExcel`, `ComDateIjaraExcel`, `ActDateExcel`, `ActDateEndExcel`) are the **auto-resolved, YYYY-MM-DD** counterparts computed by `Yamls.replaceYaml`. The **input** fields that used to carry these exact bare names now carry a trailing `_` — `ComDate_`, `ComDateEnd_`, `ComDateIjara_`, `ActDate_`, `ActDateEnd_` — and always hold **DD.MM.YYYY**. `StartDate`/`FutureDate`/`FutureDateApp` (formerly `StartDateExcel`/`FutureDateExcel`/`FutureDateAppExcel`) have no `_`-suffixed counterpart — they were never input fields, only ever computed.
+
+- **The rule, stated once, applies everywhere:** a `_`-suffixed key is DD.MM.YYYY, hand-filled or resolved from a `Compan/` marker file/registry API (never touched by `replaceYaml`'s date-conversion block); its bare-named twin is the same date converted to YYYY-MM-DD via `Dates.didoxToExcel`, written by `replaceYaml` into an already-existing template line via `replaceTextLine`.
+- **The shared `templa\ALL.contract` template** (owned by the `smarts-firm-docums` skill, prompt-first — edited via that skill's `prompt/ALL.md`, never hand-edited directly) carries both forms as separate lines: the `_`-suffixed inputs above the `#################` divider (in the starting-Variables section), the bare-named `#Auto` placeholders below it (in the auto-resolved section) — `Yamls.replaceYaml`'s per-key `replaceTextLine` loop can only update a line that already exists, so a bare-named auto-computed key that isn't already present as a blank placeholder line in the file is silently never written; this is why the template (not just the code) had to be updated for this rename.
+- **A pre-existing real `.contract` file predating this rename needs a one-time migration** before its next `fillYamlWithInfo`/`update` run: rename its `ComDate:`/`ComDateIjara:`/`ActDate:`/`ActDateEnd:` lines to their `_`-suffixed form (values preserved), drop the stale `PriceHistory:`/`ComDateEnd:`/`*Excel:` lines (they get recomputed fresh), and add blank placeholder lines for the new bare names (`ComDate:`, `ComDateEnd:`, `ComDateIjara:`, `ActDate:`, `ActDateEnd:`, `StartDate:`, `FutureDate:`, `FutureDateApp:`) so `replaceTextLine` has something to fill. Done for `d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract` as the first real-world migration; a `Yamls.fillYamlWithInfo`/`Yamls.update` run on any other still-old-format `.contract` file needs the same one-time fix first (a genuinely blank/undefined `ComDate_` with no `Compan/` marker file to recover it from surfaces as the "ComDate_ is missing or invalid" warning — the tell that a file still needs migrating).
+- Regression tests: `tests/Yamls.test.js` → `Yamls.replaceYaml`'s five `_`-suffixed-input warning/fallback tests (`ComDate_`/`ComDateEnd_`/`ComDateIjara_` missing-or-invalid, PINFL/TIN-marker fallback) + the end-to-end Accrual test's fixture (mirrors the template's split `_`-suffixed-input/bare-named-auto-resolved line shape).
+
+### `Excels.js` reads pricing/transaction data straight from the .contract yaml — no more folder-scanning
+
+`Excels.processPricing` and `Excels.processFolders` used to scan `Pricings/`/`<Excel.CellNames-key>/` subfolders on disk for `"YYYY-MM-DD amount"`-named entries. Since `Yamls.replaceYaml` now writes this exact data into the `.contract` yaml itself (`Accrual`, per the section above, and every `Excel.CellNames` key, per the section above that), `Excels.js` reads it from there instead — the `.contract` yaml is the single source of truth; the folder scan is retired from this path.
+
+- **`Excels.processPricing(yamlData)`** — reads `yamlData.Accrual` (an array of `{"start#end": price}` mappings) and writes one row per entry (the interval's `start` date + the price) starting at the `{Pricings}` placeholder's cell — no `globalThis.folderPricings`/`scanSubFilesTxt` call anymore.
+- **`Excels.processFolders(entries, found)`** — signature changed from `(folder, found)` (folder name + on-disk scan) to `(entries, found)` (an already-resolved `[{date: amount}]` array) — writes one row per entry starting at `found`'s cell. `Excels.generate`'s own loop over `Excel.CellNames` now reads `yamlData[cellName]` directly (already populated by `Yamls.writeCellArrays`) instead of checking `fs.existsSync(path.join(globalThis.folderALL, cellName))` and scanning that folder.
+- **`Excels.scanSubFolder`/`Excels.scanSubFilesTxt` remain as standalone utility methods** (still public, still tested, still runnable) — they are simply no longer called internally by `processPricing`/`processFolders`; nothing else in this project currently uses them, but they were not deleted since removing public API surface wasn't asked for.
+- Regression tests: `tests/Excels.test.js` → `Excels.processPricing` (writes from `yamlData.Accrual`, no-op on empty/missing) + `Excels.processFolders` (writes from a passed-in entries array) + `Excels.generate` (its `Excel.CellNames` loop reads `yamlData[cellName]`).
+
+### `Punish` — the late rent-payment penalty (пеня/неустойка, contract §21.2/§21.3), one entry per calendar month, always written on every contract fill
+
+Every `.contract` yaml automatically gets a `Punish:` array written directly after its `Accrual:` block — one late-payment-penalty entry per calendar month, mirroring `Accrual`'s own `"YYYY-MM-DD#YYYY-MM-DD": amount` shape. The penalty formula is the rental contract's own §21.2/§21.3 clause: a **fixed sum per calendar day of delay** in paying that month's rent, **capped** so the running total across the whole contract period never exceeds a configured ratio of the total rent due for that period.
+
+```yaml
+Accrual:
+    - 2026-07-01#2026-07-31: 390,000
+Punish:
+    - 2026-07-01#2026-07-31: 1,350,000
+    - 2026-08-01#2026-08-31: 0
+```
+
+- **`config.yml`'s `Punish.PerDay`/`Punish.CapRatio`** — the fixed per-day sum (default `50000`, matching this contract's own §21.2 wording, "50,000 sum per calendar day") and the cap ratio (default `0.5`, matching §21.3, "not more than 50% of total rent due for the whole contract period"). These are contract-clause values, not per-company fields — every company using the default `templa\ALL.contract` template shares them unless a future company's contract states a different fixed sum/cap and `config.yml` is updated to match.
+- **`Yamls.actualPayments(yamlData)`** (`classes/Yamls.js`) — the real incoming-cash entries among the `Excel.CellNames` keys: `Bank-OT` (bank transfer received from the tenant) + `Card-OT` (card payment received from the tenant), concatenated. `EHF-IN` (an e-invoice record, not cash), `Bank-IN`/`Card-IN` (refunds back to the tenant), and `Trans-OT`/`BaaR-OT`/`BaaR-IN` (unrelated ledgers) are never counted as rent paid.
+- **`Yamls.computePunish(accrual, payments, perDayFine, capRatio, todayExcel)`** (`classes/Yamls.js`) — pure function, one entry per `accrual` month: cumulative rent due through that month is compared against cumulative `payments` received by that month's own due date (its `end`); a shortfall accrues `perDayFine` for every calendar day from the due date until a later payment finally covers the shortfall (or, if still uncovered, until `todayExcel`) via `Dates.daysBetween`. The running total is clamped to `capRatio * totalRentDue` — once the cap is spent, every later month is written with a `0` penalty. Each amount is comma-formatted (`toLocaleString('en-US')`), matching every other money value this codebase writes into the `.contract` yaml.
+- **`Yamls.writePunish(filePath, punish)`** (`classes/Yamls.js`) — thin wrapper over `Yamls.writeYamlArraySection`, inserting/replacing the `Punish:` block directly after `Accrual:` (`allowEmpty: true`, so an all-zero month set still writes `Punish: []`/individual `0` entries rather than omitting the key). `Yamls.writeCellArrays`'s own `Excel.CellNames` chain now starts its `afterKey` from `'Punish'` (not `'Accrual'`), so the on-disk order is always `Accrual` → `Punish` → `Trans-OT` → `Bank-OT` → … .
+- **Always runs unconditionally inside `Yamls.replaceYaml`**, right after `Yamls.writeAccrual` and before `Yamls.writeCellArrays` — reading `Bank-OT`/`Card-OT` via a **fresh** `Yamls.scanCellFolder(globalThis.folderALL, …)` call (not from `yamlData`, which has no in-memory payment history on a first-ever fill) and `todayExcel` from the real current date (`Intl.DateTimeFormat('en-CA')`, matching `Excels.generate`'s own date-string convention).
+- **`Yamls.scanCellFolder` deduplicates two differently-formatted dated subfolders that resolve to the SAME date+amount** (e.g. `"2025-07-11 2,340,000"` single-space vs. `"2025-07-11  2,340,000"` double-space, both matching the `^(\d{4}-\d{2}-\d{2})\s+([\d,]+)$` regex independently) — keeps only the first in sorted order, warns and skips every later duplicate. Real incident: a real payment's genuinely double-spaced `Bank-OT`/`Card-OT`/`EHF-IN` folder names, plus mistakenly-created single-space siblings for the same date/amount, were both counted as separate payments, silently doubling `Bank-OT`'s recorded 2,340,000 into two entries (and likewise for `Card-OT`/`EHF-IN`) — caught only because `Punish` printed unexpected duplicate rows during a real end-to-end run against ASHALIFE PHARMA's live contract. This is a fleet-wide-relevant lesson: two visually-different folder names for the same underlying fact must never be summed as if they were two real facts — always dedupe by the fact's own normalized identity, not by the folder-name string.
+- **`Excels.processPunish(yamlData)`** (`classes/Excels.js`) — gated on `yamlData.PunishEnable === true` (a plain per-contract boolean toggle in the `.contract` yaml, bundled `false` by default in `templa\ALL.contract`, owned/documented by the `smarts-firm-docums` skill): when `true`, writes `yamlData.Punish` starting at the `{Punish}` placeholder's Excel cell (same `findColumn`/cell-write pattern as `processPricing`/`{Pricings}`) into the ActReco report; when `false` (or the placeholder is missing from an older template), it's a no-op — never crashes. Called from `Excels.generate` right after `processPricing`. The Excel template must carry its own `{Punish}` placeholder cell (a template content concern, not something this code writes) for this to have anywhere to land — `Act 91.xlsx` does not yet have one; add it the same way `{Pricings}` already exists there before enabling `PunishEnable` for a real Excel run.
+- Regression tests: `tests/Dates.test.js` → `Dates.daysBetween`; `tests/Yamls.test.js` → `Yamls.actualPayments` + `Yamls.computePunish` (on-time, late-then-caught-up, still-unpaid-as-of-today, cap-enforcement cases) + `Yamls.writePunish` + `Yamls.scanCellFolder`'s format-variant/dedup cases + `Yamls.replaceYaml` → _"always writes one Punish (late-payment penalty) entry per month, computed from real Bank-OT/Card-OT folders"_; `tests/Excels.test.js` → `Excels.processPunish` (PunishEnable gate, missing-placeholder no-op case).
+
+### Launchers — concrete `sheller/` files
+
+Owned by `smarts-app-cmd` → `module/launchers.md` (every entry → a runner; `.appshell`/`.appmany`/`.applnk` forms; `NoClose` keeps the window open; launch.json mirrors). This project's concrete files: `Docx`/`Xlsx`/`Md`/`Pptx`/`Yml`/`Mht`/`Mhtml`/`Folder` `.appshell`+`.appmany`, **`Olx.appshell`** (`.mhtml` → the OLX scraper runners), and `ALL.applnk` (→ `scripts/Registry/clean.mjs`). The Yml/Xlsx menus also carry the contract runners. Separate `Contract.appshell`/`Contract.appassoc` (+ `ContractALL.*`) launch the `scripts/Word/contract.mjs` / `scripts/Excels/contract.mjs` / `scripts/Yamls/contract{Fill,Update}.mjs` runners (no `cmd/` reference); `xltx.appshell` → `scripts/Excels/contractConvert.mjs`. Every `launch.json` config points at a real `scripts/` program — there are **no** stray configs for non-existent tools (the old `ai-rename.js` / `ai-rename-gemini.js` / `chat-export.js` `raw()` configs were removed since those files do not exist here). **`scripts/_wire-shell.mjs` and `scripts/_wire-launch.mjs` derive their project `ROOT` relatively via `path.resolve(import.meta.dirname, '..')` — never a hardcoded absolute; sheller launchers embed absolute runner paths built from that derived root, launch.json uses `${workspaceFolder}`.**
 
 **Debug configs use `console: "integratedTerminal"` (the runners need a real terminal — interactive `Dialogs.inputBox` in the `-ask` variants, visible stdout) — NOT `internalConsole`.** The `${env:…}`-freeze symptom (a debug session hangs with a half-typed `${env:` at the terminal prompt and never launches the program) is **not** a launch.json problem — it is VS Code defaulting the integrated terminal to **PowerShell**, which chokes on the env-setup line VS Code injects. The fix is to pin the terminal to **Command Prompt (cmd.exe)**, done in **[.vscode/settings.json](.vscode/settings.json)** (`terminal.integrated.defaultProfile.windows: "Command Prompt"` + `terminal.integrated.automationProfile.windows` → `cmd.exe`) and mirrored into each IDE's **user** settings (`%APPDATA%\{Code,Cursor,Windsurf}\User\settings.json`) so debug uses cmd everywhere. Never "fix" this freeze by switching `console` to `internalConsole` — that would break the interactive/terminal runners.
 
 ### Wiring a new method / new class
 
-Both are the project-specific instances of the universal auto-register and default-checked-`AskUserQuestion` rules (global `CLAUDE.md` → _Code_), with the conformance procedure owned by `smarts-app-cmdline` → `module/workflow.md`. This project's concrete commands:
+Both are the project-specific instances of the universal auto-register and default-checked-`AskUserQuestion` rules (global `CLAUDE.md` → _Code_), with the conformance procedure owned by `smarts-app-cmd` → `module/workflow.md`. This project's concrete commands:
 
-- **New public method** → in the same change: `node runs/_generate.mjs <Class>` (runner), add the `shell/` line + regenerate via `node runs/_wire-shell.mjs`, add the `.vscode/launch.json` config + regenerate via `node runs/_wire-launch.mjs`, regenerate README via `node runs/_gen-readme.mjs`, and extend `tests/<Class>.test.js`.
-- **New class** → raise the default-all-checked `AskUserQuestion` (generate runners / add `shell/` launchers / add `.vscode/launch.json`; README auto-regenerates, never asked); on "Generate runners" ask which methods; on "Add shell launchers" ask which extension(s). Re-running `runs/_generate.mjs` does not delete runners for removed methods — delete those by hand (or wipe the class folder and regenerate).
+- **New public method** → in the same change: `node scripts/_generate.mjs <Class>` (runner), add the `sheller/` line + regenerate via `node scripts/_wire-shell.mjs`, add the `.vscode/launch.json` config + regenerate via `node scripts/_wire-launch.mjs`, regenerate README via `node scripts/_gen-readme.mjs`, and extend `tests/<Class>.test.js`.
+- **New class** → raise the default-all-checked `AskUserQuestion` (generate runners / add `sheller/` launchers / add `.vscode/launch.json`; README auto-regenerates, never asked); on "Generate runners" ask which methods; on "Add sheller launchers" ask which extension(s). Re-running `scripts/_generate.mjs` does not delete runners for removed methods — delete those by hand (or wipe the class folder and regenerate).
+
+### A class can live outside `classes/` — `scripts/_generate.mjs`'s `LIB_OVERRIDES`
+
+Owned by `smarts-app-cmd` → `module/runner-tree.md` (the general generator-override
+mechanism). `classes/Homoglyph.js` lives in the project's own `classes/` folder like every
+other class — `LIB_OVERRIDES` is currently empty (`{}`), with no active overrides in this
+project.
+
+### `humanize/` — now its own standalone repo
+
+The `humanize/` folder (a 100%-Rust Tauri GUI app for the homoglyph checkbox-picker) was
+extracted into its own git repository (full history preserved via `git subtree split`) and
+is no longer part of this project's requirements. The folder itself remains on disk at
+`humanize/` until relocated to its own location — its own repo carries all the
+project-specific documentation this section used to hold.
 
 ---
 
 ## Project-Specific Business Requirements
 
-_(None — this project is a document-processing tool set with no business/monetization domain. The external-integration credentials and config that ride along in the shared `utils/` are documented separately in [INTEGRATIONS.md](INTEGRATIONS.md); they are not business logic implemented by these scripts.)_
+_(None — this project is a document-processing tool set with no business/monetization domain. The external-integration credentials and config that ride along in `classes/` are documented separately in [INTEGRATIONS.md](INTEGRATIONS.md); they are not business logic implemented by these scripts.)_

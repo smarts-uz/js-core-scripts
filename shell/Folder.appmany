@@ -1,4 +1,0 @@
-Folder
-NoClose;Merge Word Folders;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Word\mergeFolder.mjs" $files
-NoClose;Merge Excel Folders;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\mergeFolder.mjs" $files
-NoClose;Merge PowerPoint Folders;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\PowerPoints\mergeFolder.mjs" $files

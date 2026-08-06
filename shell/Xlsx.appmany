@@ -1,2 +1,0 @@
-.xlsx
-NoClose;Merge Excel Files;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\runs\Excels\mergeFiles.mjs" $files

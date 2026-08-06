@@ -1,4 +1,4 @@
-// Unit tests for utils/MySoliq.js — a My3.soliq.uz API client.
+// Unit tests for classes/MySoliq.js — a My3.soliq.uz API client.
 //
 // HTTP boundary: every *API method uses the GLOBAL `fetch`, stubbed per-test.
 // Sibling deps Files / Word / Dialogs / Yamls are mocked: Files is backed by the
@@ -40,7 +40,7 @@ jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 
-const { MySoliq } = await import('../utils/MySoliq.js');
+const { MySoliq } = await import('../classes/MySoliq.js');
 
 let restApiDir;
 let savedFetch;

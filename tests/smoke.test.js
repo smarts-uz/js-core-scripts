@@ -24,7 +24,7 @@ describe('harness smoke test', () => {
   });
 
   it('can dynamically import an ESM utils class', async () => {
-    const { Dates } = await import('../utils/Dates.js');
+    const { Dates } = await import('../classes/Dates.js');
     expect(Dates).toBeFunction();
   });
 

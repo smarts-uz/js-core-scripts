@@ -1,4 +1,4 @@
-// Unit tests for utils/Logs.js — public instance methods showMessageBox and
+// Unit tests for classes/Logs.js — public instance methods showMessageBox and
 // cleanPath (Logs is instantiated via `new Logs()`).
 //
 // The constructor builds a real pino + pino-roll logger (worker threads) and
@@ -28,7 +28,7 @@ jest.unstable_mockModule('pino', () => ({ default: pinoFn, pino: pinoFn }));
 const execSync = jest.fn();
 jest.unstable_mockModule('child_process', () => ({ execSync, default: { execSync } }));
 
-const { Logs } = await import('../utils/Logs.js');
+const { Logs } = await import('../classes/Logs.js');
 
 // Snapshot the original console methods so the constructor's override does not
 // leak; also clear the singleton so each construct path is exercised cleanly.

@@ -1,4 +1,4 @@
-// Unit tests for utils/Word.js — every public (non-_) static method.
+// Unit tests for classes/Word.js — every public (non-_) static method.
 //
 // Word is a MIX of pure helpers and winax-COM driven methods:
 //  - Pure / near-pure helpers (getNumberWordOnly, getRussianMonthName,
@@ -11,11 +11,12 @@
 //    shaping and the documented error/empty branches.
 //
 // Pattern follows tests/Claude.test.js (mock the boundary, real fs on temp dirs)
-// and tests/Dates.test.js (pure assertions). No utils/ source is modified —
+// and tests/Dates.test.js (pure assertions). No classes/ source is modified —
 // where the code has a quirk, the test documents the ACTUAL behavior.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { makeTmpDir, cleanupAllTmpDirs, writeTree } from './helpers/tmp.js';
 import { makeComProxy } from './helpers/mocks.js';
 import { utilsModule } from './helpers/esm.js';
@@ -211,7 +212,7 @@ jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 
-const { Word } = await import('../utils/Word.js');
+const { Word } = await import('../classes/Word.js');
 
 let workDir;
 
@@ -670,7 +671,15 @@ describe('Word.wordReplace', () => {
     );
 
     expect(winaxObject).toHaveBeenCalledWith('Word.Application');
-    expect(comState.openCalls).toContain(path.resolve(template));
+    // Opens a scratch COPY of the template (never the template itself), so an
+    // exclusive lock on the real template (open elsewhere) never blocks editing.
+    expect(comState.openCalls).toHaveLength(1);
+    expect(comState.openCalls[0]).not.toBe(path.resolve(template));
+    expect(path.basename(comState.openCalls[0])).toContain(path.basename(template));
+    expect(path.dirname(comState.openCalls[0])).toBe(path.resolve(os.tmpdir()));
+    // The scratch copy is cleaned up afterward; the real template is untouched.
+    expect(fs.existsSync(comState.openCalls[0])).toBe(false);
+    expect(fs.readFileSync(template, 'utf8')).toBe('TPL');
     // Visible / DisplayAlerts pushed onto the app before opening
     expect(comState.lastApp.__rawSets__.Visible).toBe(false);
     expect(comState.lastApp.__rawSets__.DisplayAlerts).toBe(0);
@@ -842,14 +851,33 @@ describe('Word._safeOpen', () => {
     expect(repairArgs[repairArgs.length - 1]).toBe(true); // OpenAndRepair
   });
 
-  it('throws when both the plain and repair opens fail', () => {
+  it('falls back to a read-only open when both normal and repair fail (e.g. file locked elsewhere)', () => {
+    const READONLY = { id: 'readonly' };
+    const open = jest
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('locked');
+      })
+      .mockImplementationOnce(() => {
+        throw new Error('locked');
+      })
+      .mockImplementationOnce(() => READONLY);
+
+    const out = Word._safeOpen(fakeApp(open), path.join(workDir, 'd.docx'));
+
+    expect(out).toBe(READONLY);
+    expect(open).toHaveBeenCalledTimes(3);
+    expect(open.mock.calls[2]).toEqual([path.resolve(path.join(workDir, 'd.docx')), false, true]);
+  });
+
+  it('throws when normal, repair, AND read-only opens all fail', () => {
     const open = jest.fn(() => {
       throw new Error('totally broken');
     });
     expect(() => Word._safeOpen(fakeApp(open), path.join(workDir, 'd.docx'))).toThrow(
-      /Unable to open .* even in repair mode/i
+      /Unable to open .* even read-only/i
     );
-    expect(open).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledTimes(3);
   });
 });
 

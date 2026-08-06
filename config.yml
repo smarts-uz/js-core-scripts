@@ -27,7 +27,7 @@ Templates:
     WordMdRule: d:\FileType\Office\Projects\DOCX\MD-Rule\
     # Contract templates (files) — read by Word.makeContract / Yamls / Excels.generate.
     Word: d:\Humans\Building\Rentalls\Contract\Projects\Rentals 527.docx
-    Yaml: d:\Develop\Projects\ALL\ALL\ALL.contract
+    Yaml: C:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract
     Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 90.xlsx
 ChoosedChars:
     Word: cxACEHIJKMOPSTX
@@ -52,9 +52,14 @@ Scanner:
         - RealStat
         - Sample
         - Samples
+Punish:
+    # Contract §21.2/§21.3 late rent-payment penalty (пеня/неустойка):
+    # a fixed sum per calendar day of delay, capped at CapRatio of the total
+    # rent due for the whole contract period. Read by Yamls.replaceYaml.
+    PerDay: 50000
+    CapRatio: 0.5
 Excel:
     ProtectSuffix: ' PR'
-    HomoglyphSuffix: ' Norm'
     # Contract pricing cell/column names, in order — read by Excels.generate
     # (formerly the standalone Excel.txt).
     CellNames:
@@ -80,14 +85,7 @@ Excel:
         - EEG
         - Audio
 
-Word:
-    HomoglyphSuffix: ' App'
-
-PowerPoint:
-    HomoglyphSuffix: ' App'
-
 Markdown:
-    HomoglyphSuffix: ' App'
     LineBetween: 20
 
 Registry:

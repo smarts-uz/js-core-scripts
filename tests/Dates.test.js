@@ -1,9 +1,9 @@
-// Unit tests for utils/Dates.js — all public (non-_) static methods.
+// Unit tests for classes/Dates.js — all public (non-_) static methods.
 // Dates is pure logic (dayjs date math + string/number helpers), so it is
 // tested directly with concrete and property-based (fast-check) assertions.
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import { test as fcTest, fc } from '@fast-check/jest';
-import { Dates } from '../utils/Dates.js';
+import { Dates } from '../classes/Dates.js';
 
 describe('Dates.parseDMY', () => {
   it('parses a DD.MM.YYYY string into a local Date', () => {
@@ -116,6 +116,68 @@ describe('Dates.futureDateByMonth', () => {
 
   it('accepts a numeric string for months', () => {
     expect(Dates.futureDateByMonth('1')).toBeDateYMD();
+  });
+});
+
+describe('Dates.monthsBetween', () => {
+  it('returns one {start,end} range per full calendar month, inclusive of both ends', () => {
+    expect(Dates.monthsBetween('2026-01-01', '2026-03-31')).toEqual([
+      { start: '2026-01-01', end: '2026-01-31' },
+      { start: '2026-02-01', end: '2026-02-28' },
+      { start: '2026-03-01', end: '2026-03-31' },
+    ]);
+  });
+
+  it('returns a single range when start and end fall in the same month', () => {
+    expect(Dates.monthsBetween('2026-01-01', '2026-01-31')).toEqual([
+      { start: '2026-01-01', end: '2026-01-31' },
+    ]);
+  });
+
+  it("clamps only the FIRST range's start to the real startExcel — every end (including the first and last) always runs through the end of its own month, never clamped to endExcel", () => {
+    expect(Dates.monthsBetween('2025-07-09', '2026-01-15')).toEqual([
+      { start: '2025-07-09', end: '2025-07-31' },
+      { start: '2025-08-01', end: '2025-08-31' },
+      { start: '2025-09-01', end: '2025-09-30' },
+      { start: '2025-10-01', end: '2025-10-31' },
+      { start: '2025-11-01', end: '2025-11-30' },
+      { start: '2025-12-01', end: '2025-12-31' },
+      { start: '2026-01-01', end: '2026-01-31' },
+    ]);
+  });
+
+  it('even a single-month range ends on the last day of that month, never clamped to a mid-month endExcel', () => {
+    expect(Dates.monthsBetween('2026-01-10', '2026-01-15')).toEqual([
+      { start: '2026-01-10', end: '2026-01-31' },
+    ]);
+  });
+
+  it('returns [] when either date is missing', () => {
+    expect(Dates.monthsBetween('', '2026-01-31')).toEqual([]);
+    expect(Dates.monthsBetween('2026-01-01', '')).toEqual([]);
+  });
+});
+
+describe('Dates.daysBetween', () => {
+  it('returns the whole-day count between two YYYY-MM-DD dates', () => {
+    expect(Dates.daysBetween('2026-07-31', '2026-08-10')).toBe(10);
+  });
+
+  it('returns 0 when the dates are equal', () => {
+    expect(Dates.daysBetween('2026-07-31', '2026-07-31')).toBe(0);
+  });
+
+  it('returns a negative count when end is before start', () => {
+    expect(Dates.daysBetween('2026-08-10', '2026-07-31')).toBe(-10);
+  });
+
+  it('crosses month/year boundaries correctly', () => {
+    expect(Dates.daysBetween('2025-12-25', '2026-01-05')).toBe(11);
+  });
+
+  it('returns 0 when either date is missing', () => {
+    expect(Dates.daysBetween('', '2026-01-31')).toBe(0);
+    expect(Dates.daysBetween('2026-01-01', '')).toBe(0);
   });
 });
 

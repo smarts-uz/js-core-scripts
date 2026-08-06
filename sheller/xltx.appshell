@@ -1,0 +1,2 @@
+.xltx
+NoClose;Excel-Convert;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\contractConvert.mjs" --input "%1"

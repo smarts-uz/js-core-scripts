@@ -1,4 +1,4 @@
-// Unit tests for utils/Com.js — the shared Windows-COM robustness helpers used
+// Unit tests for classes/Com.js — the shared Windows-COM robustness helpers used
 // by Word / Excels / PowerPoints / Homoglyph.
 //
 // Com is pure JS (no winax import): the COM Application objects are passed in by
@@ -7,7 +7,7 @@
 // pidsOf runs the real `tasklist`, so we only assert it returns a Set.
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import path from 'path';
-import { Com } from '../utils/Com.js';
+import { Com } from '../classes/Com.js';
 
 afterEach(() => jest.restoreAllMocks());
 
@@ -104,9 +104,26 @@ describe('Com.openWord', () => {
     expect(repairArgs[repairArgs.length - 1]).toBe(true);
   });
 
-  it('throws a descriptive error when both opens fail', () => {
-    const app = makeWordApp([new Error('boom'), new Error('still boom')]);
+  it('falls back to a read-only open when both normal and repair open fail (e.g. file locked elsewhere)', () => {
+    const app = makeWordApp([new Error('RPC failed'), new Error('RPC failed'), 'ok']);
+    const doc = Com.openWord(app, 'x.docx');
+    expect(doc.__doc).toBe(true);
+    expect(app.calls).toHaveLength(3);
+    // read-only retry: Open(absPath, false, true)
+    expect(app.calls[2]).toEqual([path.resolve('x.docx'), false, true]);
+  });
+
+  it('throws a descriptive error when normal, repair, AND read-only all fail', () => {
+    const app = makeWordApp([new Error('boom'), new Error('still boom'), new Error('locked hard')]);
     expect(() => Com.openWord(app, 'x.docx')).toThrow(/Com\.openWord: Unable to open/);
+  });
+
+  it('does not retry read-only when the caller already requested read-only', () => {
+    const app = makeWordApp([new Error('boom'), new Error('still boom')]);
+    expect(() => Com.openWord(app, 'x.docx', { readOnly: true })).toThrow(
+      /Com\.openWord: Unable to open/
+    );
+    expect(app.calls).toHaveLength(2); // no third mode-3 call
   });
 });
 

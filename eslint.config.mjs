@@ -1,16 +1,17 @@
 // ESLint flat config (ESLint 9+). Lints the project's own source — the runners
-// under runs/, the test suite, and the root tooling — but NOT the symlinked
-// utils/ tree (that lives in its own repo with its own config) or generated/
+// under scripts/, the test suite, and the root tooling — but NOT the classes/
+// tree (kept excluded per its prior symlinked-repo convention) or generated/
 // vendored output.
 import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
   {
-    // Vendored, symlinked, or generated — not ours to lint here.
+    // Vendored, or generated — not ours to lint here.
     ignores: [
       'node_modules/**',
-      'utils/**', // symlinked into js-core-scripts; linted in its own repo
+      'classes/**', // kept excluded (formerly the symlinked utils/ tree)
+      'humanize/src-tauri/**', // Rust backend — not JS source
       'conf/**', // data/config trees (data JSON, bank/cost YAML) — not source
       'coverage/**',
       'cmd/**', // loose .cmd/.js utility scripts, not part of the linted source
@@ -47,6 +48,16 @@ export default [
     rules: {
       'no-unused-vars': 'off',
       'no-control-regex': 'off',
+    },
+  },
+  {
+    // humanize/src/ is the Tauri app's BROWSER-side frontend (loaded in the
+    // webview, not Node) — window/document are real globals there, not Node's.
+    files: ['humanize/src/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
     },
   },
 ];

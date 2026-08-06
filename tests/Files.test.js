@@ -1,4 +1,4 @@
-// Unit tests for utils/Files.js — every public (non-_) static method.
+// Unit tests for classes/Files.js — every public (non-_) static method.
 //
 // Files is overwhelmingly a real-filesystem class, so per the test conventions
 // it is tested FOR REAL against throwaway temp dirs (helpers/tmp.js) with NO
@@ -24,7 +24,7 @@ jest.unstable_mockModule('child_process', () => ({ exec: execMock, default: { ex
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Phone.js'), () => ({ Phone: {} }));
 
-const { Files } = await import('../utils/Files.js');
+const { Files } = await import('../classes/Files.js');
 
 let dir;
 beforeEach(() => {
@@ -97,11 +97,54 @@ describe('Files.cleanPath', () => {
   });
 });
 
+describe('Files.normalizeApostrophe', () => {
+  it('replaces U+2018 LEFT SINGLE QUOTATION MARK with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('JO‘RABOYEVA')).toBe("JO'RABOYEVA");
+  });
+
+  it('replaces U+2019 RIGHT SINGLE QUOTATION MARK with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('O’ZBEKISTON')).toBe("O'ZBEKISTON");
+  });
+
+  it('replaces U+02BB MODIFIER LETTER TURNED COMMA with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('OʻZBEKISTON')).toBe("O'ZBEKISTON");
+  });
+
+  it('replaces U+02BC MODIFIER LETTER APOSTROPHE with a plain apostrophe', () => {
+    expect(Files.normalizeApostrophe('sANʼAT')).toBe("sAN'AT");
+  });
+
+  it('leaves an already-plain apostrophe unchanged', () => {
+    expect(Files.normalizeApostrophe("JO'RABOYEVA")).toBe("JO'RABOYEVA");
+  });
+
+  it('leaves a name with no apostrophe unchanged', () => {
+    expect(Files.normalizeApostrophe('KAYA IBRAHIM BURAK')).toBe('KAYA IBRAHIM BURAK');
+  });
+
+  it('handles multiple curly apostrophes in one name', () => {
+    expect(Files.normalizeApostrophe('O‘ZBEK O’G‘LI')).toBe("O'ZBEK O'G'LI");
+  });
+
+  it('returns non-string input unchanged', () => {
+    expect(Files.normalizeApostrophe(null)).toBe(null);
+    expect(Files.normalizeApostrophe(undefined)).toBe(undefined);
+  });
+
+  it('returns an empty string unchanged', () => {
+    expect(Files.normalizeApostrophe('')).toBe('');
+  });
+});
+
 describe('Files.cleanupFileName', () => {
   it('strips Windows-illegal characters and collapses whitespace', () => {
     const out = Files.cleanupFileName('a<b>c:"d|e?f*g');
     expect(out).toBeSafeWindowsName();
     expect(out).not.toMatch(/[<>:"|?*]/);
+  });
+
+  it('normalizes a curly apostrophe to plain before other cleanup', () => {
+    expect(Files.cleanupFileName('JO‘RABOYEVA SHAXNOZAXON')).toBe("JO'RABOYEVA SHAXNOZAXON");
   });
 
   it('replaces slashes and ampersands with the replacement char', () => {
@@ -330,6 +373,11 @@ describe('Files.getDateFromTXT', () => {
   it('matches a DD.MM.YYYY.txt file and strips ext + spaces', () => {
     writeTree(dir, { '29.03.2017.txt': 'x', 'other.txt': 'y' });
     expect(Files.getDateFromTXT(dir)).toBe('29.03.2017');
+  });
+
+  it('matches a DD.MM.YYYY.app file (saveInfoToFile only ever writes .app)', () => {
+    writeTree(dir, { '02.07.2026.app': 'App' });
+    expect(Files.getDateFromTXT(dir)).toBe('02.07.2026');
   });
 
   it('returns null when no date file is present', () => {
@@ -662,14 +710,10 @@ describe('Files.deleteInfo', () => {
 // =============================================================================
 
 describe('Files.exists', () => {
-  // Real behavior note: exists() calls `fs.access(path)` (the callback-style API)
-  // with no callback. On modern Node that throws synchronously ("callback must be
-  // a function"); the throw is caught and `false` is returned — even for files
-  // that genuinely exist. We assert the ACTUAL returned boolean here.
-  it('returns false for a real existing file (documents the fs.access bug)', async () => {
+  it('returns true for a real existing file', async () => {
     const f = path.join(dir, 'present.txt');
     fs.writeFileSync(f, 'x', 'utf8');
-    await expect(Files.exists(f)).resolves.toBe(false);
+    await expect(Files.exists(f)).resolves.toBe(true);
   });
 
   it('returns false for a missing path', async () => {

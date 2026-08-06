@@ -1,4 +1,4 @@
-// Unit tests for utils/Chromes.js — every public (non-_) static method.
+// Unit tests for classes/Chromes.js — every public (non-_) static method.
 //
 // Chromes is a Puppeteer/undici/child_process-backed scraper-and-MHT toolkit, so
 // it mixes two test styles (per tests/README.md):
@@ -111,7 +111,7 @@ jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 
-const { Chromes } = await import('../utils/Chromes.js');
+const { Chromes } = await import('../classes/Chromes.js');
 
 // helper: a fetch Response stand-in
 function jsonResponse(body, { ok = true, status = 200, statusText = 'OK' } = {}) {

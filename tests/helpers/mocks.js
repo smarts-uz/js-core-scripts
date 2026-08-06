@@ -1,4 +1,4 @@
-// Mock factories for the heavy native dependencies the utils classes import.
+// Mock factories for the heavy native dependencies the classes/ classes import.
 //
 // Used together with jest.unstable_mockModule() (required for native-ESM
 // mocking) — register the mock BEFORE dynamically importing the class:
@@ -7,7 +7,7 @@
 //   import { makeComProxy } from '../helpers/mocks.js';
 //   const winax = { Object: jest.fn(() => makeComProxy()), release: jest.fn() };
 //   jest.unstable_mockModule('winax', () => ({ default: winax }));
-//   const { Excels } = await import('../../utils/Excels.js');
+//   const { Excels } = await import('../../classes/Excels.js');
 
 import { jest } from '@jest/globals';
 

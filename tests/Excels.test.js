@@ -1,4 +1,4 @@
-// Unit tests for utils/Excels.js — a large, winax-COM-heavy class. Every public
+// Unit tests for classes/Excels.js — a large, winax-COM-heavy class. Every public
 // method (name not starting with `_`) is covered; the private driver
 // `_replaceFormulaWith` is exercised only through its public wrappers
 // (replaceFormula / replaceFormula2 / replaceFormulaArray).
@@ -84,21 +84,12 @@ const WordMock = {
   initFolders: jest.fn(),
 };
 
-// Real Dates.parseDMYExcel (it parses YYYY-MM-DD into a Date).
-const DatesMock = {
-  parseDMYExcel: jest.fn((s) => {
-    const [y, m, d] = String(s).split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }),
-};
-
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
-jest.unstable_mockModule(utilsModule('Dates.js'), () => ({ Dates: DatesMock }));
 
-const { Excels } = await import('../utils/Excels.js');
+const { Excels } = await import('../classes/Excels.js');
 
 // --- COM helpers --------------------------------------------------------------
 
@@ -448,72 +439,107 @@ describe('Excels.processPricing', () => {
     return sheet;
   }
 
-  it('uses yamlData.Price and FutureDateExcel when no pricing files exist', () => {
-    installSheet({ Row: 3, Column: 4 });
-    globalThis.folderPricings = path.join(workDir, 'no-such');
+  it("writes one row per yamlData.Accrual entry, using each interval's start date", () => {
+    const sheet = installSheet({ Row: 5, Column: 2 });
 
-    Excels.processPricing({ Price: '999', FutureDateExcel: '2030-01-01' });
+    Excels.processPricing({
+      Accrual: [{ '2025-07-09#2025-07-31': '390,000' }, { '2025-08-01#2025-08-31': '390,000' }],
+    });
 
-    // dateApp undefined → writes FutureDateExcel + Price into the found cell.
-    expect(globalThis.excelSheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
   });
 
-  it('reads dated pricing txt files and writes date/amount rows', () => {
-    const pricings = path.join(workDir, 'pricings');
-    writeTree(pricings, { '2025-01-01 1,000.txt': '', '2025-02-01 2,000.txt': '' });
-    globalThis.folderPricings = pricings;
-    installSheet({ Row: 1, Column: 1 });
+  it('writes nothing when yamlData.Accrual is empty or missing', () => {
+    const sheet = installSheet({ Row: 1, Column: 1 });
 
-    // future date later than the last file's date → also writes a future row.
+    expect(() => Excels.processPricing({})).not.toThrow();
+    expect(() => Excels.processPricing({ Accrual: [] })).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+  });
+});
+
+// =============================================================================
+// processPunish — drives globalThis.excelSheet via findColumn, gated on
+// yamlData.PunishEnable
+// =============================================================================
+describe('Excels.processPunish', () => {
+  function installSheet(found = { Row: 5, Column: 2 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('does nothing and never searches for {Punish} when PunishEnable is not true', () => {
+    const sheet = installSheet();
+
     expect(() =>
-      Excels.processPricing({ Price: '500', FutureDateExcel: '2099-12-31' })
+      Excels.processPunish({
+        PunishEnable: false,
+        Punish: [{ '2026-01-01#2026-01-31': '500,000' }],
+      })
     ).not.toThrow();
-    expect(DatesMock.parseDMYExcel).toHaveBeenCalled();
+    expect(() => Excels.processPunish({})).not.toThrow();
+
+    expect(sheet.Cells.Find).not.toHaveBeenCalled();
   });
 
-  it('honors an ALL <amount> file as the override amount', () => {
-    const pricings = path.join(workDir, 'pricings2');
-    writeTree(pricings, { 'ALL 7,500.txt': '' });
-    globalThis.folderPricings = pricings;
-    installSheet();
+  it("writes one row per yamlData.Punish entry, using each interval's start date, when PunishEnable is true", () => {
+    const sheet = installSheet({ Row: 5, Column: 2 });
+
+    Excels.processPunish({
+      PunishEnable: true,
+      Punish: [{ '2026-01-01#2026-01-31': '250,000' }, { '2026-02-01#2026-02-28': '0' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Punish');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
+  });
+
+  it('warns and does not throw when PunishEnable is true but {Punish} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
 
     expect(() =>
-      Excels.processPricing({ Price: '1', FutureDateExcel: '2099-01-01' })
+      Excels.processPunish({ PunishEnable: true, Punish: [{ '2026-01-01#2026-01-31': '250,000' }] })
     ).not.toThrow();
   });
 });
 
 // =============================================================================
-// processFolders — reads dated sub-folders, writes to globalThis.excelSheet
+// processFolders — writes one row per {date: amount} entry (from yamlData,
+// no folder scan)
 // =============================================================================
 describe('Excels.processFolders', () => {
-  it('writes date/amount cells for each dated sub-folder', () => {
-    const all = path.join(workDir, 'ALL');
-    writeTree(all, { myfolder: { '2025-03-01 1,200': {}, '2025-04-01 3,400': {}, 'skip-me': {} } });
-    globalThis.folderALL = all;
-
-    const setCells = [];
+  it('writes date/amount cells for each entry', () => {
     const sheet = makeComProxy(
-      {
-        Cells: jest.fn((r, c) => makeComProxy({}, `Cell(${r},${c})`)),
-      },
+      { Cells: jest.fn((r, c) => makeComProxy({}, `Cell(${r},${c})`)) },
       'Sheet'
     );
     globalThis.excelSheet = sheet;
 
-    expect(() => Excels.processFolders('myfolder', { Row: 2, Column: 3 })).not.toThrow();
-    // Cells was invoked (two date cells + two amount cells for two valid folders).
-    expect(sheet.Cells).toHaveBeenCalled();
-    void setCells;
+    const entries = [{ '2025-03-01': '1200' }, { '2025-04-01': '3400' }];
+
+    expect(() => Excels.processFolders(entries, { Row: 2, Column: 3 })).not.toThrow();
+    expect(sheet.Cells).toHaveBeenCalledWith(2, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(2, 4);
+    expect(sheet.Cells).toHaveBeenCalledWith(3, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(3, 4);
   });
 
-  it('does nothing harmful when the folder has no dated sub-folders', () => {
-    const all = path.join(workDir, 'ALL2');
-    writeTree(all, { empty: {} });
-    globalThis.folderALL = all;
+  it('does nothing harmful for an empty entries array', () => {
     globalThis.excelSheet = makeComProxy({ Cells: jest.fn(() => makeComProxy()) }, 'Sheet');
 
-    expect(() => Excels.processFolders('empty', { Row: 1, Column: 1 })).not.toThrow();
+    expect(() => Excels.processFolders([], { Row: 1, Column: 1 })).not.toThrow();
   });
 });
 
@@ -1022,7 +1048,7 @@ describe('Excels.generate', () => {
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
       Price: '100',
-      FutureDateExcel: '2099-01-01',
+      FutureDate: '2099-01-01',
     });
     YamlsMock.getPrepayMonth.mockReturnValue(2);
 
@@ -1096,6 +1122,78 @@ describe('Excels.generate', () => {
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       'Excel.CellNames missing/empty in config.yml',
       'Error'
+    );
+    killSpy.mockRestore();
+  });
+
+  // Regression: a real run against ASHALIFE PHARMA crashed with
+  // "DispInvoke: Replace The remote procedure call failed." — the {KEY}
+  // placeholder loop passed yamlData.Accrual (an array of {"start#end": price}
+  // objects, written by Yamls.replaceYaml) straight to Excel COM's
+  // Cells.Replace, which only accepts a string/primitive. Array-valued keys
+  // (Accrual, every Excel.CellNames key) must never reach replaceInSheet.
+  it('skips array-valued yamlData keys (Accrual, Excel.CellNames entries) in the {KEY} placeholder loop', () => {
+    globalThis.folderActReco = path.join(workDir, 'ActReco3');
+    globalThis.folderALL = path.join(workDir, 'ALL3');
+    fs.mkdirSync(globalThis.folderALL, { recursive: true });
+    const template = makeFile('Tpl3.xlsx', 'tpl');
+
+    YamlsMock.getConfig.mockImplementation((key) => {
+      if (key === 'Templates.Excel') return template;
+      if (key === 'Excel.CellNames') return ['Bank-OT'];
+      return null;
+    });
+    YamlsMock.loadYamlWithDeps.mockReturnValue({
+      ComName: 'Acme',
+      Accrual: [{ '2025-07-09#2025-07-31': '390,000' }],
+      'Bank-OT': [{ '2025-07-11': '2340000' }],
+    });
+
+    const cellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    cellsFn.Find = jest.fn(() => makeComProxy({ Row: 1, Column: 1 }, 'found'));
+    cellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: cellsFn }, 'AppSheet');
+    const wb = makeComProxy(
+      { Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() },
+      'Workbook'
+    );
+    installApp(wb, {
+      ExecuteExcel4Macro: jest.fn(() => 222),
+      CalculateFull: jest.fn(),
+      Quit: jest.fn(),
+    });
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+    expect(() => Excels.generate(path.join(workDir, 'e.yml'))).not.toThrow();
+
+    // The array-valued keys never reach Cells.Replace as a {KEY} placeholder.
+    expect(sheet.Cells.Replace).not.toHaveBeenCalledWith(
+      '{Accrual}',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+    expect(sheet.Cells.Replace).not.toHaveBeenCalledWith(
+      '{Bank-OT}',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+    // A plain string-valued key still goes through normally.
+    expect(sheet.Cells.Replace).toHaveBeenCalledWith(
+      '{ComName}',
+      'Acme',
+      2,
+      2,
+      false,
+      false,
+      false
     );
     killSpy.mockRestore();
   });
@@ -1377,7 +1475,7 @@ describe('Excels.mergeFiles', () => {
 
     // Target workbook: dynamic Sheets count via a mutable counter; supports
     // Add/SaveAs/Close. Each target sheet exposes a settable Name and Delete.
-    let targetSheetCount = 1;
+    const targetSheetCount = 1;
     const targetSheet = makeComProxy({ Name: 'Sheet1', Delete: jest.fn() }, 'TgtSheet');
     const TargetSheetsFn = jest.fn(() => targetSheet);
     Object.defineProperty(TargetSheetsFn, 'Count', { get: () => targetSheetCount });

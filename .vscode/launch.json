@@ -11,7 +11,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Word\\wordToMD.mjs",
+      "program": "${workspaceFolder}\\scripts\\Word\\wordToMD.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.docx"
@@ -25,7 +25,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Scanner\\run.mjs",
+      "program": "${workspaceFolder}\\scripts\\Scanner\\run.mjs",
       "args": [
         "--sourceFolder",
         "d:\\Humans\\Medicine\\Disserta\\Statistic",
@@ -41,7 +41,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Category\\run.mjs",
+      "program": "${workspaceFolder}\\scripts\\Category\\run.mjs",
       "args": [
         "--yaml",
         "D:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\AZK\\3\\1773681723823_AZK App 1.yml"
@@ -55,7 +55,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Category\\revert.mjs",
+      "program": "${workspaceFolder}\\scripts\\Category\\revert.mjs",
       "args": [
         "--yaml",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\AIC\\Main-Asp.yml"
@@ -69,7 +69,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Chromes\\saveHtmlFromMht.mjs",
+      "program": "${workspaceFolder}\\scripts\\Chromes\\saveHtmlFromMht.mjs",
       "args": [
         "--mhtml",
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\Analysis ToolPak\\ALL\\Excel Data Analysis Toolpak.mhtml",
@@ -84,7 +84,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Chromes\\processPathsToClipboard.mjs",
+      "program": "${workspaceFolder}\\scripts\\Chromes\\processPathsToClipboard.mjs",
       "args": [
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Enlarge Dialog Box On Mac.mhtml",
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Element\\Excel 64 Bits.mhtml"
@@ -98,7 +98,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\mergeYamlsInFolder.mjs",
+      "program": "${workspaceFolder}\\scripts\\Yamls\\mergeYamlsInFolder.mjs",
       "args": [
         "--folder",
         "d:\\Humans\\Medicine\\Disserta\\CalcStat\\MsExcel\\real-statistics.com\\Features\\ALL"
@@ -112,7 +112,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Markdown\\convertToHtml.mjs",
+      "program": "${workspaceFolder}\\scripts\\Markdown\\convertToHtml.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Medicine\\Diagnos\\Neurolog\\Attention\\Trail Making Test, TMT\\Normals\\TMT_Neuropsychological_Assessment_v1.md"
@@ -126,7 +126,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Markdown\\convertToWord.mjs",
+      "program": "${workspaceFolder}\\scripts\\Markdown\\convertToWord.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
@@ -140,7 +140,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Markdown\\convertToWordTOC.mjs",
+      "program": "${workspaceFolder}\\scripts\\Markdown\\convertToWordTOC.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-1 POCD Features\\Protocol\\Statistical Protocol.md"
@@ -154,7 +154,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Word\\mergeFolder.mjs",
+      "program": "${workspaceFolder}\\scripts\\Word\\mergeFolder.mjs",
       "args": [
         "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\4. I-BOB\\",
         "d:\\Develop\\Manager\\App\\AI\\Category\\Move\\Cmdline\\word-merge-folders\\5. II-BOB\\",
@@ -169,7 +169,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\mergeFiles.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\mergeFiles.mjs",
       "args": [
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\M-2 Diagnostic Value\\Durdona\\8"
       ],
@@ -183,7 +183,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\protectSheetAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\protectSheetAsk.mjs",
       "args": [
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
@@ -197,7 +197,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\unProtectSheetAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\unProtectSheetAsk.mjs",
       "args": [
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
@@ -211,7 +211,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\protectFileAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\protectFileAsk.mjs",
       "args": [
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
@@ -225,7 +225,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\unProtectFileAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\unProtectFileAsk.mjs",
       "args": [
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
@@ -239,7 +239,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\hideProtectSheetAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\hideProtectSheetAsk.mjs",
       "args": [
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
@@ -253,7 +253,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\unHideUnProtectSheetAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\unHideUnProtectSheetAsk.mjs",
       "args": [
         "--file",
         "d:\\FileType\\Office\\Projects\\XLSX\\Protects\\One 2.xlsx"
@@ -267,7 +267,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\mergeFolder.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\mergeFolder.mjs",
       "args": [
         "d:\\path\\to\\folderA",
         "d:\\path\\to\\folderB"
@@ -282,7 +282,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\PowerPoints\\merge.mjs",
+      "program": "${workspaceFolder}\\scripts\\PowerPoints\\merge.mjs",
       "args": [
         "d:\\path\\to\\a.pptx",
         "d:\\path\\to\\b.pptx"
@@ -297,7 +297,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\PowerPoints\\mergeFolder.mjs",
+      "program": "${workspaceFolder}\\scripts\\PowerPoints\\mergeFolder.mjs",
       "args": [
         "d:\\path\\to\\folderA",
         "d:\\path\\to\\folderB"
@@ -312,7 +312,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\word.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\word.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\Disser\\Article 4\\Article 4.docx"
@@ -326,7 +326,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\wordAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\wordAsk.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\Disser\\Article 4\\Article 4.docx"
@@ -340,7 +340,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\markdown.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\markdown.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\POCD\\POCD_maqola 3.md"
@@ -354,7 +354,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\markdownAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\markdownAsk.mjs",
       "args": [
         "--file",
         "d:\\Humans\\Languag\\ReWrite\\App\\POCD\\POCD_maqola 3.md"
@@ -368,7 +368,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Markdown\\merge.mjs",
+      "program": "${workspaceFolder}\\scripts\\Markdown\\merge.mjs",
       "args": [
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Electroencephalography EEG 5.md",
         "d:\\Humans\\Medicine\\Disserta\\Statistic\\App\\Durdona\\AI\\Diagnose\\Diagnose Luria s Memory Word Test LMWT 5.md"
@@ -382,7 +382,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\excel.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\excel.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.xlsx"
@@ -396,7 +396,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\excelAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\excelAsk.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.xlsx"
@@ -410,7 +410,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\powerpoint.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\powerpoint.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.pptx"
@@ -424,7 +424,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Homoglyph\\powerpointAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Homoglyph\\powerpointAsk.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.pptx"
@@ -438,7 +438,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Word\\protectFileAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Word\\protectFileAsk.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.docx"
@@ -452,7 +452,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Word\\unProtectFileAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\Word\\unProtectFileAsk.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.docx"
@@ -466,7 +466,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\PowerPoints\\protectFileAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\PowerPoints\\protectFileAsk.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.pptx"
@@ -480,7 +480,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\PowerPoints\\unProtectFileAsk.mjs",
+      "program": "${workspaceFolder}\\scripts\\PowerPoints\\unProtectFileAsk.mjs",
       "args": [
         "--file",
         "d:\\path\\to\\test.pptx"
@@ -494,7 +494,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Registry\\clean.mjs",
+      "program": "${workspaceFolder}\\scripts\\Registry\\clean.mjs",
       "args": [
         "--hives",
         "Both"
@@ -508,7 +508,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
+      "program": "${workspaceFolder}\\scripts\\Yamls\\contractFill.mjs",
       "args": [
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\AL-INOBAT\\ALL.contract"
@@ -522,7 +522,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractFill.mjs",
+      "program": "${workspaceFolder}\\scripts\\Yamls\\contractFill.mjs",
       "args": [
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
@@ -536,7 +536,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractUpdate.mjs",
+      "program": "${workspaceFolder}\\scripts\\Yamls\\contractUpdate.mjs",
       "args": [
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract"
@@ -550,7 +550,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Yamls\\contractUpdate.mjs",
+      "program": "${workspaceFolder}\\scripts\\Yamls\\contractUpdate.mjs",
       "args": [
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
@@ -564,7 +564,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Word\\contract.mjs",
+      "program": "${workspaceFolder}\\scripts\\Word\\contract.mjs",
       "args": [
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract"
@@ -578,7 +578,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Word\\contract.mjs",
+      "program": "${workspaceFolder}\\scripts\\Word\\contract.mjs",
       "args": [
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
@@ -592,7 +592,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\contract.mjs",
       "args": [
         "--yaml",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\External\\RASH-PHARMA\\ALL.contract"
@@ -606,7 +606,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contract.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\contract.mjs",
       "args": [
         "--all",
         "d:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall"
@@ -620,7 +620,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contractConvert.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\contractConvert.mjs",
       "args": [
         "--input",
         "d:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx",
@@ -636,7 +636,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Excels\\contractConvert.mjs",
+      "program": "${workspaceFolder}\\scripts\\Excels\\contractConvert.mjs",
       "args": [
         "--input",
         "d:\\Humans\\Building\\Rentalls\\ActReco\\Projects\\Act 90.xltx"
@@ -650,7 +650,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appOne.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\appOne.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -664,7 +664,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appOne.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\appOne.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -678,7 +678,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appTwo.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\appTwo.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -692,7 +692,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appTwo.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\appTwo.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -706,7 +706,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\appThree.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -720,7 +720,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\appThree.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\appThree.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -734,7 +734,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\offers.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\offers.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -748,7 +748,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\offers.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\offers.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -762,7 +762,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\pages.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -776,7 +776,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\pages.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\pages.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -790,7 +790,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\phone.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\phone.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -804,7 +804,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\phone.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\phone.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -818,7 +818,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\finder.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -832,7 +832,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\finder.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\finder.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -846,7 +846,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\merge.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\merge.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -860,7 +860,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\merge.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\merge.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -874,7 +874,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\checker.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -888,7 +888,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\checker.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\checker.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"
@@ -902,7 +902,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\testing.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\testing.mjs",
       "args": [
         "--app",
         "d:\\Develop\\Utilities\\Scraper\\Projects\\olx.uz JS\\Projects\\LED\\ALL.olxapp"
@@ -916,7 +916,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\runs\\Olx\\testing.mjs",
+      "program": "${workspaceFolder}\\scripts\\Olx\\testing.mjs",
       "args": [
         "--app",
         "d:\\Humans\\Equipme\\Equipme\\Watering\\Обратный осмос\\ALL.olxapp"

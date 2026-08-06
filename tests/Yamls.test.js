@@ -1,4 +1,4 @@
-// Unit tests for utils/Yamls.js — every public (non-_) static method:
+// Unit tests for classes/Yamls.js — every public (non-_) static method:
 //   getConfig, getYamlValue, findTextLine, replaceTextLine, loadYamlWithDeps,
 //   loadAndParseYaml, extractFirstNumber, update, fillYamlWithInfo,
 //   getPrepayMonth, replaceYaml, mergeYamlsInFolder, setConfig.
@@ -104,7 +104,7 @@ jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 jest.unstable_mockModule(utilsModule('didox.js'), () => ({ Didox: DidoxMock }));
 jest.unstable_mockModule(utilsModule('MySoliq.js'), () => ({ MySoliq: MySoliqMock }));
 
-const { Yamls } = await import('../utils/Yamls.js');
+const { Yamls } = await import('../classes/Yamls.js');
 
 let projectDir;
 let workDir;
@@ -263,6 +263,288 @@ describe('Yamls.replaceTextLine', () => {
     fs.writeFileSync(f, before, 'utf8');
     Yamls.replaceTextLine(f, 'Missing', 'x');
     expect(read(workDir, 't.yml')).toBe(before);
+  });
+});
+
+describe('Yamls.writeAccrual', () => {
+  it('inserts the Accrual array directly after the ActDateEnd: line', () => {
+    const f = path.join(workDir, 't.contract');
+    fs.writeFileSync(f, 'ActDate: 09.07.2025\nActDateEnd: \nPrepayMonth: \n', 'utf8');
+
+    Yamls.writeAccrual(f, [{ '2026-03-01#2026-03-31': '450,000' }]);
+
+    const lines = read(workDir, 't.contract').split('\n');
+    const actEndIdx = lines.findIndex((l) => l.startsWith('ActDateEnd:'));
+    expect(lines[actEndIdx + 1]).toBe('Accrual:');
+    expect(lines[actEndIdx + 2]).toBe('  - 2026-03-01#2026-03-31: 450,000');
+  });
+
+  it('replaces an existing Accrual block instead of duplicating it', () => {
+    const f = path.join(workDir, 't2.contract');
+    fs.writeFileSync(f, 'ActDateEnd: \nPrepayMonth: \n', 'utf8');
+
+    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '100,000' }]);
+    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '200,000' }]);
+
+    const content = read(workDir, 't2.contract');
+    expect(content.match(/^Accrual:/gm)).toHaveLength(1);
+    expect(content).toContain('2026-01-01#2026-01-31: 200,000');
+    expect(content).not.toContain('2026-01-01#2026-01-31: 100,000');
+    expect(content).toContain('PrepayMonth:');
+  });
+
+  it('strips a legacy Pricings:/PriceHistory: block (the old key names) when writing Accrual:', () => {
+    const f = path.join(workDir, 't2b.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nPriceHistory:\n  - July 2025: 390,000\n  - August 2025: 390,000\n\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    Yamls.writeAccrual(f, [{ '2025-07-09#2025-07-31': '390,000' }]);
+
+    const content = read(workDir, 't2b.contract');
+    expect(content).not.toContain('PriceHistory:');
+    expect(content).not.toContain('July 2025');
+    expect(content.match(/^Accrual:/gm)).toHaveLength(1);
+    expect(content).toContain('2025-07-09#2025-07-31: 390,000');
+    expect(content).toContain('PrepayMonth:');
+  });
+
+  it('supports multiple history entries, written in order', () => {
+    const f = path.join(workDir, 't3.contract');
+    fs.writeFileSync(f, 'ActDateEnd: \n', 'utf8');
+
+    Yamls.writeAccrual(f, [
+      { '2026-01-01#2026-01-31': '450,000' },
+      { '2026-02-01#2026-02-28': '450,000' },
+    ]);
+
+    const lines = read(workDir, 't3.contract').split('\n');
+    expect(lines.slice(1, 4)).toEqual([
+      'Accrual:',
+      '  - 2026-01-01#2026-01-31: 450,000',
+      '  - 2026-02-01#2026-02-28: 450,000',
+    ]);
+  });
+
+  it('warns and does nothing when accrual is empty', () => {
+    const f = path.join(workDir, 't4.contract');
+    const before = 'ActDateEnd: \n';
+    fs.writeFileSync(f, before, 'utf8');
+    Yamls.writeAccrual(f, []);
+    expect(read(workDir, 't4.contract')).toBe(before);
+  });
+
+  it('appends at end of file with a warning when ActDateEnd: is missing', () => {
+    const f = path.join(workDir, 't5.contract');
+    fs.writeFileSync(f, 'Foo: bar\n', 'utf8');
+    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '1' }]);
+    const content = read(workDir, 't5.contract');
+    expect(content).toContain('Foo: bar');
+    expect(content).toContain('Accrual:');
+  });
+});
+
+describe('Yamls.actualPayments', () => {
+  it('concatenates Bank-OT and Card-OT only', () => {
+    const yamlData = {
+      'Bank-OT': [{ '2025-07-11': '2340000' }],
+      'Card-OT': [{ '2026-02-03': '2340000' }],
+      'Bank-IN': [{ '2025-08-01': '100000' }],
+      'EHF-IN': [{ '2025-09-10': '2340000' }],
+    };
+    expect(Yamls.actualPayments(yamlData)).toEqual([
+      { '2025-07-11': '2340000' },
+      { '2026-02-03': '2340000' },
+    ]);
+  });
+
+  it('returns [] when neither Bank-OT nor Card-OT is an array', () => {
+    expect(Yamls.actualPayments({})).toEqual([]);
+  });
+});
+
+describe('Yamls.computePunish', () => {
+  const accrual = [
+    { '2026-01-01#2026-01-31': '390,000' },
+    { '2026-02-01#2026-02-28': '390,000' },
+    { '2026-03-01#2026-03-31': '390,000' },
+  ];
+
+  it('writes a 0 penalty for every month when payments fully cover cumulative rent on time', () => {
+    const payments = [
+      { '2026-01-15': '390000' },
+      { '2026-02-10': '390000' },
+      { '2026-03-05': '390000' },
+    ];
+    const result = Yamls.computePunish(accrual, payments, 50000, 0.5, '2026-03-31');
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '0' },
+      { '2026-02-01#2026-02-28': '0' },
+      { '2026-03-01#2026-03-31': '0' },
+    ]);
+  });
+
+  it('accrues 50,000/day from the month-end due date until a later payment covers the shortfall', () => {
+    // January's 390,000 is only paid on 2026-02-10 — 10 calendar days late
+    // (2026-01-31 -> 2026-02-10). February/March are paid on time.
+    const payments = [
+      { '2026-02-10': '390000' },
+      { '2026-02-15': '390000' },
+      { '2026-03-05': '390000' },
+    ];
+    const result = Yamls.computePunish(accrual, payments, 50000, 0.5, '2026-03-31');
+    expect(result).toEqual([
+      { '2026-01-01#2026-01-31': '500,000' }, // 10 days * 50,000
+      { '2026-02-01#2026-02-28': '0' },
+      { '2026-03-01#2026-03-31': '0' },
+    ]);
+  });
+
+  it('measures delay up to todayExcel when a month is still unpaid', () => {
+    // Uncapped this would be 5 days * 50,000 = 250,000, but a single-month
+    // 390,000 rent caps the penalty at 50% = 195,000 (§21.3) — this test
+    // deliberately uses a high capRatio so the cap never binds, isolating
+    // the day-count math from the cap.
+    const result = Yamls.computePunish(
+      [{ '2026-01-01#2026-01-31': '390,000' }],
+      [],
+      50000,
+      1,
+      '2026-02-05'
+    );
+    // 2026-01-31 -> 2026-02-05 = 5 days
+    expect(result).toEqual([{ '2026-01-01#2026-01-31': '250,000' }]);
+  });
+
+  it('caps the running total penalty at capRatio * total rent due for the whole period', () => {
+    // Total rent = 3 * 390,000 = 1,170,000; cap at 50% = 585,000.
+    // Every month left fully unpaid as of a date far past all three due dates.
+    const result = Yamls.computePunish(accrual, [], 50000, 0.5, '2026-12-31');
+    const total = result.reduce(
+      (sum, entry) => sum + Number(String(Object.values(entry)[0]).replace(/,/g, '')),
+      0
+    );
+    expect(total).toBe(585000);
+  });
+
+  it('returns [] when accrual is empty', () => {
+    expect(Yamls.computePunish([], [], 50000, 0.5, '2026-01-01')).toEqual([]);
+  });
+});
+
+describe('Yamls.writePunish', () => {
+  it('inserts the Punish array directly after the Accrual: block', () => {
+    const f = path.join(workDir, 't.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    Yamls.writePunish(f, [{ '2026-01-01#2026-01-31': '500,000' }]);
+
+    const lines = read(workDir, 't.contract').split('\n');
+    const accrualIdx = lines.findIndex((l) => l.startsWith('Accrual:'));
+    expect(lines[accrualIdx + 1]).toBe('  - 2026-01-01#2026-01-31: 390,000');
+    expect(lines[accrualIdx + 2]).toBe('Punish:');
+    expect(lines[accrualIdx + 3]).toBe('  - 2026-01-01#2026-01-31: 500,000');
+    expect(read(workDir, 't.contract')).toContain('PrepayMonth:');
+  });
+
+  it('writes an empty Punish: [] block (allowEmpty=true) when punish is empty', () => {
+    const f = path.join(workDir, 't2.contract');
+    fs.writeFileSync(f, 'Accrual:\n  - 2026-01-01#2026-01-31: 390,000\n', 'utf8');
+
+    Yamls.writePunish(f, []);
+
+    expect(read(workDir, 't2.contract')).toContain('Punish: []');
+  });
+});
+
+describe('Yamls.scanCellFolder', () => {
+  it('returns [] when the key folder does not exist', () => {
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([]);
+  });
+
+  it('reads dated subfolders, sorted, amount stripped of commas/spaces', () => {
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-08-01 4,200,000': {},
+      '2025-07-09 4,200,000': {},
+      'not-a-date': {},
+    });
+
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([
+      { '2025-07-09': '4200000' },
+      { '2025-08-01': '4200000' },
+    ]);
+  });
+
+  it('accepts single-space, double-space, comma, and no-comma folder-name variants alike', () => {
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-07-11 2,340,000': {}, // single space, comma
+    });
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+
+    fs.rmSync(path.join(workDir, 'Bank-OT'), { recursive: true, force: true });
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-07-11  2340000': {}, // double space, no comma
+    });
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+  });
+
+  it('deduplicates two differently-formatted folders that resolve to the SAME date+amount (never double-counted)', () => {
+    // A real incident: an already-existing "2025-07-11  2,340,000" (double
+    // space) folder plus a mistakenly-created "2025-07-11 2,340,000" (single
+    // space) sibling both matched the regex and were counted as two separate
+    // payments — silently doubling the recorded rent payment.
+    writeTree(path.join(workDir, 'Bank-OT'), {
+      '2025-07-11 2,340,000': {},
+      '2025-07-11  2,340,000': {},
+    });
+
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+  });
+});
+
+describe('Yamls.writeCellArrays', () => {
+  it('writes every Excel.CellNames key as its own array, empty when its folder is absent', () => {
+    writeConfig({ Excel: { CellNames: ['Bank-OT', 'Bonuses'] } });
+
+    const f = path.join(workDir, 't.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    writeTree(path.join(workDir, 'Bank-OT'), { '2025-07-09 4,200,000': {} });
+    // No Bonuses/ folder on disk — must still be written, as an empty array.
+
+    Yamls.writeCellArrays(f, workDir);
+
+    const content = read(workDir, 't.contract');
+    expect(content).toContain('Bank-OT:');
+    expect(content).toContain("'2025-07-09': '4200000'");
+    expect(content).toContain('Bonuses: []');
+    expect(content).toContain('PrepayMonth:');
+  });
+
+  it('inserts each key chained after the previous one (Bank-OT after Accrual, Bonuses after Bank-OT)', () => {
+    writeConfig({ Excel: { CellNames: ['Bank-OT', 'Bonuses'] } });
+
+    const f = path.join(workDir, 't2.contract');
+    fs.writeFileSync(f, 'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\n', 'utf8');
+
+    Yamls.writeCellArrays(f, workDir);
+
+    const lines = read(workDir, 't2.contract').split('\n');
+    const accrualIdx = lines.findIndex((l) => l.startsWith('Accrual:'));
+    const bankIdx = lines.findIndex((l) => l.startsWith('Bank-OT:'));
+    const bonusIdx = lines.findIndex((l) => l.startsWith('Bonuses:'));
+    expect(bankIdx).toBeGreaterThan(accrualIdx);
+    expect(bonusIdx).toBeGreaterThan(bankIdx);
   });
 });
 
@@ -505,11 +787,428 @@ describe('Yamls.fillYamlWithInfo', () => {
     const r = await Yamls.fillYamlWithInfo(path.join(workDir, 'x.yaml'));
     expect(r).toBeNull();
   });
+
+  // Regression: a Compan folder can carry BOTH a 9-digit TIN marker and a
+  // 14-digit PINFL marker (a sole proprietor/YaTT registered under their own
+  // personal ID). Didox's TIN-based lookup for such an entity returns an
+  // empty directorPinfl/director (there is no separate director — the
+  // entrepreneur IS the company), which used to leave DirName/SurName/etc.
+  // blank. The PINFL marker must take priority when resolving comTIN, and
+  // isYatt is now derived from the ComType starting-Variables field (filled
+  // by smarts-firm-docums from the company's real registration documents),
+  // never from an automatic PINFL-vs-TIN-length inference.
+  it('prefers the PINFL marker over the TIN marker when both exist', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1', AddDays: 30 } });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', 'T1.yaml'), yaml.dump({}), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1', ComType: 'YaTT' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    FilesMock.getTINFromTXT.mockReturnValue('491842367');
+    FilesMock.getPINFLFromTXT.mockReturnValue('31311816590022');
+    DidoxMock.infoByTinPinfl.mockImplementation(async (tin) =>
+      tin === '31311816590022'
+        ? { directorPinfl: '', personalNum: '31311816590022', name: 'LI ZHENGBIN' }
+        : null
+    );
+    MySoliqMock.entrepreneurInfo.mockResolvedValue(null);
+
+    // replaceYaml formats a full contract (pricing, dates, addresses, …) that
+    // is out of scope for this regression — stub it so the test stays focused
+    // on the TIN-vs-PINFL selection this fix targets.
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, true);
+
+    expect(FilesMock.getPINFLFromTXT).toHaveBeenCalledWith(globalThis.folderCompan);
+    expect(DidoxMock.infoByTinPinfl).toHaveBeenCalledWith('31311816590022');
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderALL, '#YaTT');
+
+    const [, , companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(companyInfoArg.isYatt).toBe(true);
+    expect(companyInfoArg.directorPinfl).toBe('31311816590022');
+    expect(companyInfoArg.ceo?.name).toBe('LI ZHENGBIN');
+
+    replaceYamlSpy.mockRestore();
+  });
+
+  // Regression: isYatt must be derived from the ComType starting-Variables
+  // field, never from comTIN.length === 14. A company can have a genuine
+  // 14-digit PINFL marker (e.g. a YaTT's director doubling as its own comTIN
+  // source) while ComType correctly identifies it as a non-YaTT entity (MChJ,
+  // XK, …) — the old length-based inference would have wrongly flagged this
+  // as isYatt=true; ComType is now the sole source of truth.
+  it('derives isYatt from ComType, not from PINFL/TIN length', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1', AddDays: 30 } });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', 'T1.yaml'), yaml.dump({}), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1', ComType: 'MChJ' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    // A 14-digit PINFL marker is present (same shape that used to force
+    // isYatt=true via comTIN.length === 14), but ComType says MChJ — so
+    // comTIN must resolve from the TIN marker, never the PINFL one.
+    FilesMock.getTINFromTXT.mockReturnValue('491842367');
+    FilesMock.getPINFLFromTXT.mockReturnValue('31311816590022');
+    DidoxMock.infoByTinPinfl.mockImplementation(async (tin) =>
+      tin === '491842367'
+        ? { directorPinfl: '77712345', personalNum: '491842367', name: 'ASHALIFE-LIKE MCHJ' }
+        : null
+    );
+    MySoliqMock.companyInfo.mockResolvedValue(null);
+
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, true);
+
+    expect(FilesMock.getTINFromTXT).toHaveBeenCalledWith(globalThis.folderCompan);
+    expect(FilesMock.getPINFLFromTXT).not.toHaveBeenCalled();
+    expect(DidoxMock.infoByTinPinfl).toHaveBeenCalledWith('491842367');
+    expect(FilesMock.saveInfoToFile).not.toHaveBeenCalledWith(globalThis.folderALL, '#YaTT');
+
+    const [, , companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(companyInfoArg.isYatt).toBe(false);
+    // directorPinfl is NOT force-set from comTIN when isYatt is false —
+    // it stays whatever Didox's own lookup returned.
+    expect(companyInfoArg.directorPinfl).toBe('77712345');
+
+    replaceYamlSpy.mockRestore();
+  });
+
+  // Regression: a stray/incidental PINFL marker (e.g. the director's own ID,
+  // present in Compan/ for an ordinary reason unrelated to the company's
+  // legal identity) must NEVER be selected over the TIN for a non-YaTT
+  // company — even though a PINFL marker exists on disk, ComType alone
+  // decides which marker file is even LOOKED AT, so getPINFLFromTXT is never
+  // called at all for a non-YaTT company.
+  it('never even reads the PINFL marker for a non-YaTT company, regardless of what exists on disk', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1', AddDays: 30 } });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', 'T1.yaml'), yaml.dump({}), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: 'T1', ComType: 'MChJ' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    FilesMock.getTINFromTXT.mockReturnValue('312267167');
+    FilesMock.getPINFLFromTXT.mockReturnValue('31910826590039'); // director's own PINFL, incidentally present
+    DidoxMock.infoByTinPinfl.mockImplementation(async (tin) =>
+      tin === '312267167'
+        ? { directorPinfl: '31910826590039', personalNum: '312267167', name: 'ASHALIFE PHARMA' }
+        : { directorPinfl: '', personalNum: tin, name: 'LIU HUAN XXX' }
+    );
+    MySoliqMock.companyInfo.mockResolvedValue(null);
+
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, true);
+
+    expect(FilesMock.getPINFLFromTXT).not.toHaveBeenCalled();
+    expect(DidoxMock.infoByTinPinfl).toHaveBeenCalledWith('312267167');
+
+    replaceYamlSpy.mockRestore();
+  });
+
+  // Regression: the SurPINFL/surety derivation used to live ONLY inside the
+  // API-only branch (rewrite=true / no cache). A company processed via the
+  // cache path (rewrite=false, RestAPI/ALL.json already present) skipped that
+  // block entirely, so yamlData.SurPINFL was never filled in even though the
+  // cached companyInfo.directorPinfl already had the correct value — the
+  // empty SurPINFL was then faithfully "confirmed" back into the .contract
+  // file by replaceYaml's replaceTextLine pass. This must now fill SurPINFL
+  // from the cache too.
+  it('fills yamlData.SurPINFL from a cached companyInfo.directorPinfl (rewrite=false)', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ ComType: 'MChJ', SurPINFL: '' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    fs.mkdirSync(globalThis.folderRestAPI, { recursive: true });
+    fs.writeFileSync(
+      path.join(globalThis.folderRestAPI, 'ALL.json'),
+      JSON.stringify({
+        tin: '312808323',
+        directorTin: '572120844',
+        directorPinfl: '32706996600039',
+        ceo: { name: 'ZIYAVIDDINOV ODILJON OBIDJONOVICH', personalNum: '32706996600039' },
+      }),
+      'utf8'
+    );
+
+    const yamlData = { ComType: 'MChJ', SurPINFL: '' };
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation(() => {});
+
+    await Yamls.fillYamlWithInfo(ymlFile, yamlData, true, false);
+
+    // API must never be called in cache mode.
+    expect(DidoxMock.infoByTinPinfl).not.toHaveBeenCalled();
+
+    expect(yamlData.SurPINFL).toBe('32706996600039');
+
+    const [, yamlDataArg, companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(yamlDataArg.SurPINFL).toBe('32706996600039');
+    expect(companyInfoArg.surety?.name).toBe('ZIYAVIDDINOV ODILJON OBIDJONOVICH');
+
+    replaceYamlSpy.mockRestore();
+  });
 });
 
 describe('Yamls.replaceYaml', () => {
   it('warns and returns when yamlData or companyInfo is missing', () => {
     Yamls.replaceYaml('file.yml', null, null);
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('yamlData or companyInfo is not defined!');
+  });
+
+  it('warns and returns instead of throwing when ComDate_ cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    // No ComDate_ marker file in Compan/, and neither soliq nor soliqYatt supplied
+    // a registrationDate — this is the real crash scenario: ComDate_ falls back to
+    // an empty value, so Word.extractDate legitimately returns null instead of
+    // being force-fed a bogus date.
+    FilesMock.getDateFromTXT.mockReturnValue(null);
+    WordMock.extractDate.mockReturnValue(null);
+
+    expect(() =>
+      Yamls.replaceYaml('file.yml', { ComDate_: '' }, { isYatt: false, soliq: null })
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDate_ is missing or invalid')
+    );
+  });
+
+  it('falls back to companyInfo.soliq.company.registrationDate (non-YaTT) when no ComDate_ marker file exists', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    FilesMock.getDateFromTXT.mockReturnValue(null);
+    WordMock.extractDate.mockImplementation((date) =>
+      !date ? null : { day: '10', month: '08', year: '2023' }
+    );
+
+    // soliq's own API returns registrationDate as YYYY-MM-DD; Yamls.replaceYaml
+    // must normalize it to Didox's DD.MM.YYYY before handing it to Word.extractDate.
+    // The method continues past the date block into many other companyInfo/Didox
+    // fields this fixture doesn't populate (unrelated to this fallback) — only the
+    // ComDate_ resolution itself is under test here.
+    try {
+      Yamls.replaceYaml(
+        'file.yml',
+        { ComDate_: '', Price: '1,200,000' },
+        { isYatt: false, soliq: { company: { registrationDate: '2023-08-10' } } }
+      );
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(WordMock.extractDate).toHaveBeenCalledWith('10.08.2023');
+  });
+
+  it('falls back to companyInfo.soliqYatt.registrationDate (YaTT) when no ComDate_ marker file exists', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    FilesMock.getDateFromTXT.mockReturnValue(null);
+    WordMock.extractDate.mockImplementation((date) =>
+      !date ? null : { day: '17', month: '02', year: '2026' }
+    );
+
+    try {
+      Yamls.replaceYaml(
+        'file.yml',
+        { ComDate_: '', Price: '1,200,000' },
+        { isYatt: true, soliqYatt: { registrationDate: '17.02.2026' } }
+      );
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(WordMock.extractDate).toHaveBeenCalledWith('17.02.2026');
+  });
+
+  it('warns and returns instead of throwing when ComDateEnd_ cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    // ComDate_ itself is valid, but ComDateEnd_ (derived via Dates.addDays) isn't.
+    WordMock.extractDate.mockImplementation((date) =>
+      date === '05.11.2024' ? { day: '05', month: '11', year: '2024' } : null
+    );
+
+    expect(() =>
+      Yamls.replaceYaml('file.yml', { ComDate_: '05.11.2024' }, { regDate: null })
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDateEnd_ is missing or invalid')
+    );
+  });
+
+  it('warns and returns instead of throwing when ComDateIjara_ cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    // No Contract.ComDateIjara configured, and yamlData carries none either.
+    writeConfig({ Contract: { AddDays: 30 } });
+
+    // ComDate_ and its derived ComDateEnd_ (via the real Dates.addDays) both
+    // resolve fine — only the empty ComDateIjara_ should fail to extract.
+    WordMock.extractDate.mockImplementation((date) =>
+      !date ? null : { day: '05', month: '11', year: '2024' }
+    );
+
+    expect(() =>
+      Yamls.replaceYaml(
+        'file.yml',
+        { ComDate_: '05.11.2024', ComDateIjara_: '' },
+        { regDate: null }
+      )
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDateIjara_ is missing or invalid')
+    );
+  });
+
+  it('always writes one Accrual entry per month across the contract period', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    // Mirrors the real template shape: "_"-suffixed DD.MM.YYYY inputs above,
+    // the bare-named YYYY-MM-DD auto-resolved counterparts (blank placeholders,
+    // filled by replaceTextLine) further down, as separate lines.
+    fs.writeFileSync(
+      ymlFile,
+      'ActDate_: 09.07.2025\nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n',
+      'utf8'
+    );
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      { ComDate_: '01.01.2026', Price: '4,200,000', SurEnable: false, RepEnable: false },
+      {
+        isYatt: false,
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('Accrual:');
+    // ComDate 01.01.2026 + AddDays 30 -> ComDateEnd 31.01.2026: a single full-month range.
+    expect(content).toContain('2026-01-01#2026-01-31: 4,200,000');
+  });
+
+  it('always writes one Punish (late-payment penalty) entry per month, computed from real Bank-OT/Card-OT folders', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({
+      Contract: { ComDateIjara: '01.01.2024', AddDays: 30 },
+      Punish: { PerDay: 50000, CapRatio: 1 }, // capRatio=1 isolates the day-count math from the cap
+      Excel: { CellNames: [] },
+    });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(
+      ymlFile,
+      'ActDate_: 01.01.2026\nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n',
+      'utf8'
+    );
+
+    // Rent (4,200,000) for the single Jan 2026 month is paid 5 days late:
+    // due 2026-01-31, actually paid 2026-02-05.
+    writeTree(path.join(workDir, 'Bank-OT'), { '2026-02-05 4,200,000': {} });
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      { ComDate_: '01.01.2026', Price: '4,200,000', SurEnable: false, RepEnable: false },
+      {
+        isYatt: false,
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('Punish:');
+    // 5 days * 50,000/day = 250,000.
+    expect(content).toContain('2026-01-01#2026-01-31: 250,000');
+
+    const lines = content.split('\n');
+    const accrualIdx = lines.findIndex((l) => l.startsWith('Accrual:'));
+    const punishIdx = lines.findIndex((l) => l.startsWith('Punish:'));
+    expect(punishIdx).toBeGreaterThan(accrualIdx);
   });
 });

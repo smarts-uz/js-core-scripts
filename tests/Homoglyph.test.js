@@ -1,4 +1,4 @@
-// Unit tests for utils/Homoglyph.js — every public (non-_) static method:
+// Unit tests for classes/Homoglyph.js — every public (non-_) static method:
 //   markdown, markdownAsk, word, wordAsk, excel, excelAsk, powerpoint,
 //   powerpointAsk.
 //
@@ -71,17 +71,12 @@ jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 
-const { Homoglyph } = await import('../utils/Homoglyph.js');
+const { Homoglyph } = await import('../classes/Homoglyph.js');
 
 let workDir;
 beforeEach(() => {
   workDir = makeTmpDir('homoglyph-');
-  state.config = {
-    'Markdown.HomoglyphSuffix': ' App',
-    'Word.HomoglyphSuffix': ' App',
-    'Excel.HomoglyphSuffix': ' Norm',
-    'PowerPoint.HomoglyphSuffix': ' App',
-  };
+  state.config = {};
 });
 afterEach(() => {
   cleanupAllTmpDirs();
@@ -97,26 +92,28 @@ function writeMd(name, content) {
 
 // ---------------------------------------------------------------------------
 describe('Homoglyph.markdown', () => {
-  it('replaces all mapped Latin chars with Cyrillic homoglyphs and writes the suffixed output', () => {
+  it('replaces all mapped Latin chars with Cyrillic homoglyphs and writes the "<base> L<count>.ext" output', () => {
     const src = writeMd('doc.md', 'Test ACEHO ace ox');
     const out = Homoglyph.markdown(src);
 
-    // output path = "<base><suffix><ext>" with the configured ' App' suffix
-    expect(out).toBe(path.join(workDir, 'doc App.md'));
+    // output path = "<base> L<usedLettersCount>.ext" — the full PERFECT_STEALTH map
+    // (21 distinct chars) is used when no `chars` subset is given.
+    expect(out).toBe(path.join(workDir, 'doc L21.md'));
     expect(fs.existsSync(out)).toBe(true);
 
     // Each MAPPED char is swapped to its Cyrillic twin; chars with no entry in
     // PERFECT_STEALTH stay Latin. Note lowercase 's' and 't' are NOT in the map,
     // so "Test" → "Теst" (only T→Т, e→е) — this documents the real map coverage.
-    const result = read(workDir, 'doc App.md');
+    const result = read(workDir, 'doc L21.md');
     expect(result).toBe('Теst АСЕНО асе ох');
     // the source file is left untouched (it copies/writes to a new file)
     expect(read(workDir, 'doc.md')).toBe('Test ACEHO ace ox');
   });
 
-  it('honors a `chars` subset — only the requested characters are replaced', () => {
+  it('honors a `chars` subset — only the requested characters are replaced, and L<count> reflects the subset size', () => {
     const src = writeMd('subset.md', 'AaEe');
     const out = Homoglyph.markdown(src, 'A'); // only uppercase A
+    expect(out).toBe(path.join(workDir, 'subset L1.md'));
     const result = fs.readFileSync(out, 'utf8');
     // 'A' → Cyrillic 'А'; the others (a, E, e) stay Latin
     expect(result).toBe('Аa' + 'Ee');
@@ -131,12 +128,12 @@ describe('Homoglyph.markdown', () => {
     expect(fs.readFileSync(out, 'utf8')).toBe('Bb Dd 123 !?');
   });
 
-  it('auto-increments the output path when the suffixed file already exists', () => {
+  it('auto-increments the output path when the "L<count>" file already exists', () => {
     const src = writeMd('dup.md', 'A');
-    fs.writeFileSync(path.join(workDir, 'dup App.md'), 'existing', 'utf8');
+    fs.writeFileSync(path.join(workDir, 'dup L21.md'), 'existing', 'utf8');
     const out = Homoglyph.markdown(src);
-    expect(out).toBe(path.join(workDir, 'dup App 1.md'));
-    expect(read(workDir, 'dup App.md')).toBe('existing'); // not clobbered
+    expect(out).toBe(path.join(workDir, 'dup L21 1.md'));
+    expect(read(workDir, 'dup L21.md')).toBe('existing'); // not clobbered
   });
 
   it('warns and returns undefined when the source file does not exist', () => {

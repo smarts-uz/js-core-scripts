@@ -1,0 +1,12 @@
+.xlsx
+NoClose;Protect Worksheets (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\protectSheetAsk.mjs" --file "%1"
+NoClose;Unprotect Worksheets (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\unProtectSheetAsk.mjs" --file "%1"
+NoClose;Protect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\protectFileAsk.mjs" --file "%1"
+NoClose;Unprotect File (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\unProtectFileAsk.mjs" --file "%1"
+NoClose;Hide & Protect Sheet (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\hideProtectSheetAsk.mjs" --file "%1"
+NoClose;Unhide & Unprotect Sheet (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\unHideUnProtectSheetAsk.mjs" --file "%1"
+NoClose;Excel Homoglyph (All);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Homoglyph\excel.mjs" --file "%1"
+NoClose;Excel Homoglyph (Chars...);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Homoglyph\excel.mjs" --file "%1" --chars "%2"
+NoClose;Excel Homoglyph (Ask);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Homoglyph\excelAsk.mjs" --file "%1"
+NoClose;Contract Convert (.xltx→.xlsx);node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\contractConvert.mjs" --input "%1"
+NoClose;Homoglyph Replace (Humanize);"D:\Develop\Projects\DevApp\Execute\JS\Sources\humanize\src-tauri\target\release\app.exe" "%1"

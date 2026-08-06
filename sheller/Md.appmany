@@ -1,0 +1,2 @@
+.md
+NoClose;Merge MD Files;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Markdown\merge.mjs" $files

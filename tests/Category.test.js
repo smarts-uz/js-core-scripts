@@ -1,4 +1,4 @@
-// Unit tests for utils/Category.js — public static methods timestamp, loadYaml,
+// Unit tests for classes/Category.js — public static methods timestamp, loadYaml,
 // ensureDir, moveFile, removeEmptyDirs, findFileRecursively, resolveTargetPath,
 // displayPath, run, revert.
 //
@@ -19,7 +19,7 @@ const DialogsMock = { errorBox: jest.fn() };
 jest.unstable_mockModule(utilsModule('Chromes.js'), () => ({ Chromes: ChromesMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 
-const { Category } = await import('../utils/Category.js');
+const { Category } = await import('../classes/Category.js');
 
 let work;
 

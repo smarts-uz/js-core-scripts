@@ -1,4 +1,4 @@
-// Unit tests for utils/ExcelsJS.js — public static methods readWorkbookSafely
+// Unit tests for classes/ExcelsJS.js — public static methods readWorkbookSafely
 // and replaceFormula.
 //
 // ExcelsJS drives SheetJS ('xlsx'). We mock 'xlsx' BEFORE importing the class so
@@ -36,7 +36,7 @@ jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Excels.js'), () => ({ Excels: ExcelsMock }));
 
-const { ExcelsJS } = await import('../utils/ExcelsJS.js');
+const { ExcelsJS } = await import('../classes/ExcelsJS.js');
 
 let work;
 

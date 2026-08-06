@@ -1,4 +1,4 @@
-// Unit tests for utils/Markdown.js — public methods convertToWord,
+// Unit tests for classes/Markdown.js — public methods convertToWord,
 // convertToWordTOC, convertToHtml, merge.
 //
 // Strategy (per tests/README.md):
@@ -84,7 +84,7 @@ jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 
-const { Markdown } = await import('../utils/Markdown.js');
+const { Markdown } = await import('../classes/Markdown.js');
 
 let workDir;
 let savedFetch;

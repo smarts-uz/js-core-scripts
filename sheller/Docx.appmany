@@ -1,0 +1,2 @@
+.docx
+NoClose;Merge Word Files;node.exe "D:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Word\merge.mjs" $files
