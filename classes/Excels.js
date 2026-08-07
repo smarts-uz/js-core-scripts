@@ -84,6 +84,7 @@ export class Excels {
       throw new Error(`repairToFile: File not found: ${absInput}`);
     }
 
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -98,6 +99,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -120,6 +122,7 @@ export class Excels {
 
     console.log(`📂 Opening template: ${absInput}`);
 
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible        = false;
     excelApp.DisplayAlerts  = false;
@@ -135,8 +138,9 @@ export class Excels {
 
       workbook.Close(false);
     } finally {
-      excelApp.Quit();
+      try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
 
     return absOutput;
@@ -363,8 +367,34 @@ export class Excels {
   }
 
 
+  // VBA's Cells.Replace has a hard 255-character limit on its Replacement
+  // argument (Office VBA "Replacements too long (Error 746)") — surfacing
+  // here as a winax "DispInvoke: Replace: DISP_E_TYPEMISMATCH" instead of
+  // that VBA error text, since winax can't marshal a >255-char BSTR through
+  // that specific COM parameter. This is universal to ANY long yamlData
+  // value (ComOKEDName's activityTypeName text today, but equally any other
+  // long field on any contract, YaTT or not) — never specific to one key.
+  // Fix: Cells.Replace only for a short replacement; for a long one, locate
+  // the placeholder cell via Cells.Find (search string is always short —
+  // "{KEY}" — so Find is unaffected) and set the cell's .Value directly,
+  // which has no such length limit.
   static replaceInSheet(search, replace) {
     console.info(`[Excels.replaceInSheet] 🟢 Starting...`);
+
+    if (String(replace).length > 255) {
+      console.warn(`⚠️ "${search}" replacement is ${String(replace).length} chars (>255) — Cells.Replace would throw DISP_E_TYPEMISMATCH; writing via Cells.Find + .Value instead.`);
+      const cell = globalThis.excelSheet.Cells.Find(search);
+
+      if (cell) {
+        cell.Value = replace;
+        console.log(`✅ Replaced  "${search}" with "${replace}" in Excel sheet "App" (long-value path)`);
+        return true;
+      }
+
+      console.warn(`⚠️ "${search}" not found in Excel sheet "App"`);
+      return false;
+    }
+
     let found = globalThis.excelSheet.Cells.Replace(
       search,          // What to find
       replace,                   // Replacement text
@@ -414,6 +444,12 @@ export class Excels {
       Dialogs.warningBox(`File "${fileName}" not found.`, 'File Error');
     }
 
+    // Snapshot EXCEL.EXE PIDs before spawning — the finally-block backstop in
+    // fileClose() (called from generate()'s own try/finally, see below) uses
+    // this to kill ONLY the instance this run orphaned, never a PID that was
+    // already running before this call.
+    globalThis.excelPidsBefore = Com.pidsOf('EXCEL.EXE');
+
     // 3. Open Excel
     globalThis.excelApp = new winax.Object('Excel.Application');
     globalThis.excelApp.Visible = false;
@@ -449,32 +485,44 @@ export class Excels {
   }
 
 
+  // Called from generate()'s finally block (see below) so this always runs —
+  // on the success path AND when generate() throws mid-way (e.g. a COM error
+  // from replaceInSheet). fileSave()/Close()/Quit() are each best-effort
+  // (wrapped so one failing step doesn't skip the PID kill after it), and the
+  // final Com.killOrphans call is the hard backstop: even if Quit()/release()
+  // silently no-op on a wedged COM object, the orphaned EXCEL.EXE PID this
+  // run spawned is still terminated by PID (never by image name — a PID
+  // present in excelPidsBefore, i.e. a user's own already-open Excel, is
+  // never touched).
   static fileClose() {
     console.info(`[Excels.fileClose] 🟢 Starting...`);
 
-    this.fileSave();
+    try { this.fileSave(); } catch (err) { console.warn('⚠️ fileClose: fileSave failed:', err.message); }
 
-    // ✅ Close workbook (without saving)
-    globalThis.excelWorkbook.Close(true);
-
-    // ✅ Quit Excel
-    globalThis.excelApp.Quit();
-
-    // ✅ Release COM objects to prevent Excel.exe from staying in memory
-    if (globalThis.excelWorkbook && globalThis.excelWorkbook.ReleaseComObject) globalThis.excelWorkbook.ReleaseComObject();
-    if (globalThis.excelSheet && globalThis.excelSheet.ReleaseComObject) globalThis.excelSheet.ReleaseComObject();
-    if (globalThis.excelApp && globalThis.excelApp.ReleaseComObject) globalThis.excelApp.ReleaseComObject();
-
-    // ✅ Or just use `winax.release()` (if you have a lot of COM refs)
-    winax.release(globalThis.excelApp);
-
-    // kill excel process by pid
     try {
-      process.kill(globalThis.excelPid);
-      console.log(`Excel process with PID ${globalThis.excelPid} killed.`);
-    } catch (err) {
-      console.warn(`Failed to kill Excel PID ${globalThis.excelPid}:`, err.message);
-    }
+      // ✅ Close workbook (without saving)
+      if (globalThis.excelWorkbook) globalThis.excelWorkbook.Close(true);
+    } catch (err) { console.warn('⚠️ fileClose: workbook Close failed:', err.message); }
+
+    try {
+      // ✅ Quit Excel
+      if (globalThis.excelApp) globalThis.excelApp.Quit();
+    } catch (err) { console.warn('⚠️ fileClose: excelApp Quit failed:', err.message); }
+
+    try {
+      // ✅ Release COM objects to prevent Excel.exe from staying in memory
+      if (globalThis.excelWorkbook && globalThis.excelWorkbook.ReleaseComObject) globalThis.excelWorkbook.ReleaseComObject();
+      if (globalThis.excelSheet && globalThis.excelSheet.ReleaseComObject) globalThis.excelSheet.ReleaseComObject();
+      if (globalThis.excelApp && globalThis.excelApp.ReleaseComObject) globalThis.excelApp.ReleaseComObject();
+
+      // ✅ Or just use `winax.release()` (if you have a lot of COM refs)
+      if (globalThis.excelApp) winax.release(globalThis.excelApp);
+    } catch (err) { console.warn('⚠️ fileClose: COM release failed:', err.message); }
+
+    // kill any orphaned EXCEL.EXE this run spawned, by PID diff — the hard
+    // backstop for when Quit()/release() above silently failed to close it.
+    const killed = Com.killOrphans('EXCEL.EXE', globalThis.excelPidsBefore || new Set());
+    console.log(`Excel fileClose: ${killed} orphaned EXCEL.EXE process(es) killed.`);
   }
 
 
@@ -493,6 +541,7 @@ export class Excels {
     console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
     this.checkWinax(label);
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -590,6 +639,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -626,6 +676,7 @@ export class Excels {
     console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
     this.checkWinax('replaceStandart');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -692,6 +743,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
     }
 
@@ -707,6 +759,7 @@ export class Excels {
     console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
     this.checkWinax('replaceFormulaAll');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -793,6 +846,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -805,6 +859,7 @@ export class Excels {
     }
 
     this.checkWinax('recalculate');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -831,6 +886,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -843,6 +899,7 @@ export class Excels {
     }
 
     this.checkWinax('changeFont');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -872,6 +929,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -909,47 +967,59 @@ export class Excels {
 
     this.fileOpen(newFilePath);
 
-    this.processAccrual(yamlData);
-    this.processPayment(yamlData);
-    this.processLoaners(yamlData);
-    this.processPenalty(yamlData);
+    // Everything from here on drives live Excel COM (replaceInSheet,
+    // processAccrual, …) — any of it can throw (a COM error, a malformed
+    // yamlData value). Without this try/finally, a mid-loop exception skips
+    // fileClose() entirely, leaving the just-opened EXCEL.EXE process (and
+    // its lock on newFilePath) orphaned — confirmed live: a DISP_E_TYPEMISMATCH
+    // from replaceInSheet left an EXCEL.EXE PID running, and the next
+    // generate() run failed with EBUSY trying to overwrite the locked file.
+    // fileClose() now always runs, and it always terminates this run's own
+    // EXCEL.EXE PID as a hard backstop even when Quit()/release() no-op on a
+    // wedged COM object.
+    try {
+      this.processAccrual(yamlData);
+      this.processPayment(yamlData);
+      this.processLoaners(yamlData);
+      this.processPenalty(yamlData);
 
-    for (const cellName of cellNames) {
-      const found = this.findColumn(cellName);
+      for (const cellName of cellNames) {
+        const found = this.findColumn(cellName);
 
-      const entries = Array.isArray(yamlData[cellName]) ? yamlData[cellName] : [];
-      if (entries.length > 0) {
-        this.processFolders(entries, found);
+        const entries = Array.isArray(yamlData[cellName]) ? yamlData[cellName] : [];
+        if (entries.length > 0) {
+          this.processFolders(entries, found);
 
-      } else {
-        console.warn(`🚫 No ${cellName} entries in yamlData`);
-        this.replaceInSheet(`{${cellName}}`, '');
+        } else {
+          console.warn(`🚫 No ${cellName} entries in yamlData`);
+          this.replaceInSheet(`{${cellName}}`, '');
+        }
+
       }
 
+
+
+      // Replace {KEY} placeholders — skip array-valued keys (Accrual, Payment,
+      // Loaners, Penalty, every Excel.CellNames key: Bank-OT, EHF-IN, …).
+      // These are never rendered as a {key} placeholder; they are written
+      // cell-by-cell by processAccrual/processPayment/processLoaners/
+      // processPenalty/processFolders above. Passing an
+      // array/object straight to Excel COM's Cells.Replace crashes
+      // ("DispInvoke: Replace The remote procedure call failed.") since it
+      // only accepts a string/primitive.
+      for (const key of Object.keys(yamlData)) {
+
+        const value = yamlData[key];
+
+        if (Array.isArray(value)) continue;
+
+        const placeholder = `{${key}}`;
+
+        this.replaceInSheet(placeholder, value);
+      }
+    } finally {
+      this.fileClose();
     }
-
-
-
-    // Replace {KEY} placeholders — skip array-valued keys (Accrual, Payment,
-    // Loaners, Penalty, every Excel.CellNames key: Bank-OT, EHF-IN, …).
-    // These are never rendered as a {key} placeholder; they are written
-    // cell-by-cell by processAccrual/processPayment/processLoaners/
-    // processPenalty/processFolders above. Passing an
-    // array/object straight to Excel COM's Cells.Replace crashes
-    // ("DispInvoke: Replace The remote procedure call failed.") since it
-    // only accepts a string/primitive.
-    for (const key of Object.keys(yamlData)) {
-
-      const value = yamlData[key];
-
-      if (Array.isArray(value)) continue;
-
-      const placeholder = `{${key}}`;
-
-      this.replaceInSheet(placeholder, value);
-    }
-
-    this.fileClose();
 
   }
 
@@ -962,6 +1032,7 @@ export class Excels {
     }
 
     this.checkWinax('protectFile');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -991,6 +1062,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1003,6 +1075,7 @@ export class Excels {
     }
 
     this.checkWinax('unProtectFile');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1032,6 +1105,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1072,6 +1146,7 @@ export class Excels {
     }
 
     this.checkWinax('protectSheet');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1135,6 +1210,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1147,6 +1223,7 @@ export class Excels {
     }
 
     this.checkWinax('unProtectSheet');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1188,6 +1265,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1244,6 +1322,7 @@ export class Excels {
 
     finalMergedPath = Files.incrementFileName(finalMergedPath);
 
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1315,6 +1394,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1394,6 +1474,7 @@ export class Excels {
     }
 
     this.checkWinax('hide');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1430,6 +1511,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1447,6 +1529,7 @@ export class Excels {
     }
 
     this.checkWinax('unhide');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1478,6 +1561,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 
@@ -1496,6 +1580,7 @@ export class Excels {
     }
 
     this.checkWinax('isHidden');
+    const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
@@ -1529,6 +1614,7 @@ export class Excels {
     } finally {
       try { excelApp.Quit(); } catch (_) {}
       try { winax.release(excelApp); } catch (_) {}
+      Com.killOrphans('EXCEL.EXE', before);
     }
   }
 

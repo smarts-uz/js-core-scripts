@@ -90,6 +90,7 @@ jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Word.js'), () => ({ Word: WordMock }));
 
 const { Excels } = await import('../classes/Excels.js');
+const { Com } = await import('../classes/Com.js');
 
 // --- COM helpers --------------------------------------------------------------
 
@@ -561,6 +562,51 @@ describe('Excels.replaceInSheet', () => {
     globalThis.excelSheet = makeComProxy({ Cells: { Replace: jest.fn(() => false) } }, 'Sheet');
     expect(Excels.replaceInSheet('x', 'y')).toBe(false);
   });
+
+  // VBA's Cells.Replace hard-limits its Replacement argument to 255 chars
+  // (Office VBA "Replacements too long (Error 746)") — winax surfaces this
+  // as "DispInvoke: Replace: DISP_E_TYPEMISMATCH" instead of that VBA error
+  // text. Universal to ANY long yamlData value (not just ComOKEDName, not
+  // just YaTT contracts) — replaceInSheet must route a >255-char value
+  // through Cells.Find + a direct .Value write instead of Cells.Replace.
+  it('routes a replacement longer than 255 chars through Cells.Find + .Value, never Cells.Replace', () => {
+    const longValue = 'x'.repeat(256);
+    const cell = makeComProxy({}, 'cell');
+    const find = jest.fn(() => cell);
+    const replace = jest.fn(() => true);
+    globalThis.excelSheet = makeComProxy({ Cells: { Find: find, Replace: replace } }, 'Sheet');
+
+    const result = Excels.replaceInSheet('{ComOKEDName}', longValue);
+
+    expect(result).toBe(true);
+    expect(find).toHaveBeenCalledWith('{ComOKEDName}');
+    expect(cell.__sets__.Value).toBe(longValue);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('a value exactly at the 255-char boundary still uses Cells.Replace (not the long-value path)', () => {
+    const boundaryValue = 'x'.repeat(255);
+    const find = jest.fn();
+    const replace = jest.fn(() => true);
+    globalThis.excelSheet = makeComProxy({ Cells: { Find: find, Replace: replace } }, 'Sheet');
+
+    const result = Excels.replaceInSheet('{Key}', boundaryValue);
+
+    expect(result).toBe(true);
+    expect(replace).toHaveBeenCalledWith('{Key}', boundaryValue, 2, 2, false, false, false);
+    expect(find).not.toHaveBeenCalled();
+  });
+
+  it('returns false and warns when the long-value placeholder cell is not found via Cells.Find', () => {
+    const longValue = 'y'.repeat(300);
+    const find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: { Find: find, Replace: jest.fn() } }, 'Sheet');
+
+    const result = Excels.replaceInSheet('{Missing}', longValue);
+
+    expect(result).toBe(false);
+    expect(find).toHaveBeenCalledWith('{Missing}');
+  });
 });
 
 describe('Excels.findColumn', () => {
@@ -661,12 +707,20 @@ describe('Excels.fileSave', () => {
 });
 
 describe('Excels.fileClose', () => {
-  it('saves, closes the workbook, quits Excel, releases and kills the PID', () => {
-    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+  // fileClose no longer calls process.kill(globalThis.excelPid) directly — it
+  // calls Com.killOrphans('EXCEL.EXE', globalThis.excelPidsBefore), the same
+  // before/after-PID-diff backstop Word.js already uses everywhere, so a
+  // user's own already-open Excel is never killed, only an orphan THIS run
+  // spawned. Com.killOrphans itself is fully unit-tested in Com.test.js; here
+  // we only assert fileClose calls it with the right before-set.
+  it('saves, closes the workbook, quits Excel, releases and kills orphaned EXCEL.EXE via Com.killOrphans', () => {
+    const killOrphansSpy = jest.spyOn(Com, 'killOrphans').mockReturnValue(1);
     globalThis.excelApp = makeComProxy({ CalculateFull: jest.fn(), Quit: jest.fn() }, 'App');
     globalThis.excelWorkbook = makeComProxy({ Save: jest.fn(), Close: jest.fn() }, 'Workbook');
     globalThis.excelSheet = makeComProxy({}, 'Sheet');
     globalThis.excelPid = 9999;
+    const before = new Set([1111]);
+    globalThis.excelPidsBefore = before;
 
     Excels.fileClose();
 
@@ -674,21 +728,40 @@ describe('Excels.fileClose', () => {
     expect(globalThis.excelWorkbook.Close).toHaveBeenCalledWith(true);
     expect(globalThis.excelApp.Quit).toHaveBeenCalled();
     expect(winaxRelease).toHaveBeenCalledWith(globalThis.excelApp);
-    expect(killSpy).toHaveBeenCalledWith(9999);
-    killSpy.mockRestore();
+    expect(killOrphansSpy).toHaveBeenCalledWith('EXCEL.EXE', before);
+    killOrphansSpy.mockRestore();
   });
 
-  it('warns (no throw) when killing the PID fails', () => {
-    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => {
-      throw new Error('ESRCH');
-    });
+  it('falls back to an empty before-set (kills nothing new) when excelPidsBefore was never captured', () => {
+    const killOrphansSpy = jest.spyOn(Com, 'killOrphans').mockReturnValue(0);
     globalThis.excelApp = makeComProxy({ CalculateFull: jest.fn(), Quit: jest.fn() }, 'App');
     globalThis.excelWorkbook = makeComProxy({ Save: jest.fn(), Close: jest.fn() }, 'Workbook');
     globalThis.excelSheet = makeComProxy({}, 'Sheet');
-    globalThis.excelPid = 5;
+    globalThis.excelPidsBefore = undefined;
 
     expect(() => Excels.fileClose()).not.toThrow();
-    killSpy.mockRestore();
+    expect(killOrphansSpy).toHaveBeenCalledWith('EXCEL.EXE', new Set());
+    killOrphansSpy.mockRestore();
+  });
+
+  it('still runs the Com.killOrphans backstop even when Quit()/release() throw', () => {
+    const killOrphansSpy = jest.spyOn(Com, 'killOrphans').mockReturnValue(1);
+    globalThis.excelApp = makeComProxy(
+      {
+        CalculateFull: jest.fn(),
+        Quit: jest.fn(() => {
+          throw new Error('wedged COM object');
+        }),
+      },
+      'App'
+    );
+    globalThis.excelWorkbook = makeComProxy({ Save: jest.fn(), Close: jest.fn() }, 'Workbook');
+    globalThis.excelSheet = makeComProxy({}, 'Sheet');
+    globalThis.excelPidsBefore = new Set();
+
+    expect(() => Excels.fileClose()).not.toThrow();
+    expect(killOrphansSpy).toHaveBeenCalledWith('EXCEL.EXE', new Set());
+    killOrphansSpy.mockRestore();
   });
 });
 

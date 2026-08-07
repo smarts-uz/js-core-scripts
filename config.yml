@@ -94,3 +94,15 @@ Registry:
         Hives: Both # which environment hive(s) to clean Path / Path_* in. Possible: System | User | Both
         Backup: true # export both env keys to %USERPROFILE%\registry-path-backup-<timestamp> before changing. Possible: true | false
         Broadcast: true # notify running apps of the change via WM_SETTINGCHANGE (no reboot needed). Possible: true | false
+
+Testing:
+    # Real, live .contract files kept as standing regression targets — every
+    # code change to the contract-fill/Word/Excel-generation pipeline
+    # (Yamls.fillYamlWithInfo, Word.makeContract, Excels.generate, and the
+    # Accrual/Payment/Faktura/Loaners/PenaltyON/Penalty chain) is verified for
+    # real against BOTH of these before being considered done — one YaTT
+    # (sole proprietor, PINFL-only) and one MChJ (ordinary company, TIN-based)
+    # contract, so a fix that only works for one legal form is caught.
+    ContractFiles:
+        - d:\FSystem\ALL\Humans\Rentalls\Perfects\ASHALIFE PHARMA\ALL.contract
+        - d:\FSystem\ALL\Humans\Founder\YaTT RYABSEV OLEG VLADIMIROVICH\ALL.contract
