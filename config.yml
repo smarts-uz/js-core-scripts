@@ -28,7 +28,7 @@ Templates:
     # Contract templates (files) — read by Word.makeContract / Yamls / Excels.generate.
     Word: d:\Humans\Building\Rentalls\Contract\Projects\Rentals 527.docx
     Yaml: C:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract
-    Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 101.xlsx
+    Excel: d:\Humans\Building\Rentalls\ActReco\Projects\Act 102.xlsx
 ChoosedChars:
     Word: cxACEHIJKMOPSTX
     Markdown: cxACEHIJKMOPSTX
@@ -53,12 +53,14 @@ Scanner:
         - Sample
         - Samples
 Penalty:
-    # Contract §21.2/§21.3 late rent-payment penalty (пеня/неустойка):
-    # for each month with outstanding Loaners (underpaid/unpaid), the penalty
-    # is immediately CapRatio of that month's own (PriceMax-adjusted) Accrual
-    # figure — no daily accrual/settle-date tracking. Read by Yamls.replaceYaml.
+    # Contract §21.1 late rent-payment penalty (пеня/неустойка): a fixed
+    # PerDay amount for every calendar day (beyond the 1-day grace period
+    # of §3.7/§1.20) the client's running prepaid balance stays negative —
+    # PenaltyDays[month] * PerDay = Penalty[month], no cap, no CapRatio.
+    # Read by Yamls.replaceYaml (computeDailyBalance/computePenaltyDays/
+    # computePenalty). CapRatio retired — the old %-of-Accrual model no
+    # longer applies.
     PerDay: 50000
-    CapRatio: 0.5
 Excel:
     ProtectSuffix: ' PR'
     # Contract pricing cell/column names, in order — read by Excels.generate

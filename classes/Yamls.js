@@ -382,68 +382,210 @@ export class Yamls {
         return { accrual, payment, loaners };
     }
 
-    // Contract §21.2/§21.3 (late rent-payment penalty, пеня/неустойка): for
-    // every Accrual month currently showing Loaners > 0, the penalty is
-    // immediately CapRatio (50%) of that month's own (possibly
-    // PriceMax-adjusted) Accrual figure — applied straight away, not gated
-    // on the due date having passed and not accrued daily. A fully-paid
-    // month (Loaners == 0) always gets 0 penalty.
+    // One calendar day later than 'YYYY-MM-DD' dateIso, same format — plain
+    // ISO-string day-stepper for the daily-balance simulation below (Dates.
+    // addDays takes/returns DD.MM.YYYY, wrong shape for this use).
+    static _addOneDayIso(dateIso) {
+        const d = new Date(`${dateIso}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + 1);
+        return d.toISOString().slice(0, 10);
+    }
+
+    // Contract §3.7/§1.20 + §21.1 — a prepaid running-balance model, like a
+    // provider account: every calendar day, that day's pro-rated share of
+    // its own month's Accrual is DEBITED from the client's balance; every
+    // Payment (Bank-OT+Card-OT+BaaR-OT+Trans-OT merged) entry CREDITS the
+    // balance on its own date; every Returns (Bank-IN+Card-IN+BaaR-IN
+    // merged) entry DEBITS the balance on its own date. Simulated day by day
+    // from startDate through futureDate (both 'YYYY-MM-DD'), inclusive.
     //
-    // A SECOND, OVERALL cap also applies (§21.3's whole-contract-term
-    // reading): the running sum of Penalty across all months never exceeds
-    // CapRatio of the running sum of Accrual (accrualAll) — whichever cap
-    // binds first (per-month or overall) wins for that month.
-    //
-    // Returns [{ "monthStart#monthEnd": penaltyAmount }, ..., { ALL: sum }].
-    static computePenalty(accrual, loaners, capRatio) {
-        console.info(`[Yamls.computePenalty] 🟢 Starting... capRatio=${capRatio}`);
+    // Returns [{ date, debit, credit, balance }, ...], one entry per
+    // calendar day in order — the full day-by-day ledger, consumed by
+    // computePenaltyDays below (and useful on its own for audit/debugging).
+    static computeDailyBalance(startDate, futureDate, accrual, payment, returns) {
+        console.info(`[Yamls.computeDailyBalance] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
-        const loanersByKey = new Map(loaners.filter(e => !('ALL' in e)).map(e => Object.entries(e)[0]));
+        // Guard against missing/malformed bounds (e.g. an unresolvable
+        // FutureDate collapsing to dayjs's literal "Invalid Date" string) —
+        // a non-YYYY-MM-DD futureDate can sort lexically AFTER any real ISO
+        // date, which would otherwise turn the day-stepper loop below into
+        // an infinite one. Bail out to an empty ledger instead.
+        const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+        if (!ISO_DATE.test(startDate) || !ISO_DATE.test(futureDate) || startDate > futureDate) {
+            console.warn(`computeDailyBalance: invalid or empty startDate/futureDate (startDate=${startDate}, futureDate=${futureDate}); returning empty ledger.`);
+            return [];
+        }
 
-        let cumulativeAccrual = 0;
-        let totalPenalty = 0;
-        const result = [];
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
 
+        const accrualByMonth = new Map();
         for (const entry of accrual) {
             if ('ALL' in entry) continue;
             const [intervalKey, amount] = Object.entries(entry)[0];
-            const owed = Number(String(amount).replace(/,/g, '')) || 0;
-            cumulativeAccrual += owed;
-
-            const debt = Number(String(loanersByKey.get(intervalKey) ?? '0').replace(/,/g, '')) || 0;
-            const overallCap = Math.round(cumulativeAccrual * capRatio);
-
-            let penalty = 0;
-            if (debt > 0) {
-                const perMonthCap = Math.round(owed * capRatio);
-                penalty = Math.min(perMonthCap, Math.max(0, overallCap - totalPenalty));
-            }
-
-            totalPenalty += penalty;
-            result.push({ [intervalKey]: penalty.toLocaleString('en-US') });
+            const [start] = intervalKey.split('#');
+            accrualByMonth.set(start.slice(0, 7), toAmount(amount));
         }
 
-        result.push({ ALL: totalPenalty.toLocaleString('en-US') });
-        console.log(`computePenalty: totalPenalty=${totalPenalty}`, result);
-        return result;
+        const paymentByDate = new Map((payment || []).map(e => Object.entries(e)[0]).map(([d, a]) => [d, toAmount(a)]));
+        const returnByDate = new Map((returns || []).map(e => Object.entries(e)[0]).map(([d, a]) => [d, toAmount(a)]));
+
+        const ledger = [];
+        let balance = 0;
+        let day = startDate;
+
+        // Hard backstop against any other unforeseen non-terminating case —
+        // ~137 years of daily entries, far beyond any real contract term.
+        const MAX_DAYS = 50000;
+
+        while (day <= futureDate && ledger.length < MAX_DAYS) {
+            const monthKey = day.slice(0, 7);
+            const monthStart = `${monthKey}-01`;
+            const monthAccrual = accrualByMonth.get(monthKey) ?? 0;
+            const daysInMonth = Dates.daysInMonth(monthStart);
+            const debit = monthAccrual / daysInMonth;
+            const credit = (paymentByDate.get(day) || 0) - (returnByDate.get(day) || 0);
+
+            balance += credit - debit;
+            ledger.push({ date: day, debit, credit, balance });
+
+            day = Yamls._addOneDayIso(day);
+        }
+
+        console.log(`computeDailyBalance: ${ledger.length} day(s), final balance=${ledger.length ? ledger[ledger.length - 1].balance : 0}`);
+        return ledger;
+    }
+
+    // Contract §21.1 — a fixed PerDay penalty for each calendar day the
+    // client's running balance stays negative BEYOND the 1-calendar-day
+    // grace period (§3.7/§1.20: first/each prepayment due within 1 day) —
+    // the first day a deficit appears is grace, never itself a penalty day;
+    // every CONSECUTIVE day after that the balance is still negative counts.
+    // A day where balance recovers to >= 0 resets the grace window — a LATER
+    // deficit starts its own fresh 1-day grace period.
+    //
+    // Returns [{ "monthStart#monthEnd": penaltyDayCount }, ..., { ALL: sum }]
+    // — one entry per Accrual period (same order/shape as Payment/Loaners).
+    static computePenaltyDays(accrual, ledger) {
+        console.info(`[Yamls.computePenaltyDays] 🟢 Starting...`);
+
+        const periods = accrual.filter(e => !('ALL' in e)).map(e => {
+            const [intervalKey] = Object.entries(e)[0];
+            const [start, end] = intervalKey.split('#');
+            return { intervalKey, start, end };
+        });
+
+        let deficitStreak = 0;
+        const penaltyDaysByDate = new Map();
+        for (const { date, balance } of ledger) {
+            if (balance < 0) {
+                deficitStreak++;
+                // First day of a NEW deficit streak is the 1-day grace
+                // period — only the 2nd+ consecutive negative day counts.
+                if (deficitStreak > 1) penaltyDaysByDate.set(date, true);
+            } else {
+                deficitStreak = 0;
+            }
+        }
+
+        const result = periods.map(({ intervalKey, start, end }) => {
+            let count = 0;
+            for (const date of penaltyDaysByDate.keys()) {
+                if (date >= start && date <= end) count++;
+            }
+            return { [intervalKey]: count };
+        });
+
+        const total = result.reduce((s, e) => s + Object.values(e)[0], 0);
+        const withTotal = [...result, { ALL: total }];
+
+        console.log(`computePenaltyDays: total=${total}`, withTotal);
+        return withTotal;
+    }
+
+    // Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's
+    // fixed per-calendar-day rate, config.yml's Penalty.PerDay, default
+    // 50,000) — no cap, no CapRatio; every late day costs the same fixed
+    // amount, straight multiplication.
+    //
+    // Returns [{ "monthStart#monthEnd": penaltyAmount }, ..., { ALL: sum }],
+    // same order/shape as PenaltyDays.
+    static computePenalty(penaltyDays, penaltyForDay) {
+        console.info(`[Yamls.computePenalty] 🟢 Starting... penaltyForDay=${penaltyForDay}`);
+
+        const rate = Number(String(penaltyForDay).replace(/,/g, '')) || 0;
+        let total = 0;
+
+        const result = penaltyDays.filter(e => !('ALL' in e)).map(entry => {
+            const [intervalKey, days] = Object.entries(entry)[0];
+            const amount = days * rate;
+            total += amount;
+            return { [intervalKey]: amount.toLocaleString('en-US') };
+        });
+
+        const withTotal = [...result, { ALL: total.toLocaleString('en-US') }];
+        console.log(`computePenalty: total=${total}`, withTotal);
+        return withTotal;
     }
 
     // The real incoming-cash columns among Excel.CellNames — Bank-OT (bank
     // transfer out from the tenant, i.e. IN to the landlord), Trans-OT
-    // (direct transfer), and Card-OT (card payment out from the tenant).
-    // EHF-IN is an e-invoice record, not cash; Bank-IN/Card-IN are refunds
-    // BACK to the tenant; BaaR-* is an unrelated ledger — none of these count
-    // as rent paid.
+    // (direct transfer), Card-OT (card payment out from the tenant), and
+    // BaaR-OT (BaaR ledger payment out from the tenant). EHF-IN is an
+    // e-invoice record, not cash; Bank-IN/Card-IN/BaaR-IN are refunds BACK
+    // to the tenant (see Returns, computed separately) — none of the -IN
+    // keys count as rent paid.
     static actualPayments(yamlData) {
         console.info(`[Yamls.actualPayments] 🟢 Starting...`);
 
         const bankOT = Array.isArray(yamlData['Bank-OT']) ? yamlData['Bank-OT'] : [];
         const transOT = Array.isArray(yamlData['Trans-OT']) ? yamlData['Trans-OT'] : [];
         const cardOT = Array.isArray(yamlData['Card-OT']) ? yamlData['Card-OT'] : [];
+        const baarOT = Array.isArray(yamlData['BaaR-OT']) ? yamlData['BaaR-OT'] : [];
 
-        const payments = [...bankOT, ...transOT, ...cardOT];
+        const payments = [...bankOT, ...transOT, ...cardOT, ...baarOT];
         console.log(`actualPayments: ${payments.length} entr(y/ies)`, payments);
         return payments;
+    }
+
+    // Merges several date-keyed arrays (each shaped like scanCellFolder's
+    // own output — [{ "YYYY-MM-DD": amount }, ...]) into ONE flat array, one
+    // entry per distinct date, summing amounts when the SAME date appears in
+    // more than one source array (e.g. a Bank-OT and a Card-OT payment both
+    // landing on the same day are added together, not kept as two entries).
+    // Sorted by date. No "ALL" trailing total — callers append their own if
+    // needed.
+    static mergeDateKeyedArrays(...arrays) {
+        console.info(`[Yamls.mergeDateKeyedArrays] 🟢 Starting...`);
+
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+        const totals = new Map();
+
+        for (const arr of arrays) {
+            if (!Array.isArray(arr)) continue;
+            for (const entry of arr) {
+                const [date, amount] = Object.entries(entry)[0];
+                totals.set(date, (totals.get(date) || 0) + toAmount(amount));
+            }
+        }
+
+        const merged = [...totals.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, amount]) => ({ [date]: amount.toLocaleString('en-US') }));
+
+        console.log(`mergeDateKeyedArrays: ${merged.length} distinct date(s)`, merged);
+        return merged;
+    }
+
+    // Writes/replaces the Returns: array block directly after Penalty: —
+    // a flat, date-keyed merge of Bank-IN + Card-IN + BaaR-IN (money
+    // returned BACK to the tenant), same-date entries summed. NOT chained
+    // against Accrual — plain merge, same shape as a raw
+    // scanCellFolder/Excel.CellNames array.
+    //   Returns:
+    //     - '2026-04-21': '1,600,000'
+    static writeReturns(filePath, returns) {
+        console.info(`[Yamls.writeReturns] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'Returns', returns, 'Penalty', [], true);
     }
 
     // Writes/replaces the Accrual: array block directly after the
@@ -463,13 +605,15 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Accrual', accrual, 'ComBase', ['Pricings', 'PriceHistory'], false);
     }
 
-    // Writes/replaces the Payment: array block directly after Accrual: —
-    // per-period real cash received (the mirror of Loaners: Payment[i] +
-    // Loaners[i] === Accrual[i] always holds).
+    // Writes/replaces the Payment: array block directly after Accrual: — a
+    // flat, date-keyed merge of Bank-OT + Card-OT + BaaR-OT + Trans-OT
+    // (money received FROM the tenant), same-date entries summed. NOT
+    // chained/allocated against Accrual periods — plain merge, same shape as
+    // Returns/a raw scanCellFolder array. (Loaners/Penalty no longer read
+    // this written form — they're derived from the daily-balance ledger via
+    // computeDailyBalance/computePenaltyDays instead; see replaceYaml.)
     //   Payment:
-    //     - 2026-03-01#2026-03-31: 450,000
-    //     - 2026-04-01#2026-04-30: 0
-    //     - ALL: 450,000
+    //     - '2026-04-21': '1,600,000'
     static writePayment(filePath, payment) {
         console.info(`[Yamls.writePayment] 🟢 Starting...`);
         this.writeYamlArraySection(filePath, 'Payment', payment, 'Accrual', [], true);
@@ -486,29 +630,46 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Loaners', loaners, 'Faktura', [], true);
     }
 
-    // Writes/replaces the Penalty: array block directly after Loaners: — the
-    // WHOLE Accrual->Payment->Faktura->Loaners->Penalty chain is always
-    // written as one contiguous run of blocks anchored off ComBase (see
-    // writeAccrual); the static PenaltyON: toggle field (never touched by
-    // any write*Section call) is repositioned SEPARATELY, by
-    // repositionPenaltyOn below, to sit between Loaners and Penalty
+    // Writes/replaces the PenaltyDays: array block directly after Loaners: —
+    // per-period count of late-payment days (contract §21.1's fixed daily
+    // rate applies to each of these), the input Penalty is directly derived
+    // from (Penalty[i] = PenaltyDays[i] * PenaltyForDay). See
+    // computeDailyBalance/computePenaltyDays.
+    //   PenaltyDays:
+    //     - 2026-07-01#2026-07-31: 3
+    //     - 2026-08-01#2026-08-31: 0
+    //     - ALL: 3
+    static writePenaltyDays(filePath, penaltyDays) {
+        console.info(`[Yamls.writePenaltyDays] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PenaltyDays', penaltyDays, 'Loaners', [], true);
+    }
+
+    // Writes/replaces the Penalty: array block directly after PenaltyDays: —
+    // the WHOLE Accrual->Payment->Faktura->Loaners->PenaltyDays->Penalty
+    // chain is always written as one contiguous run of blocks anchored off
+    // ComBase (see writeAccrual); the static PenaltyON: toggle field (never
+    // touched by any write*Section call) is repositioned SEPARATELY, by
+    // repositionPenaltyOn below, to sit between Loaners and PenaltyDays
     // afterward — never by anchoring a chain write directly on PenaltyON's
     // OWN current position, which drifts.
     //   Penalty:
-    //     - 2026-07-01#2026-07-31: 225,000
+    //     - 2026-07-01#2026-07-31: 150,000
     //     - 2026-08-01#2026-08-31: 0
-    //     - ALL: 225,000
+    //     - ALL: 150,000
     static writePenalty(filePath, penalty) {
         console.info(`[Yamls.writePenalty] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Penalty', penalty, 'Loaners', ['Punish'], true);
+        this.writeYamlArraySection(filePath, 'Penalty', penalty, 'PenaltyDays', ['Punish'], true);
     }
 
     // Repositions the static PenaltyON: toggle field (never itself written
-    // by writeAccrual/writePayment/writeFaktura/writeLoaners/writePenalty —
-    // those only ever touch the Accrual/Payment/Faktura/Loaners/Penalty
-    // array blocks) to sit directly between Loaners: and Penalty: — the
-    // confirmed-correct real file layout (Accrual -> Payment -> Faktura ->
-    // Loaners -> PenaltyON -> Penalty -> Excel.CellNames keys). Because
+    // by writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/
+    // writePenalty — those only ever touch the
+    // Accrual/Payment/Faktura/Loaners/PenaltyDays/Penalty array blocks) to
+    // sit directly between Loaners: and Penalty: (i.e. directly before
+    // PenaltyDays:, which writePenaltyDays anchors right after Loaners) —
+    // the confirmed-correct real file layout (Accrual -> Payment -> Faktura
+    // -> Loaners -> PenaltyON -> PenaltyDays -> Penalty -> Returns ->
+    // Excel.CellNames keys). Because
     // PenaltyON is static, its position never moves on its own; only the
     // surrounding chain blocks move (per replaceYaml re-running the whole
     // chain), so this must run AFTER the whole chain is (re)written, every
@@ -643,19 +804,21 @@ export class Yamls {
     // Writes every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
     // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses — the same set
     // Excels.generate reads via config.yml) into the .contract yaml as its own
-    // array block, right after Penalty: (which itself sits right after
+    // array block, right after Returns: (which itself sits right after
+    // Penalty:, which sits right after PenaltyDays:, which sits right after
     // Loaners:, which sits right after Faktura:, which sits right after
-    // Payment: — see writePayment/writeFaktura/writeLoaners/writePenalty) —
-    // each populated from scanCellFolder(folderALL, key) when that folder
-    // exists, or left as an empty array ("KeyName: []") when it doesn't, so
-    // every key is always present even with no data yet.
+    // Payment: — see writePayment/writeFaktura/writeLoaners/writePenaltyDays/
+    // writePenalty/writeReturns) — each populated from
+    // scanCellFolder(folderALL, key) when that folder exists, or left as an
+    // empty array ("KeyName: []") when it doesn't, so every key is always
+    // present even with no data yet.
     static writeCellArrays(ymlFile, folderALL) {
         console.info(`[Yamls.writeCellArrays] 🟢 Starting...`);
 
         const cellNames = this.getConfig('Excel.CellNames', 'array', []);
         console.log('writeCellArrays: cellNames', cellNames);
 
-        let afterKey = 'Penalty';
+        let afterKey = 'Returns';
         for (const key of cellNames) {
             const entries = this.scanCellFolder(folderALL, key);
             this.writeYamlArraySection(ymlFile, key, entries, afterKey, [], true);
@@ -1430,56 +1593,88 @@ export class Yamls {
             this.replaceTextLine(ymlFile, key, value);
         }
 
-        // Always record Accrual/Payment/Loaners/Penalty per calendar month
-        // across the contract's active period (StartDate..FutureDate, both
-        // YYYY-MM-DD) — runs every time the .contract is filled/updated, not
-        // only when an Excel report is generated separately.
+        // Always record Accrual/Payment/Faktura/Loaners/PenaltyDays/Penalty/
+        // Returns per calendar month across the contract's active period
+        // (StartDate..FutureDate, both YYYY-MM-DD) — runs every time the
+        // .contract is filled/updated, not only when an Excel report is
+        // generated separately.
         //
         // Accrual starts every month at yamlData.Price (the on-time rate);
         // recomputeChain then re-prices any month with real-payment
         // shortfall at yamlData.PriceMax (from conf/cost/<Tariff>.yaml, NOT
         // written into the .contract yaml itself — only its EFFECT, the
         // re-priced Accrual figure, is persisted) and re-chains the real cash
-        // payments (Bank-OT + Trans-OT + Card-OT, scanned fresh from
-        // folderALL — not from yamlData, since a freshly-filled contract has
-        // no in-memory payment history yet) across the resulting periods to
-        // a fixed point, producing Payment/Loaners in lockstep with Accrual.
+        // payments (Bank-OT + Trans-OT + Card-OT + BaaR-OT, scanned fresh
+        // from folderALL — not from yamlData, since a freshly-filled
+        // contract has no in-memory payment history yet) across the
+        // resulting periods to a fixed point, producing Loaners in lockstep
+        // with Accrual — this internal chain drives Loaners/PriceMax
+        // re-pricing ONLY; the Payment: key actually WRITTEN to the yaml is
+        // a separate, flat date-keyed merge (see below), not this chain's
+        // own per-period allocation.
         const bankOT = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-OT');
         const transOT = Yamls.scanCellFolder(globalThis.folderALL, 'Trans-OT');
         const cardOT = Yamls.scanCellFolder(globalThis.folderALL, 'Card-OT');
-        const payments = [...bankOT, ...transOT, ...cardOT];
+        const baarOT = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-OT');
+        const payments = [...bankOT, ...transOT, ...cardOT, ...baarOT];
 
-        const { accrual, payment, loaners } = Yamls.recomputeChain(
+        const { accrual, loaners } = Yamls.recomputeChain(
             yamlData.StartDate, yamlData.FutureDate, yamlData.Price, yamlData.PriceMax, payments
         );
         Yamls.writeAccrual(ymlFile, accrual);
-        Yamls.writePayment(ymlFile, payment);
+
+        // Payment: WRITTEN form — flat date-keyed merge of Bank-OT + Card-OT
+        // + BaaR-OT + Trans-OT (same-date entries from different sources
+        // summed together), e.g. { '2026-04-21': '1,600,000' }. Distinct
+        // from `payments` above (which feeds the internal debt chain).
+        const paymentFlat = Yamls.mergeDateKeyedArrays(bankOT, cardOT, baarOT, transOT);
+        Yamls.writePayment(ymlFile, paymentFlat);
 
         // Faktura: the real EHF-IN invoice sum (scanned fresh from
-        // folderALL, same as Bank-OT/Trans-OT/Card-OT above), distributed
-        // across the FINAL, already-recomputeChain-settled Accrual periods —
-        // once the whole EHF-IN sum is distributed, every remaining period
-        // gets 0. Must run AFTER recomputeChain, against its returned
-        // `accrual` (the fixed-point one, already re-priced at PriceMax on
-        // any debt month), never the pre-recompute baseline. Written directly
-        // after Payment:, before Loaners:/Penalty:.
+        // folderALL, same as Bank-OT/Trans-OT/Card-OT/BaaR-OT above),
+        // distributed across the FINAL, already-recomputeChain-settled
+        // Accrual periods — once the whole EHF-IN sum is distributed, every
+        // remaining period gets 0. Must run AFTER recomputeChain, against
+        // its returned `accrual` (the fixed-point one, already re-priced at
+        // PriceMax on any debt month), never the pre-recompute baseline.
+        // Written directly after Payment:, before Loaners:/PenaltyDays:/
+        // Penalty:.
         const ehfIn = Yamls.scanCellFolder(globalThis.folderALL, 'EHF-IN');
         const faktura = Yamls.computeFaktura(accrual, ehfIn);
         Yamls.writeFaktura(ymlFile, faktura);
 
         Yamls.writeLoaners(ymlFile, loaners);
 
-        // Penalty (§21.2/§21.3): 50% of a debt month's own Accrual, applied
-        // immediately for every month with Loaners > 0, capped a second time
-        // by the running Accrual total across the whole period.
-        const penaltyCapRatio = Yamls.getConfig('Penalty.CapRatio', 'number', 0.5);
-        const penalty = Yamls.computePenalty(accrual, loaners, penaltyCapRatio);
+        // Returns: flat date-keyed merge of Bank-IN + Card-IN + BaaR-IN
+        // (money refunded BACK to the tenant) — same shape/merge rule as
+        // Payment:, Trans-IN intentionally excluded.
+        const bankIN = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-IN');
+        const cardIN = Yamls.scanCellFolder(globalThis.folderALL, 'Card-IN');
+        const baarIN = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-IN');
+        const returnsFlat = Yamls.mergeDateKeyedArrays(bankIN, cardIN, baarIN);
+
+        // Penalty (§21.1 + §3.7/§1.20): a prepaid running-balance simulation
+        // — Accrual debited daily (pro-rated), Payment credits/Returns
+        // debits the balance on their own dates. Every consecutive day
+        // (beyond the first, which is the 1-calendar-day grace period) the
+        // balance stays negative counts as a penalty day; Penalty[month] =
+        // PenaltyDays[month] * PenaltyForDay (config.yml's Penalty.PerDay,
+        // no cap — replaces the old CapRatio-of-Accrual model entirely).
+        const ledger = Yamls.computeDailyBalance(yamlData.StartDate, yamlData.FutureDate, accrual, paymentFlat, returnsFlat);
+        const penaltyDays = Yamls.computePenaltyDays(accrual, ledger);
+        Yamls.writePenaltyDays(ymlFile, penaltyDays);
+
+        const penaltyForDay = Yamls.getConfig('Penalty.PerDay', 'number', 50000);
+        const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay);
         Yamls.writePenalty(ymlFile, penalty);
 
+        Yamls.writeReturns(ymlFile, returnsFlat);
+
         // PenaltyON is a static field the write*Section chain above never
-        // touches — reposition it to sit between Loaners: and Penalty: now
-        // that the whole chain has (re)written itself, so it never drifts
-        // to wherever the chain's own insertion points happened to land it.
+        // touches — reposition it to sit between Loaners: and PenaltyDays:
+        // now that the whole chain has (re)written itself, so it never
+        // drifts to wherever the chain's own insertion points happened to
+        // land it.
         Yamls.repositionPenaltyOn(ymlFile);
 
         // Every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,

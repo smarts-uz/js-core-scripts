@@ -237,8 +237,9 @@ export class Excels {
   }
 
   // Reads yamlData.Penalty — the "start#end": amount per-month late-payment
-  // penalty (пеня/неустойка, §21.2/§21.3) array Yamls.replaceYaml already
-  // writes into the .contract yaml — and writes one row per entry (interval
+  // penalty (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a
+  // fixed daily rate, no CapRatio) array Yamls.replaceYaml already writes
+  // into the .contract yaml — and writes one row per entry (interval
   // start date, penalty amount) starting at the {Penalty} placeholder's
   // cell. The trailing { ALL: sum } entry is skipped (no "ALL" date to
   // write a row for). Only runs when yamlData.PenaltyON === true; when
@@ -283,12 +284,15 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Payment — the "start#end": amount per-period real cash
-  // received array Yamls.recomputeChain/writePayment writes into the
-  // .contract yaml — and writes one row per entry (interval start date,
-  // paid amount) starting at the {Payment} placeholder's cell. The
-  // trailing { ALL: sum } entry is skipped. Always runs (no ON/OFF flag,
-  // unlike Penalty) — mirrors processAccrual's own unconditional shape.
+  // Reads yamlData.Payment — a FLAT, date-keyed array
+  // (Yamls.mergeDateKeyedArrays' output: Bank-OT + Card-OT + BaaR-OT +
+  // Trans-OT merged, same-date entries summed — e.g. { '2026-04-21':
+  // '1,600,000' }, NOT a "start#end" interval) Yamls.writePayment writes
+  // into the .contract yaml — and writes one row per entry (date, paid
+  // amount) starting at the {Payment} placeholder's cell. No trailing
+  // { ALL } entry to skip (mergeDateKeyedArrays doesn't append one). Always
+  // runs (no ON/OFF flag, unlike Penalty) — mirrors processAccrual's own
+  // unconditional shape.
   static processPayment(yamlData) {
     console.info(`[Excels.processPayment] 🟢 Starting...`);
 
@@ -304,13 +308,83 @@ export class Excels {
     console.log(`processPayment: ${payment.length} Payment entr(y/ies)`, payment);
 
     for (const entry of payment) {
-      const [intervalKey, amount] = Object.entries(entry)[0];
+      const [date, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
+  // Reads yamlData.Returns — a FLAT, date-keyed array
+  // (Yamls.mergeDateKeyedArrays' output: Bank-IN + Card-IN + BaaR-IN merged,
+  // same-date entries summed) Yamls.writeReturns writes into the .contract
+  // yaml — and writes one row per entry (date, refunded amount) starting at
+  // the {Returns} placeholder's cell. Same shape/handling as processPayment.
+  // Always runs (no ON/OFF flag). Warns and skips when the template has no
+  // {Returns} placeholder cell (an older Excel template predating this
+  // feature).
+  static processReturns(yamlData) {
+    console.info(`[Excels.processReturns] 🟢 Starting...`);
+
+    const found = this.findColumn('Returns');
+    if (!found) {
+      console.warn('⚠️ processReturns: {Returns} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const returns = Array.isArray(yamlData.Returns) ? yamlData.Returns : [];
+    console.log(`processReturns: ${returns.length} Returns entr(y/ies)`, returns);
+
+    for (const entry of returns) {
+      const [date, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
+  // Reads yamlData.PenaltyDays — the "start#end": dayCount per-period
+  // late-payment day-count array Yamls.writePenaltyDays writes into the
+  // .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay) — writes
+  // one row per entry (interval start/end date, day count) starting at the
+  // {PenaltyDays} placeholder's cell. The trailing { ALL: sum } entry is
+  // skipped. Gated on yamlData.PenaltyON === true, same as processPenalty
+  // (blanks its own placeholder when not true, for the same reason — the
+  // generic {KEY}-clear pass in generate() skips every array-valued key).
+  static processPenaltyDays(yamlData) {
+    console.info(`[Excels.processPenaltyDays] 🟢 Starting...`);
+
+    if (yamlData.PenaltyON !== true) {
+      console.log('processPenaltyDays: PenaltyON is not true, blanking the {PenaltyDays} placeholder.');
+      this.replaceInSheet('{PenaltyDays}', '');
+      return;
+    }
+
+    const found = this.findColumn('PenaltyDays');
+    if (!found) {
+      console.warn('⚠️ processPenaltyDays: {PenaltyDays} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const penaltyDays = Array.isArray(yamlData.PenaltyDays) ? yamlData.PenaltyDays : [];
+    console.log(`processPenaltyDays: ${penaltyDays.length} PenaltyDays entr(y/ies)`, penaltyDays);
+
+    for (const entry of penaltyDays) {
+      const [intervalKey, days] = Object.entries(entry)[0];
       if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = days;
 
       row++;
     }
@@ -980,7 +1054,9 @@ export class Excels {
     try {
       this.processAccrual(yamlData);
       this.processPayment(yamlData);
+      this.processReturns(yamlData);
       this.processLoaners(yamlData);
+      this.processPenaltyDays(yamlData);
       this.processPenalty(yamlData);
 
       for (const cellName of cellNames) {

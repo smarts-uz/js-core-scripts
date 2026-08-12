@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 311 runnable methods.
+**Coverage:** 23 classes, 319 runnable methods.
 
 ---
 # Category
@@ -1204,7 +1204,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 44 public static method(s).
+Runners: `scripts/Excels/` — 46 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1509,6 +1509,30 @@ node scripts/Excels/processPayment.mjs --file "<path>"
 
 ```bash
 node scripts/Excels/processPenalty.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPenaltyDays(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Excels/processPenaltyDays.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processReturns(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Excels/processReturns.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
@@ -3819,7 +3843,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 28 public static method(s).
+Runners: `scripts/Yamls/` — 34 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3862,6 +3886,22 @@ node scripts/Yamls/buildAccrualEntries.mjs --startDate <startDate>
 | `futureDate` | no | — |
 | `price` | no | — |
 
+## computeDailyBalance(startDate, futureDate, accrual, payment, returns)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computeDailyBalance.mjs --startDate <startDate>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `startDate` | no | — |
+| `futureDate` | no | — |
+| `accrual` | no | — |
+| `payment` | no | — |
+| `returns` | no | — |
+
 ## computeFaktura(accrual, ehfIn)
 
 **Run:**
@@ -3888,19 +3928,31 @@ node scripts/Yamls/computePaymentChain.mjs --accrual <accrual>
 | `accrual` | no | — |
 | `payments` | no | — |
 
-## computePenalty(accrual, loaners, capRatio)
+## computePenalty(penaltyDays, penaltyForDay)
 
 **Run:**
 
 ```bash
-node scripts/Yamls/computePenalty.mjs --accrual <accrual>
+node scripts/Yamls/computePenalty.mjs --penaltyDays <penaltyDays>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `penaltyDays` | no | — |
+| `penaltyForDay` | no | — |
+
+## computePenaltyDays(accrual, ledger)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computePenaltyDays.mjs --accrual <accrual>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `accrual` | no | — |
-| `loaners` | no | — |
-| `capRatio` | no | — |
+| `ledger` | no | — |
 
 ## extractFirstNumber(str)
 
@@ -4008,6 +4060,18 @@ node scripts/Yamls/loadYamlWithDeps.mjs --file "<path>"
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
 
+## mergeDateKeyedArrays(arrays)
+
+**Run:**
+
+```bash
+node scripts/Yamls/mergeDateKeyedArrays.mjs --arrays <arrays>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `arrays` | no | — |
+
 ## mergeYamlsInFolder(folderPath)
 
 **Run:**
@@ -4063,6 +4127,18 @@ node scripts/Yamls/replaceYaml.mjs --file "<path>"
 | `ymlFile` | no | — |
 | `yamlData` | no | — |
 | `companyInfo` | no | — |
+
+## repositionPenaltyOn(filePath)
+
+**Run:**
+
+```bash
+node scripts/Yamls/repositionPenaltyOn.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
 
 ## scanCellFolder(folderALL, key)
 
@@ -4181,6 +4257,32 @@ node scripts/Yamls/writePenalty.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `penalty` | no | — |
+
+## writePenaltyDays(filePath, penaltyDays)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePenaltyDays.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `penaltyDays` | no | — |
+
+## writeReturns(filePath, returns)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeReturns.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `returns` | no | — |
 
 ## writeYamlArraySection(filePath, key, entries, afterKey, [legacyKeys], [allowEmpty])
 
