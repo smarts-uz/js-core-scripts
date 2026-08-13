@@ -1658,13 +1658,18 @@ export class Yamls {
         // debits the balance on their own dates. Every consecutive day
         // (beyond the first, which is the 1-calendar-day grace period) the
         // balance stays negative counts as a penalty day; Penalty[month] =
-        // PenaltyDays[month] * PenaltyForDay (config.yml's Penalty.PerDay,
-        // no cap — replaces the old CapRatio-of-Accrual model entirely).
+        // PenaltyDays[month] * PenaltyForDay, no cap — replaces the old
+        // CapRatio-of-Accrual model entirely. PenaltyForDay is
+        // yamlData.PenaltyPerDay (the per-contract override, blank by
+        // default like ContractNumber) when non-empty, else config.yml's
+        // global Penalty.PerDay.
         const ledger = Yamls.computeDailyBalance(yamlData.StartDate, yamlData.FutureDate, accrual, paymentFlat, returnsFlat);
         const penaltyDays = Yamls.computePenaltyDays(accrual, ledger);
         Yamls.writePenaltyDays(ymlFile, penaltyDays);
 
-        const penaltyForDay = Yamls.getConfig('Penalty.PerDay', 'number', 50000);
+        const penaltyForDay = Files.isEmpty(yamlData.PenaltyPerDay)
+            ? Yamls.getConfig('Penalty.PerDay', 'number', 50000)
+            : Number(String(yamlData.PenaltyPerDay).replace(/,/g, ''));
         const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay);
         Yamls.writePenalty(ymlFile, penalty);
 

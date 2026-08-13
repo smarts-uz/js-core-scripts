@@ -1457,4 +1457,73 @@ describe('Yamls.replaceYaml', () => {
     expect(penaltyDaysIdx).toBeGreaterThan(accrualIdx);
     expect(penaltyIdx).toBeGreaterThan(penaltyDaysIdx);
   });
+
+  it('uses yamlData.PenaltyPerDay as the per-contract override instead of config.yml Penalty.PerDay when non-empty', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({
+      Contract: { ComDateIjara: '01.01.2024', AddDays: 30 },
+      Penalty: { PerDay: 50000 },
+      Excel: { CellNames: [] },
+    });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(
+      ymlFile,
+      'ActDate_: \nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n',
+      'utf8'
+    );
+
+    writeTree(path.join(workDir, 'Bank-OT'), { '2026-02-05 4,200,000': {} });
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      {
+        ComDate_: '01.01.2026',
+        ActDate_: '01.01.2026',
+        ActDateEnd_: '28.02.2026',
+        Price: '4,200,000',
+        PriceMax: '4,200,000',
+        SurEnable: false,
+        RepEnable: false,
+        // Per-contract override: 75,000/day instead of config.yml's global
+        // 50,000/day — blank-vs-filled precedence shape identical to
+        // ContractNumber.
+        PenaltyPerDay: '75,000',
+      },
+      {
+        isYatt: false,
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    const penaltyDaysBlock = content.match(/PenaltyDays:\n((?:.|\n)*?)\n\nPenalty:/)[1];
+    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01#2026-01-31: (\d+)/);
+    const janPenaltyDays = Number(janPenaltyDaysMatch[1]);
+    expect(janPenaltyDays).toBeGreaterThan(0);
+
+    const penaltyBlock = content.match(/\nPenalty:\n((?:.|\n)*?)\n\nReturns:/)[1];
+    // 75,000/day (the override), never 50,000/day (the config default).
+    expect(penaltyBlock).toContain(
+      `2026-01-01#2026-01-31: ${(janPenaltyDays * 75000).toLocaleString('en-US')}`
+    );
+    expect(penaltyBlock).not.toContain(
+      `2026-01-01#2026-01-31: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
+    );
+  });
 });
