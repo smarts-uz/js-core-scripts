@@ -390,6 +390,39 @@ export class Excels {
     }
   }
 
+  // Reads yamlData.Faktura — the "start#end": amount per-period real EHF-IN
+  // invoice sum distributed across Accrual's periods (Yamls.computeFaktura/
+  // writeFaktura) — and writes one row per entry (interval start/end date,
+  // amount) starting at the {Faktura} placeholder's cell. The trailing
+  // { ALL: sum } entry is skipped. Always runs (no ON/OFF flag) — mirrors
+  // processAccrual/processLoaners' own unconditional, interval-keyed shape.
+  static processFaktura(yamlData) {
+    console.info(`[Excels.processFaktura] 🟢 Starting...`);
+
+    const found = this.findColumn('Faktura');
+    if (!found) {
+      console.warn('⚠️ processFaktura: {Faktura} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const faktura = Array.isArray(yamlData.Faktura) ? yamlData.Faktura : [];
+    console.log(`processFaktura: ${faktura.length} Faktura entr(y/ies)`, faktura);
+
+    for (const entry of faktura) {
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
+      const [start, end] = intervalKey.split('#');
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = start;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
   // Reads yamlData.Loaners — the "start#end": amount per-period outstanding
   // debt array Yamls.recomputeChain/writeLoaners writes into the .contract
   // yaml — and writes one row per entry (interval start date, debt amount)
@@ -1054,6 +1087,7 @@ export class Excels {
     try {
       this.processAccrual(yamlData);
       this.processPayment(yamlData);
+      this.processFaktura(yamlData);
       this.processReturns(yamlData);
       this.processLoaners(yamlData);
       this.processPenaltyDays(yamlData);

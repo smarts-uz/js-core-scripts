@@ -424,9 +424,9 @@ describe('Excels.scanSubFilesTxt', () => {
 });
 
 // =============================================================================
-// processPricing — drives globalThis.excelSheet via findColumn
+// processAccrual — drives globalThis.excelSheet via findColumn
 // =============================================================================
-describe('Excels.processPricing', () => {
+describe('Excels.processAccrual', () => {
   /**
    * A sheet proxy whose Cells is callable (Cells(r,c).Value = …) AND exposes a
    * Find(...) that returns a pinned {Row, Column}. A plain-object override is not
@@ -440,34 +440,49 @@ describe('Excels.processPricing', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.Accrual entry, using each interval's start date", () => {
+  it("writes one row per yamlData.Accrual entry, using each interval's start/end date", () => {
     const sheet = installSheet({ Row: 5, Column: 2 });
 
-    Excels.processPricing({
-      Accrual: [{ '2025-07-09#2025-07-31': '390,000' }, { '2025-08-01#2025-08-31': '390,000' }],
+    Excels.processAccrual({
+      Accrual: [
+        { '2025-07-09#2025-07-31': '390,000' },
+        { '2025-08-01#2025-08-31': '390,000' },
+        { ALL: '780,000' },
+      ],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Accrual');
     expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
+    // the trailing { ALL } entry is skipped — never a 3rd row
+    expect(sheet.Cells).not.toHaveBeenCalledWith(7, 2);
   });
 
   it('writes nothing when yamlData.Accrual is empty or missing', () => {
     const sheet = installSheet({ Row: 1, Column: 1 });
 
-    expect(() => Excels.processPricing({})).not.toThrow();
-    expect(() => Excels.processPricing({ Accrual: [] })).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Pricings');
+    expect(() => Excels.processAccrual({})).not.toThrow();
+    expect(() => Excels.processAccrual({ Accrual: [] })).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Accrual');
+  });
+
+  it('warns and does not throw when {Accrual} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+
+    expect(() =>
+      Excels.processAccrual({ Accrual: [{ '2026-01-01#2026-01-31': '390,000' }] })
+    ).not.toThrow();
   });
 });
 
 // =============================================================================
-// processPunish — drives globalThis.excelSheet via findColumn, gated on
-// yamlData.PunishEnable
+// processPayment / processReturns — FLAT date-keyed arrays, no # interval
 // =============================================================================
-describe('Excels.processPunish', () => {
+describe('Excels.processPayment', () => {
   function installSheet(found = { Row: 5, Column: 2 }) {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
@@ -476,42 +491,260 @@ describe('Excels.processPunish', () => {
     return sheet;
   }
 
-  it('does nothing and never searches for {Punish} when PunishEnable is not true', () => {
+  it('writes one row per flat date-keyed yamlData.Payment entry (date + amount, no end-date split)', () => {
+    const sheet = installSheet({ Row: 4, Column: 6 });
+
+    Excels.processPayment({
+      Payment: [{ '2026-04-21': '1,600,000' }, { '2026-05-26': '1,600,000' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Payment');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 8);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 8);
+  });
+
+  it('always runs even when yamlData.Payment is empty (no PenaltyON-style gate)', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processPayment({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Payment');
+  });
+
+  it('warns and does not throw when {Payment} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processPayment({ Payment: [{ '2026-04-21': '1,600,000' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processFaktura', () => {
+  function installSheet(found = { Row: 4, Column: 43 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it("writes one row per yamlData.Faktura entry, using each interval's start/end date", () => {
+    const sheet = installSheet({ Row: 4, Column: 43 });
+
+    Excels.processFaktura({
+      Faktura: [{ '2026-03-31#2026-04-30': '3,200,000' }, { ALL: '3,200,000' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Faktura');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
+    // trailing { ALL } skipped
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 43);
+  });
+
+  it('always runs even when yamlData.Faktura is empty (no PenaltyON-style gate)', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processFaktura({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Faktura');
+  });
+
+  it('warns and does not throw when {Faktura} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() =>
+      Excels.processFaktura({ Faktura: [{ '2026-03-31#2026-04-30': '3,200,000' }] })
+    ).not.toThrow();
+  });
+});
+
+describe('Excels.processReturns', () => {
+  function installSheet(found = { Row: 4, Column: 40 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per flat date-keyed yamlData.Returns entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 40 });
+
+    Excels.processReturns({ Returns: [{ '2026-01-24': '1,600,000' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Returns');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 40);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 42);
+  });
+
+  it('always runs even when yamlData.Returns is empty (no PenaltyON-style gate)', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processReturns({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Returns');
+  });
+
+  it('warns and does not throw when {Returns} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processReturns({ Returns: [{ '2026-01-24': '1,600,000' }] })).not.toThrow();
+  });
+});
+
+// =============================================================================
+// processLoaners — always runs, interval-keyed, mirrors processAccrual's shape
+// =============================================================================
+describe('Excels.processLoaners', () => {
+  function installSheet(found = { Row: 5, Column: 9 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it("writes one row per yamlData.Loaners entry, using each interval's start/end date", () => {
+    const sheet = installSheet({ Row: 5, Column: 9 });
+
+    Excels.processLoaners({
+      Loaners: [{ '2026-09-01#2026-09-30': '860,000' }, { ALL: '860,000' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Loaners');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 9);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 10);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 11);
+    // trailing { ALL } skipped
+    expect(sheet.Cells).not.toHaveBeenCalledWith(6, 9);
+  });
+
+  it('always runs even when yamlData.Loaners is empty (no PenaltyON-style gate)', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processLoaners({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Loaners');
+  });
+
+  it('warns and does not throw when {Loaners} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() =>
+      Excels.processLoaners({ Loaners: [{ '2026-09-01#2026-09-30': '860,000' }] })
+    ).not.toThrow();
+  });
+});
+
+// =============================================================================
+// processPenaltyDays — drives globalThis.excelSheet via findColumn, gated on
+// yamlData.PenaltyON
+// =============================================================================
+describe('Excels.processPenaltyDays', () => {
+  function installSheet(found = { Row: 4, Column: 37 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    // The PenaltyON !== true branch blanks {PenaltyDays} via replaceInSheet,
+    // which calls Cells.Replace (not Cells.Find) for a short replacement.
+    CellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('does nothing and never searches for {PenaltyDays} when PenaltyON is not true', () => {
     const sheet = installSheet();
 
     expect(() =>
-      Excels.processPunish({
-        PunishEnable: false,
-        Punish: [{ '2026-01-01#2026-01-31': '500,000' }],
+      Excels.processPenaltyDays({
+        PenaltyON: false,
+        PenaltyDays: [{ '2026-01-01#2026-01-31': 3 }],
       })
     ).not.toThrow();
-    expect(() => Excels.processPunish({})).not.toThrow();
+    expect(() => Excels.processPenaltyDays({})).not.toThrow();
 
     expect(sheet.Cells.Find).not.toHaveBeenCalled();
   });
 
-  it("writes one row per yamlData.Punish entry, using each interval's start date, when PunishEnable is true", () => {
-    const sheet = installSheet({ Row: 5, Column: 2 });
+  it("writes one row per yamlData.PenaltyDays entry, using each interval's start date, when PenaltyON is true", () => {
+    const sheet = installSheet({ Row: 4, Column: 37 });
 
-    Excels.processPunish({
-      PunishEnable: true,
-      Punish: [{ '2026-01-01#2026-01-31': '250,000' }, { '2026-02-01#2026-02-28': '0' }],
+    Excels.processPenaltyDays({
+      PenaltyON: true,
+      PenaltyDays: [{ '2026-06-01#2026-06-30': 6 }, { '2026-07-01#2026-07-31': 0 }, { ALL: 6 }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Punish');
-    expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
-    expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
-    expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
-    expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PenaltyDays');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 37);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 38);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 39);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 37);
+    // trailing { ALL } skipped
+    expect(sheet.Cells).not.toHaveBeenCalledWith(6, 37);
   });
 
-  it('warns and does not throw when PunishEnable is true but {Punish} is missing from the template', () => {
+  it('warns and does not throw when PenaltyON is true but {PenaltyDays} is missing from the template', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
 
     expect(() =>
-      Excels.processPunish({ PunishEnable: true, Punish: [{ '2026-01-01#2026-01-31': '250,000' }] })
+      Excels.processPenaltyDays({ PenaltyON: true, PenaltyDays: [{ '2026-06-01#2026-06-30': 6 }] })
+    ).not.toThrow();
+  });
+});
+
+// =============================================================================
+// processPenalty — drives globalThis.excelSheet via findColumn, gated on
+// yamlData.PenaltyON
+// =============================================================================
+describe('Excels.processPenalty', () => {
+  function installSheet(found = { Row: 5, Column: 15 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    // The PenaltyON !== true branch blanks {Penalty} via replaceInSheet,
+    // which calls Cells.Replace (not Cells.Find) for a short replacement.
+    CellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('does nothing and never searches for {Penalty} when PenaltyON is not true', () => {
+    const sheet = installSheet();
+
+    expect(() =>
+      Excels.processPenalty({
+        PenaltyON: false,
+        Penalty: [{ '2026-01-01#2026-01-31': '500,000' }],
+      })
+    ).not.toThrow();
+    expect(() => Excels.processPenalty({})).not.toThrow();
+
+    expect(sheet.Cells.Find).not.toHaveBeenCalled();
+  });
+
+  it("writes one row per yamlData.Penalty entry, using each interval's start date, when PenaltyON is true", () => {
+    const sheet = installSheet({ Row: 5, Column: 15 });
+
+    Excels.processPenalty({
+      PenaltyON: true,
+      Penalty: [{ '2026-01-01#2026-01-31': '250,000' }, { '2026-02-01#2026-02-28': '0' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Penalty');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 15);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 16);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 15);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 16);
+  });
+
+  it('warns and does not throw when PenaltyON is true but {Penalty} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+
+    expect(() =>
+      Excels.processPenalty({ PenaltyON: true, Penalty: [{ '2026-01-01#2026-01-31': '250,000' }] })
     ).not.toThrow();
   });
 });

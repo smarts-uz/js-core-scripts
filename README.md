@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 319 runnable methods.
+**Coverage:** 23 classes, 320 runnable methods.
 
 ---
 # Category
@@ -1204,7 +1204,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 46 public static method(s).
+Runners: `scripts/Excels/` — 47 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1460,6 +1460,18 @@ node scripts/Excels/openWorkbookSafely.mjs --excelApp <excelApp>
 
 ```bash
 node scripts/Excels/processAccrual.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processFaktura(yamlData)
+
+**Run:**
+
+```bash
+node scripts/Excels/processFaktura.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
