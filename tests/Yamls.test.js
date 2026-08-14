@@ -348,7 +348,7 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns preserves exactly one blank line between every block (real incident: repeated calls silently collapsed all separators and piled up stray blank lines elsewhere)', () => {
+  it('chaining writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
@@ -386,19 +386,59 @@ describe('Yamls.writeAccrual', () => {
         '',
         'Returns:',
         '  - 2026-01-05: 10,000',
+        '', // real trailing newline at end of file
       ].join('\n')
     );
   });
 
-  it('collapses a pre-existing run of 2+ consecutive blank lines down to exactly one (repairs stray accumulation from an earlier buggy write)', () => {
-    const f = path.join(workDir, 'stray.contract');
-    fs.writeFileSync(f, 'ActDateEnd:\n\n\n\n\nComBase: x\n', 'utf8');
+  it('re-running writeAccrual against an already-written Accrual: block updates it STRICTLY IN PLACE — same position, every other line (including unrelated blank-line runs) byte-identical', () => {
+    // Real incident this guards: the prior writer always deleted a key's
+    // block from wherever it sat and reinserted it after a hardcoded fixed
+    // anchor, silently reordering the whole chain and stranding freestanding
+    // "#####" comment separators at the positions their neighbors used to
+    // occupy. An existing key's block must now update at its OWN real line
+    // position, leaving every unrelated line (including a stray multi-blank
+    // run elsewhere, and a comment sitting right after the block) untouched.
+    const f = path.join(workDir, 'inplace.contract');
+    fs.writeFileSync(
+      f,
+      [
+        'ActDateEnd:',
+        '',
+        '',
+        '',
+        'ComBase: x',
+        '',
+        'Accrual:',
+        '  - 2026-01-01: 100,000',
+        '',
+        '#########################################',
+        '',
+        'Penalty:',
+        '  - 2026-01-01: 0',
+      ].join('\n'),
+      'utf8'
+    );
 
     Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }]);
 
-    const content = read(workDir, 'stray.contract');
-    expect(content).not.toMatch(/\n\n\n/);
-    expect(content).toContain('ComBase: x');
+    expect(read(workDir, 'inplace.contract')).toBe(
+      [
+        'ActDateEnd:',
+        '',
+        '',
+        '',
+        'ComBase: x',
+        '',
+        'Accrual:',
+        '  - 2026-01-01: 450,000',
+        '',
+        '#########################################',
+        '',
+        'Penalty:',
+        '  - 2026-01-01: 0',
+      ].join('\n')
+    );
   });
 });
 

@@ -163,22 +163,30 @@ export class Yamls {
     }
 
     // Generic writer for a single top-level "Key:" array block in a .contract
-    // yaml — inserts/replaces it directly after the line matching `afterKey`
-    // (e.g. "ActDateEnd" or "Accrual"), stripping any of `legacyKeys` (old
-    // names this key used to have) so a re-run never duplicates it and an
-    // old-format file converges to the current key/shape. An empty `entries`
-    // array is still written as "Key: []" when allowEmpty is true (the
-    // default) — the caller decides whether "no data yet" should still leave
-    // the key present (empty) or be skipped entirely.
+    // yaml. ORDER- AND COMMENT-PRESERVING: when `key` (or one of
+    // `legacyKeys`) already exists anywhere in the file, its block is
+    // replaced STRICTLY IN PLACE — same line position, every other line
+    // (including freestanding "#####" comment separators, blank-line
+    // rhythm, and every OTHER key's own position) left byte-identical.
+    // Only when `key` has never existed in this file before does it fall
+    // back to inserting a brand-new block directly after `afterKey`'s own
+    // block — there is no prior position to preserve for a genuinely new
+    // key. An empty `entries` array is still written as "Key: []" when
+    // allowEmpty is true (the default) — the caller decides whether "no
+    // data yet" should still leave the key present (empty) or be skipped
+    // entirely.
     //
-    // Blank-line convention: exactly ONE blank line always separates every
-    // top-level block from its neighbors (never zero, never two+) — this is
-    // enforced on every write, both around the inserted/replaced block and
-    // for any pre-existing consecutive-blank-line runs elsewhere in the file
-    // (collapsed to one), so repeated calls (writeAccrual, writePayment,
-    // writeFaktura, writeLoaners, writePenalty, writeCellArrays' own N keys,
-    // all chained on top of each other in one replaceYaml run) never
-    // accumulate stray blank lines or squash the separators away entirely.
+    // Real incident this was rewritten for: the PRIOR version always
+    // deleted a key's block from wherever it sat and reinserted it after a
+    // hardcoded fixed anchor (writeAccrual always after ComBase,
+    // writePayment always after Accrual, ...) — every write silently
+    // reordered the whole chain into one fixed sequence and stranded
+    // freestanding "#####" separator comments at the positions their
+    // neighboring blocks used to occupy, clumping every separator together
+    // once enough blocks had moved away from them. In-place replacement
+    // makes reordering structurally impossible for a key that already
+    // exists — its line number never changes, so nothing next to it (a
+    // comment above/below, another key's own block) can ever drift.
     static writeYamlArraySection(filePath, key, entries, afterKey, legacyKeys = [], allowEmpty = true) {
         console.info(`[Yamls.writeYamlArraySection] 🟢 Starting... key=${key}`);
 
@@ -195,66 +203,59 @@ export class Yamls {
             yaml.dump({ [key]: entries }, { lineWidth: -1, schema: yaml.JSON_SCHEMA })
         ).trimEnd().split('\n');
 
-        const keysToStrip = [key, ...legacyKeys].map(k => new RegExp(`^${k}:`));
-        const stripped = [];
-        let skipping = false;
-        for (const line of lines) {
-            if (keysToStrip.some(re => re.test(line))) {
-                skipping = true;
-                continue;
+        // A block's own extent = its "Key:" line plus every immediately-
+        // following indented child line (its array items) — never a
+        // trailing blank line, which belongs to file rhythm, not the block.
+        const blockExtent = (startIdx) => {
+            let endIdx = startIdx + 1;
+            while (endIdx < lines.length && /^\s/.test(lines[endIdx]) && lines[endIdx] !== '') {
+                endIdx++;
             }
-            if (skipping) {
-                if (/^\s/.test(line)) continue; // still inside the old block
-                skipping = false; // first non-indented line ends the block
-            }
-            stripped.push(line);
+            return endIdx; // exclusive
+        };
+
+        const keyRes = [key, ...legacyKeys].map(k => new RegExp(`^${k}:`));
+        const existingIdx = lines.findIndex(line => keyRes.some(re => re.test(line)));
+
+        if (existingIdx !== -1) {
+            // IN PLACE: splice the old block's exact line range out, put the
+            // new block's lines in that exact same range — nothing else in
+            // the file (position, spacing, comments) is touched. A
+            // legacy-key match is renamed to the current key name as part
+            // of this same in-place replacement (no separate relocation).
+            const endIdx = blockExtent(existingIdx);
+            lines.splice(existingIdx, endIdx - existingIdx, ...block);
+            fs.writeFileSync(filePath, lines.join('\n'));
+            console.log(`File ${filePath} has been updated with ${key} in place.`, entries);
+            return;
         }
 
-        const afterIdx = stripped.findIndex(line => new RegExp(`^${afterKey}:`).test(line));
+        // Genuinely new key — no prior position exists to preserve, fall
+        // back to inserting directly after afterKey's own block.
+        const afterIdx = lines.findIndex(line => new RegExp(`^${afterKey}:`).test(line));
 
         if (afterIdx === -1) {
             console.warn(`writeYamlArraySection: "${afterKey}:" line not found in ${filePath}; appending ${key} at end of file.`);
-            if (stripped.length > 0 && stripped[stripped.length - 1] !== '') stripped.push('');
-            stripped.push(...block);
-        } else {
-            // Insert after the WHOLE afterKey block, not just its own key
-            // line — skip past every indented child line (its array items)
-            // first, so a chained insertion (Bank-OT after Accrual, Bonuses
-            // after Bank-OT, ...) lands after each key's own data, never
-            // splitting a block apart. Any blank line(s) immediately
-            // following the afterKey block belong to the SEPARATOR after our
-            // own newly-inserted block, not before it — so they are skipped
-            // here too (consumed below) rather than left sitting between
-            // afterKey and the new block.
-            let insertIdx = afterIdx + 1;
-            while (insertIdx < stripped.length && /^\s/.test(stripped[insertIdx]) && stripped[insertIdx] !== '') {
-                insertIdx++;
-            }
-            let afterBlankRun = insertIdx;
-            while (afterBlankRun < stripped.length && stripped[afterBlankRun] === '') {
-                afterBlankRun++;
-            }
-
-            const toInsert = ['', ...block];
-            // Only add a trailing separator blank line when something follows
-            // (avoid a dangling blank line at end-of-file).
-            if (afterBlankRun < stripped.length) toInsert.push('');
-
-            stripped.splice(insertIdx, afterBlankRun - insertIdx, ...toInsert);
+            const toAppend = lines.length > 0 && lines[lines.length - 1] !== '' ? ['', ...block] : [...block];
+            fs.writeFileSync(filePath, [...lines, ...toAppend].join('\n'));
+            console.log(`File ${filePath} has been updated with ${key} (appended).`, entries);
+            return;
         }
 
-        // Collapse any run of 2+ consecutive blank lines anywhere in the file
-        // down to exactly one — repairs stray accumulation left over from
-        // earlier buggy writes, and keeps every future write from drifting.
-        const normalized = [];
-        for (const line of stripped) {
-            if (line === '' && normalized.length > 0 && normalized[normalized.length - 1] === '') continue;
-            normalized.push(line);
-        }
+        const insertIdx = blockExtent(afterIdx);
+        // The new block always gets its own leading blank line (separating
+        // it from afterKey's block). A blank line already sitting right at
+        // insertIdx is REUSED as the trailing separator (inserted BEFORE
+        // it); otherwise a trailing separator is added too, unless
+        // insertIdx is genuinely end-of-file (never leave a dangling blank
+        // there).
+        const hasBlankAfter = lines[insertIdx] === '';
+        const atEnd = insertIdx >= lines.length;
+        const toInsert = hasBlankAfter || atEnd ? ['', ...block] : ['', ...block, ''];
+        lines.splice(insertIdx, 0, ...toInsert);
 
-        fs.writeFileSync(filePath, normalized.join('\n'));
-
-        console.log(`File ${filePath} has been updated with ${key}.`, entries);
+        fs.writeFileSync(filePath, lines.join('\n'));
+        console.log(`File ${filePath} has been updated with ${key} (inserted after ${afterKey}).`, entries);
     }
 
     // Builds Accrual: entries, every calendar month across contract's active
@@ -619,8 +620,9 @@ export class Yamls {
         return merged;
     }
 
-    // Writes/replaces the Returns: array block directly after Penalty: —
-    // a flat, date-keyed merge of Bank-IN + Card-IN + BaaR-IN (money
+    // Writes/replaces the Returns: array block IN PLACE at its existing
+    // position, or after Penalty: as a fallback anchor for a brand-new file
+    // — a flat, date-keyed merge of Bank-IN + Card-IN + BaaR-IN (money
     // returned BACK to the tenant), same-date entries summed. NOT chained
     // against Accrual — plain merge, same shape as a raw
     // scanCellFolder/Excel.CellNames array.
@@ -631,25 +633,32 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Returns', returns, 'Penalty', [], true);
     }
 
-    // Writes/replaces the Accrual: array block directly after the
-    // ComBase: line in the .contract yaml — ComBase is the last static field
-    // before the chain in the confirmed-correct real file layout (ActDateEnd
-    // -> ContractDateEnd -> ComBase -> Accrual -> ... -> Penalty ->
-    // Excel.CellNames keys), NOT ActDateEnd: itself — ContractDateEnd/ComBase
-    // already sit between ActDateEnd and where the chain belongs, and
-    // anchoring on ActDateEnd would insert Accrual BEFORE them, corrupting
-    // the field order every time replaceYaml runs against a fresh file.
+    // Writes/replaces the Accrual: array block IN PLACE at its existing
+    // position; a file that has NEVER had an Accrual: key falls back to
+    // inserting directly after the ComBase: line — ComBase is the last
+    // static field before the chain in a brand-new template's layout
+    // (ActDateEnd -> ContractDateEnd -> ComBase -> Accrual -> ... ->
+    // Penalty -> Excel.CellNames keys), NOT ActDateEnd: itself —
+    // ContractDateEnd/ComBase already sit between ActDateEnd and where the
+    // chain belongs there, and anchoring on ActDateEnd would insert Accrual
+    // BEFORE them on that first-ever write. An already-populated file's own
+    // order (whatever it is) is never touched.
     //   Accrual:
     //     - 2026-03-01: 450,000
     //     - 2026-04-01: 450,000
     //     - ALL: 900,000
     static writeAccrual(filePath, accrual) {
         console.info(`[Yamls.writeAccrual] 🟢 Starting...`);
+        // 'ComBase' is only the fallback anchor for a file that has NEVER
+        // had an Accrual: key before — an already-existing block updates
+        // strictly in place, at its own real position, per
+        // writeYamlArraySection's order-preserving contract.
         this.writeYamlArraySection(filePath, 'Accrual', accrual, 'ComBase', ['Pricings', 'PriceHistory'], false);
     }
 
-    // Writes/replaces the Payment: array block directly after Accrual: — a
-    // flat, date-keyed merge of Bank-OT + Card-OT + BaaR-OT + Trans-OT
+    // Writes/replaces the Payment: array block IN PLACE at its existing
+    // position, or after Accrual: as a fallback anchor for a brand-new file
+    // — a flat, date-keyed merge of Bank-OT + Card-OT + BaaR-OT + Trans-OT
     // (money received FROM the tenant), same-date entries summed. NOT
     // chained/allocated against Accrual periods — plain merge, same shape as
     // Returns/a raw scanCellFolder array. (Loaners/Penalty no longer read
@@ -662,8 +671,9 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Payment', payment, 'Accrual', [], true);
     }
 
-    // Writes/replaces the Loaners: array block directly after Faktura: —
-    // per-period outstanding debt (the mirror of Payment).
+    // Writes/replaces the Loaners: array block IN PLACE at its existing
+    // position, or after Faktura: as a fallback anchor for a brand-new file
+    // — per-period outstanding debt (the mirror of Payment).
     //   Loaners:
     //     - 2026-03-01: 0
     //     - 2026-04-01: 450,000
@@ -673,8 +683,9 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Loaners', loaners, 'Faktura', [], true);
     }
 
-    // Writes/replaces the PenaltyDays: array block directly after Loaners: —
-    // per-period count of late-payment days (contract §21.1's fixed daily
+    // Writes/replaces the PenaltyDays: array block IN PLACE at its existing
+    // position, or after Loaners: as a fallback anchor for a brand-new file
+    // — per-period count of late-payment days (contract §21.1's fixed daily
     // rate applies to each of these), the input Penalty is directly derived
     // from (Penalty[i] = PenaltyDays[i] * PenaltyForDay). See
     // computeDailyBalance/computePenaltyDays.
@@ -687,10 +698,12 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'PenaltyDays', penaltyDays, 'Loaners', [], true);
     }
 
-    // Writes/replaces the Penalty: array block directly after PenaltyDays: —
-    // the WHOLE Accrual->Payment->Faktura->Loaners->PenaltyDays->Penalty
-    // chain is always written as one contiguous run of blocks anchored off
-    // ComBase (see writeAccrual).
+    // Writes/replaces the Penalty: array block IN PLACE at its existing
+    // position, or after PenaltyDays: as a fallback anchor for a brand-new
+    // file — a file that never had any of this chain's keys still gets the
+    // whole Accrual->Payment->Faktura->Loaners->PenaltyDays->Penalty chain
+    // written as one contiguous run anchored off ComBase (see writeAccrual);
+    // an existing file's own key order/comments are never touched.
     //   Penalty:
     //     - 2026-07-01: 150,000
     //     - 2026-08-01: 0
@@ -700,9 +713,10 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Penalty', penalty, 'PenaltyDays', ['Punish'], true);
     }
 
-    // Writes/replaces the Faktura: array block directly after Payment: — the
-    // real EHF-IN invoice sum distributed across the final Accrual periods
-    // (see computeFaktura), same shape as Payment.
+    // Writes/replaces the Faktura: array block IN PLACE at its existing
+    // position, or after Payment: as a fallback anchor for a brand-new file
+    // — the real EHF-IN invoice sum distributed across the final Accrual
+    // periods (see computeFaktura), same shape as Payment.
     //   Faktura:
     //     - 2026-03-01: 450,000
     //     - 2026-04-01: 0
