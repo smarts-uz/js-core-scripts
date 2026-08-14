@@ -272,9 +272,9 @@ export class Yamls {
     // (computePenaltyDays).
     //
     // First period prorated by real day count within own calendar month,
-    // rounded UP to nearest 1,000 (never fractional, never plain-rounded).
-    // E.g. 23-of-31-day first month at 390,000/mo →
-    // ceil(23/31*390000/1000)*1000 = 290,000.
+    // rounded to nearest whole so'm only (never fractional tiyin, never
+    // rounded to nearest 1,000). E.g. 23-of-31-day first month at
+    // 390,000/mo → round(23/31*390000) = 289,355.
     static buildAccrualEntries(startDate, futureDate, price) {
         console.info(`[Yamls.buildAccrualEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate} price=${price}`);
 
@@ -288,7 +288,7 @@ export class Yamls {
 
             const amount = isFullMonth
                 ? priceNum
-                : Math.ceil((daysInPeriod / daysInMonth) * priceNum / 1000) * 1000;
+                : Math.round((daysInPeriod / daysInMonth) * priceNum);
 
             return { [start]: amount.toLocaleString('en-US') };
         });
@@ -323,7 +323,7 @@ export class Yamls {
 
             const newAmount = isFullMonth
                 ? priceMaxNum
-                : Math.ceil((daysInPeriod / daysInMonth) * priceMaxNum / 1000) * 1000;
+                : Math.round((daysInPeriod / daysInMonth) * priceMaxNum);
 
             return { [start]: newAmount.toLocaleString('en-US') };
         });

@@ -613,6 +613,19 @@ describe('Yamls.writeCellArrays', () => {
   });
 });
 
+describe('Yamls.buildAccrualEntries', () => {
+  it("rounds a partial first period to the nearest whole so'm only, never up to the nearest 1,000", () => {
+    // Day 9 through end of a 31-day month = 23 days: 23/31 * 390,000 = 289,354.83... -> 289,355 (never 290,000).
+    const entries = Yamls.buildAccrualEntries('2026-01-09', '2026-01-31', '390,000');
+    expect(entries).toEqual([{ '2026-01-09': '289,355' }]);
+  });
+
+  it('leaves a full-month period exactly at Price, never touched by rounding', () => {
+    const entries = Yamls.buildAccrualEntries('2026-01-01', '2026-02-28', '390,000');
+    expect(entries).toEqual([{ '2026-01-01': '390,000' }, { '2026-02-01': '390,000' }]);
+  });
+});
+
 describe('Yamls.computeFaktura', () => {
   const accrual = [
     { '2026-01-01': '390,000' },
