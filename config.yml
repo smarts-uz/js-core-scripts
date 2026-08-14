@@ -101,14 +101,13 @@ Registry:
         Broadcast: true # notify running apps of the change via WM_SETTINGCHANGE (no reboot needed). Possible: true | false
 
 Testing:
-    # .contract files kept as standing regression targets — every code change to
+    # .contract file kept as standing regression target — every code change to
     # the contract-fill/Word/Excel-generation pipeline (Yamls.fillYamlWithInfo,
-    # Word.makeContract, Excels.generate, and the Accrual/Payment/Faktura/
-    # Loaners/PenaltyDays/Penalty chain) is verified for real against BOTH of
-    # these before being considered done. templa\ALL.contract is the bundled
-    # blank template (smarts-firm-docums) — a pristine, unfilled contract
-    # proving the early guards (Price/ComDate missing) fire cleanly. NETORA is
-    # a real, live, filled MChJ contract proving the full chain end to end.
+    # Word.makeContract, Excels.generate, and the Accrual/History/Payment/
+    # Faktura/Loaners/PenaltyDays/Penalty chain) is verified for real against
+    # this real, live, filled MChJ contract before being considered done.
+    # NEVER run smarts-firm-docums's bundled templa\ALL.contract — it has no
+    # Compan/RestAPI/etc. folder structure, a run always fails or dead-ends on
+    # a guard/dialog. That file is edit-only (see CLAUDE.md).
     ContractFiles:
-        - C:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract
-        - d:\FSystem\ALL\Humans\Rentalls\External\NETORA TECHNOLOGY GROUP\ALL.contract
+        - d:\FSystem\ALL\Humans\Rentalls\External\NETORA TECHNOLOGY GROUP\ALL 4.contract
