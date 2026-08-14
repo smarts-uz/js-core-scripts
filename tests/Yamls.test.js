@@ -348,11 +348,12 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
+  it('chaining writeAccrual/writeHistory/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
     Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }]);
+    Yamls.writeHistory(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writeFaktura(f, [{ '2026-01-01': '0' }]);
     Yamls.writeLoaners(f, [{ '2026-01-01': '0' }]);
@@ -367,6 +368,9 @@ describe('Yamls.writeAccrual', () => {
         'ComBase: x',
         '',
         'Accrual:',
+        '  - 2026-01-01: 450,000',
+        '',
+        'History:',
         '  - 2026-01-01: 450,000',
         '',
         'Payment:',
@@ -485,6 +489,38 @@ describe('Yamls.mergeDateKeyedArrays', () => {
   it('ignores non-array inputs and returns [] when nothing is passed', () => {
     expect(Yamls.mergeDateKeyedArrays(null, undefined, [])).toEqual([]);
     expect(Yamls.mergeDateKeyedArrays()).toEqual([]);
+  });
+});
+
+describe('Yamls.computeHistory', () => {
+  it('carries a Payment amount as-is', () => {
+    const payment = [{ '2026-04-21': '1,600,000' }];
+    expect(Yamls.computeHistory(payment, [])).toEqual([{ '2026-04-21': '1,600,000' }]);
+  });
+
+  it('negates a Returns amount', () => {
+    const returns = [{ '2026-04-25': '10,000' }];
+    expect(Yamls.computeHistory([], returns)).toEqual([{ '2026-04-25': '-10,000' }]);
+  });
+
+  it('sums Payment and Returns on the same date, Returns already negative', () => {
+    const payment = [{ '2026-04-21': '1,600,000' }];
+    const returns = [{ '2026-04-21': '600,000' }];
+    expect(Yamls.computeHistory(payment, returns)).toEqual([{ '2026-04-21': '1,000,000' }]);
+  });
+
+  it('sorts the merged result by date', () => {
+    const payment = [{ '2026-06-01': '1' }];
+    const returns = [{ '2026-01-01': '2' }];
+    expect(Yamls.computeHistory(payment, returns)).toEqual([
+      { '2026-01-01': '-2' },
+      { '2026-06-01': '1' },
+    ]);
+  });
+
+  it('ignores non-array inputs and returns [] when nothing is passed', () => {
+    expect(Yamls.computeHistory(null, undefined)).toEqual([]);
+    expect(Yamls.computeHistory()).toEqual([]);
   });
 });
 

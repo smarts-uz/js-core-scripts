@@ -620,6 +620,50 @@ export class Yamls {
         return merged;
     }
 
+    // Merges the WRITTEN Payment: and Returns: arrays (both flat,
+    // date-keyed, already-merged views — never Accrual/Loaners) into ONE
+    // flat date-keyed History array, one entry per distinct date: a
+    // Payment amount is carried AS-IS (positive), a Returns amount is
+    // NEGATED — a date present in both is summed with Returns already
+    // negative, so a same-day payment+return nets out. Sorted by date. No
+    // "ALL" trailing total.
+    static computeHistory(payment, returns) {
+        console.info(`[Yamls.computeHistory] 🟢 Starting...`);
+
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+        const totals = new Map();
+
+        for (const entry of Array.isArray(payment) ? payment : []) {
+            const [date, amount] = Object.entries(entry)[0];
+            totals.set(date, (totals.get(date) || 0) + toAmount(amount));
+        }
+
+        for (const entry of Array.isArray(returns) ? returns : []) {
+            const [date, amount] = Object.entries(entry)[0];
+            totals.set(date, (totals.get(date) || 0) - toAmount(amount));
+        }
+
+        const history = [...totals.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, amount]) => ({ [date]: amount.toLocaleString('en-US') }));
+
+        console.log(`computeHistory: ${history.length} distinct date(s)`, history);
+        return history;
+    }
+
+    // Writes/replaces the History: array block IN PLACE at its existing
+    // position, or after Accrual: as a fallback anchor for a brand-new file
+    // — the merged Payment+Returns view from computeHistory (Payment as-is,
+    // Returns negated), one entry per distinct date. Sits directly after
+    // Accrual:, before Payment: (see #writeChain/writePayment's own anchor).
+    //   History:
+    //     - '2026-04-21': '1,600,000'
+    //     - '2026-04-25': '-10,000'
+    static writeHistory(filePath, history) {
+        console.info(`[Yamls.writeHistory] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'History', history, 'Accrual', [], true);
+    }
+
     // Writes/replaces the Returns: array block IN PLACE at its existing
     // position, or after Penalty: as a fallback anchor for a brand-new file
     // — a flat, date-keyed merge of Bank-IN + Card-IN + BaaR-IN (money
@@ -657,7 +701,7 @@ export class Yamls {
     }
 
     // Writes/replaces the Payment: array block IN PLACE at its existing
-    // position, or after Accrual: as a fallback anchor for a brand-new file
+    // position, or after History: as a fallback anchor for a brand-new file
     // — a flat, date-keyed merge of Bank-OT + Card-OT + BaaR-OT + Trans-OT
     // (money received FROM the tenant), same-date entries summed. NOT
     // chained/allocated against Accrual periods — plain merge, same shape as
@@ -668,7 +712,7 @@ export class Yamls {
     //     - '2026-04-21': '1,600,000'
     static writePayment(filePath, payment) {
         console.info(`[Yamls.writePayment] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Payment', payment, 'Accrual', [], true);
+        this.writeYamlArraySection(filePath, 'Payment', payment, 'History', [], true);
     }
 
     // Writes/replaces the Loaners: array block IN PLACE at its existing
@@ -1674,6 +1718,25 @@ export class Yamls {
         // summed together), e.g. { '2026-04-21': '1,600,000' }. Distinct
         // from `payments` above (which feeds the internal debt chain).
         const paymentFlat = Yamls.mergeDateKeyedArrays(bankOT, cardOT, baarOT, transOT);
+
+        // Returns: flat date-keyed merge of Bank-IN + Card-IN + BaaR-IN
+        // (money refunded BACK to the tenant) — same shape/merge rule as
+        // Payment:, Trans-IN intentionally excluded. Computed here (ahead of
+        // its own written position after Penalty:) so History: below can
+        // merge it together with Payment: — the written position of
+        // Returns: itself is unaffected, only this computation moved
+        // earlier.
+        const bankIN = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-IN');
+        const cardIN = Yamls.scanCellFolder(globalThis.folderALL, 'Card-IN');
+        const baarIN = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-IN');
+        const returnsFlat = Yamls.mergeDateKeyedArrays(bankIN, cardIN, baarIN);
+
+        // History: merges Payment: (as-is) and Returns: (negated) into one
+        // flat date-keyed array — sits directly after Accrual:, before
+        // Payment: (see writePayment's own anchor).
+        const history = Yamls.computeHistory(paymentFlat, returnsFlat);
+        Yamls.writeHistory(ymlFile, history);
+
         Yamls.writePayment(ymlFile, paymentFlat);
 
         // Faktura: the real EHF-IN invoice sum (scanned fresh from
@@ -1690,14 +1753,6 @@ export class Yamls {
         Yamls.writeFaktura(ymlFile, faktura);
 
         Yamls.writeLoaners(ymlFile, loaners);
-
-        // Returns: flat date-keyed merge of Bank-IN + Card-IN + BaaR-IN
-        // (money refunded BACK to the tenant) — same shape/merge rule as
-        // Payment:, Trans-IN intentionally excluded.
-        const bankIN = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-IN');
-        const cardIN = Yamls.scanCellFolder(globalThis.folderALL, 'Card-IN');
-        const baarIN = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-IN');
-        const returnsFlat = Yamls.mergeDateKeyedArrays(bankIN, cardIN, baarIN);
 
         // Penalty (§21.1 + §3.7/§1.20): a prepaid running-balance simulation
         // — Accrual debited daily (pro-rated), Payment credits/Returns

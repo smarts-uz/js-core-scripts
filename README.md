@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 322 runnable methods.
+**Coverage:** 23 classes, 324 runnable methods.
 
 ---
 # Category
@@ -3903,7 +3903,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 33 public static method(s).
+Runners: `scripts/Yamls/` — 35 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3974,6 +3974,19 @@ node scripts/Yamls/computeFaktura.mjs --accrual <accrual>
 |-----------|----------|-------------|
 | `accrual` | no | — |
 | `ehfIn` | no | — |
+
+## computeHistory(payment, returns)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computeHistory.mjs --payment <payment>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `payment` | no | — |
+| `returns` | no | — |
 
 ## computePaymentChain(accrual, payments)
 
@@ -4270,6 +4283,19 @@ node scripts/Yamls/writeFaktura.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `faktura` | no | — |
+
+## writeHistory(filePath, history)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeHistory.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `history` | no | — |
 
 ## writeLoaners(filePath, loaners)
 
