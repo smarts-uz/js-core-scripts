@@ -242,23 +242,12 @@ export class Excels {
   // into the .contract yaml — and writes one row per entry (interval
   // start date, penalty amount) starting at the {Penalty} placeholder's
   // cell. The trailing { ALL: sum } entry is skipped (no "ALL" date to
-  // write a row for). Only runs when yamlData.PenaltyON === true; when
-  // false (or missing), the {Penalty} placeholder cell is blanked out
-  // directly here (the ordinary {KEY} placeholder-clear pass in generate()
-  // never reaches it — that pass only replaces SCALAR yamlData keys and
-  // explicitly skips every array-valued one, and Penalty is always an
-  // array — so leaving the blanking to that pass would silently leave the
-  // literal "{Penalty}" text sitting in the report). When PenaltyON is true
-  // but the template has no {Penalty} placeholder cell (an older Excel
-  // template predating this feature), warns and skips instead of crashing.
+  // write a row for). Always runs (no ON/OFF flag) — mirrors processPayment's
+  // own unconditional shape. When the template has no {Penalty} placeholder
+  // cell (an older Excel template predating this feature), warns and skips
+  // instead of crashing.
   static processPenalty(yamlData) {
     console.info(`[Excels.processPenalty] 🟢 Starting...`);
-
-    if (yamlData.PenaltyON !== true) {
-      console.log('processPenalty: PenaltyON is not true, blanking the {Penalty} placeholder.');
-      this.replaceInSheet('{Penalty}', '');
-      return;
-    }
 
     const found = this.findColumn('Penalty');
     if (!found) {
@@ -354,17 +343,9 @@ export class Excels {
   // .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay) — writes
   // one row per entry (interval start/end date, day count) starting at the
   // {PenaltyDays} placeholder's cell. The trailing { ALL: sum } entry is
-  // skipped. Gated on yamlData.PenaltyON === true, same as processPenalty
-  // (blanks its own placeholder when not true, for the same reason — the
-  // generic {KEY}-clear pass in generate() skips every array-valued key).
+  // skipped. Always runs (no ON/OFF flag), same as processPenalty.
   static processPenaltyDays(yamlData) {
     console.info(`[Excels.processPenaltyDays] 🟢 Starting...`);
-
-    if (yamlData.PenaltyON !== true) {
-      console.log('processPenaltyDays: PenaltyON is not true, blanking the {PenaltyDays} placeholder.');
-      this.replaceInSheet('{PenaltyDays}', '');
-      return;
-    }
 
     const found = this.findColumn('PenaltyDays');
     if (!found) {

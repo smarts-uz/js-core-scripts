@@ -351,9 +351,9 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns/repositionPenaltyOn preserves exactly one blank line between every block (real incident: repeated calls silently collapsed all separators and piled up stray blank lines elsewhere)', () => {
+  it('chaining writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns preserves exactly one blank line between every block (real incident: repeated calls silently collapsed all separators and piled up stray blank lines elsewhere)', () => {
     const f = path.join(workDir, 'chain.contract');
-    fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n\nPenaltyON: false\n', 'utf8');
+    fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
     Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
@@ -362,7 +362,6 @@ describe('Yamls.writeAccrual', () => {
     Yamls.writePenaltyDays(f, [{ '2026-01-01#2026-01-31': 0 }]);
     Yamls.writePenalty(f, [{ '2026-01-01#2026-01-31': '0' }]);
     Yamls.writeReturns(f, [{ '2026-01-05': '10,000' }]);
-    Yamls.repositionPenaltyOn(f);
 
     expect(read(workDir, 'chain.contract')).toBe(
       [
@@ -382,8 +381,6 @@ describe('Yamls.writeAccrual', () => {
         'Loaners:',
         "  - 2026-01-01#2026-01-31: '0'",
         '',
-        'PenaltyON: false',
-        '',
         'PenaltyDays:',
         '  - 2026-01-01#2026-01-31: 0',
         '',
@@ -392,7 +389,6 @@ describe('Yamls.writeAccrual', () => {
         '',
         'Returns:',
         "  - '2026-01-05': 10,000",
-        '',
       ].join('\n')
     );
   });
@@ -406,43 +402,6 @@ describe('Yamls.writeAccrual', () => {
     const content = read(workDir, 'stray.contract');
     expect(content).not.toMatch(/\n\n\n/);
     expect(content).toContain('ComBase: x');
-  });
-});
-
-describe('Yamls.repositionPenaltyOn', () => {
-  it('no-ops (with a warning) when PenaltyON: is missing from the file', () => {
-    const f = path.join(workDir, 'no-penaltyon.contract');
-    const before = 'Loaners:\n  - a: 1\n\nPenalty:\n  - a: 0\n';
-    fs.writeFileSync(f, before, 'utf8');
-    Yamls.repositionPenaltyOn(f);
-    expect(read(workDir, 'no-penaltyon.contract')).toBe(before);
-  });
-
-  it('no-ops (with a warning) when Loaners:/Penalty: are not both present', () => {
-    const f = path.join(workDir, 'no-anchors.contract');
-    const before = 'PenaltyON: false\n\nAccrual:\n  - a: 1\n';
-    fs.writeFileSync(f, before, 'utf8');
-    Yamls.repositionPenaltyOn(f);
-    expect(read(workDir, 'no-anchors.contract')).toBe(before);
-  });
-
-  it('is a true no-op when PenaltyON already sits between Loaners: and Penalty:', () => {
-    const f = path.join(workDir, 'already-correct.contract');
-    const before = 'Loaners:\n  - a: 1\n\nPenaltyON: false\n\nPenalty:\n  - a: 0\n';
-    fs.writeFileSync(f, before, 'utf8');
-    Yamls.repositionPenaltyOn(f);
-    expect(read(workDir, 'already-correct.contract')).toBe(before);
-  });
-
-  it('moves a PenaltyON: sitting BEFORE Loaners: to its correct position between Loaners: and Penalty:', () => {
-    const f = path.join(workDir, 'before-loaners.contract');
-    fs.writeFileSync(f, 'PenaltyON: false\n\nLoaners:\n  - a: 1\n\nPenalty:\n  - a: 0\n', 'utf8');
-
-    Yamls.repositionPenaltyOn(f);
-
-    expect(read(workDir, 'before-loaners.contract')).toBe(
-      ['Loaners:', '  - a: 1', '', 'PenaltyON: false', '', 'Penalty:', '  - a: 0', ''].join('\n')
-    );
   });
 });
 

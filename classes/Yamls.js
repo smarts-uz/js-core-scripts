@@ -591,7 +591,7 @@ export class Yamls {
     // Writes/replaces the Accrual: array block directly after the
     // ComBase: line in the .contract yaml — ComBase is the last static field
     // before the chain in the confirmed-correct real file layout (ActDateEnd
-    // -> ContractDateEnd -> ComBase -> Accrual -> ... -> PenaltyON -> Penalty ->
+    // -> ContractDateEnd -> ComBase -> Accrual -> ... -> Penalty ->
     // Excel.CellNames keys), NOT ActDateEnd: itself — ContractDateEnd/ComBase
     // already sit between ActDateEnd and where the chain belongs, and
     // anchoring on ActDateEnd would insert Accrual BEFORE them, corrupting
@@ -647,11 +647,7 @@ export class Yamls {
     // Writes/replaces the Penalty: array block directly after PenaltyDays: —
     // the WHOLE Accrual->Payment->Faktura->Loaners->PenaltyDays->Penalty
     // chain is always written as one contiguous run of blocks anchored off
-    // ComBase (see writeAccrual); the static PenaltyON: toggle field (never
-    // touched by any write*Section call) is repositioned SEPARATELY, by
-    // repositionPenaltyOn below, to sit between Loaners and PenaltyDays
-    // afterward — never by anchoring a chain write directly on PenaltyON's
-    // OWN current position, which drifts.
+    // ComBase (see writeAccrual).
     //   Penalty:
     //     - 2026-07-01#2026-07-31: 150,000
     //     - 2026-08-01#2026-08-31: 0
@@ -659,78 +655,6 @@ export class Yamls {
     static writePenalty(filePath, penalty) {
         console.info(`[Yamls.writePenalty] 🟢 Starting...`);
         this.writeYamlArraySection(filePath, 'Penalty', penalty, 'PenaltyDays', ['Punish'], true);
-    }
-
-    // Repositions the static PenaltyON: toggle field (never itself written
-    // by writeAccrual/writePayment/writeFaktura/writeLoaners/writePenaltyDays/
-    // writePenalty — those only ever touch the
-    // Accrual/Payment/Faktura/Loaners/PenaltyDays/Penalty array blocks) to
-    // sit directly between Loaners: and Penalty: (i.e. directly before
-    // PenaltyDays:, which writePenaltyDays anchors right after Loaners) —
-    // the confirmed-correct real file layout (Accrual -> Payment -> Faktura
-    // -> Loaners -> PenaltyON -> PenaltyDays -> Penalty -> Returns ->
-    // Excel.CellNames keys). Because
-    // PenaltyON is static, its position never moves on its own; only the
-    // surrounding chain blocks move (per replaceYaml re-running the whole
-    // chain), so this must run AFTER the whole chain is (re)written, every
-    // time, to keep PenaltyON from drifting to wherever it happened to land
-    // relative to the chain's own insertion points. A no-op (with a warning)
-    // when PenaltyON: is missing from the file entirely.
-    static repositionPenaltyOn(filePath) {
-        console.info(`[Yamls.repositionPenaltyOn] 🟢 Starting...`);
-
-        const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-
-        const penaltyOnIdx = lines.findIndex(line => /^PenaltyON:/.test(line));
-        if (penaltyOnIdx === -1) {
-            console.warn(`repositionPenaltyOn: "PenaltyON:" line not found in ${filePath}; leaving file as-is.`);
-            return;
-        }
-
-        const loanersIdx = lines.findIndex(line => /^Loaners:/.test(line));
-        const penaltyIdx = lines.findIndex(line => /^Penalty:/.test(line));
-        if (loanersIdx === -1 || penaltyIdx === -1) {
-            console.warn(`repositionPenaltyOn: "Loaners:"/"Penalty:" not both found in ${filePath}; leaving PenaltyON as-is.`);
-            return;
-        }
-
-        // Already correctly positioned (PenaltyON sits after Loaners' own
-        // block and before Penalty) — nothing to do.
-        if (penaltyOnIdx > loanersIdx && penaltyOnIdx < penaltyIdx) {
-            console.log('repositionPenaltyOn: already correctly positioned, no-op.');
-            return;
-        }
-
-        // Pull the PenaltyON: line out of its current position, plus its
-        // OWN trailing blank-line separator only — the leading blank line
-        // stays put, since it now becomes the separator between whatever
-        // precedes PenaltyON and whatever follows it once PenaltyON itself
-        // is gone (removing both sides would fuse two unrelated blocks
-        // together with zero blank line between them).
-        let removeEnd = penaltyOnIdx + 1;
-        if (lines[removeEnd] === '') removeEnd++;
-        const penaltyOnLine = lines[penaltyOnIdx];
-        const withoutPenaltyOn = [...lines.slice(0, penaltyOnIdx), ...lines.slice(removeEnd)];
-
-        // Re-locate Loaners:' own block end (skip its indented children)
-        // against the line array with PenaltyON already removed.
-        const newLoanersIdx = withoutPenaltyOn.findIndex(line => /^Loaners:/.test(line));
-        let insertAt = newLoanersIdx + 1;
-        while (insertAt < withoutPenaltyOn.length && /^\s/.test(withoutPenaltyOn[insertAt]) && withoutPenaltyOn[insertAt] !== '') {
-            insertAt++;
-        }
-        while (insertAt < withoutPenaltyOn.length && withoutPenaltyOn[insertAt] === '') insertAt++;
-
-        withoutPenaltyOn.splice(insertAt, 0, penaltyOnLine, '');
-
-        const normalized = [];
-        for (const line of withoutPenaltyOn) {
-            if (line === '' && normalized.length > 0 && normalized[normalized.length - 1] === '') continue;
-            normalized.push(line);
-        }
-
-        fs.writeFileSync(filePath, normalized.join('\n'));
-        console.log(`repositionPenaltyOn: moved PenaltyON: to sit between Loaners: and Penalty: in ${filePath}.`);
     }
 
     // Writes/replaces the Faktura: array block directly after Payment: — the
@@ -1739,13 +1663,6 @@ export class Yamls {
         Yamls.writePenalty(ymlFile, penalty);
 
         Yamls.writeReturns(ymlFile, returnsFlat);
-
-        // PenaltyON is a static field the write*Section chain above never
-        // touches — reposition it to sit between Loaners: and PenaltyDays:
-        // now that the whole chain has (re)written itself, so it never
-        // drifts to wherever the chain's own insertion points happened to
-        // land it.
-        Yamls.repositionPenaltyOn(ymlFile);
 
         // Every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
         // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses) — same folder-scan data
