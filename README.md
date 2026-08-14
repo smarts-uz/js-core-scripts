@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 324 runnable methods.
+**Coverage:** 23 classes, 326 runnable methods.
 
 ---
 # Category
@@ -3903,7 +3903,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 35 public static method(s).
+Runners: `scripts/Yamls/` — 37 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3968,6 +3968,19 @@ node scripts/Yamls/computeDailyBalance.mjs --startDate <startDate>
 
 ```bash
 node scripts/Yamls/computeFaktura.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `ehfIn` | no | — |
+
+## computeFakturaSend(accrual, ehfIn)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computeFakturaSend.mjs --accrual <accrual>
 ```
 
 | Parameter | Optional | Description |
@@ -4283,6 +4296,19 @@ node scripts/Yamls/writeFaktura.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `faktura` | no | — |
+
+## writeFakturaSend(filePath, fakturaSend)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeFakturaSend.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `fakturaSend` | no | — |
 
 ## writeHistory(filePath, history)
 

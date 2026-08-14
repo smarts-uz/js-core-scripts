@@ -613,7 +613,7 @@ describe('Yamls.scanCellFolder', () => {
     expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([]);
   });
 
-  it('reads dated subfolders, sorted, amount stripped of commas/spaces', () => {
+  it('reads dated subfolders, sorted, amount formatted with a thousands comma', () => {
     writeTree(path.join(workDir, 'Bank-OT'), {
       '2025-08-01 4,200,000': {},
       '2025-07-09 4,200,000': {},
@@ -621,22 +621,22 @@ describe('Yamls.scanCellFolder', () => {
     });
 
     expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([
-      { '2025-07-09': '4200000' },
-      { '2025-08-01': '4200000' },
+      { '2025-07-09': '4,200,000' },
+      { '2025-08-01': '4,200,000' },
     ]);
   });
 
-  it('accepts single-space, double-space, comma, and no-comma folder-name variants alike', () => {
+  it('accepts single-space, double-space, comma, and no-comma folder-name variants alike, always formatting the output', () => {
     writeTree(path.join(workDir, 'Bank-OT'), {
       '2025-07-11 2,340,000': {}, // single space, comma
     });
-    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2,340,000' }]);
 
     fs.rmSync(path.join(workDir, 'Bank-OT'), { recursive: true, force: true });
     writeTree(path.join(workDir, 'Bank-OT'), {
       '2025-07-11  2340000': {}, // double space, no comma
     });
-    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2,340,000' }]);
   });
 
   it('deduplicates two differently-formatted folders that resolve to the SAME date+amount (never double-counted)', () => {
@@ -649,7 +649,7 @@ describe('Yamls.scanCellFolder', () => {
       '2025-07-11  2,340,000': {},
     });
 
-    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2340000' }]);
+    expect(Yamls.scanCellFolder(workDir, 'Bank-OT')).toEqual([{ '2025-07-11': '2,340,000' }]);
   });
 });
 
@@ -667,7 +667,7 @@ describe('Yamls.writeCellArrays', () => {
 
     const content = read(workDir, 't.contract');
     expect(content).toContain('Bank-OT:');
-    expect(content).toContain('2025-07-09: 4200000');
+    expect(content).toContain('2025-07-09: 4,200,000');
     expect(content).toContain('Bonuses: []');
     expect(content).toContain('PrepayMonth:');
   });
@@ -710,13 +710,13 @@ describe('Yamls.computeFaktura', () => {
     { ALL: '1,170,000' }, // trailing ALL entry must be ignored, like Loaners/Penalty do
   ];
 
-  it('distributes EHF-IN across accrual periods in order, chained like Payment', () => {
+  it("keys each entry by its period's own END date (month-end), not Accrual's start-date key", () => {
     const ehfIn = [{ '2025-09-10': '500000' }];
     const result = Yamls.computeFaktura(accrual, ehfIn);
     expect(result).toEqual([
-      { '2026-01-01': '390,000' },
-      { '2026-02-01': '110,000' },
-      { '2026-03-01': '0' },
+      { '2026-01-31': '390,000' },
+      { '2026-02-28': '110,000' },
+      { '2026-03-31': '0' },
       { ALL: '500,000' },
     ]);
   });
@@ -725,9 +725,9 @@ describe('Yamls.computeFaktura', () => {
     const ehfIn = [{ '2025-09-10': '390000' }];
     const result = Yamls.computeFaktura(accrual, ehfIn);
     expect(result).toEqual([
-      { '2026-01-01': '390,000' },
-      { '2026-02-01': '0' },
-      { '2026-03-01': '0' },
+      { '2026-01-31': '390,000' },
+      { '2026-02-28': '0' },
+      { '2026-03-31': '0' },
       { ALL: '390,000' },
     ]);
   });
@@ -738,9 +738,9 @@ describe('Yamls.computeFaktura', () => {
     const ehfIn = [{ '2025-09-10': '2000000' }];
     const result = Yamls.computeFaktura(accrual, ehfIn);
     expect(result).toEqual([
-      { '2026-01-01': '390,000' },
-      { '2026-02-01': '390,000' },
-      { '2026-03-01': '390,000' },
+      { '2026-01-31': '390,000' },
+      { '2026-02-28': '390,000' },
+      { '2026-03-31': '390,000' },
       { ALL: '1,170,000' },
     ]);
   });
@@ -748,9 +748,9 @@ describe('Yamls.computeFaktura', () => {
   it('returns 0 for every period and ALL: 0 when there is no EHF-IN at all', () => {
     const result = Yamls.computeFaktura(accrual, []);
     expect(result).toEqual([
-      { '2026-01-01': '0' },
-      { '2026-02-01': '0' },
-      { '2026-03-01': '0' },
+      { '2026-01-31': '0' },
+      { '2026-02-28': '0' },
+      { '2026-03-31': '0' },
       { ALL: '0' },
     ]);
   });
@@ -765,13 +765,13 @@ describe('Yamls.writeFaktura', () => {
       'utf8'
     );
 
-    Yamls.writeFaktura(f, [{ '2026-01-01': '390,000' }, { ALL: '390,000' }]);
+    Yamls.writeFaktura(f, [{ '2026-01-31': '390,000' }, { ALL: '390,000' }]);
 
     const lines = read(workDir, 't.contract').split('\n');
     const paymentIdx = lines.findIndex((l) => l.startsWith('Payment:'));
     const fakturaIdx = lines.findIndex((l) => l.startsWith('Faktura:'));
     expect(fakturaIdx).toBeGreaterThan(paymentIdx);
-    expect(lines[fakturaIdx + 1]).toBe('  - 2026-01-01: 390,000');
+    expect(lines[fakturaIdx + 1]).toBe('  - 2026-01-31: 390,000');
     expect(read(workDir, 't.contract')).toContain('PrepayMonth:');
   });
 
@@ -782,6 +782,87 @@ describe('Yamls.writeFaktura', () => {
     Yamls.writeFaktura(f, []);
 
     expect(read(workDir, 't2.contract')).toContain('Faktura: []');
+  });
+});
+
+describe('Yamls.computeFakturaSend', () => {
+  const accrual = [
+    { '2026-01-01': '390,000' },
+    { '2026-02-01': '390,000' },
+    { '2026-03-01': '390,000' },
+    { ALL: '1,170,000' },
+  ];
+
+  it("is Accrual minus that period's own Faktura amount, same end-date key as Faktura", () => {
+    const ehfIn = [{ '2025-09-10': '500000' }];
+    const faktura = Yamls.computeFaktura(accrual, ehfIn);
+    const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn);
+
+    expect(fakturaSend).toEqual([
+      { '2026-01-31': '0' }, // 390,000 - 390,000 (fully invoiced)
+      { '2026-02-28': '280,000' }, // 390,000 - 110,000
+      { '2026-03-31': '390,000' }, // 390,000 - 0 (nothing invoiced yet)
+      { ALL: '670,000' },
+    ]);
+
+    // Cross-check: Faktura[i] + FakturaSend[i] === Accrual[i] for every period.
+    const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+    for (let i = 0; i < 3; i++) {
+      const accrualAmt = toAmount(Object.values(accrual[i])[0]);
+      const fakturaAmt = toAmount(Object.values(faktura[i])[0]);
+      const sendAmt = toAmount(Object.values(fakturaSend[i])[0]);
+      expect(fakturaAmt + sendAmt).toBe(accrualAmt);
+    }
+  });
+
+  it('is all-zero when EHF-IN already covers every period in full', () => {
+    const ehfIn = [{ '2025-09-10': '2000000' }]; // exceeds the 1,170,000 total
+    const result = Yamls.computeFakturaSend(accrual, ehfIn);
+    expect(result).toEqual([
+      { '2026-01-31': '0' },
+      { '2026-02-28': '0' },
+      { '2026-03-31': '0' },
+      { ALL: '0' },
+    ]);
+  });
+
+  it('equals the full Accrual amount for every period when there is no EHF-IN at all', () => {
+    const result = Yamls.computeFakturaSend(accrual, []);
+    expect(result).toEqual([
+      { '2026-01-31': '390,000' },
+      { '2026-02-28': '390,000' },
+      { '2026-03-31': '390,000' },
+      { ALL: '1,170,000' },
+    ]);
+  });
+});
+
+describe('Yamls.writeFakturaSend', () => {
+  it('inserts the FakturaSend array directly after the Faktura: block', () => {
+    const f = path.join(workDir, 'fs.contract');
+    fs.writeFileSync(
+      f,
+      'ActDateEnd: \nAccrual:\n  - 2026-01-01: 390,000\nFaktura:\n  - 2026-01-31: 390,000\nPrepayMonth: \n',
+      'utf8'
+    );
+
+    Yamls.writeFakturaSend(f, [{ '2026-01-31': '0' }, { ALL: '0' }]);
+
+    const lines = read(workDir, 'fs.contract').split('\n');
+    const fakturaIdx = lines.findIndex((l) => l.startsWith('Faktura:'));
+    const sendIdx = lines.findIndex((l) => l.startsWith('FakturaSend:'));
+    expect(sendIdx).toBeGreaterThan(fakturaIdx);
+    expect(lines[sendIdx + 1]).toBe('  - 2026-01-31: 0');
+    expect(read(workDir, 'fs.contract')).toContain('PrepayMonth:');
+  });
+
+  it('writes an empty FakturaSend: [] block (allowEmpty=true) when fakturaSend is empty', () => {
+    const f = path.join(workDir, 'fs2.contract');
+    fs.writeFileSync(f, 'Faktura:\n  - 2026-01-31: 390,000\n', 'utf8');
+
+    Yamls.writeFakturaSend(f, []);
+
+    expect(read(workDir, 'fs2.contract')).toContain('FakturaSend: []');
   });
 });
 

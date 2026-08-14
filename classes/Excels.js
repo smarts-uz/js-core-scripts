@@ -372,13 +372,13 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Faktura — bare-date "start": amount per-period real
-  // EHF-IN invoice sum distributed across Accrual's periods
-  // (Yamls.computeFaktura/writeFaktura) — writes one row per entry (start
-  // date, amount) starting at {Faktura} placeholder's cell. Trailing
-  // { ALL: sum } entry skipped. Always runs (no ON/OFF flag) — mirrors
-  // processAccrual/processLoaners' own unconditional, bare-date-keyed
-  // shape.
+  // Reads yamlData.Faktura — bare-date "end" (period's own last day, NOT
+  // Accrual's start-date key): amount per-period real EHF-IN invoice sum
+  // distributed across Accrual's periods (Yamls.computeFaktura/
+  // writeFaktura) — writes one row per entry (end date, amount) starting
+  // at {Faktura} placeholder's cell. Trailing { ALL: sum } entry skipped.
+  // Always runs (no ON/OFF flag) — mirrors processAccrual/processLoaners'
+  // own unconditional, bare-date-keyed shape.
   static processFaktura(yamlData) {
     console.info(`[Excels.processFaktura] 🟢 Starting...`);
 

@@ -541,7 +541,7 @@ describe('Excels.processFaktura', () => {
     return sheet;
   }
 
-  it('writes one row per yamlData.Faktura entry, using each bare start (due) date', () => {
+  it("writes one row per yamlData.Faktura entry, using each bare END (period's own last day) date", () => {
     const sheet = installSheet({ Row: 4, Column: 43 });
 
     Excels.processFaktura({

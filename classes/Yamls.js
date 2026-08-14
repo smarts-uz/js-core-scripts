@@ -367,27 +367,70 @@ export class Yamls {
     }
 
     // Distributes real EHF-IN invoice amounts across FINAL (already
-    // recomputeChain-settled) Accrual periods, same bare-date key as Payment
-    // — chains total invoiced sum across accrual's periods in order via
-    // computePaymentChain, keeping only `payment` half (month's own
-    // Loaners-vs-invoice split has no meaning here, EHF-IN is document, not
-    // cash). Once whole EHF-IN sum exhausted, every remaining period gets 0
-    // — computePaymentChain already produces exactly that once running
-    // `remaining` pool hits zero.
+    // recomputeChain-settled) Accrual periods — chains total invoiced sum
+    // across accrual's periods in order via computePaymentChain, keeping
+    // only `payment` half (month's own Loaners-vs-invoice split has no
+    // meaning here, EHF-IN is document, not cash). Once whole EHF-IN sum
+    // exhausted, every remaining period gets 0 — computePaymentChain
+    // already produces exactly that once running `remaining` pool hits
+    // zero.
     //
-    // Returns [{ "start": amount }, ..., { ALL: sum }], same order/shape as
+    // Faktura's OWN key is each period's END date (Dates.monthEnd of
+    // Accrual's own start-date key) — deliberately NOT the same bare start
+    // date Accrual/Payment/Loaners/PenaltyDays/Penalty all share, since an
+    // invoice document is dated by when its period closes, not when it
+    // opened. computePaymentChain itself still forwards accrual's own key
+    // verbatim (shared by Loaners' own call) — the start->end remap happens
+    // here, after chaining, output-only.
+    //
+    // Returns [{ "end": amount }, ..., { ALL: sum }], same order as
     // Payment/Loaners (accrual's own trailing { ALL } entry skipped —
     // computePaymentChain expects bare period entries).
     static computeFaktura(accrual, ehfIn) {
         console.info(`[Yamls.computeFaktura] 🟢 Starting...`);
 
         const periods = accrual.filter(e => !('ALL' in e));
-        const { payment: faktura } = Yamls.computePaymentChain(periods, ehfIn);
+        const { payment: chained } = Yamls.computePaymentChain(periods, ehfIn);
+
+        const faktura = chained.map(entry => {
+            const [start, amount] = Object.entries(entry)[0];
+            return { [Dates.monthEnd(start)]: amount };
+        });
 
         const sum = faktura.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
         const result = [...faktura, { ALL: sum.toLocaleString('en-US') }];
 
         console.log(`computeFaktura: sum=${sum}`, result);
+        return result;
+    }
+
+    // Per-period amount NOT YET invoiced — Accrual[period] minus that
+    // period's own Faktura amount (an invoice is always eventually sent for
+    // the full Accrual; FakturaSend is the shortfall still owed). Reuses
+    // computePaymentChain's own `loaners` half (owed - paid, same math
+    // computeFaktura's `payment` half is built from) rather than
+    // recomputing the subtraction by hand — same bare-date key remap as
+    // computeFaktura (Accrual's start date -> Dates.monthEnd), so
+    // FakturaSend and Faktura always share the same key for the same
+    // period.
+    //
+    // Returns [{ "end": amount }, ..., { ALL: sum }], same order/shape as
+    // Faktura.
+    static computeFakturaSend(accrual, ehfIn) {
+        console.info(`[Yamls.computeFakturaSend] 🟢 Starting...`);
+
+        const periods = accrual.filter(e => !('ALL' in e));
+        const { loaners: chained } = Yamls.computePaymentChain(periods, ehfIn);
+
+        const fakturaSend = chained.map(entry => {
+            const [start, amount] = Object.entries(entry)[0];
+            return { [Dates.monthEnd(start)]: amount };
+        });
+
+        const sum = fakturaSend.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
+        const result = [...fakturaSend, { ALL: sum.toLocaleString('en-US') }];
+
+        console.log(`computeFakturaSend: sum=${sum}`, result);
         return result;
     }
 
@@ -760,21 +803,37 @@ export class Yamls {
     // Writes/replaces the Faktura: array block IN PLACE at its existing
     // position, or after Payment: as a fallback anchor for a brand-new file
     // — the real EHF-IN invoice sum distributed across the final Accrual
-    // periods (see computeFaktura), same shape as Payment.
+    // periods (see computeFaktura). Keyed by each period's own END date
+    // (last day of month), NOT Accrual's start-date key.
     //   Faktura:
-    //     - 2026-03-01: 450,000
-    //     - 2026-04-01: 0
+    //     - 2026-03-31: 450,000
+    //     - 2026-04-30: 0
     //     - ALL: 450,000
     static writeFaktura(filePath, faktura) {
         console.info(`[Yamls.writeFaktura] 🟢 Starting...`);
         this.writeYamlArraySection(filePath, 'Faktura', faktura, 'Payment', [], true);
     }
 
+    // Writes/replaces the FakturaSend: array block IN PLACE at its existing
+    // position, or after Faktura: as a fallback anchor for a brand-new file
+    // — per-period amount NOT YET invoiced (see computeFakturaSend). Same
+    // end-date key as Faktura.
+    //   FakturaSend:
+    //     - 2026-01-31: 0
+    //     - 2026-07-31: 1,620,000
+    static writeFakturaSend(filePath, fakturaSend) {
+        console.info(`[Yamls.writeFakturaSend] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'FakturaSend', fakturaSend, 'Faktura', [], true);
+    }
+
     // Scans <folderALL>/<key>/ for dated subfolders (ported from
     // Excels.scanSubFolder + Excels.processFolders — same "YYYY-MM-DD amount"
     // naming, same numeric sort) and returns [{date, amount}], sorted, amount
-    // stripped of commas/spaces. Returns [] when the folder doesn't exist —
-    // this is what lets a key be written as an empty array by default.
+    // re-formatted with a thousands comma (toLocaleString('en-US')) — same
+    // shape as every other computed value this class writes (Accrual/
+    // Payment/Returns/etc.), e.g. { '2026-03-31': '3,200,000' }, never a bare
+    // unformatted '3200000'. Returns [] when the folder doesn't exist — this
+    // is what lets a key be written as an empty array by default.
     //
     // The folder-name whitespace/comma formatting is NOT normalized on disk —
     // "2026-02-03 2,340,000" (single space), "2026-02-03  2,340,000" (double
@@ -810,15 +869,16 @@ export class Yamls {
             if (!match) continue;
 
             const date = match[1];
-            const amount = match[2].replace(/,/g, '').replace(/\s/g, '');
+            const rawAmount = match[2].replace(/,/g, '').replace(/\s/g, '');
 
-            const dedupeKey = `${date}|${amount}`;
+            const dedupeKey = `${date}|${rawAmount}`;
             if (seen.has(dedupeKey)) {
                 console.warn(`⚠️ scanCellFolder: ${key} — duplicate date+amount folder for ${dedupeKey} ("${name}"), skipping.`);
                 continue;
             }
             seen.add(dedupeKey);
 
+            const amount = (Number(rawAmount) || 0).toLocaleString('en-US');
             entries.push({ [date]: amount });
         }
 
@@ -1751,6 +1811,12 @@ export class Yamls {
         const ehfIn = Yamls.scanCellFolder(globalThis.folderALL, 'EHF-IN');
         const faktura = Yamls.computeFaktura(accrual, ehfIn);
         Yamls.writeFaktura(ymlFile, faktura);
+
+        // FakturaSend: per-period amount not yet invoiced (Accrual minus
+        // that period's own Faktura) — sits directly after Faktura:, same
+        // end-date key.
+        const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn);
+        Yamls.writeFakturaSend(ymlFile, fakturaSend);
 
         Yamls.writeLoaners(ymlFile, loaners);
 
