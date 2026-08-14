@@ -1378,7 +1378,7 @@ describe('Excels.generate', () => {
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
       Price: '100',
-      FutureDate: '2099-01-01',
+      PeriodEnd: '2099-01-01',
     });
     YamlsMock.getPrepayMonth.mockReturnValue(2);
 
