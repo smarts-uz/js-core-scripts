@@ -1183,124 +1183,194 @@ describe('Yamls.replaceYaml', () => {
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('yamlData or companyInfo is not defined!');
   });
 
-  it('warns and returns instead of throwing when ComDate_ cannot be resolved to a valid date', () => {
+  it('warns and returns BEFORE writing anything when Price is missing', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
 
-    // No ComDate_ marker file in Compan/, and neither soliq nor soliqYatt supplied
-    // a registrationDate — this is the real crash scenario: ComDate_ falls back to
-    // an empty value, so Word.extractDate legitimately returns null instead of
-    // being force-fed a bogus date.
-    FilesMock.getDateFromTXT.mockReturnValue(null);
-    WordMock.extractDate.mockReturnValue(null);
-
+    // Price is read much later via String(Price).replaceAll(...); guarding it up
+    // front keeps a missing Price from throwing after markers are already on disk.
     expect(() =>
-      Yamls.replaceYaml('file.yml', { ComDate_: '' }, { isYatt: false, soliq: null })
+      Yamls.replaceYaml('file.yml', { ComDate: '2024-11-05' }, { regDate: null })
     ).not.toThrow();
 
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
-      expect.stringContaining('ComDate_ is missing or invalid')
+      expect.stringContaining('Price is missing')
     );
+    expect(FilesMock.saveInfoToFile).not.toHaveBeenCalled();
   });
 
-  it('falls back to companyInfo.soliq.company.registrationDate (non-YaTT) when no ComDate_ marker file exists', () => {
+  it('warns and returns when PrepayMonth cannot resolve AND ActDateEnd is blank', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+    // No Contract.PrepayMonth configured, none in yamlData, no ActDateEnd to fall back on.
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
 
-    FilesMock.getDateFromTXT.mockReturnValue(null);
-    WordMock.extractDate.mockImplementation((date) =>
-      !date ? null : { day: '10', month: '08', year: '2023' }
-    );
-
-    // soliq's own API returns registrationDate as YYYY-MM-DD; Yamls.replaceYaml
-    // must normalize it to Didox's DD.MM.YYYY before handing it to Word.extractDate.
-    // The method continues past the date block into many other companyInfo/Didox
-    // fields this fixture doesn't populate (unrelated to this fallback) — only the
-    // ComDate_ resolution itself is under test here.
-    try {
+    expect(() =>
       Yamls.replaceYaml(
         'file.yml',
-        { ComDate_: '', Price: '1,200,000' },
-        { isYatt: false, soliq: { company: { registrationDate: '2023-08-10' } } }
-      );
+        { ComDate: '2024-11-05', ActDateEnd: '', Price: '1,200,000' },
+        { regDate: null }
+      )
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('PrepayMonth is missing')
+    );
+  });
+
+  it('does NOT require PrepayMonth when ActDateEnd is filled', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = {
+      ComDate: '2024-11-05',
+      ActDateEnd: '2025-03-31',
+      Price: '1,200,000',
+    };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, { regDate: null });
     } catch {
       /* unrelated downstream field population, not under test */
     }
 
-    expect(WordMock.extractDate).toHaveBeenCalledWith('10.08.2023');
+    expect(DialogsMock.warningBox).not.toHaveBeenCalledWith(
+      expect.stringContaining('PrepayMonth is missing')
+    );
+    expect(yamlData.FutureDate).toBe('2025-03-31');
   });
 
-  it('falls back to companyInfo.soliqYatt.registrationDate (YaTT) when no ComDate_ marker file exists', () => {
+  it('warns and returns instead of throwing when ComDate is missing or invalid', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
 
-    FilesMock.getDateFromTXT.mockReturnValue(null);
-    WordMock.extractDate.mockImplementation((date) =>
-      !date ? null : { day: '17', month: '02', year: '2026' }
-    );
-
-    try {
+    // ComDate is filled MANUALLY in ALL.contract — a blank one has nothing to
+    // fall back to, so replaceYaml warns instead of writing an undefined date.
+    expect(() =>
       Yamls.replaceYaml(
         'file.yml',
-        { ComDate_: '', Price: '1,200,000' },
-        { isYatt: true, soliqYatt: { registrationDate: '17.02.2026' } }
-      );
+        { ComDate: '', Price: '1,200,000' },
+        { isYatt: false, soliq: null }
+      )
+    ).not.toThrow();
+
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDate is missing or invalid')
+    );
+  });
+
+  it('never auto-fills ComDate from a Compan/ marker file or the registry registrationDate', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
+
+    // Both retired sources are deliberately available and must still be ignored.
+    FilesMock.getDateFromTXT.mockReturnValue('10.08.2023');
+
+    const yamlData = { ComDate: '', Price: '1,200,000' };
+    expect(() =>
+      Yamls.replaceYaml('file.yml', yamlData, {
+        isYatt: false,
+        soliq: { company: { registrationDate: '2023-08-10' } },
+      })
+    ).not.toThrow();
+
+    expect(FilesMock.getDateFromTXT).not.toHaveBeenCalled();
+    expect(yamlData.ComDate).toBe('');
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('ComDate is missing or invalid')
+    );
+  });
+
+  it('computes ComDateEnd from ComDate + Contract.AddDays when left blank', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComDate: '2024-11-05', ComDateEnd: '', Price: '1,200,000' };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, { regDate: null });
     } catch {
       /* unrelated downstream field population, not under test */
     }
 
-    expect(WordMock.extractDate).toHaveBeenCalledWith('17.02.2026');
+    // Stays YYYY-MM-DD — Dates.addDays is format-preserving.
+    expect(yamlData.ComDateEnd).toBe('2024-12-05');
+    expect(yamlData.Day).toBe('05');
+    expect(yamlData.Month).toBe('11');
+    expect(yamlData.Year).toBe('2024');
   });
 
-  it('warns and returns instead of throwing when ComDateEnd_ cannot be resolved to a valid date', () => {
+  it('keeps a user-set ComDateEnd from ALL.contract instead of recomputing it', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
 
-    // ComDate_ itself is valid, but ComDateEnd_ (derived via Dates.addDays) isn't.
-    WordMock.extractDate.mockImplementation((date) =>
-      date === '05.11.2024' ? { day: '05', month: '11', year: '2024' } : null
-    );
+    const yamlData = {
+      ComDate: '2024-11-05',
+      ComDateEnd: '2030-01-31',
+      Price: '1,200,000',
+    };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, { regDate: null });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
 
+    expect(yamlData.ComDateEnd).toBe('2030-01-31');
+    expect(yamlData.DayEnd).toBe('31');
+    expect(yamlData.MonthEnd).toBe('01');
+    expect(yamlData.YearEnd).toBe('2030');
+  });
+
+  it('warns and returns instead of throwing when ComDateEnd cannot be resolved to a valid date', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
+
+    // ComDate itself is valid, but the user-set ComDateEnd is not a real date.
     expect(() =>
-      Yamls.replaceYaml('file.yml', { ComDate_: '05.11.2024' }, { regDate: null })
+      Yamls.replaceYaml(
+        'file.yml',
+        { ComDate: '2024-11-05', ComDateEnd: 'not-a-date', Price: '1,200,000' },
+        { regDate: null }
+      )
     ).not.toThrow();
 
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
-      expect.stringContaining('ComDateEnd_ is missing or invalid')
+      expect.stringContaining('ComDateEnd is missing or invalid')
     );
   });
 
-  it('warns and returns instead of throwing when ComDateIjara_ cannot be resolved to a valid date', () => {
+  it('warns and returns instead of throwing when ComDateIjara cannot be resolved to a valid date', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     // No Contract.ComDateIjara configured, and yamlData carries none either.
     writeConfig({ Contract: { AddDays: 30 } });
 
-    // ComDate_ and its derived ComDateEnd_ (via the real Dates.addDays) both
-    // resolve fine — only the empty ComDateIjara_ should fail to extract.
-    WordMock.extractDate.mockImplementation((date) =>
-      !date ? null : { day: '05', month: '11', year: '2024' }
-    );
-
+    // ComDate and its derived ComDateEnd both resolve fine — only the empty
+    // ComDateIjara should fail to split.
     expect(() =>
       Yamls.replaceYaml(
         'file.yml',
-        { ComDate_: '05.11.2024', ComDateIjara_: '' },
+        { ComDate: '2024-11-05', ComDateIjara: '', Price: '1,200,000' },
         { regDate: null }
       )
     ).not.toThrow();
 
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
-      expect.stringContaining('ComDateIjara_ is missing or invalid')
+      expect.stringContaining('ComDateIjara is missing or invalid')
     );
   });
 
@@ -1308,18 +1378,16 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { ComDateIjara: '01.01.2024', AddDays: 30 } });
+    writeConfig({ Contract: { ComDateIjara: '2024-01-01', AddDays: 30 } });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
-    // Mirrors the real template shape: "_"-suffixed DD.MM.YYYY inputs above,
-    // the bare-named YYYY-MM-DD auto-resolved counterparts (blank placeholders,
-    // filled by replaceTextLine) further down, as separate lines. ComBase:
-    // is the real anchor writeAccrual inserts after (see the confirmed-
-    // correct real file layout) — without it, writeAccrual falls back to
-    // appending at end of file instead.
+    // Mirrors the real template shape: bare-named YYYY-MM-DD date lines, filled
+    // by replaceTextLine. ComBase: is the real anchor writeAccrual inserts after
+    // (see the confirmed-correct real file layout) — without it, writeAccrual
+    // falls back to appending at end of file instead.
     fs.writeFileSync(
       ymlFile,
-      'ActDate_: \nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n',
+      'ComDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n',
       'utf8'
     );
 
@@ -1329,11 +1397,11 @@ describe('Yamls.replaceYaml', () => {
     DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
     DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
 
-    // ActDate_/ActDateEnd_ are read from the yamlData ARGUMENT, never from
+    // ActDate/ActDateEnd are read from the yamlData ARGUMENT, never from
     // the file (replaceYaml never reads them back off disk) — StartDate/
-    // FutureDate are derived straight from these two. ActDateEnd_ set
-    // explicitly (not blank) so FutureDate resolves deterministically via
-    // Dates.didoxToExcel — leaving it blank/absent falls back to
+    // FutureDate are derived straight from these two. ActDateEnd set
+    // explicitly (not blank) so FutureDate resolves deterministically —
+    // leaving it blank/absent falls back to
     // Dates.futureDateByMonth(prepayMonth, false), which is today-relative
     // (non-deterministic across test runs) and, with no PrepayMonth
     // configured, resolves to dayjs's "Invalid Date" string, silently
@@ -1341,9 +1409,9 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml(
       ymlFile,
       {
-        ComDate_: '01.01.2026',
-        ActDate_: '01.01.2026',
-        ActDateEnd_: '31.01.2026',
+        ComDate: '2026-01-01',
+        ActDate: '2026-01-01',
+        ActDateEnd: '2026-01-31',
         Price: '4,200,000',
         // PriceMax === Price: no real payment exists in this test (no
         // Bank-OT/Card-OT/etc. folders), so recomputeChain's fixed-point
@@ -1369,7 +1437,7 @@ describe('Yamls.replaceYaml', () => {
 
     const content = fs.readFileSync(ymlFile, 'utf8');
     expect(content).toContain('Accrual:');
-    // ActDate_ 01.01.2026 -> ActDateEnd_ 31.01.2026: a single full-month range.
+    // ActDate 2026-01-01 -> ActDateEnd 2026-01-31: a single full-month range.
     expect(content).toContain('2026-01-01#2026-01-31: 4,200,000');
   });
 
@@ -1378,17 +1446,13 @@ describe('Yamls.replaceYaml', () => {
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({
-      Contract: { ComDateIjara: '01.01.2024', AddDays: 30 },
+      Contract: { ComDateIjara: '2024-01-01', AddDays: 30 },
       Penalty: { PerDay: 50000 },
       Excel: { CellNames: [] },
     });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
-    fs.writeFileSync(
-      ymlFile,
-      'ActDate_: \nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n',
-      'utf8'
-    );
+    fs.writeFileSync(ymlFile, 'ComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n', 'utf8');
 
     // Rent (4,200,000) is paid on 2026-02-05, well after the 2026-01-01
     // period start — the daily-balance simulation debits Jan's prorated
@@ -1407,9 +1471,9 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml(
       ymlFile,
       {
-        ComDate_: '01.01.2026',
-        ActDate_: '01.01.2026',
-        ActDateEnd_: '28.02.2026',
+        ComDate: '2026-01-01',
+        ActDate: '2026-01-01',
+        ActDateEnd: '2026-02-28',
         Price: '4,200,000',
         PriceMax: '4,200,000',
         SurEnable: false,
@@ -1463,17 +1527,13 @@ describe('Yamls.replaceYaml', () => {
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({
-      Contract: { ComDateIjara: '01.01.2024', AddDays: 30 },
+      Contract: { ComDateIjara: '2024-01-01', AddDays: 30 },
       Penalty: { PerDay: 50000 },
       Excel: { CellNames: [] },
     });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
-    fs.writeFileSync(
-      ymlFile,
-      'ActDate_: \nActDateEnd_: \nComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n',
-      'utf8'
-    );
+    fs.writeFileSync(ymlFile, 'ComDateEnd: \nComDate: \nActDate: \nActDateEnd: \n', 'utf8');
 
     writeTree(path.join(workDir, 'Bank-OT'), { '2026-02-05 4,200,000': {} });
 
@@ -1486,9 +1546,9 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml(
       ymlFile,
       {
-        ComDate_: '01.01.2026',
-        ActDate_: '01.01.2026',
-        ActDateEnd_: '28.02.2026',
+        ComDate: '2026-01-01',
+        ActDate: '2026-01-01',
+        ActDateEnd: '2026-02-28',
         Price: '4,200,000',
         PriceMax: '4,200,000',
         SurEnable: false,

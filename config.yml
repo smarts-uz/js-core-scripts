@@ -3,7 +3,8 @@ Contract:
     Format: '{Prefix}-{ComName}-{Year}-{Month}-{Day}'
     PrepayMonth: 1
     PdfFormatCode: 17
-    ComDateIjara: 31.12.2029
+    # YYYY-MM-DD, like every contract date key in ALL.contract.
+    ComDateIjara: 2029-12-31
     AddDays: 363
     DefaultBank: SRental-Kapital
     DefaultTariff: 1-450k

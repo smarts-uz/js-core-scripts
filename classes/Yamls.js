@@ -1164,6 +1164,14 @@ export class Yamls {
     }
 
 
+    /**
+     * Prepay month count — yamlData.PrepayMonth, else config.yml Contract.PrepayMonth.
+     * Returns null, never NaN, when neither resolves to non-negative integer.
+     * NaN previously reached Dates.futureDateByMonth → "Invalid Date" FutureDate → empty chain, Penalty silently 0.
+     * Caller treats null as fatal, warns.
+     * @param {object} yamlData - Loaded .contract data.
+     * @returns {number|null} Non-negative month count, or null when unresolvable.
+     */
     static getPrepayMonth(yamlData) {
     console.info(`[Yamls.getPrepayMonth] 🟢 Starting...`);
         let prepay
@@ -1177,7 +1185,13 @@ export class Yamls {
             console.log(`prepayMonth from Main .Contract file: ${prepay}`);
         }
 
-        return prepay;
+        const months = parseInt(prepay, 10);
+        if (!Number.isInteger(months) || months < 0) {
+            console.log(`prepayMonth is not a valid month count: ${prepay}`);
+            return null;
+        }
+
+        return months;
 
     }
 
@@ -1191,98 +1205,124 @@ export class Yamls {
         console.log(yamlData, 'yamlData');
         console.log(companyInfo, 'companyInfo');
 
-        // Every "_"-suffixed key ALWAYS holds a DD.MM.YYYY date (ComDate_,
-        // ComDateEnd_, ComDateIjara_, ActDate_, ActDateEnd_); the matching
-        // bare-named key (no "_", formerly the "*Excel" suffix) ALWAYS holds
-        // the same date converted to YYYY-MM-DD (ComDate, ComDateEnd,
-        // ComDateIjara, ActDate, ActDateEnd, plus the derived StartDate/
-        // FutureDate/FutureDateApp). The "_" suffix exists ONLY to free up the
-        // bare name for the YYYY-MM-DD counterpart — both forms of the same
-        // date are always kept in sync below.
-        if (Files.isEmpty(yamlData.ComDate_)) {
-            let comDateFromTxt = Files.getDateFromTXT(globalThis.folderCompan)
-            if (comDateFromTxt) {
-                yamlData.ComDate_ = comDateFromTxt
-            } else {
-                const regDate = companyInfo.isYatt
-                    ? companyInfo.soliqYatt?.registrationDate
-                    : companyInfo.soliq?.company.registrationDate
-                // registrationDate can come back as YYYY-MM-DD (soliq API) or
-                // already DD.MM.YYYY (Didox) — normalize to Didox's DD.MM.YYYY,
-                // which every downstream date helper (Dates.addDays, Word.extractDate) expects.
-                yamlData.ComDate_ = Dates.excelToDidox(regDate) || regDate
-            }
-        } else {
-            Files.saveInfoToFile(globalThis.folderCompan, yamlData.ComDate_)
+        /*
+        Price is validated HERE, before the first marker file or yaml line is written.
+        It is read much later as yamlData.Price.replaceAll(...), which throws on a missing or numeric Price — by then markers and yaml lines are already on disk, leaving the contract half-updated.
+        */
+        if (Files.isEmpty(yamlData.Price))
+            return Dialogs.warningBox(`Price is missing — fill it in the .contract yaml before filling this contract.`);
+
+        if (!Yamls.#resolveDates(yamlData)) return;
+        if (!Yamls.#resolveCompany(ymlFile, yamlData, companyInfo)) return;
+
+        Yamls.#writeChain(ymlFile, yamlData);
+    }
+
+    /**
+     * Resolve every date field on yamlData, in place.
+     * Fills ComDateIjara/ComDateEnd when blank, splits Day/Month/Year (+ End/Ijara twins), then derives StartDate/FutureDate/FutureDateApp.
+     * Warns via Dialogs and returns false on the first unresolvable date, so the caller aborts before writing anything.
+     * @param {object} yamlData - Loaded .contract data, mutated in place.
+     * @returns {boolean} TRUE when every date resolved, FALSE when the caller must abort.
+     */
+    static #resolveDates(yamlData) {
+        console.info(`[Yamls.#resolveDates] 🟢 Starting...`);
+
+        /*
+        Every contract date = bare-named YYYY-MM-DD key: ComDate, ComDateEnd, ComDateIjara, ActDate, ActDateEnd.
+        All filled MANUALLY in ALL.contract.
+        ComDateEnd computed only when blank — ComDate + Contract.AddDays.
+        ComDateIjara falls back to config.yml Contract.ComDateIjara when blank.
+        Day/Month/Year (+ End/Ijara twins) split off those values via Dates.splitExcelDate, never Word.extractDate (DD.MM.YYYY-only parser).
+        */
+        if (Files.isEmpty(yamlData.ComDateIjara)) {
+            yamlData.ComDateIjara = Dates.didoxToExcel(Yamls.getConfig('Contract.ComDateIjara'));
+            console.info('yamlData.ComDateIjara', yamlData.ComDateIjara);
         }
 
-        if (Files.isEmpty(yamlData.ComDateIjara_)) {
-            yamlData.ComDateIjara_ = Yamls.getConfig('Contract.ComDateIjara');
-            console.info('yamlData.ComDateIjara_', yamlData.ComDateIjara_);
+        if (Files.isEmpty(yamlData.ComDateEnd)) {
+            const addDays = Yamls.getConfig('Contract.AddDays');
+            console.log(`addDays from Yaml: ${addDays}`);
+            yamlData.ComDateEnd = Dates.addDays(yamlData.ComDate, addDays)
+            console.info('yamlData.ComDateEnd', yamlData.ComDateEnd);
         }
 
-        const addDays = Yamls.getConfig('Contract.AddDays');
-        console.log(`addDays from Yaml: ${addDays}`);
-        yamlData.ComDateEnd_ = Dates.addDays(yamlData.ComDate_, addDays)
-        console.info('yamlData.ComDateEnd_', yamlData.ComDateEnd_);
 
-
-        const comDate = Word.extractDate(yamlData.ComDate_);
-        if (!comDate)
-            return Dialogs.warningBox(`ComDate_ is missing or invalid ("${yamlData.ComDate_}") — cannot fill Day/Month/Year. Fill it in the .contract yaml or add a DD.MM.YYYY marker file in Compan/.`);
+        const comDate = Dates.splitExcelDate(yamlData.ComDate);
+        if (!comDate) {
+            Dialogs.warningBox(`ComDate is missing or invalid ("${yamlData.ComDate}") — cannot fill Day/Month/Year. Fill it in the .contract yaml as YYYY-MM-DD.`);
+            return false;
+        }
         yamlData.Day = comDate.day;
         yamlData.Month = comDate.month;
         yamlData.Year = comDate.year;
 
-        const comDateEnd = Word.extractDate(yamlData.ComDateEnd_);
-        if (!comDateEnd)
-            return Dialogs.warningBox(`ComDateEnd_ is missing or invalid ("${yamlData.ComDateEnd_}") — cannot fill DayEnd/MonthEnd/YearEnd.`);
+        const comDateEnd = Dates.splitExcelDate(yamlData.ComDateEnd);
+        if (!comDateEnd) {
+            Dialogs.warningBox(`ComDateEnd is missing or invalid ("${yamlData.ComDateEnd}") — cannot fill DayEnd/MonthEnd/YearEnd.`);
+            return false;
+        }
         yamlData.DayEnd = comDateEnd.day;
         yamlData.MonthEnd = comDateEnd.month;
         yamlData.YearEnd = comDateEnd.year;
 
-        const comDateIjara = Word.extractDate(yamlData.ComDateIjara_);
-        if (!comDateIjara)
-            return Dialogs.warningBox(`ComDateIjara_ is missing or invalid ("${yamlData.ComDateIjara_}") — cannot fill DayIjara/MonthIjara/YearIjara. Check Contract.ComDateIjara in config.yml.`);
+        const comDateIjara = Dates.splitExcelDate(yamlData.ComDateIjara);
+        if (!comDateIjara) {
+            Dialogs.warningBox(`ComDateIjara is missing or invalid ("${yamlData.ComDateIjara}") — cannot fill DayIjara/MonthIjara/YearIjara. Check Contract.ComDateIjara in config.yml.`);
+            return false;
+        }
         yamlData.DayIjara = comDateIjara.day;
         yamlData.MonthIjara = comDateIjara.month;
         yamlData.YearIjara = comDateIjara.year;
 
 
-        yamlData.ActDate = Dates.didoxToExcel(yamlData.ActDate_);
-        yamlData.ActDateEnd = Dates.didoxToExcel(yamlData.ActDateEnd_);
-
-        yamlData.ComDate = Dates.didoxToExcel(yamlData.ComDate_);
-        yamlData.ComDateEnd = Dates.didoxToExcel(yamlData.ComDateEnd_);
-        yamlData.ComDateIjara = Dates.didoxToExcel(yamlData.ComDateIjara_);
-
-        if (!yamlData.ActDate_) {
+        if (!yamlData.ActDate) {
             yamlData.StartDate = yamlData.ComDate
             console.log('StartDate from ComDate', yamlData.StartDate);
         }
         else {
-            yamlData.StartDate = Dates.didoxToExcel(yamlData.ActDate_)
-            console.log('StartDate from ActDate_', yamlData.StartDate);
+            yamlData.StartDate = yamlData.ActDate
+            console.log('StartDate from ActDate', yamlData.StartDate);
         }
 
 
         const prepayMonth = Yamls.getPrepayMonth(yamlData);
         console.log(prepayMonth, 'prepayMonth');
 
-        if (!yamlData.ActDateEnd_) {
+        /*
+        A null prepayMonth is fatal ONLY when FutureDate actually depends on it.
+        With ActDateEnd filled, FutureDate comes straight off it and PrepayMonth is never read, so an unset PrepayMonth is legitimate there.
+        */
+        if (!yamlData.ActDateEnd && prepayMonth === null) {
+            Dialogs.warningBox(`PrepayMonth is missing or not a whole month count — set it in the .contract yaml, or set Contract.PrepayMonth in config.yml, or fill ActDateEnd. Without it FutureDate cannot be computed and the whole Accrual/PenaltyDays/Penalty chain would silently read 0.`);
+            return false;
+        }
+
+        if (!yamlData.ActDateEnd) {
             yamlData.FutureDate = Dates.futureDateByMonth(prepayMonth, false)
             console.log('FutureDate from prepayMonth', yamlData.FutureDate);
         }
         else {
-            yamlData.FutureDate = Dates.didoxToExcel(yamlData.ActDateEnd_)
-            console.log('FutureDate from ActDateEnd_', yamlData.FutureDate);
+            yamlData.FutureDate = yamlData.ActDateEnd
+            console.log('FutureDate from ActDateEnd', yamlData.FutureDate);
         }
 
         yamlData.FutureDateApp = Dates.getMinusOneDay(yamlData.FutureDate)
         console.log(yamlData.FutureDateApp, 'yamlData.FutureDateApp');
 
+        return true;
+    }
 
-
+    /**
+     * Resolve every company/director/bank/VAT field on yamlData, in place, from companyInfo and the registry lookups.
+     * Also derives ComCategory from the .contract file's own path and writes the Compan/ marker files.
+     * @param {string} ymlFile - Absolute path of the .contract file being filled.
+     * @param {object} yamlData - Loaded .contract data, mutated in place.
+     * @param {object} companyInfo - Resolved registry/Didox company record.
+     * @returns {boolean} TRUE when resolution completed, FALSE when the caller must abort.
+     */
+    static #resolveCompany(ymlFile, yamlData, companyInfo) {
+        console.info(`[Yamls.#resolveCompany] 🟢 Starting...`);
 
 
         // if ymlFileparh contains @ Weak folder - yamldata.ComCategory = Weak
@@ -1311,7 +1351,7 @@ export class Yamls {
         yamlData.ComINN = companyInfo.tin
 
 
-        const price = yamlData.Price.replaceAll(',', '')
+        const price = String(yamlData.Price).replaceAll(',', '')
 
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.ComINN}`)
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.SurPINFL}`)
@@ -1555,12 +1595,24 @@ export class Yamls {
 
         Files.deleteInfo(globalThis.folderALL, '#VAT')
 
-        const ComDate = Dates.parseDMY(yamlData.ComDate_);
+        /*
+        ComDate is YYYY-MM-DD (parseDMYExcel); ComVATDateReg still arrives DD.MM.YYYY from the registry API (parseDMY).
+        Both are validity-checked before comparing, because either parser yields an Invalid Date for blank/malformed input, and EVERY comparison against an Invalid Date is false.
+        An unchecked compare therefore fell through to the else branch and asserted 'Нет' — a real answer invented from unparseable input, not a derived one.
+        Unknown stays unknown instead: blank ComVATFromUs, no #VAT-From-Us marker.
+        */
+        const ComDate = Dates.parseDMYExcel(yamlData.ComDate);
         const ComVATDateReg = Dates.parseDMY(yamlData.ComVATDateReg);
+        const comDateOk = ComDate instanceof Date && !Number.isNaN(ComDate.getTime());
+        const vatDateOk = ComVATDateReg instanceof Date && !Number.isNaN(ComVATDateReg.getTime());
 
-        // if ComDate is greater than ComVATDateReg 
+        // if ComDate is greater than ComVATDateReg
         if (companyInfo.VATRegCode) {
-            if (ComDate < ComVATDateReg) {
+            if (!comDateOk || !vatDateOk) {
+                console.log('ComVATFromUs left blank — unparseable date', yamlData.ComDate, yamlData.ComVATDateReg);
+                yamlData.ComVATFromUs = ''
+                Files.deleteInfo(globalThis.folderALL, '#VAT-From-Us')
+            } else if (ComDate < ComVATDateReg) {
                 yamlData.ComVATFromUs = 'Да'
                 Files.saveInfoToFile(globalThis.folderALL, '#VAT-From-Us')
             } else {
@@ -1587,6 +1639,19 @@ export class Yamls {
         }
 
 
+
+        return true;
+    }
+
+    /**
+     * Persist yamlData to the .contract file, then (re)write the whole money chain.
+     * Writes every scalar key via replaceTextLine, then Accrual/Payment/Faktura/Loaners/PenaltyDays/Penalty/Returns and every Excel.CellNames block.
+     * @param {string} ymlFile - Absolute path of the .contract file being written.
+     * @param {object} yamlData - Fully resolved .contract data.
+     * @returns {void}
+     */
+    static #writeChain(ymlFile, yamlData) {
+        console.info(`[Yamls.#writeChain] 🟢 Starting...`);
 
         // iterate yamldata and write via reoplacetextline func
         for (const [key, value] of Object.entries(yamlData)) {

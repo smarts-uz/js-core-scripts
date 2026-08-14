@@ -43,17 +43,55 @@ export class Dates {
   }
 
 
-  // add 363 days into date
+  /**
+   * Add calendar days to date, PRESERVING input format.
+   * YYYY-MM-DD in → YYYY-MM-DD out; DD.MM.YYYY in → DD.MM.YYYY out.
+   * Keeps standalone runner and every DD.MM.YYYY caller working unchanged.
+   * @param {string} dateStr - Date in YYYY-MM-DD or DD.MM.YYYY.
+   * @param {number} days - Calendar days to add.
+   * @returns {string} Shifted date, same format as input.
+   */
   static addDays(dateStr, days) {
       console.info(`[Dates.addDays] 🟢 Starting...`);
 
     console.log("addDays dateStr", dateStr, "days", days);
 
-    const formatted = dayjs(dateStr, 'DD.MM.YYYY').add(days, 'day').format('DD.MM.YYYY');
+    const format = Dates.isExcelDate(dateStr) ? 'YYYY-MM-DD' : 'DD.MM.YYYY';
+    console.log("addDays format", format);
+
+    const formatted = dayjs(dateStr, format).add(days, 'day').format(format);
 
     console.log("addDays formatted", formatted);
 
     return formatted;
+  }
+
+  /**
+   * TRUE only for strict YYYY-MM-DD string.
+   * @param {*} date - Value to test.
+   * @returns {boolean} TRUE when YYYY-MM-DD.
+   */
+  static isExcelDate(date) {
+    console.info(`[Dates.isExcelDate] 🟢 Starting...`);
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(date ?? '').trim());
+  }
+
+  /**
+   * Split YYYY-MM-DD into {year, month, day} string parts.
+   * Replaces Word.extractDate, which only ever parsed DD.MM.YYYY.
+   * Returns null for non-YYYY-MM-DD input, so caller warns instead of writing undefined into contract.
+   * @param {string} date - Date in YYYY-MM-DD.
+   * @returns {{year: string, month: string, day: string}|null} Parts, or null when invalid.
+   */
+  static splitExcelDate(date) {
+    console.info(`[Dates.splitExcelDate] 🟢 Starting...`);
+
+    if (!Dates.isExcelDate(date)) return null;
+
+    const [year, month, day] = String(date).trim().split('-');
+    console.log("splitExcelDate", { year, month, day });
+
+    return { year, month, day };
   }
 
   static excelToDidox(date) {

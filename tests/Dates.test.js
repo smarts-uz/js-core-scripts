@@ -98,6 +98,45 @@ describe('Dates.addDays', () => {
   it('returns a DD.MM.YYYY string', () => {
     expect(Dates.addDays('10.10.2020', 5)).toBeDateDMY();
   });
+
+  it('preserves YYYY-MM-DD format — the shape every contract date uses', () => {
+    expect(Dates.addDays('2026-08-14', 363)).toBe('2027-08-12');
+  });
+
+  it('rolls over month boundaries in YYYY-MM-DD too', () => {
+    expect(Dates.addDays('2020-12-25', 10)).toBe('2021-01-04');
+  });
+});
+
+describe('Dates.isExcelDate', () => {
+  it('is true only for a strict YYYY-MM-DD string', () => {
+    expect(Dates.isExcelDate('2026-08-14')).toBe(true);
+  });
+
+  it('is false for DD.MM.YYYY, junk, and empty input', () => {
+    expect(Dates.isExcelDate('14.08.2026')).toBe(false);
+    expect(Dates.isExcelDate('not-a-date')).toBe(false);
+    expect(Dates.isExcelDate('')).toBe(false);
+    expect(Dates.isExcelDate(null)).toBe(false);
+    expect(Dates.isExcelDate(undefined)).toBe(false);
+  });
+});
+
+describe('Dates.splitExcelDate', () => {
+  it('splits a YYYY-MM-DD date into zero-padded year/month/day strings', () => {
+    expect(Dates.splitExcelDate('2024-11-05')).toEqual({
+      year: '2024',
+      month: '11',
+      day: '05',
+    });
+  });
+
+  it('returns null for a DD.MM.YYYY date, junk, or empty input', () => {
+    expect(Dates.splitExcelDate('05.11.2024')).toBeNull();
+    expect(Dates.splitExcelDate('not-a-date')).toBeNull();
+    expect(Dates.splitExcelDate('')).toBeNull();
+    expect(Dates.splitExcelDate(null)).toBeNull();
+  });
 });
 
 describe('Dates.futureDateByMonth', () => {
