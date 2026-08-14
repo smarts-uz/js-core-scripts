@@ -586,17 +586,23 @@ describe('Word.mergeFolder', () => {
 });
 
 describe('Word.makeContract', () => {
-  it('warns and returns undefined when the template is missing', () => {
-    configStore['Templates.Word'] = path.join(workDir, 'no-template.docx');
+  // Templates.Word is a FOLDER; makeContract picks the latest .docx inside it
+  // via Files.getLatestMatchingFile, same as Word.merge/Word.mergeFolder.
+  it('warns and returns undefined when the template folder has no .docx', () => {
+    const emptyFolder = path.join(workDir, 'no-template-folder');
+    fs.mkdirSync(emptyFolder, { recursive: true });
+    configStore['Templates.Word'] = emptyFolder;
     const result = Word.makeContract(path.join(workDir, 'data.yml'));
     expect(result).toBeUndefined();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
   });
 
   it('builds the output paths, ensures the contract folders and calls wordReplace', () => {
-    const template = path.join(workDir, 'Dogovor.docx');
+    const templateFolder = path.join(workDir, 'word-tpl-folder');
+    fs.mkdirSync(templateFolder, { recursive: true });
+    const template = path.join(templateFolder, 'Dogovor.docx');
     fs.writeFileSync(template, 'TPL', 'utf8');
-    configStore['Templates.Word'] = template;
+    configStore['Templates.Word'] = templateFolder;
 
     const yml = path.join(workDir, 'data.yml');
     fs.writeFileSync(yml, '', 'utf8');
@@ -628,9 +634,11 @@ describe('Word.makeContract', () => {
   });
 
   it('warns about a missing ContractNum and then throws building the path (documented quirk)', () => {
-    const template = path.join(workDir, 'Tpl.docx');
+    const templateFolder = path.join(workDir, 'word-tpl-folder-2');
+    fs.mkdirSync(templateFolder, { recursive: true });
+    const template = path.join(templateFolder, 'Tpl.docx');
     fs.writeFileSync(template, 'TPL', 'utf8');
-    configStore['Templates.Word'] = template;
+    configStore['Templates.Word'] = templateFolder;
     const yml = path.join(workDir, 'data.yml');
     fs.writeFileSync(yml, '', 'utf8');
     YamlsMock.loadYamlWithDeps.mockReturnValue({ Area: '50', MyCompany: 'X' });

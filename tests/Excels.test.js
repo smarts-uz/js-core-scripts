@@ -59,6 +59,25 @@ const FilesMock = {
   copyFileWithRetry: jest.fn((src, dest) => fs.copyFileSync(src, dest)),
   readLines: jest.fn((p) => fs.readFileSync(p, 'utf8').split(/\r?\n/).filter(Boolean)),
   getBaseName: jest.fn((p, ext) => path.basename(p, ext)),
+  // Excels.generate resolves Templates.Excel via Files.getLatestMatchingFile(folder,
+  // ext) — the newest matching file in the folder. Mirror that with a real fs scan,
+  // same shape as tests/Word.test.js's mock, so the on-disk template folder drives
+  // the pipeline for real.
+  getLatestMatchingFile: jest.fn((folder, ext) => {
+    if (!folder || !fs.existsSync(folder)) return null;
+    let latest = null;
+    let latestTime = -1;
+    for (const name of fs.readdirSync(folder)) {
+      if (ext && !name.toLowerCase().endsWith(String(ext).toLowerCase())) continue;
+      const full = path.join(folder, name);
+      const st = fs.statSync(full);
+      if (st.isFile() && st.mtimeMs > latestTime) {
+        latest = full;
+        latestTime = st.mtimeMs;
+      }
+    }
+    return latest;
+  }),
 };
 
 const DialogsMock = {
@@ -1343,11 +1362,16 @@ describe('Excels.generate', () => {
     globalThis.folderALL = folderALL;
     fs.mkdirSync(folderALL, { recursive: true });
 
-    // Template on disk; the pricing cell names come from config (Excel.CellNames).
-    const template = makeFile('Template.xlsx', 'tpl');
+    // Templates.Excel is a FOLDER; generate picks the latest .xlsx inside it via
+    // Files.getLatestMatchingFile, same as Word.makeContract/Word.merge. The
+    // pricing cell names come from config (Excel.CellNames).
+    const templateFolder = path.join(workDir, 'excel-tpl-folder');
+    fs.mkdirSync(templateFolder, { recursive: true });
+    const template = path.join(templateFolder, 'Template.xlsx');
+    fs.writeFileSync(template, 'tpl', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
-      if (key === 'Templates.Excel') return template;
+      if (key === 'Templates.Excel') return templateFolder;
       if (key === 'Excel.CellNames') return ['Region'];
       return null;
     });
@@ -1402,10 +1426,14 @@ describe('Excels.generate', () => {
     globalThis.folderActReco = path.join(workDir, 'ActReco2');
     globalThis.folderALL = path.join(workDir, 'ALL2');
     fs.mkdirSync(globalThis.folderALL, { recursive: true });
-    const template = makeFile('Tpl2.xlsx', 'tpl');
+    const templateFolder2 = path.join(workDir, 'excel-tpl-folder-2');
+    fs.mkdirSync(templateFolder2, { recursive: true });
+    fs.writeFileSync(path.join(templateFolder2, 'Tpl2.xlsx'), 'tpl', 'utf8');
     // Excel.CellNames not configured (returns null) → warning fires; the (empty)
     // cell-name loop is a no-op, so generate proceeds without throwing.
-    YamlsMock.getConfig.mockImplementation((key) => (key === 'Templates.Excel' ? template : null));
+    YamlsMock.getConfig.mockImplementation((key) =>
+      key === 'Templates.Excel' ? templateFolder2 : null
+    );
     YamlsMock.loadYamlWithDeps.mockReturnValue({ ComName: 'X' });
 
     // Callable Cells (processPricing does excelSheet.Cells(r,c).Value = …).
@@ -1442,10 +1470,12 @@ describe('Excels.generate', () => {
     globalThis.folderActReco = path.join(workDir, 'ActReco3');
     globalThis.folderALL = path.join(workDir, 'ALL3');
     fs.mkdirSync(globalThis.folderALL, { recursive: true });
-    const template = makeFile('Tpl3.xlsx', 'tpl');
+    const templateFolder3 = path.join(workDir, 'excel-tpl-folder-3');
+    fs.mkdirSync(templateFolder3, { recursive: true });
+    fs.writeFileSync(path.join(templateFolder3, 'Tpl3.xlsx'), 'tpl', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
-      if (key === 'Templates.Excel') return template;
+      if (key === 'Templates.Excel') return templateFolder3;
       if (key === 'Excel.CellNames') return ['Bank-OT'];
       return null;
     });

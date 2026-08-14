@@ -1053,7 +1053,13 @@ export class Excels {
 
     const prepayMonth = Yamls.getPrepayMonth(yamlData);
 
-    const templateFileName = Files.getBaseName(Yamls.getConfig('Templates.Excel'), '.xlsx');
+    const templateFolder = Yamls.getConfig('Templates.Excel');
+    const templatePath = Files.getLatestMatchingFile(templateFolder, '.xlsx');
+    if (!templatePath) {
+        Dialogs.warningBox(`No "Basename N".xlsx template found in: ${templateFolder}`, 'Error');
+        return;
+    }
+    const templateFileName = Files.getBaseName(templatePath, '.xlsx');
     const dateString = `${new Intl.DateTimeFormat('en-CA').format(new Date())}`;
 
     const actRecoFile = `ActReco, ${yamlData.ComName}, ${templateFileName}, ${dateString}, PrePay-${prepayMonth}.xlsx`;
@@ -1063,7 +1069,7 @@ export class Excels {
     console.log(`New file path: ${newFilePath}`);
 
     // Attempt to copy the file
-    Files.copyFileWithRetry(Yamls.getConfig('Templates.Excel'), newFilePath);
+    Files.copyFileWithRetry(templatePath, newFilePath);
 
     // 1. Read the ordered pricing cell/column names from config.yml (Excel.CellNames).
     const configuredCells = Yamls.getConfig('Excel.CellNames');

@@ -283,11 +283,12 @@ export class Word {
 
   static makeContract(ymlFile) {
     console.info(`[Word.makeContract] 🟢 Starting...`);
-    const templatePath = path.resolve(Yamls.getConfig("Templates.Word"));
+    const templateFolder = Yamls.getConfig("Templates.Word");
+    const templatePath = Files.getLatestMatchingFile(templateFolder, ".docx");
     console.log("Using template", templatePath);
 
-    if (!existsSync(templatePath)) {
-      Dialogs.warningBox(`Template file not found: ${templatePath}`, "Error");
+    if (!templatePath || !existsSync(templatePath)) {
+      Dialogs.warningBox(`No "Basename N".docx template found in: ${templateFolder}`, "Error");
       return;
     }
 
