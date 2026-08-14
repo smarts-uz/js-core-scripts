@@ -66,7 +66,7 @@ export class Yamls {
             throw new Error(`YAML file not found: ${filePath}`);
         }
 
-        const doc = yaml.load(fs.readFileSync(filePath, "utf8"));
+        const doc = yaml.load(fs.readFileSync(filePath, "utf8"), { schema: yaml.JSON_SCHEMA });
 
         // dot-prop resolves the nested dot-path (e.g. "Contract.Format"); the
         // ?? keeps the original fallback for both missing and null values.
@@ -129,6 +129,39 @@ export class Yamls {
         console.log(`File ${filePath} has been updated.`, value);
     }
 
+    // Strips quotes js-yaml adds around a plain key/value that doesn't
+    // actually need them (no space, no YAML-special leading/embedded char) —
+    // js-yaml quotes any scalar that LOOKS like a number/date/bool even when
+    // unquoted would round-trip fine, e.g. '2026-03-31': '3200000'. Only
+    // space-free scalars are eligible; a value containing a space always
+    // keeps its quotes. Every dump this project writes uses
+    // yaml.JSON_SCHEMA, under which an unquoted date-shaped key/value stays
+    // a plain string on reload (never resolved to a JS Date) — see
+    // #isSafeUnquoted/every yaml.load call in this class.
+    static #isSafeUnquoted(inner) {
+        if (inner === '') return false;
+        if (/\s/.test(inner)) return false;
+        if (/^(true|false|null|~|yes|no|on|off)$/i.test(inner)) return false;
+        if (/^[#&*!|>'"%@`]/.test(inner)) return false;
+        if (/^[-?:,[\]{}]/.test(inner)) return false;
+        if (inner.includes(': ') || inner.endsWith(':') || inner.includes(' #')) return false;
+        return true;
+    }
+
+    static #stripUnnecessaryQuotes(dumpedYamlText) {
+        return dumpedYamlText.split('\n').map(line => {
+            let out = line.replace(/^(\s*(?:-\s+)?)(['"])((?:[^'"\\]|\\.)*)\2(\s*:)/, (m, pre, q, inner, colon) => {
+                if (q === "'" && inner.includes("''")) return m;
+                return Yamls.#isSafeUnquoted(inner) ? `${pre}${inner}${colon}` : m;
+            });
+            out = out.replace(/(:\s+)(['"])((?:[^'"\\]|\\.)*)\2(\s*)$/, (m, pre, q, inner, trail) => {
+                if (q === "'" && inner.includes("''")) return m;
+                return Yamls.#isSafeUnquoted(inner) ? `${pre}${inner}${trail}` : m;
+            });
+            return out;
+        }).join('\n');
+    }
+
     // Generic writer for a single top-level "Key:" array block in a .contract
     // yaml — inserts/replaces it directly after the line matching `afterKey`
     // (e.g. "ActDateEnd" or "Accrual"), stripping any of `legacyKeys` (old
@@ -158,7 +191,9 @@ export class Yamls {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const lines = fileContent.split('\n');
 
-        const block = yaml.dump({ [key]: entries }, { lineWidth: -1 }).trimEnd().split('\n');
+        const block = Yamls.#stripUnnecessaryQuotes(
+            yaml.dump({ [key]: entries }, { lineWidth: -1, schema: yaml.JSON_SCHEMA })
+        ).trimEnd().split('\n');
 
         const keysToStrip = [key, ...legacyKeys].map(k => new RegExp(`^${k}:`));
         const stripped = [];
@@ -222,18 +257,24 @@ export class Yamls {
         console.log(`File ${filePath} has been updated with ${key}.`, entries);
     }
 
-    // Builds the Accrual: entries for every calendar month across the
-    // contract's active period (PeriodStart..PeriodEnd, both YYYY-MM-DD) —
-    // one "start#end": amount date-interval mapping per month, amount at the
-    // tariff's normal Price for a month paid on time. A month is re-priced at
-    // PriceMax by Yamls.applyPriceMaxToDebtMonths below, once the real
-    // payment chain (Loaners) for that month is known — this function alone
-    // only produces the Price-rate baseline.
+    // Builds Accrual: entries, every calendar month across contract's active
+    // period (PeriodStart..PeriodEnd, both YYYY-MM-DD) — one bare "start"
+    // (due date): amount mapping per month, at tariff's normal Price for
+    // on-time month. Month re-priced at PriceMax by
+    // Yamls.applyPriceMaxToDebtMonths below, once real payment chain
+    // (Loaners) for that month known — this function alone only produces
+    // Price-rate baseline.
     //
-    // The first period is prorated by real day count within its own calendar
-    // month, then rounded UP to the nearest 1,000 (never left fractional,
-    // never plain-rounded) — e.g. a 23-of-31-day first month at 390,000/mo
-    // is ceil(23/31*390000/1000)*1000 = 290,000.
+    // Every downstream chain block (Loaners/Faktura/PenaltyDays/Penalty)
+    // copies same bare-date key verbatim (computePaymentChain forwards
+    // as-is). Period's own end never carried in key — always end of key
+    // date's own calendar month, re-derived via Dates wherever still needed
+    // (computePenaltyDays).
+    //
+    // First period prorated by real day count within own calendar month,
+    // rounded UP to nearest 1,000 (never fractional, never plain-rounded).
+    // E.g. 23-of-31-day first month at 390,000/mo →
+    // ceil(23/31*390000/1000)*1000 = 290,000.
     static buildAccrualEntries(startDate, futureDate, price) {
         console.info(`[Yamls.buildAccrualEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate} price=${price}`);
 
@@ -249,7 +290,7 @@ export class Yamls {
                 ? priceNum
                 : Math.ceil((daysInPeriod / daysInMonth) * priceNum / 1000) * 1000;
 
-            return { [`${start}#${end}`]: amount.toLocaleString('en-US') };
+            return { [start]: amount.toLocaleString('en-US') };
         });
 
         console.log(`buildAccrualEntries: ${entries.length} entr(y/ies)`, entries);
@@ -271,11 +312,11 @@ export class Yamls {
         const loanersByKey = new Map((Array.isArray(loaners) ? loaners : []).map(e => Object.entries(e)[0]));
 
         return accrual.map(entry => {
-            const [intervalKey, amount] = Object.entries(entry)[0];
-            const debt = Number(String(loanersByKey.get(intervalKey) ?? '0').replace(/,/g, '')) || 0;
-            if (debt <= 0) return { [intervalKey]: amount };
+            const [start, amount] = Object.entries(entry)[0];
+            const debt = Number(String(loanersByKey.get(start) ?? '0').replace(/,/g, '')) || 0;
+            if (debt <= 0) return { [start]: amount };
 
-            const [start, end] = intervalKey.split('#');
+            const end = Dates.monthEnd(start);
             const daysInPeriod = Dates.daysBetween(start, end) + 1;
             const daysInMonth = Dates.daysInMonth(start);
             const isFullMonth = daysInPeriod === daysInMonth;
@@ -284,7 +325,7 @@ export class Yamls {
                 ? priceMaxNum
                 : Math.ceil((daysInPeriod / daysInMonth) * priceMaxNum / 1000) * 1000;
 
-            return { [intervalKey]: newAmount.toLocaleString('en-US') };
+            return { [start]: newAmount.toLocaleString('en-US') };
         });
     }
 
@@ -324,18 +365,18 @@ export class Yamls {
         return { payment, loaners };
     }
 
-    // Distributes the real EHF-IN invoice amounts across the FINAL (already
-    // recomputeChain-settled) Accrual periods, same "start#end" shape as
-    // Payment — chains the total invoiced sum across accrual's periods in
-    // order via computePaymentChain, keeping only its `payment` half (a
-    // month's own Loaners-vs-invoice split has no meaning here, EHF-IN is a
-    // document, not cash). Once the whole EHF-IN sum is exhausted, every
-    // remaining period gets 0 — computePaymentChain already produces exactly
-    // that once its running `remaining` pool hits zero.
+    // Distributes real EHF-IN invoice amounts across FINAL (already
+    // recomputeChain-settled) Accrual periods, same bare-date key as Payment
+    // — chains total invoiced sum across accrual's periods in order via
+    // computePaymentChain, keeping only `payment` half (month's own
+    // Loaners-vs-invoice split has no meaning here, EHF-IN is document, not
+    // cash). Once whole EHF-IN sum exhausted, every remaining period gets 0
+    // — computePaymentChain already produces exactly that once running
+    // `remaining` pool hits zero.
     //
-    // Returns [{ "monthStart#monthEnd": amount }, ..., { ALL: sum }], same
-    // order/shape as Payment/Loaners (accrual's own trailing { ALL } entry is
-    // skipped — computePaymentChain expects bare period entries).
+    // Returns [{ "start": amount }, ..., { ALL: sum }], same order/shape as
+    // Payment/Loaners (accrual's own trailing { ALL } entry skipped —
+    // computePaymentChain expects bare period entries).
     static computeFaktura(accrual, ehfIn) {
         console.info(`[Yamls.computeFaktura] 🟢 Starting...`);
 
@@ -463,15 +504,17 @@ export class Yamls {
     // A day where balance recovers to >= 0 resets the grace window — a LATER
     // deficit starts its own fresh 1-day grace period.
     //
-    // Returns [{ "monthStart#monthEnd": penaltyDayCount }, ..., { ALL: sum }]
-    // — one entry per Accrual period (same order/shape as Payment/Loaners).
+    // Returns [{ "start": penaltyDayCount }, ..., { ALL: sum }] — one
+    // bare-date-keyed entry per Accrual period, same key shape as
+    // Accrual/Payment/Loaners. Period's own end never carried in key —
+    // always end of key date's own calendar month, re-derived via
+    // Dates.monthEnd.
     static computePenaltyDays(accrual, ledger) {
         console.info(`[Yamls.computePenaltyDays] 🟢 Starting...`);
 
         const periods = accrual.filter(e => !('ALL' in e)).map(e => {
-            const [intervalKey] = Object.entries(e)[0];
-            const [start, end] = intervalKey.split('#');
-            return { intervalKey, start, end };
+            const [start] = Object.entries(e)[0];
+            return { start, end: Dates.monthEnd(start) };
         });
 
         let deficitStreak = 0;
@@ -487,12 +530,12 @@ export class Yamls {
             }
         }
 
-        const result = periods.map(({ intervalKey, start, end }) => {
+        const result = periods.map(({ start, end }) => {
             let count = 0;
             for (const date of penaltyDaysByDate.keys()) {
                 if (date >= start && date <= end) count++;
             }
-            return { [intervalKey]: count };
+            return { [start]: count };
         });
 
         const total = result.reduce((s, e) => s + Object.values(e)[0], 0);
@@ -507,8 +550,8 @@ export class Yamls {
     // 50,000) — no cap, no CapRatio; every late day costs the same fixed
     // amount, straight multiplication.
     //
-    // Returns [{ "monthStart#monthEnd": penaltyAmount }, ..., { ALL: sum }],
-    // same order/shape as PenaltyDays.
+    // Returns [{ "start": penaltyAmount }, ..., { ALL: sum }], same
+    // order/shape as PenaltyDays.
     static computePenalty(penaltyDays, penaltyForDay) {
         console.info(`[Yamls.computePenalty] 🟢 Starting... penaltyForDay=${penaltyForDay}`);
 
@@ -597,8 +640,8 @@ export class Yamls {
     // anchoring on ActDateEnd would insert Accrual BEFORE them, corrupting
     // the field order every time replaceYaml runs against a fresh file.
     //   Accrual:
-    //     - 2026-03-01#2026-03-31: 450,000
-    //     - 2026-04-01#2026-04-30: 450,000
+    //     - 2026-03-01: 450,000
+    //     - 2026-04-01: 450,000
     //     - ALL: 900,000
     static writeAccrual(filePath, accrual) {
         console.info(`[Yamls.writeAccrual] 🟢 Starting...`);
@@ -622,8 +665,8 @@ export class Yamls {
     // Writes/replaces the Loaners: array block directly after Faktura: —
     // per-period outstanding debt (the mirror of Payment).
     //   Loaners:
-    //     - 2026-03-01#2026-03-31: 0
-    //     - 2026-04-01#2026-04-30: 450,000
+    //     - 2026-03-01: 0
+    //     - 2026-04-01: 450,000
     //     - ALL: 450,000
     static writeLoaners(filePath, loaners) {
         console.info(`[Yamls.writeLoaners] 🟢 Starting...`);
@@ -636,8 +679,8 @@ export class Yamls {
     // from (Penalty[i] = PenaltyDays[i] * PenaltyForDay). See
     // computeDailyBalance/computePenaltyDays.
     //   PenaltyDays:
-    //     - 2026-07-01#2026-07-31: 3
-    //     - 2026-08-01#2026-08-31: 0
+    //     - 2026-07-01: 3
+    //     - 2026-08-01: 0
     //     - ALL: 3
     static writePenaltyDays(filePath, penaltyDays) {
         console.info(`[Yamls.writePenaltyDays] 🟢 Starting...`);
@@ -649,8 +692,8 @@ export class Yamls {
     // chain is always written as one contiguous run of blocks anchored off
     // ComBase (see writeAccrual).
     //   Penalty:
-    //     - 2026-07-01#2026-07-31: 150,000
-    //     - 2026-08-01#2026-08-31: 0
+    //     - 2026-07-01: 150,000
+    //     - 2026-08-01: 0
     //     - ALL: 150,000
     static writePenalty(filePath, penalty) {
         console.info(`[Yamls.writePenalty] 🟢 Starting...`);
@@ -661,8 +704,8 @@ export class Yamls {
     // real EHF-IN invoice sum distributed across the final Accrual periods
     // (see computeFaktura), same shape as Payment.
     //   Faktura:
-    //     - 2026-03-01#2026-03-31: 450,000
-    //     - 2026-04-01#2026-04-30: 0
+    //     - 2026-03-01: 450,000
+    //     - 2026-04-01: 0
     //     - ALL: 450,000
     static writeFaktura(filePath, faktura) {
         console.info(`[Yamls.writeFaktura] 🟢 Starting...`);
@@ -1752,7 +1795,9 @@ export class Yamls {
         }
 
         if (mergedData) {
-            const dumpStr = yaml.dump(mergedData, { lineWidth: -1 });
+            const dumpStr = Yamls.#stripUnnecessaryQuotes(
+                yaml.dump(mergedData, { lineWidth: -1, schema: yaml.JSON_SCHEMA })
+            );
             const baseFolder = path.basename(path.resolve(folderPath));
             const outPath = path.join(appFolder, `${baseFolder}.yml`);
             const finalOutPath = Files.incrementFileName(outPath);
@@ -1778,12 +1823,15 @@ export class Yamls {
             throw new Error(`Config file not found: ${configPath}`);
         }
 
-        const doc = yaml.load(fs.readFileSync(configPath, 'utf8')) ?? {};
+        const doc = yaml.load(fs.readFileSync(configPath, 'utf8'), { schema: yaml.JSON_SCHEMA }) ?? {};
 
         // dot-prop sets the nested dot-path, auto-creating intermediate objects.
         setProperty(doc, keyPath, value);
 
-        fs.writeFileSync(configPath, yaml.dump(doc, { lineWidth: -1, quotingType: '"' }), 'utf8');
+        const dumpStr = Yamls.#stripUnnecessaryQuotes(
+            yaml.dump(doc, { lineWidth: -1, quotingType: '"', schema: yaml.JSON_SCHEMA })
+        );
+        fs.writeFileSync(configPath, dumpStr, 'utf8');
         console.log(`✅ setConfig: ${keyPath} = ${value}`);
     }
 

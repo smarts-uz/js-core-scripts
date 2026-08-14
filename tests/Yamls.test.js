@@ -373,22 +373,22 @@ describe('Yamls.writeAccrual', () => {
         '  - 2026-01-01#2026-01-31: 450,000',
         '',
         'Payment:',
-        "  - '2026-01-01': 450,000",
+        '  - 2026-01-01: 450,000',
         '',
         'Faktura:',
-        "  - 2026-01-01#2026-01-31: '0'",
+        '  - 2026-01-01#2026-01-31: 0',
         '',
         'Loaners:',
-        "  - 2026-01-01#2026-01-31: '0'",
+        '  - 2026-01-01#2026-01-31: 0',
         '',
         'PenaltyDays:',
         '  - 2026-01-01#2026-01-31: 0',
         '',
         'Penalty:',
-        "  - 2026-01-01#2026-01-31: '0'",
+        '  - 2026-01-01#2026-01-31: 0',
         '',
         'Returns:',
-        "  - '2026-01-05': 10,000",
+        '  - 2026-01-05: 10,000',
       ].join('\n')
     );
   });
@@ -453,15 +453,14 @@ describe('Yamls.mergeDateKeyedArrays', () => {
 
 describe('Yamls.computeDailyBalance', () => {
   it('debits daily pro-rated Accrual, credits Payment, debits Returns on their own dates', () => {
-    const accrual = [{ '2026-01-01#2026-01-02': '200,000' }, { ALL: '200,000' }];
+    const accrual = [{ '2026-01-01': '200,000' }, { ALL: '200,000' }];
     const payment = [{ '2026-01-01': '100,000' }];
     const returns = [{ '2026-01-02': '10,000' }];
 
     const ledger = Yamls.computeDailyBalance('2026-01-01', '2026-01-02', accrual, payment, returns);
 
     expect(ledger).toHaveLength(2);
-    // day 1: 0 - 100,000 (accrual, 200000/31 days in Jan... actually accrual
-    // here spans a custom 2-day interval, dailyAccrual is monthAccrual /
+    // Accrual bucketed by month (2026-01), dailyAccrual = monthAccrual /
     // daysInMonth(Jan 2026) = 200000/31.
     const dailyAccrual = 200000 / 31;
     expect(ledger[0].date).toBe('2026-01-01');
@@ -479,18 +478,19 @@ describe('Yamls.computeDailyBalance', () => {
 
 describe('Yamls.computePenaltyDays', () => {
   it('never counts the FIRST consecutive deficit day (1-day grace period)', () => {
-    const accrual = [{ '2026-01-01#2026-01-03': '300,000' }];
+    // Period end re-derived via Dates.monthEnd('2026-01-01') = '2026-01-31'.
+    const accrual = [{ '2026-01-01': '300,000' }];
     const ledger = [
       { date: '2026-01-01', balance: -100 },
       { date: '2026-01-02', balance: -100 },
       { date: '2026-01-03', balance: -100 },
     ];
     const result = Yamls.computePenaltyDays(accrual, ledger);
-    expect(result).toEqual([{ '2026-01-01#2026-01-03': 2 }, { ALL: 2 }]);
+    expect(result).toEqual([{ '2026-01-01': 2 }, { ALL: 2 }]);
   });
 
   it('resets the grace period once balance recovers to >= 0', () => {
-    const accrual = [{ '2026-01-01#2026-01-04': '400,000' }];
+    const accrual = [{ '2026-01-01': '400,000' }];
     const ledger = [
       { date: '2026-01-01', balance: -100 },
       { date: '2026-01-02', balance: -100 },
@@ -498,19 +498,29 @@ describe('Yamls.computePenaltyDays', () => {
       { date: '2026-01-04', balance: -50 },
     ];
     const result = Yamls.computePenaltyDays(accrual, ledger);
-    expect(result).toEqual([{ '2026-01-01#2026-01-04': 1 }, { ALL: 1 }]);
+    expect(result).toEqual([{ '2026-01-01': 1 }, { ALL: 1 }]);
   });
 
   it('counts 0 penalty days when balance never goes negative', () => {
-    const accrual = [{ '2026-01-01#2026-01-02': '100,000' }];
+    const accrual = [{ '2026-01-01': '100,000' }];
     const ledger = [
       { date: '2026-01-01', balance: 100 },
       { date: '2026-01-02', balance: 50 },
     ];
-    expect(Yamls.computePenaltyDays(accrual, ledger)).toEqual([
-      { '2026-01-01#2026-01-02': 0 },
-      { ALL: 0 },
-    ]);
+    expect(Yamls.computePenaltyDays(accrual, ledger)).toEqual([{ '2026-01-01': 0 }, { ALL: 0 }]);
+  });
+
+  it('attributes penalty days only to the period whose own calendar month they fall in', () => {
+    // Two periods, Jan and Feb — a deficit streak spanning the month
+    // boundary must split across both periods' own Dates.monthEnd bounds.
+    const accrual = [{ '2026-01-30': '300,000' }, { '2026-02-01': '300,000' }];
+    const ledger = [
+      { date: '2026-01-30', balance: -100 }, // grace day, Jan period
+      { date: '2026-01-31', balance: -100 }, // 1st penalty day, Jan period
+      { date: '2026-02-01', balance: -100 }, // 2nd consecutive, Feb period
+    ];
+    const result = Yamls.computePenaltyDays(accrual, ledger);
+    expect(result).toEqual([{ '2026-01-30': 1 }, { '2026-02-01': 1 }, { ALL: 2 }]);
   });
 });
 
@@ -592,7 +602,7 @@ describe('Yamls.writeCellArrays', () => {
 
     const content = read(workDir, 't.contract');
     expect(content).toContain('Bank-OT:');
-    expect(content).toContain("'2025-07-09': '4200000'");
+    expect(content).toContain('2025-07-09: 4200000');
     expect(content).toContain('Bonuses: []');
     expect(content).toContain('PrepayMonth:');
   });
@@ -616,9 +626,9 @@ describe('Yamls.writeCellArrays', () => {
 
 describe('Yamls.computeFaktura', () => {
   const accrual = [
-    { '2026-01-01#2026-01-31': '390,000' },
-    { '2026-02-01#2026-02-28': '390,000' },
-    { '2026-03-01#2026-03-31': '390,000' },
+    { '2026-01-01': '390,000' },
+    { '2026-02-01': '390,000' },
+    { '2026-03-01': '390,000' },
     { ALL: '1,170,000' }, // trailing ALL entry must be ignored, like Loaners/Penalty do
   ];
 
@@ -626,9 +636,9 @@ describe('Yamls.computeFaktura', () => {
     const ehfIn = [{ '2025-09-10': '500000' }];
     const result = Yamls.computeFaktura(accrual, ehfIn);
     expect(result).toEqual([
-      { '2026-01-01#2026-01-31': '390,000' },
-      { '2026-02-01#2026-02-28': '110,000' },
-      { '2026-03-01#2026-03-31': '0' },
+      { '2026-01-01': '390,000' },
+      { '2026-02-01': '110,000' },
+      { '2026-03-01': '0' },
       { ALL: '500,000' },
     ]);
   });
@@ -637,9 +647,9 @@ describe('Yamls.computeFaktura', () => {
     const ehfIn = [{ '2025-09-10': '390000' }];
     const result = Yamls.computeFaktura(accrual, ehfIn);
     expect(result).toEqual([
-      { '2026-01-01#2026-01-31': '390,000' },
-      { '2026-02-01#2026-02-28': '0' },
-      { '2026-03-01#2026-03-31': '0' },
+      { '2026-01-01': '390,000' },
+      { '2026-02-01': '0' },
+      { '2026-03-01': '0' },
       { ALL: '390,000' },
     ]);
   });
@@ -650,9 +660,9 @@ describe('Yamls.computeFaktura', () => {
     const ehfIn = [{ '2025-09-10': '2000000' }];
     const result = Yamls.computeFaktura(accrual, ehfIn);
     expect(result).toEqual([
-      { '2026-01-01#2026-01-31': '390,000' },
-      { '2026-02-01#2026-02-28': '390,000' },
-      { '2026-03-01#2026-03-31': '390,000' },
+      { '2026-01-01': '390,000' },
+      { '2026-02-01': '390,000' },
+      { '2026-03-01': '390,000' },
       { ALL: '1,170,000' },
     ]);
   });
@@ -660,9 +670,9 @@ describe('Yamls.computeFaktura', () => {
   it('returns 0 for every period and ALL: 0 when there is no EHF-IN at all', () => {
     const result = Yamls.computeFaktura(accrual, []);
     expect(result).toEqual([
-      { '2026-01-01#2026-01-31': '0' },
-      { '2026-02-01#2026-02-28': '0' },
-      { '2026-03-01#2026-03-31': '0' },
+      { '2026-01-01': '0' },
+      { '2026-02-01': '0' },
+      { '2026-03-01': '0' },
       { ALL: '0' },
     ]);
   });
@@ -673,23 +683,23 @@ describe('Yamls.writeFaktura', () => {
     const f = path.join(workDir, 't.contract');
     fs.writeFileSync(
       f,
-      'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\nPayment:\n  - 2026-01-01#2026-01-31: 390,000\nPrepayMonth: \n',
+      'ActDateEnd: \nAccrual:\n  - 2026-01-01: 390,000\nPayment:\n  - 2026-01-01: 390,000\nPrepayMonth: \n',
       'utf8'
     );
 
-    Yamls.writeFaktura(f, [{ '2026-01-01#2026-01-31': '390,000' }, { ALL: '390,000' }]);
+    Yamls.writeFaktura(f, [{ '2026-01-01': '390,000' }, { ALL: '390,000' }]);
 
     const lines = read(workDir, 't.contract').split('\n');
     const paymentIdx = lines.findIndex((l) => l.startsWith('Payment:'));
     const fakturaIdx = lines.findIndex((l) => l.startsWith('Faktura:'));
     expect(fakturaIdx).toBeGreaterThan(paymentIdx);
-    expect(lines[fakturaIdx + 1]).toBe('  - 2026-01-01#2026-01-31: 390,000');
+    expect(lines[fakturaIdx + 1]).toBe('  - 2026-01-01: 390,000');
     expect(read(workDir, 't.contract')).toContain('PrepayMonth:');
   });
 
   it('writes an empty Faktura: [] block (allowEmpty=true) when faktura is empty', () => {
     const f = path.join(workDir, 't2.contract');
-    fs.writeFileSync(f, 'Payment:\n  - 2026-01-01#2026-01-31: 390,000\n', 'utf8');
+    fs.writeFileSync(f, 'Payment:\n  - 2026-01-01: 390,000\n', 'utf8');
 
     Yamls.writeFaktura(f, []);
 
@@ -819,11 +829,13 @@ describe('Yamls.mergeYamlsInFolder', () => {
     const appDir = path.join(workDir, 'App');
     const files = fs.readdirSync(appDir).filter((n) => n.endsWith('.yml'));
     expect(files).toHaveLength(1);
-    const merged = yaml.load(fs.readFileSync(path.join(appDir, files[0]), 'utf8'));
-    // loadAndParseYaml's preprocessor quotes bare digit values, so numbers
-    // round-trip as strings ("1"/"2") — this asserts that real behavior.
-    expect(merged.Alpha).toBe('1');
-    expect(merged.Beta).toBe('2');
+    const merged = yaml.load(fs.readFileSync(path.join(appDir, files[0]), 'utf8'), {
+      schema: yaml.JSON_SCHEMA,
+    });
+    // A bare digit value has no space, so it is written unquoted (never
+    // quoted just to force string type) and round-trips as a number.
+    expect(merged.Alpha).toBe(1);
+    expect(merged.Beta).toBe(2);
     // first occurrence wins; duplicate key skipped (order depends on findRecursiveFull)
     expect(merged.Shared).toBeOneOf(['first', 'second']);
   });
