@@ -193,13 +193,14 @@ export class Excels {
       .map(f => path.join(folderPath, f));
   }
 
-  // Reads yamlData.Accrual — the "start#end": amount date-interval array
-  // Yamls.recomputeChain/writeAccrual already writes into the .contract
-  // yaml — and writes one row per entry starting at the {Accrual}
-  // placeholder's cell (found.Column = C, "Начало"): C=start date,
-  // D=end date ("Конец", inserted this session so every start#end block
-  // shows its real period, not just the start), amount goes to E
-  // ("Стоимость"). The SAME amount is ALSO written to column G
+  // Reads yamlData.Accrual — bare-date "start": amount array
+  // Yamls.recomputeChain/writeAccrual already writes into .contract yaml
+  // (period's own end never carried in key, only due date is) — writes one
+  // row per entry starting at {Accrual} placeholder's cell (found.Column =
+  // C, "Начало"): C=start date, D=end date ("Конец" — same start date;
+  // split('#') on bare key yields no second half, end ?? start falls back
+  // to it), amount goes to E ("Стоимость"). SAME amount ALSO written to
+  // column G
   // (found.Column + 4, "Сумма", one column further right than before the
   // Конец column insertion), whose row-3 cell (G3) carries a real
   // =SUM(G4:G172)-shaped formula that re-derives the Accrual grand total
@@ -236,12 +237,12 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Penalty — the "start#end": amount per-month late-payment
-  // penalty (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a
-  // fixed daily rate, no CapRatio) array Yamls.replaceYaml already writes
-  // into the .contract yaml — and writes one row per entry (interval
-  // start date, penalty amount) starting at the {Penalty} placeholder's
-  // cell. The trailing { ALL: sum } entry is skipped (no "ALL" date to
+  // Reads yamlData.Penalty — bare-date "start": amount per-month
+  // late-payment penalty (пеня/неустойка, §21.1 — PenaltyDays[i] *
+  // Penalty.PerDay, a fixed daily rate, no CapRatio) array Yamls.replaceYaml
+  // already writes into the .contract yaml — and writes one row per entry
+  // (start date, penalty amount) starting at {Penalty} placeholder's
+  // cell. Trailing { ALL: sum } entry skipped (no "ALL" date to
   // write a row for). Always runs (no ON/OFF flag) — mirrors processPayment's
   // own unconditional shape. When the template has no {Penalty} placeholder
   // cell (an older Excel template predating this feature), warns and skips
@@ -338,12 +339,12 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.PenaltyDays — the "start#end": dayCount per-period
-  // late-payment day-count array Yamls.writePenaltyDays writes into the
+  // Reads yamlData.PenaltyDays — bare-date "start": dayCount per-period
+  // late-payment day-count array Yamls.writePenaltyDays writes into
   // .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay) — writes
-  // one row per entry (interval start/end date, day count) starting at the
-  // {PenaltyDays} placeholder's cell. The trailing { ALL: sum } entry is
-  // skipped. Always runs (no ON/OFF flag), same as processPenalty.
+  // one row per entry (start date, day count) starting at {PenaltyDays}
+  // placeholder's cell. Trailing { ALL: sum } entry skipped. Always runs
+  // (no ON/OFF flag), same as processPenalty.
   static processPenaltyDays(yamlData) {
     console.info(`[Excels.processPenaltyDays] 🟢 Starting...`);
 
@@ -371,12 +372,13 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Faktura — the "start#end": amount per-period real EHF-IN
-  // invoice sum distributed across Accrual's periods (Yamls.computeFaktura/
-  // writeFaktura) — and writes one row per entry (interval start/end date,
-  // amount) starting at the {Faktura} placeholder's cell. The trailing
-  // { ALL: sum } entry is skipped. Always runs (no ON/OFF flag) — mirrors
-  // processAccrual/processLoaners' own unconditional, interval-keyed shape.
+  // Reads yamlData.Faktura — bare-date "start": amount per-period real
+  // EHF-IN invoice sum distributed across Accrual's periods
+  // (Yamls.computeFaktura/writeFaktura) — writes one row per entry (start
+  // date, amount) starting at {Faktura} placeholder's cell. Trailing
+  // { ALL: sum } entry skipped. Always runs (no ON/OFF flag) — mirrors
+  // processAccrual/processLoaners' own unconditional, bare-date-keyed
+  // shape.
   static processFaktura(yamlData) {
     console.info(`[Excels.processFaktura] 🟢 Starting...`);
 
@@ -404,11 +406,11 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Loaners — the "start#end": amount per-period outstanding
-  // debt array Yamls.recomputeChain/writeLoaners writes into the .contract
-  // yaml — and writes one row per entry (interval start date, debt amount)
-  // starting at the {Loaners} placeholder's cell. The trailing
-  // { ALL: sum } entry is skipped. Always runs — mirrors processPayment.
+  // Reads yamlData.Loaners — bare-date "start": amount per-period
+  // outstanding debt array Yamls.recomputeChain/writeLoaners writes into
+  // .contract yaml — writes one row per entry (start date, debt amount)
+  // starting at {Loaners} placeholder's cell. Trailing { ALL: sum } entry
+  // skipped. Always runs — mirrors processPayment.
   static processLoaners(yamlData) {
     console.info(`[Excels.processLoaners] 🟢 Starting...`);
 

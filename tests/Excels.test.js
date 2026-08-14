@@ -459,15 +459,11 @@ describe('Excels.processAccrual', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.Accrual entry, using each interval's start/end date", () => {
+  it('writes one row per yamlData.Accrual entry, using each bare start (due) date', () => {
     const sheet = installSheet({ Row: 5, Column: 2 });
 
     Excels.processAccrual({
-      Accrual: [
-        { '2025-07-09#2025-07-31': '390,000' },
-        { '2025-08-01#2025-08-31': '390,000' },
-        { ALL: '780,000' },
-      ],
+      Accrual: [{ '2025-07-09': '390,000' }, { '2025-08-01': '390,000' }, { ALL: '780,000' }],
     });
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Accrual');
@@ -492,9 +488,7 @@ describe('Excels.processAccrual', () => {
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
 
-    expect(() =>
-      Excels.processAccrual({ Accrual: [{ '2026-01-01#2026-01-31': '390,000' }] })
-    ).not.toThrow();
+    expect(() => Excels.processAccrual({ Accrual: [{ '2026-01-01': '390,000' }] })).not.toThrow();
   });
 });
 
@@ -547,11 +541,11 @@ describe('Excels.processFaktura', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.Faktura entry, using each interval's start/end date", () => {
+  it('writes one row per yamlData.Faktura entry, using each bare start (due) date', () => {
     const sheet = installSheet({ Row: 4, Column: 43 });
 
     Excels.processFaktura({
-      Faktura: [{ '2026-03-31#2026-04-30': '3,200,000' }, { ALL: '3,200,000' }],
+      Faktura: [{ '2026-03-31': '3,200,000' }, { ALL: '3,200,000' }],
     });
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Faktura');
@@ -572,9 +566,7 @@ describe('Excels.processFaktura', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
-    expect(() =>
-      Excels.processFaktura({ Faktura: [{ '2026-03-31#2026-04-30': '3,200,000' }] })
-    ).not.toThrow();
+    expect(() => Excels.processFaktura({ Faktura: [{ '2026-03-31': '3,200,000' }] })).not.toThrow();
   });
 });
 
@@ -612,7 +604,7 @@ describe('Excels.processReturns', () => {
 });
 
 // =============================================================================
-// processLoaners — always runs, interval-keyed, mirrors processAccrual's shape
+// processLoaners — always runs, bare-date-keyed, mirrors processAccrual's shape
 // =============================================================================
 describe('Excels.processLoaners', () => {
   function installSheet(found = { Row: 5, Column: 9 }) {
@@ -623,11 +615,11 @@ describe('Excels.processLoaners', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.Loaners entry, using each interval's start/end date", () => {
+  it('writes one row per yamlData.Loaners entry, using each bare start (due) date', () => {
     const sheet = installSheet({ Row: 5, Column: 9 });
 
     Excels.processLoaners({
-      Loaners: [{ '2026-09-01#2026-09-30': '860,000' }, { ALL: '860,000' }],
+      Loaners: [{ '2026-09-01': '860,000' }, { ALL: '860,000' }],
     });
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Loaners');
@@ -648,9 +640,7 @@ describe('Excels.processLoaners', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
-    expect(() =>
-      Excels.processLoaners({ Loaners: [{ '2026-09-01#2026-09-30': '860,000' }] })
-    ).not.toThrow();
+    expect(() => Excels.processLoaners({ Loaners: [{ '2026-09-01': '860,000' }] })).not.toThrow();
   });
 });
 
@@ -666,11 +656,11 @@ describe('Excels.processPenaltyDays', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.PenaltyDays entry, using each interval's start date", () => {
+  it('writes one row per yamlData.PenaltyDays entry, using each bare start date', () => {
     const sheet = installSheet({ Row: 4, Column: 37 });
 
     Excels.processPenaltyDays({
-      PenaltyDays: [{ '2026-06-01#2026-06-30': 6 }, { '2026-07-01#2026-07-31': 0 }, { ALL: 6 }],
+      PenaltyDays: [{ '2026-06-01': 6 }, { '2026-07-01': 0 }, { ALL: 6 }],
     });
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PenaltyDays');
@@ -693,9 +683,7 @@ describe('Excels.processPenaltyDays', () => {
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
 
-    expect(() =>
-      Excels.processPenaltyDays({ PenaltyDays: [{ '2026-06-01#2026-06-30': 6 }] })
-    ).not.toThrow();
+    expect(() => Excels.processPenaltyDays({ PenaltyDays: [{ '2026-06-01': 6 }] })).not.toThrow();
   });
 });
 
@@ -711,11 +699,11 @@ describe('Excels.processPenalty', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.Penalty entry, using each interval's start date", () => {
+  it('writes one row per yamlData.Penalty entry, using each bare start date', () => {
     const sheet = installSheet({ Row: 5, Column: 15 });
 
     Excels.processPenalty({
-      Penalty: [{ '2026-01-01#2026-01-31': '250,000' }, { '2026-02-01#2026-02-28': '0' }],
+      Penalty: [{ '2026-01-01': '250,000' }, { '2026-02-01': '0' }],
     });
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Penalty');
@@ -736,9 +724,7 @@ describe('Excels.processPenalty', () => {
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
 
-    expect(() =>
-      Excels.processPenalty({ Penalty: [{ '2026-01-01#2026-01-31': '250,000' }] })
-    ).not.toThrow();
+    expect(() => Excels.processPenalty({ Penalty: [{ '2026-01-01': '250,000' }] })).not.toThrow();
   });
 });
 
@@ -1455,7 +1441,7 @@ describe('Excels.generate', () => {
     });
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
-      Accrual: [{ '2025-07-09#2025-07-31': '390,000' }],
+      Accrual: [{ '2025-07-09': '390,000' }],
       'Bank-OT': [{ '2025-07-11': '2340000' }],
     });
 

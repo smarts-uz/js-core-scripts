@@ -145,6 +145,17 @@ export class Dates {
     return days;
   }
 
+  // Last calendar day ('YYYY-MM-DD') of month containing 'YYYY-MM-DD'
+  // dateExcel — e.g. '2026-01-19' -> '2026-01-31'. Re-derives period's own
+  // end when only bare start date carried (Accrual's key, every chain
+  // block synced to it).
+  static monthEnd(dateExcel) {
+    console.info(`[Dates.monthEnd] 🟢 Starting...`);
+    const end = dayjs(dateExcel, 'YYYY-MM-DD').endOf('month').format('YYYY-MM-DD');
+    console.log("monthEnd end", end);
+    return end;
+  }
+
   // Whole calendar days between two 'YYYY-MM-DD' dates (end - start). Negative
   // when end is before start; 0 when equal. Used to turn a payment-delay
   // date range into a day count for a fixed-per-day penalty (пеня/неустойка).

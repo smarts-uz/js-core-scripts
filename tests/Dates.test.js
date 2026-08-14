@@ -197,6 +197,19 @@ describe('Dates.monthsBetween', () => {
   });
 });
 
+describe('Dates.monthEnd', () => {
+  it('returns the last calendar day of the month containing dateExcel', () => {
+    expect(Dates.monthEnd('2026-01-19')).toBe('2026-01-31');
+    expect(Dates.monthEnd('2026-02-01')).toBe('2026-02-28');
+    expect(Dates.monthEnd('2024-02-01')).toBe('2024-02-29'); // leap year
+    expect(Dates.monthEnd('2026-04-15')).toBe('2026-04-30');
+  });
+
+  it('is a no-op when dateExcel already is the last day of its month', () => {
+    expect(Dates.monthEnd('2026-01-31')).toBe('2026-01-31');
+  });
+});
+
 describe('Dates.daysBetween', () => {
   it('returns the whole-day count between two YYYY-MM-DD dates', () => {
     expect(Dates.daysBetween('2026-07-31', '2026-08-10')).toBe(10);

@@ -275,26 +275,26 @@ describe('Yamls.writeAccrual', () => {
       'utf8'
     );
 
-    Yamls.writeAccrual(f, [{ '2026-03-01#2026-03-31': '450,000' }]);
+    Yamls.writeAccrual(f, [{ '2026-03-01': '450,000' }]);
 
     const lines = read(workDir, 't.contract').split('\n');
     const comBaseIdx = lines.findIndex((l) => l.startsWith('ComBase:'));
     expect(lines[comBaseIdx + 1]).toBe('');
     expect(lines[comBaseIdx + 2]).toBe('Accrual:');
-    expect(lines[comBaseIdx + 3]).toBe('  - 2026-03-01#2026-03-31: 450,000');
+    expect(lines[comBaseIdx + 3]).toBe('  - 2026-03-01: 450,000');
   });
 
   it('replaces an existing Accrual block instead of duplicating it', () => {
     const f = path.join(workDir, 't2.contract');
     fs.writeFileSync(f, 'ComBase: Устава\nPrepayMonth: \n', 'utf8');
 
-    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '100,000' }]);
-    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '200,000' }]);
+    Yamls.writeAccrual(f, [{ '2026-01-01': '100,000' }]);
+    Yamls.writeAccrual(f, [{ '2026-01-01': '200,000' }]);
 
     const content = read(workDir, 't2.contract');
     expect(content.match(/^Accrual:/gm)).toHaveLength(1);
-    expect(content).toContain('2026-01-01#2026-01-31: 200,000');
-    expect(content).not.toContain('2026-01-01#2026-01-31: 100,000');
+    expect(content).toContain('2026-01-01: 200,000');
+    expect(content).not.toContain('2026-01-01: 100,000');
     expect(content).toContain('PrepayMonth:');
   });
 
@@ -306,13 +306,13 @@ describe('Yamls.writeAccrual', () => {
       'utf8'
     );
 
-    Yamls.writeAccrual(f, [{ '2025-07-09#2025-07-31': '390,000' }]);
+    Yamls.writeAccrual(f, [{ '2025-07-09': '390,000' }]);
 
     const content = read(workDir, 't2b.contract');
     expect(content).not.toContain('PriceHistory:');
     expect(content).not.toContain('July 2025');
     expect(content.match(/^Accrual:/gm)).toHaveLength(1);
-    expect(content).toContain('2025-07-09#2025-07-31: 390,000');
+    expect(content).toContain('2025-07-09: 390,000');
     expect(content).toContain('PrepayMonth:');
   });
 
@@ -320,17 +320,14 @@ describe('Yamls.writeAccrual', () => {
     const f = path.join(workDir, 't3.contract');
     fs.writeFileSync(f, 'ComBase: Устава\n', 'utf8');
 
-    Yamls.writeAccrual(f, [
-      { '2026-01-01#2026-01-31': '450,000' },
-      { '2026-02-01#2026-02-28': '450,000' },
-    ]);
+    Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }, { '2026-02-01': '450,000' }]);
 
     const lines = read(workDir, 't3.contract').split('\n');
     expect(lines.slice(1, 5)).toEqual([
       '',
       'Accrual:',
-      '  - 2026-01-01#2026-01-31: 450,000',
-      '  - 2026-02-01#2026-02-28: 450,000',
+      '  - 2026-01-01: 450,000',
+      '  - 2026-02-01: 450,000',
     ]);
   });
 
@@ -345,7 +342,7 @@ describe('Yamls.writeAccrual', () => {
   it('appends at end of file with a warning when ComBase: is missing', () => {
     const f = path.join(workDir, 't5.contract');
     fs.writeFileSync(f, 'Foo: bar\n', 'utf8');
-    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '1' }]);
+    Yamls.writeAccrual(f, [{ '2026-01-01': '1' }]);
     const content = read(workDir, 't5.contract');
     expect(content).toContain('Foo: bar');
     expect(content).toContain('Accrual:');
@@ -355,12 +352,12 @@ describe('Yamls.writeAccrual', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
-    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
+    Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
-    Yamls.writeFaktura(f, [{ '2026-01-01#2026-01-31': '0' }]);
-    Yamls.writeLoaners(f, [{ '2026-01-01#2026-01-31': '0' }]);
-    Yamls.writePenaltyDays(f, [{ '2026-01-01#2026-01-31': 0 }]);
-    Yamls.writePenalty(f, [{ '2026-01-01#2026-01-31': '0' }]);
+    Yamls.writeFaktura(f, [{ '2026-01-01': '0' }]);
+    Yamls.writeLoaners(f, [{ '2026-01-01': '0' }]);
+    Yamls.writePenaltyDays(f, [{ '2026-01-01': 0 }]);
+    Yamls.writePenalty(f, [{ '2026-01-01': '0' }]);
     Yamls.writeReturns(f, [{ '2026-01-05': '10,000' }]);
 
     expect(read(workDir, 'chain.contract')).toBe(
@@ -370,22 +367,22 @@ describe('Yamls.writeAccrual', () => {
         'ComBase: x',
         '',
         'Accrual:',
-        '  - 2026-01-01#2026-01-31: 450,000',
+        '  - 2026-01-01: 450,000',
         '',
         'Payment:',
         '  - 2026-01-01: 450,000',
         '',
         'Faktura:',
-        '  - 2026-01-01#2026-01-31: 0',
+        '  - 2026-01-01: 0',
         '',
         'Loaners:',
-        '  - 2026-01-01#2026-01-31: 0',
+        '  - 2026-01-01: 0',
         '',
         'PenaltyDays:',
-        '  - 2026-01-01#2026-01-31: 0',
+        '  - 2026-01-01: 0',
         '',
         'Penalty:',
-        '  - 2026-01-01#2026-01-31: 0',
+        '  - 2026-01-01: 0',
         '',
         'Returns:',
         '  - 2026-01-05: 10,000',
@@ -397,7 +394,7 @@ describe('Yamls.writeAccrual', () => {
     const f = path.join(workDir, 'stray.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\n\n\n\nComBase: x\n', 'utf8');
 
-    Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
+    Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }]);
 
     const content = read(workDir, 'stray.contract');
     expect(content).not.toMatch(/\n\n\n/);
@@ -526,14 +523,10 @@ describe('Yamls.computePenaltyDays', () => {
 
 describe('Yamls.computePenalty (PenaltyDays * PenaltyForDay)', () => {
   it("multiplies each period's day count by the fixed daily rate, no cap", () => {
-    const penaltyDays = [
-      { '2026-01-01#2026-01-31': 3 },
-      { '2026-02-01#2026-02-28': 0 },
-      { ALL: 3 },
-    ];
+    const penaltyDays = [{ '2026-01-01': 3 }, { '2026-02-01': 0 }, { ALL: 3 }];
     expect(Yamls.computePenalty(penaltyDays, 50000)).toEqual([
-      { '2026-01-01#2026-01-31': '150,000' },
-      { '2026-02-01#2026-02-28': '0' },
+      { '2026-01-01': '150,000' },
+      { '2026-02-01': '0' },
       { ALL: '150,000' },
     ]);
   });
@@ -589,11 +582,7 @@ describe('Yamls.writeCellArrays', () => {
     writeConfig({ Excel: { CellNames: ['Bank-OT', 'Bonuses'] } });
 
     const f = path.join(workDir, 't.contract');
-    fs.writeFileSync(
-      f,
-      'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\nPrepayMonth: \n',
-      'utf8'
-    );
+    fs.writeFileSync(f, 'ActDateEnd: \nAccrual:\n  - 2026-01-01: 390,000\nPrepayMonth: \n', 'utf8');
 
     writeTree(path.join(workDir, 'Bank-OT'), { '2025-07-09 4,200,000': {} });
     // No Bonuses/ folder on disk — must still be written, as an empty array.
@@ -611,7 +600,7 @@ describe('Yamls.writeCellArrays', () => {
     writeConfig({ Excel: { CellNames: ['Bank-OT', 'Bonuses'] } });
 
     const f = path.join(workDir, 't2.contract');
-    fs.writeFileSync(f, 'ActDateEnd: \nAccrual:\n  - 2026-01-01#2026-01-31: 390,000\n', 'utf8');
+    fs.writeFileSync(f, 'ActDateEnd: \nAccrual:\n  - 2026-01-01: 390,000\n', 'utf8');
 
     Yamls.writeCellArrays(f, workDir);
 
@@ -1408,8 +1397,8 @@ describe('Yamls.replaceYaml', () => {
 
     const content = fs.readFileSync(ymlFile, 'utf8');
     expect(content).toContain('Accrual:');
-    // ActDateStart 2026-01-01 -> ActDateEnd 2026-01-31: a single full-month range.
-    expect(content).toContain('2026-01-01#2026-01-31: 4,200,000');
+    // ActDateStart 2026-01-01 -> ActDateEnd 2026-01-31: a single full-month range, keyed by its own start (due) date.
+    expect(content).toContain('2026-01-01: 4,200,000');
   });
 
   it('always writes one PenaltyDays/Penalty entry per month, computed from a real Bank-OT folder via the daily-balance model', () => {
@@ -1472,17 +1461,16 @@ describe('Yamls.replaceYaml', () => {
     // asserts the mechanism actually ran (non-zero for January) and that
     // Penalty = PenaltyDays * 50,000 for that same period. Extracted from the
     // PenaltyDays: block specifically (not Accrual/Faktura/Loaners, which
-    // repeat the same "2026-01-01#2026-01-31" interval key with different
-    // values).
+    // repeat the same bare "2026-01-01" key with different values).
     const penaltyDaysBlock = content.match(/PenaltyDays:\n((?:.|\n)*?)\n\nPenalty:/)[1];
-    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01#2026-01-31: (\d+)/);
+    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01: (\d+)/);
     expect(janPenaltyDaysMatch).not.toBeNull();
     const janPenaltyDays = Number(janPenaltyDaysMatch[1]);
     expect(janPenaltyDays).toBeGreaterThan(0);
 
     const penaltyBlock = content.match(/\nPenalty:\n((?:.|\n)*?)\n\nReturns:/)[1];
     expect(penaltyBlock).toContain(
-      `2026-01-01#2026-01-31: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
+      `2026-01-01: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
     );
 
     const lines = content.split('\n');
@@ -1544,17 +1532,17 @@ describe('Yamls.replaceYaml', () => {
 
     const content = fs.readFileSync(ymlFile, 'utf8');
     const penaltyDaysBlock = content.match(/PenaltyDays:\n((?:.|\n)*?)\n\nPenalty:/)[1];
-    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01#2026-01-31: (\d+)/);
+    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01: (\d+)/);
     const janPenaltyDays = Number(janPenaltyDaysMatch[1]);
     expect(janPenaltyDays).toBeGreaterThan(0);
 
     const penaltyBlock = content.match(/\nPenalty:\n((?:.|\n)*?)\n\nReturns:/)[1];
     // 75,000/day (the override), never 50,000/day (the config default).
     expect(penaltyBlock).toContain(
-      `2026-01-01#2026-01-31: ${(janPenaltyDays * 75000).toLocaleString('en-US')}`
+      `2026-01-01: ${(janPenaltyDays * 75000).toLocaleString('en-US')}`
     );
     expect(penaltyBlock).not.toContain(
-      `2026-01-01#2026-01-31: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
+      `2026-01-01: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
     );
   });
 });

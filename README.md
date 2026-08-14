@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 320 runnable methods.
+**Coverage:** 23 classes, 322 runnable methods.
 
 ---
 # Category
@@ -580,9 +580,11 @@ node scripts/Com/pidsOf.mjs --imageName <imageName>
 
 # Dates
 
-Runners: `scripts/Dates/` — 19 public static method(s).
+Runners: `scripts/Dates/` — 22 public static method(s).
 
 ## addDays(dateStr, days)
+
+Add calendar days to date, PRESERVING input format. YYYY-MM-DD in → YYYY-MM-DD out; DD.MM.YYYY in → DD.MM.YYYY out. Keeps standalone runner and every DD.MM.YYYY caller working unchanged.
 
 **Run:**
 
@@ -592,8 +594,10 @@ node scripts/Dates/addDays.mjs --dateStr <dateStr>
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `dateStr` | no | — |
-| `days` | no | — |
+| `dateStr` | no | Date in YYYY-MM-DD or DD.MM.YYYY. |
+| `days` | no | Calendar days to add. |
+
+**Returns:** Shifted date, same format as input.
 
 ## addYearsGetLastDate(dateStr, years)
 
@@ -694,6 +698,34 @@ node scripts/Dates/getMinusOneDay.mjs --dateStr <dateStr>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `dateStr` | no | — |
+
+## isExcelDate(date)
+
+TRUE only for strict YYYY-MM-DD string.
+
+**Run:**
+
+```bash
+node scripts/Dates/isExcelDate.mjs --date <date>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `date` | no | Value to test. |
+
+**Returns:** TRUE when YYYY-MM-DD.
+
+## monthEnd(dateExcel)
+
+**Run:**
+
+```bash
+node scripts/Dates/monthEnd.mjs --dateExcel <dateExcel>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dateExcel` | no | — |
 
 ## monthsBetween(startExcel, endExcel)
 
@@ -817,6 +849,22 @@ node scripts/Dates/sleepSync.mjs --ms <ms>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `ms` | no | — |
+
+## splitExcelDate(date)
+
+Split YYYY-MM-DD into {year, month, day} string parts. Replaces Word.extractDate, which only ever parsed DD.MM.YYYY. Returns null for non-YYYY-MM-DD input, so caller warns instead of writing undefined into contract.
+
+**Run:**
+
+```bash
+node scripts/Dates/splitExcelDate.mjs --date <date>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `date` | no | Date in YYYY-MM-DD. |
+
+**Returns:** |null} Parts, or null when invalid.
 
 
 ---
@@ -3855,7 +3903,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 34 public static method(s).
+Runners: `scripts/Yamls/` — 33 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -4022,6 +4070,8 @@ node scripts/Yamls/getConfig.mjs --file "<path>"
 
 ## getPrepayMonth(yamlData)
 
+Prepay month count — yamlData.PrepayMonth, else config.yml Contract.PrepayMonth. Returns null, never NaN, when neither resolves to non-negative integer. NaN previously reached Dates.futureDateByMonth → "Invalid Date" PeriodEnd → empty chain, Penalty silently 0. Caller treats null as fatal, warns.
+
 **Run:**
 
 ```bash
@@ -4030,7 +4080,9 @@ node scripts/Yamls/getPrepayMonth.mjs --file "<path>"
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `yamlData` | no | — |
+| `yamlData` | no | Loaded .contract data. |
+
+**Returns:** Non-negative month count, or null when unresolvable.
 
 ## getYamlValue(filePath, keyPath, [defaultValue])
 
@@ -4139,18 +4191,6 @@ node scripts/Yamls/replaceYaml.mjs --file "<path>"
 | `ymlFile` | no | — |
 | `yamlData` | no | — |
 | `companyInfo` | no | — |
-
-## repositionPenaltyOn(filePath)
-
-**Run:**
-
-```bash
-node scripts/Yamls/repositionPenaltyOn.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
 
 ## scanCellFolder(folderALL, key)
 
