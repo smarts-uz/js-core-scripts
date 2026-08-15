@@ -535,6 +535,23 @@ export class Files {
     return fileName;
   }
 
+  /**
+   * Remove every DD.MM.YYYY.(txt|app) date marker in folderCompan — same pattern getDateFromTXT reads.
+   * Used before writing a fresh date marker, so a stale prior date never lingers alongside the new one.
+   * @param {string} folderCompan - Compan/ folder to scan.
+   */
+  static deleteDateMarkers(folderCompan) {
+    console.info(`[Files.deleteDateMarkers] 🟢 Starting...`);
+
+    const files = fs.readdirSync(folderCompan);
+    for (const file of files) {
+      if (file.match(/^\d{2}\.\d{2}\.\d{4}\.(txt|app)$/)) {
+        console.log(`Removing stale date marker: ${file}`);
+        Files.removeFile(path.join(folderCompan, file));
+      }
+    }
+  }
+
 
 
   static getTINFromTXT(folderCompan) {

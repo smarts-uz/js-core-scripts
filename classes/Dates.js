@@ -101,6 +101,15 @@ export class Dates {
     return date.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3.$2.$1');
   }
 
+  /**
+   * Current calendar date as YYYY-MM-DD.
+   * @returns {string} Today's date, Excel-format.
+   */
+  static today() {
+    console.info(`[Dates.today] 🟢 Starting...`);
+    return dayjs().format('YYYY-MM-DD');
+  }
+
 
   // Every calendar-month {start, end} date range ('YYYY-MM-DD' each) from
   // startExcel through endExcel, inclusive — one entry per month. Only the

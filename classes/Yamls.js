@@ -1172,8 +1172,6 @@ export class Yamls {
                 return null;
             }
 
-            companyInfo.isYatt = isYatt;
-
             if (isYatt)
                 companyInfo.directorPinfl = comTIN;
 
@@ -1245,7 +1243,19 @@ export class Yamls {
         Files.deleteInfo(globalThis.folderCompan, `-kv`)
         Files.saveInfoToFile(globalThis.folderCompan, `${yamlData.Area}-kv`)
 
-        Yamls.replaceYaml(globalThis.ymlFile, yamlData, companyInfo);
+        const filled = Yamls.replaceYaml(globalThis.ymlFile, yamlData, companyInfo);
+
+        /*
+        ContractDate is written into Compan/ as a DD.MM.YYYY marker (Didox format), mirroring the pre-existing DD.MM.YYYY marker Files.getDateFromTXT already reads from that folder.
+        Written only after replaceYaml resolves ContractDate (auto-fill or manual) — never a stale value from before this run.
+        */
+        if (filled && Dates.isExcelDate(yamlData.ContractDate)) {
+            const contractDateDidox = Dates.excelToDidox(yamlData.ContractDate);
+            Files.deleteDateMarkers(globalThis.folderCompan);
+            Files.saveInfoToFile(globalThis.folderCompan, contractDateDidox);
+        }
+
+        return filled;
     }
 
 
@@ -1284,8 +1294,10 @@ export class Yamls {
         console.info(`[Yamls.replaceYaml] 🟢 Starting...`);
         console.log(ymlFile, 'ymlFile');
 
-        if (!yamlData || !companyInfo)
-            return Dialogs.warningBox('yamlData or companyInfo is not defined!');
+        if (!yamlData || !companyInfo) {
+            Dialogs.warningBox('yamlData or companyInfo is not defined!');
+            return false;
+        }
 
         console.log(yamlData, 'yamlData');
         console.log(companyInfo, 'companyInfo');
@@ -1294,13 +1306,53 @@ export class Yamls {
         Price is validated HERE, before the first marker file or yaml line is written.
         It is read much later as yamlData.Price.replaceAll(...), which throws on a missing or numeric Price — by then markers and yaml lines are already on disk, leaving the contract half-updated.
         */
-        if (Files.isEmpty(yamlData.Price))
-            return Dialogs.warningBox(`Price is missing — fill it in the .contract yaml before filling this contract.`);
+        if (Files.isEmpty(yamlData.Price)) {
+            Dialogs.warningBox(`Price is missing — fill it in the .contract yaml before filling this contract.`);
+            return false;
+        }
 
-        if (!Yamls.#resolveDates(yamlData)) return;
-        if (!Yamls.#resolveCompany(ymlFile, yamlData, companyInfo)) return;
+        Yamls.#resolveContractDate(yamlData, companyInfo);
+
+        if (!Yamls.#resolveDates(yamlData)) return false;
+        if (!Yamls.#resolveCompany(ymlFile, yamlData, companyInfo)) return false;
 
         Yamls.#writeChain(ymlFile, yamlData);
+        return true;
+    }
+
+    /**
+     * Auto-fill ContractDate when blank, in place — never overwrites a value already set.
+     * Adolat MFY-registered street address (Latin or Cyrillic spelling) uses that company's real registration date (converted DD.MM.YYYY to YYYY-MM-DD); every other address falls back to today.
+     * Runs BEFORE #resolveDates, since ContractDate is required there and #resolveCompany (which sets yamlData.ComAddress/ComRegDate) hasn't run yet — reads the raw companyInfo fields directly instead.
+     * Address source is MySoliq's own streetName (companyInfo.soliq.company.streetName / companyInfo.soliqYatt.entrepreneurshipAddress.address), NOT Didox's address field — MySoliq's real Uzbek Cyrillic responses are where "Адолат МФЙ" actually shows up.
+     * isYatt is read fresh from yamlData.ComType === 'YaTT' every call — never a cached companyInfo.isYatt, which can go stale on the fillYamlWithInfo cache path if ComType is corrected without a fresh API fetch.
+     * @param {object} yamlData - Loaded .contract data, mutated in place.
+     * @param {object} companyInfo - Resolved registry/Didox/MySoliq company record.
+     */
+    static #resolveContractDate(yamlData, companyInfo) {
+        console.info(`[Yamls.#resolveContractDate] 🟢 Starting...`);
+
+        if (!Files.isEmpty(yamlData.ContractDate)) return;
+
+        const isYatt = yamlData.ComType === 'YaTT';
+
+        const address = isYatt
+            ? (companyInfo.soliqYatt?.entrepreneurshipAddress?.address ?? '')
+            : (companyInfo.soliq?.company?.streetName ?? '');
+        const isAdolatMFY = address.includes('Adolat MFY') || address.includes('Адолат МФЙ');
+        console.log('address', address, 'isAdolatMFY', isAdolatMFY);
+
+        if (isAdolatMFY) {
+            const registrationDate = isYatt
+                ? companyInfo.soliqYatt?.registrationDate
+                : companyInfo.soliq?.company.registrationDate;
+
+            yamlData.ContractDate = Dates.didoxToExcel(registrationDate);
+            console.log('ContractDate from registrationDate (Adolat MFY)', yamlData.ContractDate);
+        } else {
+            yamlData.ContractDate = Dates.today();
+            console.log('ContractDate from today', yamlData.ContractDate);
+        }
     }
 
     /**
@@ -1401,6 +1453,7 @@ export class Yamls {
     /**
      * Resolve every company/director/bank/VAT field on yamlData, in place, from companyInfo and the registry lookups.
      * Also derives ComCategory from the .contract file's own path and writes the Compan/ marker files.
+     * isYatt is read fresh from yamlData.ComType === 'YaTT' every call — never a cached companyInfo.isYatt.
      * @param {string} ymlFile - Absolute path of the .contract file being filled.
      * @param {object} yamlData - Loaded .contract data, mutated in place.
      * @param {object} companyInfo - Resolved registry/Didox company record.
@@ -1408,6 +1461,8 @@ export class Yamls {
      */
     static #resolveCompany(ymlFile, yamlData, companyInfo) {
         console.info(`[Yamls.#resolveCompany] 🟢 Starting...`);
+
+        const isYatt = yamlData.ComType === 'YaTT';
 
 
         // if ymlFileparh contains @ Weak folder - yamldata.ComCategory = Weak
@@ -1443,7 +1498,7 @@ export class Yamls {
         Files.saveInfoToFile(globalThis.folderCompan, `${price}`)
 
         yamlData.ComName = Word.cleanCompanyName(companyInfo.shortName)
-        yamlData.IsYatt = companyInfo.isYatt
+        yamlData.IsYatt = isYatt
 
         yamlData.ComNameLong = companyInfo.name
         yamlData.ComNameShort = companyInfo.shortName
@@ -1467,7 +1522,7 @@ export class Yamls {
         Files.saveInfoToFile(globalThis.folderALL, `#Addr-${yamlData.ComAddressType}`);
 
         yamlData.ComOKED = companyInfo.oked
-        if (!companyInfo.isYatt)
+        if (!isYatt)
             yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail.name_uz_latn ?? ''
         else
             yamlData.ComOKEDName = companyInfo?.soliqYatt?.activityTypeName?.uz ?? ''
@@ -1546,7 +1601,7 @@ export class Yamls {
 
         yamlData.ComNa1Code = companyInfo.na1Code
         yamlData.ComNa1Name = companyInfo.na1Name
-        if (!companyInfo.isYatt)
+        if (!isYatt)
             yamlData.ComNa1NameLat = companyInfo.soliq?.company.businessStructureDetail.name_uz_latn ?? ''
         else
             yamlData.ComNa1NameLat = companyInfo?.soliqYatt?.formName?.uz ?? ''
@@ -1559,7 +1614,7 @@ export class Yamls {
         yamlData.ComStatusCode = companyInfo.statusCode
         yamlData.ComStatusName = companyInfo.statusName
 
-        if (!companyInfo.isYatt) {
+        if (!isYatt) {
             yamlData.ComStatusNameLat = companyInfo.soliq?.company.statusDetail.name_uz_latn ?? ''
             yamlData.ComStatusGroup = companyInfo.soliq?.company.statusDetail.group ?? ''
 
@@ -1577,7 +1632,7 @@ export class Yamls {
         yamlData.ComPersonalNum = companyInfo.personalNum
 
         yamlData.ComIsItd = companyInfo.isItd
-        if (companyInfo.isYatt) {
+        if (isYatt) {
             if (companyInfo.isItd === true)
                 Files.saveInfoToFile(globalThis.folderALL, '#YaTT-Active');
             else
@@ -1601,7 +1656,7 @@ export class Yamls {
             Files.saveInfoToFile(globalThis.folderALL, '#Is-PeasantFarm');
 
 
-        if (!companyInfo.isYatt) {
+        if (!isYatt) {
             yamlData.ComOpf = companyInfo.soliq?.company.opf ?? ''
             yamlData.ComKfs = companyInfo.soliq?.company.kfs ?? ''
             yamlData.ComSoato = companyInfo.soliq?.company.soato ?? ''
@@ -1648,7 +1703,7 @@ export class Yamls {
         yamlData.ComVATRegCode = companyInfo.VATRegCode
         yamlData.ComVATRegStatus = companyInfo.VATRegStatus
 
-        if (!companyInfo.isYatt) {
+        if (!isYatt) {
             yamlData.ComVATCompanyName = companyInfo.vat?.companyName ?? ''
             yamlData.ComVATDirectorName = companyInfo.vat?.directorFioLatn ?? ''
 

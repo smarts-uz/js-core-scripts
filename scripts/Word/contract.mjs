@@ -15,7 +15,11 @@ const { Word } = await import('../../classes/Word.js');
 // Per-contract step: fill yaml with info, then the action.
 async function processOne(ymlFile) {
     console.warn('Processing contract:', ymlFile);
-    await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    const filled = await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    if (!filled) {
+        console.warn('Skipping Word.makeContract — fillYamlWithInfo did not complete:', ymlFile);
+        return;
+    }
     Word.makeContract(ymlFile);
 }
 

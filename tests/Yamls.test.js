@@ -16,6 +16,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { makeTmpDir, cleanupAllTmpDirs, writeTree, read } from './helpers/tmp.js';
 import { utilsModule } from './helpers/esm.js';
+import { Dates } from '../classes/Dates.js';
 
 // --- mocked boundary ---------------------------------------------------------
 const state = { projectDir: '' };
@@ -70,6 +71,7 @@ const FilesMock = {
   backupFolder: jest.fn(),
   saveInfoToFile: jest.fn(),
   deleteInfo: jest.fn(),
+  deleteDateMarkers: jest.fn(),
   writeJson: jest.fn(),
   getTINFromTXT: jest.fn(),
   getPINFLFromTXT: jest.fn(),
@@ -1154,8 +1156,8 @@ describe('Yamls.fillYamlWithInfo', () => {
     expect(DidoxMock.infoByTinPinfl).toHaveBeenCalledWith('31311816590022');
     expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderALL, '#YaTT');
 
-    const [, , companyInfoArg] = replaceYamlSpy.mock.calls[0];
-    expect(companyInfoArg.isYatt).toBe(true);
+    const [, yamlDataArg, companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(yamlDataArg.ComType).toBe('YaTT');
     expect(companyInfoArg.directorPinfl).toBe('31311816590022');
     expect(companyInfoArg.ceo?.name).toBe('LI ZHENGBIN');
 
@@ -1206,8 +1208,8 @@ describe('Yamls.fillYamlWithInfo', () => {
     expect(DidoxMock.infoByTinPinfl).toHaveBeenCalledWith('491842367');
     expect(FilesMock.saveInfoToFile).not.toHaveBeenCalledWith(globalThis.folderALL, '#YaTT');
 
-    const [, , companyInfoArg] = replaceYamlSpy.mock.calls[0];
-    expect(companyInfoArg.isYatt).toBe(false);
+    const [, yamlDataArg, companyInfoArg] = replaceYamlSpy.mock.calls[0];
+    expect(yamlDataArg.ComType).toBe('MChJ');
     // directorPinfl is NOT force-set from comTIN when isYatt is false —
     // it stays whatever Didox's own lookup returned.
     expect(companyInfoArg.directorPinfl).toBe('77712345');
@@ -1305,6 +1307,57 @@ describe('Yamls.fillYamlWithInfo', () => {
 
     replaceYamlSpy.mockRestore();
   });
+
+  it('writes the resolved ContractDate into Compan/ as a DD.MM.YYYY marker when replaceYaml succeeds', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ ComType: 'MChJ' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderALL = workDir;
+
+    const yamlData = { ComType: 'MChJ' };
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation((f, data) => {
+      data.ContractDate = '2026-08-15';
+      return true;
+    });
+
+    await Yamls.fillYamlWithInfo(ymlFile, yamlData, true, false);
+
+    expect(FilesMock.deleteDateMarkers).toHaveBeenCalledWith(globalThis.folderCompan);
+    expect(FilesMock.saveInfoToFile).toHaveBeenCalledWith(globalThis.folderCompan, '15.08.2026');
+
+    replaceYamlSpy.mockRestore();
+  });
+
+  it('never writes a Compan/ date marker when replaceYaml aborts', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ ComType: 'MChJ' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderALL = workDir;
+
+    const yamlData = { ComType: 'MChJ' };
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockReturnValue(false);
+
+    FilesMock.saveInfoToFile.mockClear();
+    FilesMock.deleteDateMarkers.mockClear();
+
+    await Yamls.fillYamlWithInfo(ymlFile, yamlData, true, false);
+
+    expect(FilesMock.deleteDateMarkers).not.toHaveBeenCalledWith(globalThis.folderCompan);
+    expect(FilesMock.saveInfoToFile).not.toHaveBeenCalledWith(
+      globalThis.folderCompan,
+      expect.stringMatching(/^\d{2}\.\d{2}\.\d{4}$/)
+    );
+
+    replaceYamlSpy.mockRestore();
+  });
 });
 
 describe('Yamls.replaceYaml', () => {
@@ -1374,49 +1427,100 @@ describe('Yamls.replaceYaml', () => {
     expect(yamlData.PeriodEnd).toBe('2025-03-31');
   });
 
-  it('warns and returns instead of throwing when ContractDate is missing or invalid', () => {
+  it('auto-fills a blank ContractDate from today when MySoliq streetName is not Adolat MFY', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
 
-    // ContractDate is filled MANUALLY in ALL.contract — a blank one has nothing to
-    // fall back to, so replaceYaml warns instead of writing an undefined date.
+    const yamlData = { ComType: 'MChJ', ContractDate: '', Price: '1,200,000' };
     expect(() =>
-      Yamls.replaceYaml(
-        'file.yml',
-        { ContractDate: '', Price: '1,200,000' },
-        { isYatt: false, soliq: null }
-      )
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliq: { company: { streetName: 'Chilonzor MFY', registrationDate: '10.08.2023' } },
+      })
     ).not.toThrow();
 
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+    expect(yamlData.ContractDate).toBe(Dates.today());
+    expect(DialogsMock.warningBox).not.toHaveBeenCalledWith(
       expect.stringContaining('ContractDate is missing or invalid')
     );
   });
 
-  it('never auto-fills ContractDate from a Compan/ marker file or the registry registrationDate', () => {
+  it('auto-fills a blank ContractDate from the registry registrationDate when MySoliq streetName contains Adolat MFY', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
 
-    // Both retired sources are deliberately available and must still be ignored.
-    FilesMock.getDateFromTXT.mockReturnValue('10.08.2023');
-
-    const yamlData = { ContractDate: '', Price: '1,200,000' };
+    const yamlData = { ComType: 'MChJ', ContractDate: '', Price: '1,200,000' };
     expect(() =>
       Yamls.replaceYaml('file.yml', yamlData, {
-        isYatt: false,
-        soliq: { company: { registrationDate: '2023-08-10' } },
+        soliq: { company: { streetName: 'Adolat MFY, Tashkent', registrationDate: '10.08.2023' } },
       })
     ).not.toThrow();
 
-    expect(FilesMock.getDateFromTXT).not.toHaveBeenCalled();
-    expect(yamlData.ContractDate).toBe('');
-    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+    expect(yamlData.ContractDate).toBe('2023-08-10');
+    expect(DialogsMock.warningBox).not.toHaveBeenCalledWith(
       expect.stringContaining('ContractDate is missing or invalid')
     );
+  });
+
+  it('auto-fills a blank ContractDate from the registry registrationDate when MySoliq streetName contains the Cyrillic "Адолат МФЙ" spelling', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComType: 'MChJ', ContractDate: '', Price: '1,200,000' };
+    expect(() =>
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliq: {
+          company: {
+            streetName: 'Адолат МФЙ, 4 мавзеси, 28/1в-уй',
+            registrationDate: '10.08.2023',
+          },
+        },
+      })
+    ).not.toThrow();
+
+    expect(yamlData.ContractDate).toBe('2023-08-10');
+  });
+
+  it('auto-fills a blank ContractDate from soliqYatt.registrationDate for a YaTT with an Adolat MFY entrepreneurshipAddress', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComType: 'YaTT', ContractDate: '', Price: '1,200,000' };
+    expect(() =>
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliqYatt: {
+          registrationDate: '05.03.2022',
+          entrepreneurshipAddress: { address: 'Adolat MFY, Tashkent' },
+        },
+      })
+    ).not.toThrow();
+
+    expect(yamlData.ContractDate).toBe('2022-03-05');
+  });
+
+  it('never overwrites an already-filled ContractDate', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComType: 'MChJ', ContractDate: '2024-11-05', Price: '1,200,000' };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliq: { company: { streetName: 'Adolat MFY, Tashkent', registrationDate: '10.08.2023' } },
+      });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(yamlData.ContractDate).toBe('2024-11-05');
   });
 
   it('computes ContractDateEnd from ContractDate + Contract.AddDays when left blank', () => {
@@ -1539,6 +1643,7 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml(
       ymlFile,
       {
+        ComType: 'MChJ',
         ContractDate: '2026-01-01',
         ActDateStart: '2026-01-01',
         ActDateEnd: '2026-01-31',
@@ -1553,7 +1658,6 @@ describe('Yamls.replaceYaml', () => {
         RepEnable: false,
       },
       {
-        isYatt: false,
         soliq: {
           company: {
             okedDetail: { name_uz_latn: '' },
@@ -1601,6 +1705,7 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml(
       ymlFile,
       {
+        ComType: 'MChJ',
         ContractDate: '2026-01-01',
         ActDateStart: '2026-01-01',
         ActDateEnd: '2026-02-28',
@@ -1610,7 +1715,6 @@ describe('Yamls.replaceYaml', () => {
         RepEnable: false,
       },
       {
-        isYatt: false,
         soliq: {
           company: {
             okedDetail: { name_uz_latn: '' },
@@ -1675,6 +1779,7 @@ describe('Yamls.replaceYaml', () => {
     Yamls.replaceYaml(
       ymlFile,
       {
+        ComType: 'MChJ',
         ContractDate: '2026-01-01',
         ActDateStart: '2026-01-01',
         ActDateEnd: '2026-02-28',
@@ -1688,7 +1793,6 @@ describe('Yamls.replaceYaml', () => {
         PenaltyPerDay: '75,000',
       },
       {
-        isYatt: false,
         soliq: {
           company: {
             okedDetail: { name_uz_latn: '' },

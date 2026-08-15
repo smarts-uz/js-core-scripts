@@ -633,7 +633,7 @@ describe('Word.makeContract', () => {
     spy.mockRestore();
   });
 
-  it('warns about a missing ContractNum and then throws building the path (documented quirk)', () => {
+  it('warns about a missing ContractNum and returns without calling wordReplace', () => {
     const templateFolder = path.join(workDir, 'word-tpl-folder-2');
     fs.mkdirSync(templateFolder, { recursive: true });
     const template = path.join(templateFolder, 'Tpl.docx');
@@ -644,12 +644,11 @@ describe('Word.makeContract', () => {
     YamlsMock.loadYamlWithDeps.mockReturnValue({ Area: '50', MyCompany: 'X' });
 
     const spy = jest.spyOn(Word, 'wordReplace').mockReturnValue(undefined);
-    // The method warns (does NOT return) and then calls path.join(folder,
-    // undefined), which throws — documenting the actual behavior (a
-    // guard-without-return bug in the source), not fixing it. Asserting on the
-    // message (not the TypeError class) avoids the cross-realm instanceof pitfall
-    // under --experimental-vm-modules.
-    expect(() => Word.makeContract(yml)).toThrow(/must be of type string/);
+
+    const result = Word.makeContract(yml);
+
+    expect(result).toBeUndefined();
+    expect(spy).not.toHaveBeenCalled();
     expect(DialogsMock.warningBox).toHaveBeenCalledWith(
       expect.stringContaining('Contract number not found'),
       'Error'

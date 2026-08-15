@@ -15,7 +15,11 @@ const { Excels } = await import('../../classes/Excels.js');
 // Per-contract step: fill yaml with info, then the action.
 async function processOne(ymlFile) {
     console.warn('Processing contract:', ymlFile);
-    await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    const filled = await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    if (!filled) {
+        console.warn('Skipping Excels.generate — fillYamlWithInfo did not complete:', ymlFile);
+        return;
+    }
     Excels.generate(ymlFile);
 }
 

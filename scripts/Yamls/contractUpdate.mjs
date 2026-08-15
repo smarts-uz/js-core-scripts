@@ -14,7 +14,11 @@ const { Dialogs } = await import('../../classes/Dialogs.js');
 // Per-contract step: fill yaml with info, then the action.
 async function processOne(ymlFile) {
     console.warn('Processing contract:', ymlFile);
-    await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    const filled = await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    if (!filled) {
+        console.warn('Skipping Yamls.update — fillYamlWithInfo did not complete:', ymlFile);
+        return;
+    }
     await Yamls.update(ymlFile);
 }
 

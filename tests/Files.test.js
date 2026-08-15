@@ -386,6 +386,31 @@ describe('Files.getDateFromTXT', () => {
   });
 });
 
+describe('Files.deleteDateMarkers', () => {
+  it('removes every DD.MM.YYYY.(txt|app) marker in the folder', () => {
+    writeTree(dir, {
+      '29.03.2017.txt': 'x',
+      '02.07.2026.app': 'App',
+      'other.txt': 'y',
+      '123456789.app': 'z',
+    });
+
+    Files.deleteDateMarkers(dir);
+
+    const remaining = fs.readdirSync(dir);
+    expect(remaining).not.toContain('29.03.2017.txt');
+    expect(remaining).not.toContain('02.07.2026.app');
+    expect(remaining).toContain('other.txt');
+    expect(remaining).toContain('123456789.app');
+  });
+
+  it('does nothing when no date marker is present', () => {
+    writeTree(dir, { 'other.txt': 'y' });
+    expect(() => Files.deleteDateMarkers(dir)).not.toThrow();
+    expect(fs.readdirSync(dir)).toEqual(['other.txt']);
+  });
+});
+
 describe('Files.getTINFromTXT', () => {
   it('matches a 9-digit .txt TIN file (ext stripped)', () => {
     writeTree(dir, { '123456789.txt': 'x' });

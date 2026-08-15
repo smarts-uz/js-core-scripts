@@ -301,11 +301,13 @@ export class Word {
     const contractFolder = path.join(ymlFolder, "Contract");
     Files.mkdirIfNotExists(contractFolder);
 
-    if (!data.ContractNum)
+    if (!data.ContractNum) {
       Dialogs.warningBox(
         `Contract number not found in YAML: ${ymlFile}`,
         "Error",
       );
+      return;
+    }
 
     const contractNumFolder = path.join(contractFolder, data.ContractNum);
     Files.mkdirIfNotExists(contractNumFolder);
