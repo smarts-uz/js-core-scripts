@@ -1,1 +1,63 @@
-D:/Develop/Platform/JS/Settings/NodeJS/.node/package.json
+{
+  "name": "js_ai_category",
+  "version": "2.0.0",
+  "description": "Node.js (ESM) CLI tools for processing Office and Markdown documents on Windows.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "author": "Asror Zakirov <asror.zk@gmail.com>",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "generate:runners": "node scripts/_generate.mjs",
+    "generate:readme": "node scripts/_gen-readme.mjs",
+    "generate:shell": "node scripts/_wire-shell.mjs",
+    "generate:launch": "node scripts/_wire-launch.mjs",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "!(scripts/*/**).{js,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml,md}": [
+      "prettier --write"
+    ]
+  },
+  "imports": {
+    "#js-yaml": "./import/js-yaml.mjs",
+    "#dot-prop": "./import/dot-prop.mjs",
+    "#puppeteer": "./import/puppeteer.mjs",
+    "#puppeteer-core": "./import/puppeteer-core.mjs",
+    "#p-retry": "./import/p-retry.mjs",
+    "#dotenv": "./import/dotenv.mjs",
+    "#pino": "./import/pino.mjs",
+    "#number-to-words-ru": "./import/number-to-words-ru.mjs",
+    "#turndown": "./import/turndown.mjs",
+    "#turndown-plugin-gfm": "./import/turndown-plugin-gfm.mjs",
+    "#marked": "./import/marked.mjs",
+    "#marked-footnote": "./import/marked-footnote.mjs",
+    "#marked-katex-extension": "./import/marked-katex-extension.mjs",
+    "#adm-zip": "./import/adm-zip.mjs",
+    "#fs-extra": "./import/fs-extra.mjs",
+    "#open": "./import/open.mjs",
+    "#dayjs": "./import/dayjs.mjs",
+    "#dayjs-plugin-customParseFormat": "./import/dayjs-plugin-customParseFormat.mjs",
+    "#user-agents": "./import/user-agents.mjs",
+    "#undici": "./import/undici.mjs",
+    "#libqp": "./import/libqp.mjs",
+    "#xlsx": "./import/xlsx.mjs",
+    "#ofetch": "./import/ofetch.mjs",
+    "#yargs": "./import/yargs.mjs",
+    "#yargs-helpers": "./import/yargs-helpers.mjs",
+    "#winax": "./import/winax.mjs"
+  }
+}

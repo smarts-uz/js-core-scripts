@@ -67,3 +67,8 @@ coverage/
 /.claude/Investigate ConvScratch And Fleet Bugs/Scripts/
 /.claude/Investigate ConvScratch And Fleet Bugs/Caches/
 /.claude/Fix Deliverable Increment Guard Realorself/Tests/
+
+# CodeTree cache
+.codetree/
+/.claude/Smarts-win-contextmenu skill qayta yaratish/Scripts/
+/.claude/js_ai_category — Import Bridge Migration/Scripts/

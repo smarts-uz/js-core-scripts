@@ -1,0 +1,2 @@
+export * from 'file:///C:/Users/Administrator/.node/node_modules/dayjs/dayjs.min.js';
+export { default } from 'file:///C:/Users/Administrator/.node/node_modules/dayjs/dayjs.min.js';
