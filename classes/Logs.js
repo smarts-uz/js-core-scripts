@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import pino from 'pino';
+import pino from '#pino';
 
 export class Logs {
     constructor() {

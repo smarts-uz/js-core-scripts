@@ -19,7 +19,7 @@ const XLSX = {
   read: jest.fn(),
   utils: {},
 };
-jest.unstable_mockModule('xlsx', () => ({ default: XLSX, ...XLSX }));
+jest.unstable_mockModule('#xlsx', () => ({ default: XLSX, ...XLSX }));
 
 // --- sibling deps ------------------------------------------------------------
 // incrementFileName: append " 1" before the extension (deterministic for tests).

@@ -29,7 +29,7 @@ import { utilsModule } from './helpers/esm.js';
 // --- boundary mocks ----------------------------------------------------------
 // puppeteer is imported at the top of Puppe.js but page-driven methods never
 // touch it directly; still mock it so no real browser is loaded.
-jest.unstable_mockModule('puppeteer', () => makePuppeteerMock());
+jest.unstable_mockModule('#puppeteer', () => makePuppeteerMock());
 
 // p-retry: keep the REAL implementation — it is pure control-flow and our
 // mocks make the wrapped fns succeed on the first attempt, so nothing loops.

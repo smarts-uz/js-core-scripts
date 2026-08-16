@@ -1,17 +1,17 @@
 import path from 'path';
 import fs from 'fs';
 import { existsSync } from 'fs';
-import puppeteer from 'puppeteer';
-import puppeteerCore from 'puppeteer-core';
-import UserAgent from 'user-agents';
+import puppeteer from '#puppeteer';
+import puppeteerCore from '#puppeteer-core';
+import UserAgent from '#user-agents';
 import { readFileSync } from 'fs';
 import { Files } from './Files.js';
 import { exec } from 'child_process';
 import { Dialogs } from './Dialogs.js';
 import { Yamls } from './Yamls.js';
 import dns from 'dns';
-import { request, fetch, Agent, setGlobalDispatcher } from 'undici';
-import { decode as decodeQP } from 'libqp';
+import { request, fetch, Agent, setGlobalDispatcher } from '#undici';
+import { decode as decodeQP } from '#libqp';
 
 
 

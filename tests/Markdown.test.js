@@ -72,14 +72,14 @@ const DialogsMock = {
 };
 
 // no-op marked extensions for the two uninstalled plugins.
-jest.unstable_mockModule('marked-footnote', () => ({ default: () => ({}) }));
-jest.unstable_mockModule('marked-katex-extension', () => ({ default: () => ({}) }));
+jest.unstable_mockModule('#marked-footnote', () => ({ default: () => ({}) }));
+jest.unstable_mockModule('#marked-katex-extension', () => ({ default: () => ({}) }));
 
 // Single winax mock instance so tests can tweak the COM object per call via
 // winaxMock.Object.mockImplementationOnce(...). By default each
 // `new winax.Object('Word.Application')` yields an auto-chaining COM proxy.
 const winaxMock = makeWinaxMock();
-jest.unstable_mockModule('winax', () => winaxMock);
+jest.unstable_mockModule('#winax', () => winaxMock);
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));

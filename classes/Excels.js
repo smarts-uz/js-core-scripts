@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 let winax;
 try {
-  winax = (await import('winax')).default;
+  winax = (await import('#winax')).default;
 } catch (e) {
   // winax not available (likely binary not built)
 }

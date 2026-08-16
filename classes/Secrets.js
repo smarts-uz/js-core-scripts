@@ -9,7 +9,7 @@
 // consumer project picks up that project's .env.
 
 import path from 'node:path';
-import dotenv from 'dotenv';
+import dotenv from '#dotenv';
 
 // Load .env from the entry script's directory (consumer project root), falling
 // back to the default cwd lookup. Safe to call repeatedly; dotenv no-ops on

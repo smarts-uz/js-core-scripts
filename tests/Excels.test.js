@@ -32,7 +32,7 @@ const winaxObject = jest.fn(function (progId) {
 });
 const winaxRelease = jest.fn();
 
-jest.unstable_mockModule('winax', () => ({
+jest.unstable_mockModule('#winax', () => ({
   default: { Object: winaxObject, release: winaxRelease },
   Object: winaxObject,
   release: winaxRelease,

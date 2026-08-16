@@ -3,9 +3,9 @@ import path from 'path';
 import { exec } from "child_process";
 import { Dialogs } from './Dialogs.js';
 import { access, copyFile, constants } from 'node:fs/promises';
-import AdmZip from 'adm-zip';
-import fse from 'fs-extra';
-import open from 'open';
+import AdmZip from '#adm-zip';
+import fse from '#fs-extra';
+import open from '#open';
 import { Phone } from "./Phone.js";
 
 export class Files {

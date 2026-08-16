@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import XLSX from 'xlsx';
+import XLSX from '#xlsx';
 
 import { Files } from './Files.js';
 import { Yamls } from './Yamls.js';

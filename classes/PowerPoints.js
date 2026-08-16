@@ -7,7 +7,7 @@ import { Com } from './Com.js';
 
 let winax;
 try {
-  winax = (await import('winax')).default;
+  winax = (await import('#winax')).default;
 } catch (e) {
   // winax not available
 }

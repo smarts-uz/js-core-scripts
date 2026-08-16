@@ -1,9 +1,9 @@
 import fs from "fs";
 import { existsSync } from "fs";
 
-import yaml from "js-yaml";
+import yaml from "#js-yaml";
 import path from "path";
-import { getProperty, setProperty } from "dot-prop";
+import { getProperty, setProperty } from "#dot-prop";
 import { Files } from "./Files.js";
 import { Word } from "./Word.js";
 import { Didox } from "./didox.js";

@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { marked, Renderer } from 'marked';
-import markedFootnote from 'marked-footnote';
-import markedKatex from 'marked-katex-extension';
+import { marked, Renderer } from '#marked';
+import markedFootnote from '#marked-footnote';
+import markedKatex from '#marked-katex-extension';
 import zlib from 'zlib';
 
 marked.use(markedFootnote());
@@ -13,7 +13,7 @@ import { Files } from './Files.js';
 
 let winax;
 try {
-  winax = (await import('winax')).default;
+  winax = (await import('#winax')).default;
 } catch (e) {
   // winax not available
 }

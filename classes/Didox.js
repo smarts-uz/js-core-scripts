@@ -6,7 +6,7 @@ import regions from "../conf/data/regions.json" with { type: "json" };
 
 import fs from "fs";
 import path from "path";
-import { ofetch } from "ofetch";
+import { ofetch } from "#ofetch";
 import { Files } from './Files.js';
 import { Dialogs } from "./Dialogs.js";
 import { Yamls } from "./Yamls.js";

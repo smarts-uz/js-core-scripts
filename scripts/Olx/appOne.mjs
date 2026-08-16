@@ -4,8 +4,8 @@
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 
-const yargsMod = await import('yargs');
-const { hideBin } = await import('yargs/helpers');
+const yargsMod = await import('#yargs');
+const { hideBin } = await import('#yargs-helpers');
 const yargs = yargsMod.default;
 const { Chromes } = await import('../../classes/Chromes.js');
 const { Puppe } = await import('../../classes/Puppe.js');

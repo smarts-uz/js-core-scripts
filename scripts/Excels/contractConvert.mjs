@@ -3,8 +3,8 @@
 import path from 'node:path';
 process.argv[1] = path.resolve(import.meta.dirname, '..', '..', 'runner.js');
 
-const yargsMod = await import('yargs');
-const { hideBin } = await import('yargs/helpers');
+const yargsMod = await import('#yargs');
+const { hideBin } = await import('#yargs-helpers');
 const yargs = yargsMod.default;
 const { Excels } = await import('../../classes/Excels.js');
 const { Yamls } = await import('../../classes/Yamls.js');

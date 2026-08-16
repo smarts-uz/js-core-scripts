@@ -117,7 +117,7 @@ const winaxMock = {
   Object: winaxObject,
   release: (...a) => winaxRelease(...a),
 };
-jest.unstable_mockModule('winax', () => winaxMock);
+jest.unstable_mockModule('#winax', () => winaxMock);
 
 // `turndown` / `turndown-plugin-gfm` are optional deps not installed in this
 // environment; Word.js imports them at module load (used only by the private
@@ -147,8 +147,8 @@ class TurndownMock {
 const gfmMock = { default: { gfm: () => {} }, gfm: () => {} };
 jest.mock('turndown', () => ({ default: TurndownMock }), { virtual: true });
 jest.mock('turndown-plugin-gfm', () => gfmMock, { virtual: true });
-jest.unstable_mockModule('turndown', () => ({ default: TurndownMock }), { virtual: true });
-jest.unstable_mockModule('turndown-plugin-gfm', () => gfmMock, { virtual: true });
+jest.unstable_mockModule('#turndown', () => ({ default: TurndownMock }), { virtual: true });
+jest.unstable_mockModule('#turndown-plugin-gfm', () => gfmMock, { virtual: true });
 
 // --- sibling mocks ------------------------------------------------------------
 const configStore = {};

@@ -28,7 +28,7 @@ class AgentMock {
     this.opts = opts;
   }
 }
-jest.unstable_mockModule('undici', () => ({
+jest.unstable_mockModule('#undici', () => ({
   fetch: undiciFetch,
   request: jest.fn(),
   Agent: AgentMock,
@@ -57,9 +57,9 @@ const page = makePuppeteerPage({
 });
 const browser = makePuppeteerBrowser(page);
 const puppeteerMock = makePuppeteerMock(browser);
-jest.unstable_mockModule('puppeteer', () => puppeteerMock);
+jest.unstable_mockModule('#puppeteer', () => puppeteerMock);
 const coreLaunch = jest.fn(async () => browser);
-jest.unstable_mockModule('puppeteer-core', () => ({
+jest.unstable_mockModule('#puppeteer-core', () => ({
   default: { launch: coreLaunch, connect: jest.fn() },
   launch: coreLaunch,
   connect: jest.fn(),
@@ -74,7 +74,7 @@ class UserAgentMock {
     return this.data.userAgent;
   }
 }
-jest.unstable_mockModule('user-agents', () => ({ default: UserAgentMock }));
+jest.unstable_mockModule('#user-agents', () => ({ default: UserAgentMock }));
 
 // --- sibling utils mocks ------------------------------------------------------
 const config = {};

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
-import fse from 'fs-extra';
+import yaml from '#js-yaml';
+import fse from '#fs-extra';
 import { Chromes } from './Chromes.js';
 import { Dialogs } from './Dialogs.js';
 

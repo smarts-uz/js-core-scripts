@@ -3,19 +3,19 @@ import path from "path";
 import os from "os";
 let winax;
 try {
-  winax = (await import("winax")).default;
+  winax = (await import("#winax")).default;
 } catch (e) {
   // winax not available (likely binary not built)
 }
-import pkg from "number-to-words-ru";
+import pkg from "#number-to-words-ru";
 const { convert } = pkg;
 
 import { Files } from "./Files.js";
 import { Yamls } from "./Yamls.js";
 import { Dialogs } from "./Dialogs.js";
 import { Com } from "./Com.js";
-import TurndownService from "turndown";
-import turndownPluginGfm from "turndown-plugin-gfm";
+import TurndownService from "#turndown";
+import turndownPluginGfm from "#turndown-plugin-gfm";
 
 export class Word {
   static checkWinax(methodName) {

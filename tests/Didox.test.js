@@ -35,7 +35,7 @@ const ofetchCreate = jest.fn((cfg) => {
   return didoxApi;
 });
 const ofetch = Object.assign(jest.fn(), { create: ofetchCreate });
-jest.unstable_mockModule('ofetch', () => ({ ofetch, default: ofetch, $fetch: ofetch }));
+jest.unstable_mockModule('#ofetch', () => ({ ofetch, default: ofetch, $fetch: ofetch }));
 
 // --- sibling deps -------------------------------------------------------------
 const DialogsMock = {

@@ -19,7 +19,7 @@ const openMock = jest.fn(async () => {});
 const execMock = jest.fn();
 const DialogsMock = { messageBox: jest.fn() };
 
-jest.unstable_mockModule('open', () => ({ default: openMock }));
+jest.unstable_mockModule('#open', () => ({ default: openMock }));
 jest.unstable_mockModule('child_process', () => ({ exec: execMock, default: { exec: execMock } }));
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Phone.js'), () => ({ Phone: {} }));

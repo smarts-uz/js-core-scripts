@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'node:module';
-import yaml from 'js-yaml';
+import yaml from '#js-yaml';
 import { Yamls } from './Yamls.js';
 
 const require = createRequire(import.meta.url);

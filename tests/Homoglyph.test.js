@@ -24,7 +24,7 @@ import { utilsModule } from './helpers/esm.js';
 
 // --- mocked boundaries -------------------------------------------------------
 // winax absent → the COM guard (_checkWinax) throws deterministically.
-jest.unstable_mockModule('winax', () => {
+jest.unstable_mockModule('#winax', () => {
   throw new Error('winax unavailable (mocked)');
 });
 

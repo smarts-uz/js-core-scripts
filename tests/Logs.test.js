@@ -23,7 +23,7 @@ import {
 const logger = { info: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() };
 const pinoFn = jest.fn(() => logger);
 pinoFn.transport = jest.fn(() => ({}));
-jest.unstable_mockModule('pino', () => ({ default: pinoFn, pino: pinoFn }));
+jest.unstable_mockModule('#pino', () => ({ default: pinoFn, pino: pinoFn }));
 
 const execSync = jest.fn();
 jest.unstable_mockModule('child_process', () => ({ execSync, default: { execSync } }));

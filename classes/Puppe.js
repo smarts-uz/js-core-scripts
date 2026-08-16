@@ -1,5 +1,5 @@
 
-import puppeteer from "puppeteer";
+import puppeteer from "#puppeteer";
 import { Files } from "./Files.js";
 import path from "path";
 import fs from "fs";
@@ -9,7 +9,7 @@ import { Dates } from "./Dates.js";
 import { ES } from "./ES.js";
 import { Phone } from "./Phone.js";
 import { Yamls } from "./Yamls.js";
-import pRetry from "p-retry";
+import pRetry from "#p-retry";
 
 export class Puppe {
   constructor(parameters) {

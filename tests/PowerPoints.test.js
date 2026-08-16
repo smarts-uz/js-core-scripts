@@ -138,7 +138,7 @@ const YamlsMock = {
   setConfig: jest.fn(),
 };
 
-jest.unstable_mockModule('winax', () => winaxMock);
+jest.unstable_mockModule('#winax', () => winaxMock);
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
