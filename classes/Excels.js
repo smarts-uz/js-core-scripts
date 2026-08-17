@@ -339,6 +339,37 @@ export class Excels {
     }
   }
 
+  /**
+   * Reads yamlData.History — a flat, date-keyed array (Yamls.computeHistory: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writeHistory.
+   * Writes one row per entry (date, net amount) starting at the {History} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}.
+   * No trailing { ALL } entry to skip.
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processHistory(yamlData) {
+    console.info(`[Excels.processHistory] 🟢 Starting...`);
+
+    const found = this.findColumn('History');
+    if (!found) {
+      console.warn('⚠️ processHistory: {History} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const history = Array.isArray(yamlData.History) ? yamlData.History : [];
+    console.log(`processHistory: ${history.length} History entr(y/ies)`, history);
+
+    for (const entry of history) {
+      const [date, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+
+      row++;
+    }
+  }
+
   // Reads yamlData.PenaltyDays — bare-date "start": dayCount per-period
   // late-payment day-count array Yamls.writePenaltyDays writes into
   // .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay) — writes
@@ -394,6 +425,40 @@ export class Excels {
     console.log(`processFaktura: ${faktura.length} Faktura entr(y/ies)`, faktura);
 
     for (const entry of faktura) {
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
+      const [start, end] = intervalKey.split('#');
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = start;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
+  /**
+   * Reads yamlData.FakturaSend — bare-date "end" key (same Dates.monthEnd remap as Faktura), per-period amount NOT YET invoiced (Yamls.computeFakturaSend: Accrual[period] minus Faktura[period]), written into the .contract yaml by Yamls.writeFakturaSend.
+   * Writes one row per entry (end date, amount) starting at the {FakturaSend} placeholder's cell — a 3-column block (Начало/Конец/Сумма), same shape as {Faktura}.
+   * Trailing { ALL: sum } entry skipped, same as processFaktura.
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processFakturaSend(yamlData) {
+    console.info(`[Excels.processFakturaSend] 🟢 Starting...`);
+
+    const found = this.findColumn('FakturaSend');
+    if (!found) {
+      console.warn('⚠️ processFakturaSend: {FakturaSend} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const fakturaSend = Array.isArray(yamlData.FakturaSend) ? yamlData.FakturaSend : [];
+    console.log(`processFakturaSend: ${fakturaSend.length} FakturaSend entr(y/ies)`, fakturaSend);
+
+    for (const entry of fakturaSend) {
       const [intervalKey, amount] = Object.entries(entry)[0];
       if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
@@ -1228,7 +1293,9 @@ export class Excels {
       this.processAccrual(yamlData);
       this.processPayment(yamlData);
       this.processFaktura(yamlData);
+      this.processFakturaSend(yamlData);
       this.processReturns(yamlData);
+      this.processHistory(yamlData);
       this.processLoaners(yamlData);
       this.processPenaltyDays(yamlData);
       this.processPenalty(yamlData);
