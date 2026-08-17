@@ -586,7 +586,7 @@ describe('Excels.processReturns', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Returns');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 40);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 42);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 41);
   });
 
   it('always runs even when yamlData.Returns is empty (no PenaltyON-style gate)', () => {
@@ -706,7 +706,7 @@ describe('Excels.processAccount', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Account');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 42);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
   });
 
   it('always runs even when yamlData.Account is empty', () => {
@@ -739,7 +739,7 @@ describe('Excels.processPriceMon', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMon');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
   });
 
   it('always runs even when yamlData.PriceMon is empty', () => {
@@ -772,7 +772,7 @@ describe('Excels.processPriceMaxMon', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxMon');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 47);
   });
 
   it('always runs even when yamlData.PriceMaxMon is empty', () => {
@@ -805,7 +805,7 @@ describe('Excels.processPriceDay', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceDay');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 49);
   });
 
   it('always runs even when yamlData.PriceDay is empty', () => {
@@ -838,7 +838,7 @@ describe('Excels.processPriceMaxDay', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxDay');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 52);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 51);
   });
 
   it('always runs even when yamlData.PriceMaxDay is empty', () => {

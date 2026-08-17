@@ -333,7 +333,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -463,7 +463,7 @@ export class Excels {
       const [date, balance] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = balance;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = balance;
 
       row++;
     }
@@ -493,7 +493,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -523,7 +523,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -553,7 +553,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -583,7 +583,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
