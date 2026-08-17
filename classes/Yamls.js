@@ -1040,6 +1040,7 @@ export class Yamls {
     /**
      * Writes/replaces PriceMon: block in place, or after Penalty: as fallback anchor on first write (see buildPriceMonEntries).
      * Keyed by bare "YYYY-MM" (no day), one entry per Accrual period.
+     * Strips a legacy PriceApp: block (the old key name, before the PriceApp -> PriceMon rename) — same in-place migration mechanism writeAccrual already uses for Pricings/PriceHistory.
      * @example
      *   PriceMon:
      *     - 2026-01: 1,620,000
@@ -1049,12 +1050,13 @@ export class Yamls {
      */
     static writePriceMon(filePath, priceMon) {
         console.info(`[Yamls.writePriceMon] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceMon', priceMon, 'Penalty', [], true);
+        this.writeYamlArraySection(filePath, 'PriceMon', priceMon, 'Penalty', ['PriceApp'], true);
     }
 
     /**
      * Writes/replaces PriceMaxMon: block in place, or after PriceMon: as fallback anchor on first write (see buildPriceMaxMonEntries).
      * Same bare "YYYY-MM" key as PriceMon.
+     * Strips a legacy PriceMaxApp: block (the old key name) the same way writePriceMon strips PriceApp.
      * @example
      *   PriceMaxMon:
      *     - 2026-01: 1,620,000
@@ -1063,7 +1065,7 @@ export class Yamls {
      */
     static writePriceMaxMon(filePath, priceMaxMon) {
         console.info(`[Yamls.writePriceMaxMon] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceMaxMon', priceMaxMon, 'PriceMon', [], true);
+        this.writeYamlArraySection(filePath, 'PriceMaxMon', priceMaxMon, 'PriceMon', ['PriceMaxApp'], true);
     }
 
     /**

@@ -872,6 +872,41 @@ describe('Yamls.buildPriceMaxMonEntries', () => {
   });
 });
 
+describe('Yamls.writePriceMon / Yamls.writePriceMaxMon — legacy key migration', () => {
+  it('strips a legacy PriceApp: block (the old key name) when writing PriceMon:', () => {
+    const f = path.join(workDir, 'pricemon-legacy.contract');
+    fs.writeFileSync(
+      f,
+      'Penalty:\n  - 2026-01: 0\n\nPriceApp:\n  - 2026-01: 1,620,000\n  - 2026-02: 1,620,000\n\nBonuses: []\n',
+      'utf8'
+    );
+
+    Yamls.writePriceMon(f, [{ '2026-01': '1,620,000' }]);
+
+    const content = read(workDir, 'pricemon-legacy.contract');
+    expect(content).not.toContain('PriceApp:');
+    expect(content.match(/^PriceMon:/gm)).toHaveLength(1);
+    expect(content).toContain('2026-01: 1,620,000');
+    expect(content).toContain('Bonuses: []');
+  });
+
+  it('strips a legacy PriceMaxApp: block (the old key name) when writing PriceMaxMon:', () => {
+    const f = path.join(workDir, 'pricemaxmon-legacy.contract');
+    fs.writeFileSync(
+      f,
+      'PriceMon:\n  - 2026-01: 1,620,000\n\nPriceMaxApp:\n  - 2026-01: 1,620,000\n\nBonuses: []\n',
+      'utf8'
+    );
+
+    Yamls.writePriceMaxMon(f, [{ '2026-01': '1,620,000' }]);
+
+    const content = read(workDir, 'pricemaxmon-legacy.contract');
+    expect(content).not.toContain('PriceMaxApp:');
+    expect(content.match(/^PriceMaxMon:/gm)).toHaveLength(1);
+    expect(content).toContain('Bonuses: []');
+  });
+});
+
 describe('Yamls.buildPriceDayEntries', () => {
   it("divides each month's PriceMon by that month's own real day count, rounded to the nearest whole so'm", () => {
     // Jan 2026 = 31 days: 1,620,000 / 31 = 52,258.06... -> 52,258. Feb 2026 = 28 days: 1,620,000 / 28 = 57,857.14... -> 57,857.
