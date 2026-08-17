@@ -870,29 +870,29 @@ describe('Yamls.writeCellArrays', () => {
 });
 
 describe('Yamls.buildAccrualEntries', () => {
+  const priceMon = [{ '2026-01': '390,000' }, { '2026-02': '390,000' }];
+
   it("rounds a partial first period to the nearest whole so'm only, never up to the nearest 1,000", () => {
     // Day 9 through end of a 31-day month = 23 days: 23/31 * 390,000 = 289,354.83... -> 289,355 (never 290,000).
-    const entries = Yamls.buildAccrualEntries('2026-01-09', '2026-01-31', '390,000');
+    const entries = Yamls.buildAccrualEntries('2026-01-09', '2026-01-31', priceMon);
     expect(entries).toEqual([{ '2026-01-09': '289,355' }]);
   });
 
-  it('leaves a full-month period exactly at Price, never touched by rounding', () => {
-    const entries = Yamls.buildAccrualEntries('2026-01-01', '2026-02-28', '390,000');
+  it('leaves a full-month period exactly at that month PriceMon rate, never touched by rounding', () => {
+    const entries = Yamls.buildAccrualEntries('2026-01-01', '2026-02-28', priceMon);
     expect(entries).toEqual([{ '2026-01-01': '390,000' }, { '2026-02-01': '390,000' }]);
+  });
+
+  it('reads a different amount per month from PriceMon, not a single flat rate', () => {
+    const varying = [{ '2026-01': '390,000' }, { '2026-02': '420,000' }];
+    const entries = Yamls.buildAccrualEntries('2026-01-01', '2026-02-28', varying);
+    expect(entries).toEqual([{ '2026-01-01': '390,000' }, { '2026-02-01': '420,000' }]);
   });
 });
 
 describe('Yamls.buildPriceMonEntries', () => {
-  const accrual = [
-    { '2026-01-09': '289,355' },
-    { '2026-02-01': '390,000' },
-    { '2026-03-01': '390,000' },
-    { ALL: '1,069,355' },
-  ];
-
-  it('uses the flat, never-prorated Price for a month with no debt, even a partial first month', () => {
-    const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '0' }, { ALL: '0' }];
-    const entries = Yamls.buildPriceMonEntries(accrual, loaners, '390,000', '450,000');
+  it('uses the flat Price for every calendar month across the period, one entry per month', () => {
+    const entries = Yamls.buildPriceMonEntries('2026-01-09', '2026-03-31', '390,000');
     expect(entries).toEqual([
       { '2026-01': '390,000' },
       { '2026-02': '390,000' },
@@ -900,43 +900,73 @@ describe('Yamls.buildPriceMonEntries', () => {
     ]);
   });
 
-  it('switches a month with Loaners > 0 to PriceMax, leaving every other month at Price', () => {
-    const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '390,000' }, { ALL: '390,000' }];
-    const entries = Yamls.buildPriceMonEntries(accrual, loaners, '390,000', '450,000');
-    expect(entries).toEqual([
-      { '2026-01': '390,000' },
-      { '2026-02': '390,000' },
-      { '2026-03': '450,000' },
-    ]);
-  });
-
-  it('ignores the trailing ALL entry on both accrual and loaners', () => {
-    const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '0' }, { ALL: '0' }];
-    const entries = Yamls.buildPriceMonEntries(accrual, loaners, '390,000', '450,000');
-    expect(entries).toHaveLength(3);
+  it('never varies by debt — always Price, no Loaners input at all', () => {
+    const entries = Yamls.buildPriceMonEntries('2026-01-09', '2026-01-31', '390,000');
+    expect(entries).toEqual([{ '2026-01': '390,000' }]);
   });
 });
 
 describe('Yamls.buildPriceMaxMonEntries', () => {
-  const accrual = [
-    { '2026-01-09': '289,355' },
-    { '2026-02-01': '390,000' },
-    { '2026-03-01': '390,000' },
-    { ALL: '1,069,355' },
-  ];
-
-  it('uses PriceMax for every month, regardless of debt — no Price-vs-PriceMax switch', () => {
-    const entries = Yamls.buildPriceMaxMonEntries(accrual, '450,000');
+  it('uses PriceMax for every calendar month across the period, one entry per month', () => {
+    const entries = Yamls.buildPriceMaxMonEntries('2026-01-09', '2026-03-31', '450,000');
     expect(entries).toEqual([
       { '2026-01': '450,000' },
       { '2026-02': '450,000' },
       { '2026-03': '450,000' },
     ]);
   });
+});
 
-  it('ignores the trailing ALL entry on accrual', () => {
-    const entries = Yamls.buildPriceMaxMonEntries(accrual, '450,000');
-    expect(entries).toHaveLength(3);
+describe('Yamls.freezePriceMonEntries', () => {
+  const existing = [{ '2026-01': '1,600,000' }, { '2026-02': '1,700,000' }, { '2026-06': '1,620,000' }];
+  const fresh = [
+    { '2026-01': '1,620,000' },
+    { '2026-02': '1,620,000' },
+    { '2026-03': '1,620,000' },
+    { '2026-04': '1,620,000' },
+    { '2026-05': '1,620,000' },
+    { '2026-06': '1,620,000' },
+    { '2026-07': '1,620,000' },
+    { '2026-08': '1,620,000' },
+  ];
+
+  it('returns freshlyBuilt unchanged when priceOK is not true (default false)', () => {
+    expect(Yamls.freezePriceMonEntries(existing, fresh, false)).toBe(fresh);
+    expect(Yamls.freezePriceMonEntries(existing, fresh, undefined)).toBe(fresh);
+  });
+
+  it('keeps every existing month at its own on-disk value, appends only months strictly after the last existing month', () => {
+    const result = Yamls.freezePriceMonEntries(existing, fresh, true);
+    expect(result).toEqual([
+      { '2026-01': '1,600,000' },
+      { '2026-02': '1,700,000' },
+      { '2026-06': '1,620,000' },
+      { '2026-07': '1,620,000' },
+      { '2026-08': '1,620,000' },
+    ]);
+  });
+
+  it('never re-derives a month already present in existing, even when fresh disagrees with it', () => {
+    const result = Yamls.freezePriceMonEntries(existing, fresh, true);
+    expect(result.find((e) => '2026-02' in e)).toEqual({ '2026-02': '1,700,000' });
+  });
+
+  it('falls back to freshlyBuilt when existing has no real months (empty or ALL-only)', () => {
+    expect(Yamls.freezePriceMonEntries([], fresh, true)).toBe(fresh);
+    expect(Yamls.freezePriceMonEntries([{ ALL: '0' }], fresh, true)).toBe(fresh);
+    expect(Yamls.freezePriceMonEntries(undefined, fresh, true)).toBe(fresh);
+  });
+
+  it('ignores a trailing ALL entry on existing when finding its own last real month', () => {
+    const existingWithAll = [...existing, { ALL: '4,920,000' }];
+    const result = Yamls.freezePriceMonEntries(existingWithAll, fresh, true);
+    expect(result).toEqual([
+      { '2026-01': '1,600,000' },
+      { '2026-02': '1,700,000' },
+      { '2026-06': '1,620,000' },
+      { '2026-07': '1,620,000' },
+      { '2026-08': '1,620,000' },
+    ]);
   });
 });
 
@@ -2027,11 +2057,7 @@ describe('Yamls.replaceYaml', () => {
         ActDateStart: '2026-01-01',
         ActDateEnd: '2026-01-31',
         Price: '4,200,000',
-        // PriceMax === Price: no real payment exists in this test (no
-        // Bank-OT/Card-OT/etc. folders), so recomputeChain's fixed-point
-        // loop re-prices every month at PriceMax (a month with Loaners > 0
-        // is charged PriceMax instead of Price) — setting them equal keeps
-        // the asserted Accrual amount correct regardless of that re-pricing.
+        // Accrual reads its rate from PriceMon (built fresh from Price here, PriceOK not set) — PriceMax is unused by Accrual itself now, kept equal to Price only for readability of this fixture.
         PriceMax: '4,200,000',
         SurEnable: false,
         RepEnable: false,
@@ -2081,6 +2107,68 @@ describe('Yamls.replaceYaml', () => {
     // Account is a running daily balance, not a transaction list — summing balances is meaningless, so it deliberately has NO ALL: subkey.
     const accountBlock = content.match(/Account:\n((?:\s+-.*\n)*)/)[1];
     expect(accountBlock).not.toMatch(/ALL:/);
+  });
+
+  it('PriceOK: true freezes existing PriceMon/PriceMaxMon months and Accrual uses the frozen rate, not the current Price', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    // A pre-existing file already carrying a hand-edited PriceMon (January frozen at 390,000, a rate that differs from the yamlData.Price argument below) and PriceOK: true.
+    fs.writeFileSync(
+      ymlFile,
+      'ContractDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n\nPriceMon:\n  - 2026-01: 390,000\n\nPriceMaxMon:\n  - 2026-01: 450,000\n',
+      'utf8'
+    );
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      {
+        ComType: 'MChJ',
+        ContractDate: '2026-01-01',
+        ActDateStart: '2026-01-01',
+        ActDateEnd: '2026-02-28',
+        // A CHANGED current Price/PriceMax — must NOT overwrite January (already frozen by PriceOK: true), must drive February (a genuinely new month, appended after the frozen January).
+        Price: '500,000',
+        PriceMax: '550,000',
+        PriceOK: true,
+        // replaceYaml is handed yamlData directly by its caller (unlike fillYamlWithInfo, which reads the file itself via loadAndParseYaml) — mirror what that real read would have produced for the file's own pre-existing PriceMon/PriceMaxMon.
+        PriceMon: [{ '2026-01': '390,000' }],
+        PriceMaxMon: [{ '2026-01': '450,000' }],
+        SurEnable: false,
+        RepEnable: false,
+      },
+      {
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    // January stays frozen at its own on-disk rate, February is newly appended at the current Price/PriceMax.
+    expect(content).toContain('2026-01: 390,000');
+    expect(content).toContain('2026-02: 500,000');
+    expect(content).toContain('2026-01: 450,000');
+    expect(content).toContain('2026-02: 550,000');
+    // Accrual's own January entry reflects the FROZEN PriceMon rate (390,000), never the new yamlData.Price (500,000) — full month, no proration.
+    expect(content).toContain('2026-01-01: 390,000');
+    expect(content).not.toContain('2026-01-01: 500,000');
+    // February's Accrual entry reflects the newly appended PriceMon rate (500,000).
+    expect(content).toContain('2026-02-01: 500,000');
   });
 
   it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {

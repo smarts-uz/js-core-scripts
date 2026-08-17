@@ -451,58 +451,41 @@ export class Yamls {
     }
 
     /**
-     * Builds PriceMon entries, one per Accrual period, key remapped to bare "YYYY-MM".
-     * Value: tariff's flat full-month rent price, never prorated (unlike Accrual).
-     * Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated.
-     * Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
-     * @param {Array<Object>} accrual
-     * @param {Array<Object>} loaners
+     * Builds PriceMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM".
+     * Value: the flat yamlData.Price rate for every month — never prorated, never debt-conditioned.
+     * PriceMon is now the source Accrual is built FROM, so it cannot itself depend on Accrual/Loaners — a month needing PriceMax instead is a manual edit the user makes before setting PriceOK: true.
+     * @param {string} startDate
+     * @param {string} futureDate
      * @param {string|number} price
-     * @param {string|number} priceMax
      * @returns {Array<Object>}
      */
-    static buildPriceMonEntries(accrual, loaners, price, priceMax) {
+    static buildPriceMonEntries(startDate, futureDate, price) {
         console.info(`[Yamls.buildPriceMonEntries] 🟢 Starting...`);
 
         const priceNum = Number(String(price).replace(/,/g, '')) || 0;
-        const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
-        const loanersByKey = new Map(
-            (Array.isArray(loaners) ? loaners : [])
-                .filter(e => !('ALL' in e))
-                .map(e => Object.entries(e)[0])
-        );
+        const monthRanges = Dates.monthsBetween(startDate, futureDate);
 
-        const entries = (Array.isArray(accrual) ? accrual : [])
-            .filter(e => !('ALL' in e))
-            .map(entry => {
-                const [start] = Object.entries(entry)[0];
-                const debt = Number(String(loanersByKey.get(start) ?? '0').replace(/,/g, '')) || 0;
-                const amount = debt > 0 ? priceMaxNum : priceNum;
-                return { [start.slice(0, 7)]: amount.toLocaleString('en-US') };
-            });
+        const entries = monthRanges.map(({ start }) => ({ [start.slice(0, 7)]: priceNum.toLocaleString('en-US') }));
 
         console.log(`buildPriceMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
     }
 
     /**
-     * Builds PriceMaxMon entries, one per Accrual period, key remapped to bare "YYYY-MM".
-     * Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceMon, there is no Price-vs-PriceMax switch here.
-     * @param {Array<Object>} accrual
+     * Builds PriceMaxMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM".
+     * Value: the flat yamlData.PriceMax rate for every month — same shape as buildPriceMonEntries, different source scalar.
+     * @param {string} startDate
+     * @param {string} futureDate
      * @param {string|number} priceMax
      * @returns {Array<Object>}
      */
-    static buildPriceMaxMonEntries(accrual, priceMax) {
+    static buildPriceMaxMonEntries(startDate, futureDate, priceMax) {
         console.info(`[Yamls.buildPriceMaxMonEntries] 🟢 Starting...`);
 
         const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
+        const monthRanges = Dates.monthsBetween(startDate, futureDate);
 
-        const entries = (Array.isArray(accrual) ? accrual : [])
-            .filter(e => !('ALL' in e))
-            .map(entry => {
-                const [start] = Object.entries(entry)[0];
-                return { [start.slice(0, 7)]: priceMaxNum.toLocaleString('en-US') };
-            });
+        const entries = monthRanges.map(({ start }) => ({ [start.slice(0, 7)]: priceMaxNum.toLocaleString('en-US') }));
 
         console.log(`buildPriceMaxMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
@@ -725,37 +708,21 @@ export class Yamls {
         return result;
     }
 
-    // Recomputes Accrual/Payment/Loaners to a fixed point: applying PriceMax
-    // to debt months can change which months are in debt (a higher Accrual
-    // for one month can push a later month into debt too, or a lower one out
-    // of it), so the PriceMax substitution + payment-chain allocation are
-    // re-run together until Loaners stops changing (bounded — at most one
-    // pass per Accrual entry can ever flip, so this always terminates).
-    static recomputeChain(startDate, futureDate, price, priceMax, payments) {
+    // Builds Accrual from PriceMon (the permanent source of truth for each month's own rate — see #priceMonLookup) and chains the real payments across it via computePaymentChain.
+    // PriceMon/PriceMaxMon are decided BEFORE this call now (see #writeChain), so there is no debt-based re-pricing feedback loop left to run to a fixed point — a month needing PriceMax instead of PriceMon is a manual edit the user makes before setting PriceOK: true.
+    static recomputeChain(startDate, futureDate, priceMon, payments) {
         console.info(`[Yamls.recomputeChain] 🟢 Starting...`);
 
-        let accrual = Yamls.buildAccrualEntries(startDate, futureDate, price);
-        let { payment, loaners } = Yamls.computePaymentChain(accrual, payments);
-
-        for (let i = 0; i < accrual.length; i++) {
-            const nextAccrual = Yamls.applyPriceMaxToDebtMonths(accrual, loaners, startDate, priceMax);
-            const nextChain = Yamls.computePaymentChain(nextAccrual, payments);
-
-            const unchanged = JSON.stringify(nextChain.loaners) === JSON.stringify(loaners);
-            accrual = nextAccrual;
-            payment = nextChain.payment;
-            loaners = nextChain.loaners;
-
-            if (unchanged) break;
-        }
+        const accrualBase = Yamls.buildAccrualEntries(startDate, futureDate, priceMon);
+        const { payment, loaners } = Yamls.computePaymentChain(accrualBase, payments);
 
         const sum = (arr) => arr.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
-        accrual = [...accrual, { ALL: sum(accrual).toLocaleString('en-US') }];
-        payment = [...payment, { ALL: sum(payment.filter(e => !('ALL' in e))).toLocaleString('en-US') }];
-        loaners = [...loaners, { ALL: sum(loaners.filter(e => !('ALL' in e))).toLocaleString('en-US') }];
+        const accrual = [...accrualBase, { ALL: sum(accrualBase).toLocaleString('en-US') }];
+        const paymentTotal = [...payment, { ALL: sum(payment.filter(e => !('ALL' in e))).toLocaleString('en-US') }];
+        const loanersTotal = [...loaners, { ALL: sum(loaners.filter(e => !('ALL' in e))).toLocaleString('en-US') }];
 
-        console.log(`recomputeChain: done`, { accrual, payment, loaners });
-        return { accrual, payment, loaners };
+        console.log(`recomputeChain: done`, { accrual, payment: paymentTotal, loaners: loanersTotal });
+        return { accrual, payment: paymentTotal, loaners: loanersTotal };
     }
 
     // One calendar day later than 'YYYY-MM-DD' dateIso, same format — plain
@@ -2190,19 +2157,21 @@ export class Yamls {
         // .contract is filled/updated, not only when an Excel report is
         // generated separately.
         //
-        // Accrual starts every month at yamlData.Price (the on-time rate);
-        // recomputeChain then re-prices any month with real-payment
-        // shortfall at yamlData.PriceMax (from conf/cost/<Tariff>.yaml, NOT
-        // written into the .contract yaml itself — only its EFFECT, the
-        // re-priced Accrual figure, is persisted) and re-chains the real cash
-        // payments (Bank-OT + Trans-OT + Card-OT + BaaR-OT, scanned fresh
-        // from folderALL — not from yamlData, since a freshly-filled
-        // contract has no in-memory payment history yet) across the
-        // resulting periods to a fixed point, producing Loaners in lockstep
-        // with Accrual — this internal chain drives Loaners/PriceMax
-        // re-pricing ONLY; the Payment: key actually WRITTEN to the yaml is
-        // a separate, flat date-keyed merge (see below), not this chain's
-        // own per-period allocation.
+        /*
+         * PriceMon/PriceMaxMon are the permanent source of truth for every month's own rent rate — built FIRST, before Accrual, since Accrual now reads its price from here (see buildAccrualEntries).
+         * PriceOK: true freezes every existing PriceMon/PriceMaxMon month at its own on-disk value (see freezePriceMonEntries); only months strictly after the existing block's own last month get a fresh entry, computed from yamlData.Price/PriceMax.
+         * PriceOK is not true (the default) -> the whole block is rebuilt fresh from yamlData.Price/PriceMax every run, same as before this rule existed.
+         */
+        const priceMonFresh = Yamls.buildPriceMonEntries(yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.Price);
+        const priceMon = Yamls.freezePriceMonEntries(yamlData.PriceMon, priceMonFresh, yamlData.PriceOK);
+        Yamls.writePriceMon(ymlFile, Yamls.appendAllTotal(priceMon));
+
+        const priceMaxMonFresh = Yamls.buildPriceMaxMonEntries(yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.PriceMax);
+        const priceMaxMon = Yamls.freezePriceMonEntries(yamlData.PriceMaxMon, priceMaxMonFresh, yamlData.PriceOK);
+        Yamls.writePriceMaxMon(ymlFile, Yamls.appendAllTotal(priceMaxMon));
+
+        // Accrual reads each month's own rate from PriceMon (never the flat yamlData.Price scalar directly — see recomputeChain/buildAccrualEntries) and chains the real cash payments (Bank-OT + Trans-OT + Card-OT + BaaR-OT, scanned fresh from folderALL — not from yamlData, since a freshly-filled contract has no in-memory payment history yet) across the resulting periods, producing Loaners in lockstep with Accrual.
+        // This internal chain drives Loaners only now (PriceMax re-pricing of Accrual is retired — see recomputeChain); the Payment: key actually WRITTEN to the yaml is a separate, flat date-keyed merge (see below), not this chain's own per-period allocation.
         const bankOT = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-OT');
         const transOT = Yamls.scanCellFolder(globalThis.folderALL, 'Trans-OT');
         const cardOT = Yamls.scanCellFolder(globalThis.folderALL, 'Card-OT');
@@ -2210,7 +2179,7 @@ export class Yamls {
         const payments = [...bankOT, ...transOT, ...cardOT, ...baarOT];
 
         const { accrual, loaners } = Yamls.recomputeChain(
-            yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.Price, yamlData.PriceMax, payments
+            yamlData.PeriodStart, yamlData.PeriodEnd, priceMon, payments
         );
         Yamls.writeAccrual(ymlFile, accrual);
 
@@ -2240,15 +2209,10 @@ export class Yamls {
 
         Yamls.writePayment(ymlFile, Yamls.appendAllTotal(paymentFlat));
 
-        // Faktura: the real EHF-IN invoice sum (scanned fresh from
-        // folderALL, same as Bank-OT/Trans-OT/Card-OT/BaaR-OT above),
-        // distributed across the FINAL, already-recomputeChain-settled
-        // Accrual periods — once the whole EHF-IN sum is distributed, every
-        // remaining period gets 0. Must run AFTER recomputeChain, against
-        // its returned `accrual` (the fixed-point one, already re-priced at
-        // PriceMax on any debt month), never the pre-recompute baseline.
-        // Written directly after Payment:, before Loaners:/PenaltyDays:/
-        // Penalty:.
+        // Faktura: the real EHF-IN invoice sum (scanned fresh from folderALL, same as Bank-OT/Trans-OT/Card-OT/BaaR-OT above), distributed across recomputeChain's own returned Accrual periods.
+        // Once the whole EHF-IN sum is distributed, every remaining period gets 0.
+        // Must run AFTER recomputeChain, against its returned `accrual`, never a hand-built baseline.
+        // Written directly after Payment:, before Loaners:/PenaltyDays:/Penalty:.
         const ehfIn = Yamls.scanCellFolder(globalThis.folderALL, 'EHF-IN');
         const faktura = Yamls.computeFaktura(accrual, ehfIn);
         Yamls.writeFaktura(ymlFile, faktura);
@@ -2260,23 +2224,10 @@ export class Yamls {
         Yamls.writeFakturaSend(ymlFile, fakturaSend);
 
         /*
-         * PriceMon: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
-         * PriceMaxMon: same flat full-month shape, but ALWAYS PriceMax regardless of debt — no Price-vs-PriceMax switch.
-         * PriceDay/PriceMaxDay: each month's own Mon amount / its real day count, rounded to nearest whole so'm.
-         * All four keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:, in this exact chained order: PriceMon -> PriceMaxMon -> PriceDay -> PriceMaxDay.
+         * PriceDay/PriceMaxDay: each month's own PriceMon/PriceMaxMon amount divided by its real day count, rounded to the nearest whole so'm.
+         * PriceMon/PriceMaxMon were already built and written above (before Accrual) — this only derives the per-day rate from them.
+         * Written directly after Penalty:, before Bonuses:, in this exact chained order: PriceDay -> PriceMaxDay.
          */
-        /*
-         * PriceOK: true freezes every existing PriceMon/PriceMaxMon month at its own on-disk value (see freezePriceMonEntries).
-         * Lets a user hand-edit each month's historical rate and lock it in, while new months still auto-append at the current Price/PriceMax.
-         */
-        const priceMonFresh = Yamls.buildPriceMonEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
-        const priceMon = Yamls.freezePriceMonEntries(yamlData.PriceMon, priceMonFresh, yamlData.PriceOK);
-        Yamls.writePriceMon(ymlFile, Yamls.appendAllTotal(priceMon));
-
-        const priceMaxMonFresh = Yamls.buildPriceMaxMonEntries(accrual, yamlData.PriceMax);
-        const priceMaxMon = Yamls.freezePriceMonEntries(yamlData.PriceMaxMon, priceMaxMonFresh, yamlData.PriceOK);
-        Yamls.writePriceMaxMon(ymlFile, Yamls.appendAllTotal(priceMaxMon));
-
         const priceDay = Yamls.buildPriceDayEntries(priceMon);
         Yamls.writePriceDay(ymlFile, Yamls.appendAllTotal(priceDay));
 
