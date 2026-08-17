@@ -268,6 +268,42 @@ describe('Yamls.replaceTextLine', () => {
   });
 });
 
+describe('Yamls.writeScalarSection', () => {
+  it('updates an existing "Key:" line IN PLACE at its own position', () => {
+    const f = path.join(workDir, 'scalar.contract');
+    fs.writeFileSync(f, 'ContractDateEnd:\nLoaners: 100,000\nComBase: x\n', 'utf8');
+    Yamls.writeScalarSection(f, 'Loaners', '250,000', 'ContractDateEnd');
+    expect(read(workDir, 'scalar.contract')).toBe('ContractDateEnd:\nLoaners: 250,000\nComBase: x\n');
+  });
+
+  it('inserts a genuinely new key directly after afterKey, with one blank line on each side', () => {
+    const f = path.join(workDir, 'scalar2.contract');
+    fs.writeFileSync(f, 'ContractDateEnd:\n\nComBase: x\n', 'utf8');
+    Yamls.writeScalarSection(f, 'Loaners', '893,342', 'ContractDateEnd');
+    expect(read(workDir, 'scalar2.contract')).toBe('ContractDateEnd:\n\nLoaners: 893,342\n\nComBase: x\n');
+  });
+
+  it('appends at end of file with a warning when afterKey is missing', () => {
+    const f = path.join(workDir, 'scalar3.contract');
+    fs.writeFileSync(f, 'Foo: bar\n', 'utf8');
+    Yamls.writeScalarSection(f, 'Loaners', '893,342', 'MissingAnchor');
+    const content = read(workDir, 'scalar3.contract');
+    expect(content).toContain('Foo: bar');
+    expect(content).toContain('Loaners: 893,342');
+  });
+});
+
+describe('Yamls.writeLoaners', () => {
+  it('writes a plain scalar line, not an array block', () => {
+    const f = path.join(workDir, 'loaners.contract');
+    fs.writeFileSync(f, 'History:\n  - 2026-01-01: 0\n\nAccount:\n  - 2026-01-01: 0\n', 'utf8');
+    Yamls.writeLoaners(f, '893,342');
+    const content = read(workDir, 'loaners.contract');
+    expect(content).toContain('Loaners: 893,342');
+    expect(content).not.toContain('Loaners:\n  -');
+  });
+});
+
 describe('Yamls.writeAccrual', () => {
   it('inserts the Accrual array directly after the ComBase: line, separated by exactly one blank line', () => {
     const f = path.join(workDir, 't.contract');
@@ -350,17 +386,20 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writePriceApp/writePriceMaxApp/writePriceDay/writePriceMaxDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
+  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeLoaners/writeFaktura/writePenaltyDays/writePenalty/writePriceApp/writePriceMaxApp/writePriceDay/writePriceMaxDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
     Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writeHistory(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
-    /* Account's own fallback anchor is History (fixed) — calling it AFTER writePayment (which shares that same anchor) is what makes it land BETWEEN History: and Payment:, matching #writeChain's own real call order. */
+    /*
+     * Account/Loaners/Payment all share the same fixed History fallback anchor — whichever runs LAST lands closest to History:, so #writeChain's real order (writeAccount, then writeLoaners) yields History -> Loaners -> Account -> Payment on a brand-new file.
+     * PenaltyDays' own fallback anchor is Faktura (not Loaners, which is a scalar now — see writeLoaners), keeping the Account/Payment/Faktura group intact.
+     */
     Yamls.writeAccount(f, [{ '2026-01-01': '0' }]);
+    Yamls.writeLoaners(f, '893,342');
     Yamls.writeFaktura(f, [{ '2026-01-01': '0' }]);
-    Yamls.writeLoaners(f, [{ '2026-01-01': '0' }]);
     Yamls.writePenaltyDays(f, [{ '2026-01-01': 0 }]);
     Yamls.writePenalty(f, [{ '2026-01-01': '0' }]);
     Yamls.writePriceApp(f, [{ '2026-01': '450,000' }]);
@@ -381,6 +420,8 @@ describe('Yamls.writeAccrual', () => {
         'History:',
         '  - 2026-01-01: 450,000',
         '',
+        'Loaners: 893,342',
+        '',
         'Account:',
         '  - 2026-01-01: 0',
         '',
@@ -388,9 +429,6 @@ describe('Yamls.writeAccrual', () => {
         '  - 2026-01-01: 450,000',
         '',
         'Faktura:',
-        '  - 2026-01-01: 0',
-        '',
-        'Loaners:',
         '  - 2026-01-01: 0',
         '',
         'PenaltyDays:',
@@ -1892,6 +1930,11 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('Account:');
     expect(content).toContain("2026-01-01: '-135,484'");
     expect(content).toContain("2026-01-02: '-270,968'");
+    // Loaners: a plain scalar now — the absolute value of Account's own last (2026-01-31) entry, never an array.
+    expect(content).toMatch(/^Loaners: '?[\d,]+'?$/m);
+    expect(content).not.toMatch(/Loaners:\n\s+-/);
+    // PrepayMon: the resolved PrepayMonth value the code actually used — blank here, since ActDateEnd was filled so PrepayMonth was never read.
+    expect(content).toContain('PrepayMon:');
   });
 
   it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {

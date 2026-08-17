@@ -406,11 +406,12 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Loaners — bare-date "start": amount per-period
-  // outstanding debt array Yamls.recomputeChain/writeLoaners writes into
-  // .contract yaml — writes one row per entry (start date, debt amount)
-  // starting at {Loaners} placeholder's cell. Trailing { ALL: sum } entry
-  // skipped. Always runs — mirrors processPayment.
+  /**
+   * Loaners: is now a plain scalar (the absolute value of Account's own last entry — see Yamls.writeLoaners), not an array.
+   * This method's array-shaped {Loaners} row loop is a no-op for every real contract — kept as standalone dead-shape handling rather than deleted, per the "don't remove public API surface without being asked" rule.
+   * Any real {Loaners} placeholder cell is now filled by generate()'s own generic scalar-replace pass instead.
+   * @param {object} yamlData
+   */
   static processLoaners(yamlData) {
     console.info(`[Excels.processLoaners] 🟢 Starting...`);
 

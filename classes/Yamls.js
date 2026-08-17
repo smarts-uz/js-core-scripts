@@ -258,6 +258,57 @@ export class Yamls {
         console.log(`File ${filePath} has been updated with ${key} (inserted after ${afterKey}).`, entries);
     }
 
+    /**
+     * Generic writer for a single top-level scalar "Key: value" line — the scalar sibling of writeYamlArraySection.
+     * Same order-preserving-in-place contract: an existing "Key:" line updates STRICTLY IN PLACE at its own position.
+     * A key that has never existed before falls back to inserting a new line directly after afterKey's own block (same blank-line rhythm as writeYamlArraySection).
+     * @param {string} filePath
+     * @param {string} key
+     * @param {string|number} value
+     * @param {string} afterKey
+     */
+    static writeScalarSection(filePath, key, value, afterKey) {
+        console.info(`[Yamls.writeScalarSection] 🟢 Starting... key=${key}`);
+
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const lines = fileContent.split('\n');
+        const line = `${key}: ${value}`;
+
+        const existingIdx = lines.findIndex(l => new RegExp(`^${key}:`).test(l));
+        if (existingIdx !== -1) {
+            lines[existingIdx] = line;
+            fs.writeFileSync(filePath, lines.join('\n'));
+            console.log(`File ${filePath} has been updated with ${key} in place.`, value);
+            return;
+        }
+
+        const blockExtent = (startIdx) => {
+            let endIdx = startIdx + 1;
+            while (endIdx < lines.length && /^\s/.test(lines[endIdx]) && lines[endIdx] !== '') {
+                endIdx++;
+            }
+            return endIdx;
+        };
+
+        const afterIdx = lines.findIndex(l => new RegExp(`^${afterKey}:`).test(l));
+        if (afterIdx === -1) {
+            console.warn(`writeScalarSection: "${afterKey}:" line not found in ${filePath}; appending ${key} at end of file.`);
+            const toAppend = lines.length > 0 && lines[lines.length - 1] !== '' ? ['', line] : [line];
+            fs.writeFileSync(filePath, [...lines, ...toAppend].join('\n'));
+            console.log(`File ${filePath} has been updated with ${key} (appended).`, value);
+            return;
+        }
+
+        const insertIdx = blockExtent(afterIdx);
+        const hasBlankAfter = lines[insertIdx] === '';
+        const atEnd = insertIdx >= lines.length;
+        const toInsert = hasBlankAfter || atEnd ? ['', line] : ['', line, ''];
+        lines.splice(insertIdx, 0, ...toInsert);
+
+        fs.writeFileSync(filePath, lines.join('\n'));
+        console.log(`File ${filePath} has been updated with ${key} (inserted after ${afterKey}).`, value);
+    }
+
     // Builds Accrual: entries, every calendar month across contract's active
     // period (PeriodStart..PeriodEnd, both YYYY-MM-DD) — one bare "start"
     // (due date): amount mapping per month, at tariff's normal Price for
@@ -918,31 +969,35 @@ export class Yamls {
         this.writeYamlArraySection(filePath, 'Payment', payment, 'History', [], true);
     }
 
-    // Writes/replaces the Loaners: array block IN PLACE at its existing
-    // position, or after Faktura: as a fallback anchor for a brand-new file
-    // — per-period outstanding debt (the mirror of Payment).
-    //   Loaners:
-    //     - 2026-03-01: 0
-    //     - 2026-04-01: 450,000
-    //     - ALL: 450,000
-    static writeLoaners(filePath, loaners) {
+    /**
+     * Writes/replaces the Loaners: scalar line IN PLACE at its existing position, or after History: as a fallback anchor for a file that has never had this key before.
+     * Value: the ABSOLUTE value of Account's own LAST entry — the outstanding debt (or surplus, if positive) at PeriodEnd.
+     * A plain scalar, NOT an array — the array shape was retired once Account itself carried the full daily detail.
+     * @example
+     *   Loaners: 893,342
+     * @param {string} filePath
+     * @param {string|number} loanersTotal
+     */
+    static writeLoaners(filePath, loanersTotal) {
         console.info(`[Yamls.writeLoaners] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Loaners', loaners, 'Faktura', [], true);
+        this.writeScalarSection(filePath, 'Loaners', loanersTotal, 'History');
     }
 
-    // Writes/replaces the PenaltyDays: array block IN PLACE at its existing
-    // position, or after Loaners: as a fallback anchor for a brand-new file
-    // — per-period count of late-payment days (contract §21.1's fixed daily
-    // rate applies to each of these), the input Penalty is directly derived
-    // from (Penalty[i] = PenaltyDays[i] * PenaltyForDay). See
-    // computeDailyBalance/computePenaltyDays.
-    //   PenaltyDays:
-    //     - 2026-07-01: 3
-    //     - 2026-08-01: 0
-    //     - ALL: 3
+    /**
+     * Writes/replaces the PenaltyDays: array block IN PLACE at its existing position, or after Faktura: as a fallback anchor for a brand-new file — per-month count of deficit-balance days (contract §21.1's fixed daily rate applies to each), Penalty is directly derived from this (Penalty[i] = PenaltyDays[i] * PenaltyForDay).
+     * See Yamls.computePenaltyDays.
+     * Anchor is Faktura, NOT Loaners — Loaners is now a plain scalar (see writeLoaners), and anchoring here avoids splitting the Account/Payment/Faktura group away from Loaners on a brand-new file's first-ever chain write.
+     * @example
+     *   PenaltyDays:
+     *     - 2026-07: 3
+     *     - 2026-08: 0
+     *     - ALL: 3
+     * @param {string} filePath
+     * @param {Array<Object>} penaltyDays
+     */
     static writePenaltyDays(filePath, penaltyDays) {
         console.info(`[Yamls.writePenaltyDays] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PenaltyDays', penaltyDays, 'Loaners', [], true);
+        this.writeYamlArraySection(filePath, 'PenaltyDays', penaltyDays, 'Faktura', [], true);
     }
 
     // Writes/replaces the Penalty: array block IN PLACE at its existing
@@ -1643,6 +1698,7 @@ export class Yamls {
 
         const prepayMonth = Yamls.getPrepayMonth(yamlData);
         console.log(prepayMonth, 'prepayMonth');
+        yamlData.PrepayMon = prepayMonth ?? '';
 
         /*
         A null prepayMonth is fatal ONLY when PeriodEnd actually depends on it.
@@ -2017,6 +2073,12 @@ export class Yamls {
             this.replaceTextLine(ymlFile, key, value);
         }
 
+        /*
+         * PrepayMon: the actual resolved PrepayMonth value the code uses — yamlData.PrepayMonth when set, else config.yml's Contract.PrepayMonth (see #resolveDates/getPrepayMonth).
+         * Insert-if-missing, since a fresh .contract template doesn't carry this output field yet — the generic replaceTextLine loop above only updates an EXISTING line.
+         */
+        Yamls.writeScalarSection(ymlFile, 'PrepayMon', yamlData.PrepayMon, 'ContractDateEnd');
+
         // Always record Accrual/Payment/Faktura/Loaners/PenaltyDays/Penalty/
         // Returns per calendar month across the contract's active period
         // (PeriodStart..PeriodEnd, both YYYY-MM-DD) — runs every time the
@@ -2092,8 +2154,6 @@ export class Yamls {
         const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn);
         Yamls.writeFakturaSend(ymlFile, fakturaSend);
 
-        Yamls.writeLoaners(ymlFile, loaners);
-
         /*
          * PriceApp: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
          * PriceMaxApp: same flat full-month shape, but ALWAYS PriceMax regardless of debt — no Price-vs-PriceMax switch.
@@ -2120,6 +2180,14 @@ export class Yamls {
          */
         const account = Yamls.buildAccountEntries(yamlData.PeriodStart, yamlData.PeriodEnd, history, priceDay, priceMaxDay);
         Yamls.writeAccount(ymlFile, account);
+
+        /*
+         * Loaners: the client's own outstanding debt (or surplus, if positive) at PeriodEnd — a plain scalar, the ABSOLUTE value of Account's own LAST entry.
+         * No longer an array — Account itself now carries the full daily detail.
+         */
+        const lastAccountEntry = account.length ? Object.values(account[account.length - 1])[0] : '0';
+        const loanersTotal = Math.abs(Number(String(lastAccountEntry).replace(/,/g, '')) || 0).toLocaleString('en-US');
+        Yamls.writeLoaners(ymlFile, loanersTotal);
 
         /*
          * Penalty (§21.1 + §3.7/§1.20): every consecutive day (beyond the first, which is the 1-calendar-day grace period) Account's own balance stays negative counts as a penalty day, grouped by bare "YYYY-MM".

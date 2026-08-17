@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 337 runnable methods.
+**Coverage:** 23 classes, 338 runnable methods.
 
 ---
 # Category
@@ -1552,6 +1552,8 @@ node scripts/Excels/processFolders.mjs --entries <entries>
 | `found` | no | — |
 
 ## processLoaners(yamlData)
+
+Loaners: is now a plain scalar (the absolute value of Account's own last entry — see Yamls.writeLoaners), not an array. This method's array-shaped {Loaners} row loop is a no-op for every real contract — kept as standalone dead-shape handling rather than deleted, per the "don't remove public API surface without being asked" rule. Any real {Loaners} placeholder cell is now filled by generate()'s own generic scalar-replace pass instead.
 
 **Run:**
 
@@ -3929,7 +3931,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 46 public static method(s).
+Runners: `scripts/Yamls/` — 47 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -4436,7 +4438,9 @@ node scripts/Yamls/writeHistory.mjs --file "<path>"
 | `filePath` | no | — |
 | `history` | no | — |
 
-## writeLoaners(filePath, loaners)
+## writeLoaners(filePath, loanersTotal)
+
+Writes/replaces the Loaners: scalar line IN PLACE at its existing position, or after History: as a fallback anchor for a file that has never had this key before. Value: the ABSOLUTE value of Account's own LAST entry — the outstanding debt (or surplus, if positive) at PeriodEnd. A plain scalar, NOT an array — the array shape was retired once Account itself carried the full daily detail. Loaners: 893,342
 
 **Run:**
 
@@ -4447,7 +4451,7 @@ node scripts/Yamls/writeLoaners.mjs --file "<path>"
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `filePath` | no | — |
-| `loaners` | no | — |
+| `loanersTotal` | no | — |
 
 ## writePayment(filePath, payment)
 
@@ -4476,6 +4480,8 @@ node scripts/Yamls/writePenalty.mjs --file "<path>"
 | `penalty` | no | — |
 
 ## writePenaltyDays(filePath, penaltyDays)
+
+Writes/replaces the PenaltyDays: array block IN PLACE at its existing position, or after Faktura: as a fallback anchor for a brand-new file — per-month count of deficit-balance days (contract §21.1's fixed daily rate applies to each), Penalty is directly derived from this (Penalty[i] = PenaltyDays[i] * PenaltyForDay). See Yamls.computePenaltyDays. Anchor is Faktura, NOT Loaners — Loaners is now a plain scalar (see writeLoaners), and anchoring here avoids splitting the Account/Payment/Faktura group away from Loaners on a brand-new file's first-ever chain write. PenaltyDays: - 2026-07: 3 - 2026-08: 0 - ALL: 3
 
 **Run:**
 
@@ -4560,6 +4566,23 @@ node scripts/Yamls/writeReturns.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `returns` | no | — |
+
+## writeScalarSection(filePath, key, value, afterKey)
+
+Generic writer for a single top-level scalar "Key: value" line — the scalar sibling of writeYamlArraySection. Same order-preserving-in-place contract: an existing "Key:" line updates STRICTLY IN PLACE at its own position. A key that has never existed before falls back to inserting a new line directly after afterKey's own block (same blank-line rhythm as writeYamlArraySection).
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeScalarSection.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `key` | no | — |
+| `value` | no | — |
+| `afterKey` | no | — |
 
 ## writeYamlArraySection(filePath, key, entries, afterKey, [legacyKeys], [allowEmpty])
 
