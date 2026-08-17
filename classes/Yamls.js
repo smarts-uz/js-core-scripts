@@ -331,10 +331,10 @@ export class Yamls {
     }
 
     /**
-     * Builds PriceApp: entries, one per Accrual period (same YYYY-MM-DD periods, remapped to a bare "YYYY-MM" key).
-     * Value is the tariff's FLAT full-month rent price for that month, never prorated (unlike Accrual, which prorates a partial first/last month).
-     * A month with outstanding debt (Loaners > 0 for that same period) uses PriceMax instead of Price — same debt signal applyPriceMaxToDebtMonths uses, but PriceApp's own value is always the flat rate, never re-prorated.
-     * Must run against the FINAL, already-recomputeChain-settled accrual/loaners pair (same inputs writeAccrual/writeLoaners use), never a pre-recompute baseline.
+     * Builds PriceApp entries, one per Accrual period, key remapped to bare "YYYY-MM".
+     * Value: tariff's flat full-month rent price, never prorated (unlike Accrual).
+     * Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated.
+     * Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
      * @param {Array<Object>} accrual
      * @param {Array<Object>} loaners
      * @param {string|number} price
@@ -366,7 +366,7 @@ export class Yamls {
     }
 
     /**
-     * Builds PriceDay: entries, one per PriceApp entry — that month's own PriceApp amount divided by however many calendar days that month actually has, rounded to the nearest whole so'm.
+     * Builds PriceDay entries, one per PriceApp entry: that month's PriceApp amount / its real day count, rounded to the nearest whole so'm.
      * Same bare "YYYY-MM" key as PriceApp.
      * @param {Array<Object>} priceApp
      * @returns {Array<Object>}
@@ -859,7 +859,7 @@ export class Yamls {
     }
 
     /**
-     * Writes/replaces the PriceApp: array block IN PLACE at its existing position, or after Penalty: as a fallback anchor for a file that has never had this key before (see buildPriceAppEntries).
+     * Writes/replaces PriceApp: block in place, or after Penalty: as fallback anchor on first write (see buildPriceAppEntries).
      * Keyed by bare "YYYY-MM" (no day), one entry per Accrual period.
      * @example
      *   PriceApp:
@@ -874,7 +874,7 @@ export class Yamls {
     }
 
     /**
-     * Writes/replaces the PriceDay: array block IN PLACE at its existing position, or after PriceApp: as a fallback anchor for a file that has never had this key before (see buildPriceDayEntries).
+     * Writes/replaces PriceDay: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceDayEntries).
      * Same bare "YYYY-MM" key as PriceApp.
      * @example
      *   PriceDay:
@@ -1984,9 +1984,9 @@ export class Yamls {
         Yamls.writePenalty(ymlFile, penalty);
 
         /*
-         * PriceApp: the tariff's flat full-month rent price per calendar month (Price, or PriceMax for a month with Loaners > 0) — never prorated, unlike Accrual.
-         * PriceDay: that same month's PriceApp amount divided by its own real day count, rounded to the nearest whole so'm.
-         * Both keyed by bare "YYYY-MM", written directly after Penalty:, before Bonuses:.
+         * PriceApp: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
+         * PriceDay: that month's PriceApp amount / its real day count, rounded to nearest whole so'm.
+         * Both keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:.
          */
         const priceApp = Yamls.buildPriceAppEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
         Yamls.writePriceApp(ymlFile, priceApp);

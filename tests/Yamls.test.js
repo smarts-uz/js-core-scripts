@@ -392,7 +392,7 @@ describe('Yamls.writeAccrual', () => {
         'Penalty:',
         '  - 2026-01-01: 0',
         '',
-        /* Returns' own fallback anchor is Penalty (fixed), so on a brand-new file it lands directly after Penalty: — ahead of PriceApp/PriceDay, even though #writeChain calls writePriceApp/writePriceDay BEFORE writeReturns. */
+        // Returns' fallback anchor fixed at Penalty — lands ahead of PriceApp/PriceDay despite #writeChain call order.
         'Returns:',
         '  - 2026-01-05: 10,000',
         '',
