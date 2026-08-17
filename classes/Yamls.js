@@ -187,6 +187,19 @@ export class Yamls {
     // makes reordering structurally impossible for a key that already
     // exists — its line number never changes, so nothing next to it (a
     // comment above/below, another key's own block) can ever drift.
+    /**
+     * Appends { ALL: sum } to any date/month-keyed entries array — every entry's own value summed, comma-stripped, re-formatted via toLocaleString.
+     * An entry already keyed 'ALL' is never double-counted.
+     * Empty input still returns [{ ALL: '0' }] — every array-shaped yaml key carries an ALL subkey unconditionally, per standing convention.
+     * @param {Array<Object>} entries
+     * @returns {Array<Object>}
+     */
+    static appendAllTotal(entries) {
+        const list = Array.isArray(entries) ? entries.filter((e) => !('ALL' in e)) : [];
+        const sum = list.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
+        return [...list, { ALL: sum.toLocaleString('en-US') }];
+    }
+
     static writeYamlArraySection(filePath, key, entries, afterKey, legacyKeys = [], allowEmpty = true) {
         console.info(`[Yamls.writeYamlArraySection] 🟢 Starting... key=${key}`);
 
@@ -1202,7 +1215,7 @@ export class Yamls {
 
         let afterKey = 'Returns';
         for (const key of cellNames) {
-            const entries = this.scanCellFolder(folderALL, key);
+            const entries = this.appendAllTotal(this.scanCellFolder(folderALL, key));
             this.writeYamlArraySection(ymlFile, key, entries, afterKey, [], true);
             afterKey = key;
         }
@@ -2161,9 +2174,9 @@ export class Yamls {
         // flat date-keyed array — sits directly after Accrual:, before
         // Payment: (see writePayment's own anchor).
         const history = Yamls.computeHistory(paymentFlat, returnsFlat);
-        Yamls.writeHistory(ymlFile, history);
+        Yamls.writeHistory(ymlFile, Yamls.appendAllTotal(history));
 
-        Yamls.writePayment(ymlFile, paymentFlat);
+        Yamls.writePayment(ymlFile, Yamls.appendAllTotal(paymentFlat));
 
         // Faktura: the real EHF-IN invoice sum (scanned fresh from
         // folderALL, same as Bank-OT/Trans-OT/Card-OT/BaaR-OT above),
@@ -2191,16 +2204,16 @@ export class Yamls {
          * All four keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:, in this exact chained order: PriceMon -> PriceMaxMon -> PriceDay -> PriceMaxDay.
          */
         const priceMon = Yamls.buildPriceMonEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
-        Yamls.writePriceMon(ymlFile, priceMon);
+        Yamls.writePriceMon(ymlFile, Yamls.appendAllTotal(priceMon));
 
         const priceMaxMon = Yamls.buildPriceMaxMonEntries(accrual, yamlData.PriceMax);
-        Yamls.writePriceMaxMon(ymlFile, priceMaxMon);
+        Yamls.writePriceMaxMon(ymlFile, Yamls.appendAllTotal(priceMaxMon));
 
         const priceDay = Yamls.buildPriceDayEntries(priceMon);
-        Yamls.writePriceDay(ymlFile, priceDay);
+        Yamls.writePriceDay(ymlFile, Yamls.appendAllTotal(priceDay));
 
         const priceMaxDay = Yamls.buildPriceDayEntries(priceMaxMon);
-        Yamls.writePriceMaxDay(ymlFile, priceMaxDay);
+        Yamls.writePriceMaxDay(ymlFile, Yamls.appendAllTotal(priceMaxDay));
 
         /*
          * Account: client's own running balance, one entry per calendar day from PeriodStart through PeriodEnd.
@@ -2233,7 +2246,7 @@ export class Yamls {
         const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay, priceMaxMon);
         Yamls.writePenalty(ymlFile, penalty);
 
-        Yamls.writeReturns(ymlFile, returnsFlat);
+        Yamls.writeReturns(ymlFile, Yamls.appendAllTotal(returnsFlat));
 
         // Every Excel.CellNames key (Bank-OT, Bank-IN, EHF-IN, Trans-OT,
         // BaaR-OT, BaaR-IN, Card-OT, Card-IN, Bonuses) — same folder-scan data

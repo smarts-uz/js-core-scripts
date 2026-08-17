@@ -268,6 +268,30 @@ describe('Yamls.replaceTextLine', () => {
   });
 });
 
+describe('Yamls.appendAllTotal', () => {
+  it('appends { ALL: sum } summing every entry\'s comma-formatted value', () => {
+    const result = Yamls.appendAllTotal([{ '2026-01-01': '100,000' }, { '2026-02-01': '50,000' }]);
+    expect(result).toEqual([
+      { '2026-01-01': '100,000' },
+      { '2026-02-01': '50,000' },
+      { ALL: '150,000' },
+    ]);
+  });
+
+  it('returns [{ ALL: "0" }] for an empty array — every array carries ALL unconditionally', () => {
+    expect(Yamls.appendAllTotal([])).toEqual([{ ALL: '0' }]);
+  });
+
+  it('returns [{ ALL: "0" }] for a non-array input', () => {
+    expect(Yamls.appendAllTotal(undefined)).toEqual([{ ALL: '0' }]);
+  });
+
+  it('never double-counts a pre-existing ALL entry', () => {
+    const result = Yamls.appendAllTotal([{ '2026-01-01': '100,000' }, { ALL: '999,999' }]);
+    expect(result).toEqual([{ '2026-01-01': '100,000' }, { ALL: '100,000' }]);
+  });
+});
+
 describe('Yamls.writeScalarSection', () => {
   it('updates an existing "Key:" line IN PLACE at its own position', () => {
     const f = path.join(workDir, 'scalar.contract');
@@ -773,14 +797,15 @@ describe('Yamls.writeCellArrays', () => {
     fs.writeFileSync(f, 'ActDateEnd: \nAccrual:\n  - 2026-01-01: 390,000\nPrepayMonth: \n', 'utf8');
 
     writeTree(path.join(workDir, 'Bank-OT'), { '2025-07-09 4,200,000': {} });
-    // No Bonuses/ folder on disk — must still be written, as an empty array.
+    // No Bonuses/ folder on disk — must still be written, with an ALL: '0' entry (every array carries ALL unconditionally, even when otherwise empty).
 
     Yamls.writeCellArrays(f, workDir);
 
     const content = read(workDir, 't.contract');
     expect(content).toContain('Bank-OT:');
     expect(content).toContain('2025-07-09: 4,200,000');
-    expect(content).toContain('Bonuses: []');
+    expect(content).toMatch(/Bank-OT:\n(?:.*\n)*?\s+-\s+ALL: 4,200,000/);
+    expect(content).toMatch(/Bonuses:\n\s+-\s+ALL: '?0'?/);
     expect(content).toContain('PrepayMonth:');
   });
 
@@ -1988,6 +2013,17 @@ describe('Yamls.replaceYaml', () => {
     expect(content).not.toMatch(/Loaners:\n\s+-/);
     // PrepayMon: the resolved PrepayMonth value the code actually used — blank here, since ActDateEnd was filled so PrepayMonth was never read.
     expect(content).toContain('PrepayMon:');
+    // Every array-shaped block carries an ALL: subkey, even Payment/Returns/History which are flat, never-had-one before this fix.
+    expect(content).toMatch(/History:\n(?:.*\n)*?\s+-\s+ALL:/);
+    expect(content).toMatch(/Payment:\n(?:.*\n)*?\s+-\s+ALL:/);
+    expect(content).toMatch(/Returns:\n(?:.*\n)*?\s+-\s+ALL:/);
+    expect(content).toMatch(/PriceMon:\n(?:.*\n)*?\s+-\s+ALL:/);
+    expect(content).toMatch(/PriceMaxMon:\n(?:.*\n)*?\s+-\s+ALL:/);
+    expect(content).toMatch(/PriceDay:\n(?:.*\n)*?\s+-\s+ALL:/);
+    expect(content).toMatch(/PriceMaxDay:\n(?:.*\n)*?\s+-\s+ALL:/);
+    // Account is a running daily balance, not a transaction list — summing balances is meaningless, so it deliberately has NO ALL: subkey.
+    const accountBlock = content.match(/Account:\n((?:\s+-.*\n)*)/)[1];
+    expect(accountBlock).not.toMatch(/ALL:/);
   });
 
   it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {
