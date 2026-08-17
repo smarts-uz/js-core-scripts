@@ -513,9 +513,9 @@ describe('Excels.processPayment', () => {
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('{Payment}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 8);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 7);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
-    expect(sheet.Cells).toHaveBeenCalledWith(5, 8);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 7);
   });
 
   it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {

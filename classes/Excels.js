@@ -285,7 +285,7 @@ export class Excels {
       if (date === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }

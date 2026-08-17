@@ -802,9 +802,8 @@ export class Yamls {
     }
 
     /**
-     * Contract §21.1 — a fixed PerDay penalty for each calendar day Account's own running balance stays negative BEYOND the 1-calendar-day grace period (§3.7/§1.20: first/each prepayment due within 1 day).
-     * The first day a deficit appears is grace, never itself a penalty day; every CONSECUTIVE day after that the balance is still negative counts.
-     * A day where balance recovers to >= 0 resets the grace window — a LATER deficit starts its own fresh 1-day grace period.
+     * Contract §21.1 — a fixed PerDay penalty for each calendar day Account's own running balance is negative, BEYOND the single 1-calendar-day grace period on PeriodStart's own day (§3.7/§1.20: first prepayment due within 1 day).
+     * The grace period applies ONLY ONCE, on Account's very first entry (PeriodStart) — every OTHER negative day counts, including the first day of a later deficit streak (a balance recovering to >= 0 and then going negative again does NOT get a fresh grace day).
      * Reads Account directly (the same daily ledger written to the .contract yaml) rather than a separate internal computeDailyBalance simulation.
      * @param {Array<Object>} account
      * @returns {Array<Object>} [{ "YYYY-MM": penaltyDayCount }, ..., { ALL: sum }], one bare-month-keyed entry per calendar month Account covers.
@@ -815,21 +814,17 @@ export class Yamls {
         const entries = (Array.isArray(account) ? account : []).filter(e => !('ALL' in e));
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
 
-        let deficitStreak = 0;
         const countByMonth = new Map();
-        for (const entry of entries) {
+        entries.forEach((entry, index) => {
             const [date, balance] = Object.entries(entry)[0];
             const month = date.slice(0, 7);
             if (!countByMonth.has(month)) countByMonth.set(month, 0);
 
-            if (toAmount(balance) < 0) {
-                deficitStreak++;
-                // First day of a NEW deficit streak is the 1-day grace period — only the 2nd+ consecutive negative day counts.
-                if (deficitStreak > 1) countByMonth.set(month, countByMonth.get(month) + 1);
-            } else {
-                deficitStreak = 0;
+            // Only PeriodStart's own day (index 0 of the whole Account array) is the 1-day grace period — every OTHER negative day counts, including the first day of a later deficit streak.
+            if (toAmount(balance) < 0 && index !== 0) {
+                countByMonth.set(month, countByMonth.get(month) + 1);
             }
-        }
+        });
 
         const result = [...countByMonth.entries()].map(([month, count]) => ({ [month]: count }));
         const total = result.reduce((s, e) => s + Object.values(e)[0], 0);

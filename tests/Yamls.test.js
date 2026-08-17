@@ -696,7 +696,7 @@ describe('Yamls.computeDailyBalance', () => {
 });
 
 describe('Yamls.computePenaltyDays', () => {
-  it('never counts the FIRST consecutive deficit day (1-day grace period)', () => {
+  it("never counts Account's own very first entry (PeriodStart's grace day), counts every negative day after it", () => {
     const account = [
       { '2026-01-01': '-100' },
       { '2026-01-02': '-100' },
@@ -706,7 +706,7 @@ describe('Yamls.computePenaltyDays', () => {
     expect(result).toEqual([{ '2026-01': 2 }, { ALL: 2 }]);
   });
 
-  it('resets the grace period once balance recovers to >= 0', () => {
+  it('does NOT grant a fresh grace day when a later deficit streak starts after balance recovers to >= 0 — only PeriodStart itself is ever exempt', () => {
     const account = [
       { '2026-01-01': '-100' },
       { '2026-01-02': '-100' },
@@ -714,7 +714,7 @@ describe('Yamls.computePenaltyDays', () => {
       { '2026-01-04': '-50' },
     ];
     const result = Yamls.computePenaltyDays(account);
-    expect(result).toEqual([{ '2026-01': 1 }, { ALL: 1 }]);
+    expect(result).toEqual([{ '2026-01': 2 }, { ALL: 2 }]);
   });
 
   it('counts 0 penalty days when balance never goes negative', () => {
