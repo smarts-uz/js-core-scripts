@@ -746,16 +746,29 @@ describe('Excels.processPenaltyDays', () => {
 // processAccount, processPriceMon, processPriceMaxMon, processPriceDay, and processPriceMaxDay are 2-column blocks mirroring processReturns's Column/Column+2 shape.
 // =============================================================================
 describe('Excels.processAccount', () => {
+  // A plain (non-Proxy) stand-in cell whose .Font is memoized across accesses.
+  function makeFontTrackingCell() {
+    const font = { __sets__: {} };
+    Object.defineProperty(font, 'Bold', { set: (v) => (font.__sets__.Bold = v), get: () => font.__sets__.Bold });
+    Object.defineProperty(font, 'Color', { set: (v) => (font.__sets__.Color = v), get: () => font.__sets__.Color });
+    return { Value: undefined, Font: font };
+  }
+
   function installSheet(found = { Row: 4, Column: 42 }) {
-    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    const cellsByAddr = new Map();
+    const CellsFn = jest.fn((row, col) => {
+      const key = `${row},${col}`;
+      if (!cellsByAddr.has(key)) cellsByAddr.set(key, makeFontTrackingCell());
+      return cellsByAddr.get(key);
+    });
     CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
     const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
     globalThis.excelSheet = sheet;
-    return sheet;
+    return { sheet, cellsByAddr };
   }
 
   it('writes one row per flat date-keyed yamlData.Account entry', () => {
-    const sheet = installSheet({ Row: 4, Column: 42 });
+    const { sheet } = installSheet({ Row: 4, Column: 42 });
 
     Excels.processAccount({ Account: [{ '2026-01-19': '1,600,000' }] });
 
@@ -764,8 +777,30 @@ describe('Excels.processAccount', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
   });
 
+  it('formats a negative-balance row bold red, and a positive-balance row plain black', () => {
+    const { cellsByAddr } = installSheet({ Row: 4, Column: 42 });
+
+    Excels.processAccount({
+      Account: [{ '2026-04-17': '-289,355' }, { '2026-04-18': '1,600,000' }],
+    });
+
+    const negDate = cellsByAddr.get('4,42');
+    const negAmount = cellsByAddr.get('4,43');
+    expect(negDate.Font.Bold).toBe(true);
+    expect(negDate.Font.Color).toBe(255);
+    expect(negAmount.Font.Bold).toBe(true);
+    expect(negAmount.Font.Color).toBe(255);
+
+    const posDate = cellsByAddr.get('5,42');
+    const posAmount = cellsByAddr.get('5,43');
+    expect(posDate.Font.Bold).toBe(false);
+    expect(posDate.Font.Color).toBe(0);
+    expect(posAmount.Font.Bold).toBe(false);
+    expect(posAmount.Font.Color).toBe(0);
+  });
+
   it('always runs even when yamlData.Account is empty', () => {
-    const sheet = installSheet();
+    const { sheet } = installSheet();
     expect(() => Excels.processAccount({})).not.toThrow();
     expect(sheet.Cells.Find).toHaveBeenCalledWith('{Account}');
   });

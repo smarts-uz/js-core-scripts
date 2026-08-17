@@ -373,34 +373,42 @@ export class Yamls {
         console.log(`File ${filePath} had stale key ${key} removed.`);
     }
 
-    // Builds Accrual: entries, every calendar month across contract's active
-    // period (PeriodStart..PeriodEnd, both YYYY-MM-DD) — one bare "start"
-    // (due date): amount mapping per month, at tariff's normal Price for
-    // on-time month. Month re-priced at PriceMax by
-    // Yamls.applyPriceMaxToDebtMonths below, once real payment chain
-    // (Loaners) for that month known — this function alone only produces
-    // Price-rate baseline.
+    // PriceMon/PriceMaxMon are the permanent source of truth for a month's own rent rate.
+    // Accrual/Account/Loaners/PriceDay/PriceMaxDay all read that month's price from here, never from the flat yamlData.Price/PriceMax scalar directly.
+    // Those two scalars exist only to build/extend PriceMon/PriceMaxMon themselves (see freezePriceMonEntries).
+    // Builds a "YYYY-MM" to number lookup from a PriceMon/PriceMaxMon-shaped array, ignoring the trailing { ALL } entry.
+    static #priceMonLookup(priceMon) {
+        return new Map(
+            (Array.isArray(priceMon) ? priceMon : [])
+                .filter(e => !('ALL' in e))
+                .map(e => {
+                    const [month, amount] = Object.entries(e)[0];
+                    return [month, Number(String(amount).replace(/,/g, '')) || 0];
+                })
+        );
+    }
+
+    // Builds Accrual: entries, one bare "start" (due date) to amount mapping per calendar month across the contract's active period (PeriodStart..PeriodEnd, both YYYY-MM-DD).
+    // Each month uses that month's own PriceMon rate as its on-time baseline.
+    // A month is re-priced at that month's own PriceMaxMon rate by Yamls.applyPriceMaxToDebtMonths below, once the real payment chain (Loaners) for that month is known.
+    // This function alone only produces the PriceMon-rate baseline.
     //
-    // Every downstream chain block (Loaners/Faktura/PenaltyDays/Penalty)
-    // copies same bare-date key verbatim (computePaymentChain forwards
-    // as-is). Period's own end never carried in key — always end of key
-    // date's own calendar month, re-derived via Dates wherever still needed
-    // (computePenaltyDays).
+    // Every downstream chain block (Loaners/Faktura/PenaltyDays/Penalty) copies the same bare-date key verbatim (computePaymentChain forwards it as-is).
+    // The period's own end is never carried in the key — always the end of the key date's own calendar month, re-derived via Dates wherever still needed (computePenaltyDays).
     //
-    // First period prorated by real day count within own calendar month,
-    // rounded to nearest whole so'm only (never fractional tiyin, never
-    // rounded to nearest 1,000). E.g. 23-of-31-day first month at
-    // 390,000/mo → round(23/31*390000) = 289,355.
-    static buildAccrualEntries(startDate, futureDate, price) {
-        console.info(`[Yamls.buildAccrualEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate} price=${price}`);
+    // The first period is prorated by real day count within its own calendar month, rounded to the nearest whole so'm only (never fractional tiyin, never rounded to the nearest 1,000).
+    // E.g. a 23-of-31-day first month at 390,000/mo rounds to round(23/31*390000) = 289,355.
+    static buildAccrualEntries(startDate, futureDate, priceMon) {
+        console.info(`[Yamls.buildAccrualEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
         const monthRanges = Dates.monthsBetween(startDate, futureDate);
-        const priceNum = Number(String(price).replace(/,/g, '')) || 0;
+        const priceByMonth = Yamls.#priceMonLookup(priceMon);
 
         const entries = monthRanges.map(({ start, end }) => {
             const daysInPeriod = Dates.daysBetween(start, end) + 1;
             const daysInMonth = Dates.daysInMonth(start);
             const isFullMonth = daysInPeriod === daysInMonth;
+            const priceNum = priceByMonth.get(start.slice(0, 7)) ?? 0;
 
             const amount = isFullMonth
                 ? priceNum
@@ -413,18 +421,14 @@ export class Yamls {
         return entries;
     }
 
-    // Re-prices every Accrual month with outstanding Loaners (underpaid or
-    // unpaid) at the tariff's PriceMax instead of the normal Price — Price
-    // applies only to a month paid on time; a month currently short on
-    // payment loses that rate and is charged at PriceMax for its own
-    // (possibly prorated) period. Returns a NEW accrual array; does not
-    // mutate the input. Must be re-run to a fixed point by the caller
-    // (recomputeChain below) since changing one month's Accrual changes the
-    // payment chain, which can change which months are in debt.
-    static applyPriceMaxToDebtMonths(accrual, loaners, startDate, priceMax) {
-        console.info(`[Yamls.applyPriceMaxToDebtMonths] 🟢 Starting... priceMax=${priceMax}`);
+    // Re-prices every Accrual month with outstanding Loaners (underpaid or unpaid) at that month's own PriceMaxMon rate instead of its PriceMon rate.
+    // PriceMon applies only to a month paid on time; a month currently short on payment loses that rate and is charged at that month's own PriceMaxMon rate for its own (possibly prorated) period.
+    // Returns a NEW accrual array; does not mutate the input.
+    // Must be re-run to a fixed point by the caller (recomputeChain below) since changing one month's Accrual changes the payment chain, which can change which months are in debt.
+    static applyPriceMaxToDebtMonths(accrual, loaners, startDate, priceMaxMon) {
+        console.info(`[Yamls.applyPriceMaxToDebtMonths] 🟢 Starting...`);
 
-        const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
+        const priceMaxByMonth = Yamls.#priceMonLookup(priceMaxMon);
         const loanersByKey = new Map((Array.isArray(loaners) ? loaners : []).map(e => Object.entries(e)[0]));
 
         return accrual.map(entry => {
@@ -436,6 +440,7 @@ export class Yamls {
             const daysInPeriod = Dates.daysBetween(start, end) + 1;
             const daysInMonth = Dates.daysInMonth(start);
             const isFullMonth = daysInPeriod === daysInMonth;
+            const priceMaxNum = priceMaxByMonth.get(start.slice(0, 7)) ?? 0;
 
             const newAmount = isFullMonth
                 ? priceMaxNum
@@ -501,6 +506,31 @@ export class Yamls {
 
         console.log(`buildPriceMaxMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
+    }
+
+    /**
+     * PriceOK: true freezes every existing PriceMon/PriceMaxMon month at its own on-disk value — only months strictly after the existing block's own last month get a fresh entry, computed from the current price/priceMax.
+     * PriceOK is not true (default false) -> freshlyBuilt is returned unchanged (the normal, always-recompute behavior).
+     * Lets a user hand-edit each month's historical rate (rent changes year to year), lock it in via PriceOK: true, and still have new months auto-append at the current rate.
+     * @param {Array<Object>} existing - yamlData.PriceMon/PriceMaxMon as loaded from disk, before this run's rewrite
+     * @param {Array<Object>} freshlyBuilt - buildPriceMonEntries/buildPriceMaxMonEntries's own freshly-computed output
+     * @param {boolean} priceOK - yamlData.PriceOK
+     * @returns {Array<Object>}
+     */
+    static freezePriceMonEntries(existing, freshlyBuilt, priceOK) {
+        console.info(`[Yamls.freezePriceMonEntries] 🟢 Starting...`);
+
+        if (priceOK !== true) return freshlyBuilt;
+
+        const existingMonths = (Array.isArray(existing) ? existing : []).filter(e => !('ALL' in e));
+        if (!existingMonths.length) return freshlyBuilt;
+
+        const lastMonth = Object.entries(existingMonths[existingMonths.length - 1])[0][0];
+        const freshAfterLast = freshlyBuilt.filter(e => Object.entries(e)[0][0] > lastMonth);
+
+        const result = [...existingMonths, ...freshAfterLast];
+        console.log(`freezePriceMonEntries: ${existingMonths.length} frozen, ${freshAfterLast.length} newly appended`, result);
+        return result;
     }
 
     /**
@@ -2231,10 +2261,16 @@ export class Yamls {
          * PriceDay/PriceMaxDay: each month's own Mon amount / its real day count, rounded to nearest whole so'm.
          * All four keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:, in this exact chained order: PriceMon -> PriceMaxMon -> PriceDay -> PriceMaxDay.
          */
-        const priceMon = Yamls.buildPriceMonEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
+        /*
+         * PriceOK: true freezes every existing PriceMon/PriceMaxMon month at its own on-disk value (see freezePriceMonEntries).
+         * Lets a user hand-edit each month's historical rate and lock it in, while new months still auto-append at the current Price/PriceMax.
+         */
+        const priceMonFresh = Yamls.buildPriceMonEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
+        const priceMon = Yamls.freezePriceMonEntries(yamlData.PriceMon, priceMonFresh, yamlData.PriceOK);
         Yamls.writePriceMon(ymlFile, Yamls.appendAllTotal(priceMon));
 
-        const priceMaxMon = Yamls.buildPriceMaxMonEntries(accrual, yamlData.PriceMax);
+        const priceMaxMonFresh = Yamls.buildPriceMaxMonEntries(accrual, yamlData.PriceMax);
+        const priceMaxMon = Yamls.freezePriceMonEntries(yamlData.PriceMaxMon, priceMaxMonFresh, yamlData.PriceOK);
         Yamls.writePriceMaxMon(ymlFile, Yamls.appendAllTotal(priceMaxMon));
 
         const priceDay = Yamls.buildPriceDayEntries(priceMon);

@@ -521,11 +521,23 @@ export class Excels {
     const account = Array.isArray(yamlData.Account) ? yamlData.Account : [];
     console.log(`processAccount: ${account.length} Account entr(y/ies)`, account);
 
+    // Excel COM Color is BGR-packed (r | g<<8 | b<<16), so pure red is 0x0000FF (255).
+    const RED_BGR = 255;
+
     for (const entry of account) {
       const [date, balance] = Object.entries(entry)[0];
+      const isNegative = Number(String(balance).replace(/,/g, '')) < 0;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = balance;
+      const dateCell = globalThis.excelSheet.Cells(row, found.Column);
+      const amountCell = globalThis.excelSheet.Cells(row, found.Column + 1);
+
+      dateCell.Value = date;
+      amountCell.Value = balance;
+
+      dateCell.Font.Bold = isNegative;
+      dateCell.Font.Color = isNegative ? RED_BGR : 0;
+      amountCell.Font.Bold = isNegative;
+      amountCell.Font.Color = isNegative ? RED_BGR : 0;
 
       row++;
     }
