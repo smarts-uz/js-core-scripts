@@ -471,8 +471,9 @@ describe('Excels.processAccrual', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
-    // the trailing { ALL } entry is skipped — never a 3rd row
-    expect(sheet.Cells).not.toHaveBeenCalledWith(7, 2);
+    // the trailing { ALL } entry writes its own final row (label at Column, total at Column+2)
+    expect(sheet.Cells).toHaveBeenCalledWith(7, 2);
+    expect(sheet.Cells).toHaveBeenCalledWith(7, 4);
   });
 
   it('writes nothing when yamlData.Accrual is empty or missing', () => {
@@ -552,8 +553,9 @@ describe('Excels.processFaktura', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
-    // trailing { ALL } skipped
-    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 43);
+    // trailing { ALL } entry writes its own final row (label at Column, total at Column+2)
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 43);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 45);
   });
 
   it('always runs even when yamlData.Faktura is empty (no PenaltyON-style gate)', () => {
@@ -668,8 +670,9 @@ describe('Excels.processPenaltyDays', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 38);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 39);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 37);
-    // trailing { ALL } skipped
-    expect(sheet.Cells).not.toHaveBeenCalledWith(6, 37);
+    // trailing { ALL } entry writes its own final row (label at Column, total at Column+2)
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 37);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 39);
   });
 
   it('always runs even when yamlData.PenaltyDays is empty (no PenaltyON-style gate)', () => {

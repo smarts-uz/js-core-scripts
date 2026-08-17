@@ -225,7 +225,14 @@ export class Excels {
 
     for (const entry of accrual) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
+
+      if (intervalKey === 'ALL') {
+        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
+        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+        row++;
+        continue;
+      }
+
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -237,16 +244,14 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Penalty — bare-date "start": amount per-month
-  // late-payment penalty (пеня/неустойка, §21.1 — PenaltyDays[i] *
-  // Penalty.PerDay, a fixed daily rate, no CapRatio) array Yamls.replaceYaml
-  // already writes into the .contract yaml — and writes one row per entry
-  // (start date, penalty amount) starting at {Penalty} placeholder's
-  // cell. Trailing { ALL: sum } entry skipped (no "ALL" date to
-  // write a row for). Always runs (no ON/OFF flag) — mirrors processPayment's
-  // own unconditional shape. When the template has no {Penalty} placeholder
-  // cell (an older Excel template predating this feature), warns and skips
-  // instead of crashing.
+  /**
+   * Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml.
+   * Writes one row per entry (start date, penalty amount) starting at the {Penalty} placeholder's cell.
+   * Trailing { ALL: sum } entry writes its own final row: label "ALL" in the start-date column, total in the amount column, end-date column left blank.
+   * Always runs (no ON/OFF flag) — mirrors processPayment's own unconditional shape.
+   * Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
+   * @param {object} yamlData
+   */
   static processPenalty(yamlData) {
     console.info(`[Excels.processPenalty] 🟢 Starting...`);
 
@@ -263,7 +268,14 @@ export class Excels {
 
     for (const entry of penalty) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
+
+      if (intervalKey === 'ALL') {
+        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
+        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+        row++;
+        continue;
+      }
+
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -370,12 +382,13 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.PenaltyDays — bare-date "start": dayCount per-period
-  // late-payment day-count array Yamls.writePenaltyDays writes into
-  // .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay) — writes
-  // one row per entry (start date, day count) starting at {PenaltyDays}
-  // placeholder's cell. Trailing { ALL: sum } entry skipped. Always runs
-  // (no ON/OFF flag), same as processPenalty.
+  /**
+   * Reads yamlData.PenaltyDays — a bare-date "start": dayCount per-period late-payment day-count array Yamls.writePenaltyDays writes into the .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay).
+   * Writes one row per entry (start date, day count) starting at the {PenaltyDays} placeholder's cell.
+   * Trailing { ALL: sum } entry writes its own final row: label "ALL" in the start-date column, total in the day-count column, end-date column left blank.
+   * Always runs (no ON/OFF flag), same as processPenalty.
+   * @param {object} yamlData
+   */
   static processPenaltyDays(yamlData) {
     console.info(`[Excels.processPenaltyDays] 🟢 Starting...`);
 
@@ -392,7 +405,14 @@ export class Excels {
 
     for (const entry of penaltyDays) {
       const [intervalKey, days] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
+
+      if (intervalKey === 'ALL') {
+        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
+        globalThis.excelSheet.Cells(row, found.Column + 2).Value = days;
+        row++;
+        continue;
+      }
+
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -403,13 +423,13 @@ export class Excels {
     }
   }
 
-  // Reads yamlData.Faktura — bare-date "end" (period's own last day, NOT
-  // Accrual's start-date key): amount per-period real EHF-IN invoice sum
-  // distributed across Accrual's periods (Yamls.computeFaktura/
-  // writeFaktura) — writes one row per entry (end date, amount) starting
-  // at {Faktura} placeholder's cell. Trailing { ALL: sum } entry skipped.
-  // Always runs (no ON/OFF flag) — mirrors processAccrual/processLoaners'
-  // own unconditional, bare-date-keyed shape.
+  /**
+   * Reads yamlData.Faktura — a bare-date "end" (period's own last day, NOT Accrual's start-date key) key: amount per-period real EHF-IN invoice sum distributed across Accrual's periods (Yamls.computeFaktura/writeFaktura).
+   * Writes one row per entry (end date, amount) starting at the {Faktura} placeholder's cell.
+   * Trailing { ALL: sum } entry writes its own final row: label "ALL" in the start-date column, total in the amount column, end-date column left blank.
+   * Always runs (no ON/OFF flag) — mirrors processAccrual/processLoaners' own unconditional, bare-date-keyed shape.
+   * @param {object} yamlData
+   */
   static processFaktura(yamlData) {
     console.info(`[Excels.processFaktura] 🟢 Starting...`);
 
@@ -426,7 +446,14 @@ export class Excels {
 
     for (const entry of faktura) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
+
+      if (intervalKey === 'ALL') {
+        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
+        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+        row++;
+        continue;
+      }
+
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -440,7 +467,7 @@ export class Excels {
   /**
    * Reads yamlData.FakturaSend — bare-date "end" key (same Dates.monthEnd remap as Faktura), per-period amount NOT YET invoiced (Yamls.computeFakturaSend: Accrual[period] minus Faktura[period]), written into the .contract yaml by Yamls.writeFakturaSend.
    * Writes one row per entry (end date, amount) starting at the {FakturaSend} placeholder's cell — a 3-column block (Начало/Конец/Сумма), same shape as {Faktura}.
-   * Trailing { ALL: sum } entry skipped, same as processFaktura.
+   * Trailing { ALL: sum } entry writes its own final row, same as processFaktura.
    * Always runs (no ON/OFF flag).
    * @param {object} yamlData
    */
@@ -460,7 +487,14 @@ export class Excels {
 
     for (const entry of fakturaSend) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
+
+      if (intervalKey === 'ALL') {
+        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
+        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+        row++;
+        continue;
+      }
+
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
