@@ -222,6 +222,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -255,6 +257,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   // Reads yamlData.Payment — a FLAT, date-keyed array
@@ -289,6 +293,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   // Reads yamlData.Returns — a FLAT, date-keyed array
@@ -322,6 +328,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -354,6 +362,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -386,6 +396,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -418,6 +430,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -450,6 +464,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -513,6 +529,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -544,6 +562,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -575,6 +595,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -606,6 +628,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   /**
@@ -637,6 +661,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
   // Writes one row per {date: amount} entry from yamlData[cellName] — the
@@ -656,6 +682,8 @@ export class Excels {
 
       row++;
     }
+
+    this.#clearPlaceholderIfEmpty(found, row);
   }
 
 
@@ -706,6 +734,19 @@ export class Excels {
     return found;
   }
 
+
+  /**
+   * Clears found.Column's own cell to an empty string when a writer's loop never wrote any real row.
+   * A yamlData array key always carries at least a trailing { ALL: sum } entry (Yamls.appendAllTotal) — every writer's loop skips that entry, so a key with NO real data still enters the loop once, writes nothing, and leaves the row-4 {Placeholder} text sitting untouched.
+   * Called with row === found.Row (the loop never advanced past its starting row) to explicitly blank the placeholder in that case.
+   * @param {object} found
+   * @param {number} row
+   */
+  static #clearPlaceholderIfEmpty(found, row) {
+    if (row === found.Row) {
+      globalThis.excelSheet.Cells(found.Row, found.Column).Value = '';
+    }
+  }
 
   /**
    * Finds the real {search} placeholder cell — never a bare, unbracketed occurrence of the same text elsewhere on the sheet.
@@ -1302,7 +1343,8 @@ export class Excels {
         const found = this.findColumn(cellName);
 
         const entries = Array.isArray(yamlData[cellName]) ? yamlData[cellName] : [];
-        if (entries.length > 0) {
+        const realEntries = entries.filter((entry) => !('ALL' in entry));
+        if (realEntries.length > 0) {
           this.processFolders(entries, found);
 
         } else {
