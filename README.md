@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 338 runnable methods.
+**Coverage:** 23 classes, 339 runnable methods.
 
 ---
 # Category
@@ -3931,7 +3931,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 47 public static method(s).
+Runners: `scripts/Yamls/` — 48 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -4139,6 +4139,21 @@ node scripts/Yamls/computePenaltyDays.mjs --account <account>
 | `account` | no | — |
 
 **Returns:** [{ "YYYY-MM": penaltyDayCount }, ..., { ALL: sum }], one bare-month-keyed entry per calendar month Account covers.
+
+## deleteScalarLine(filePath, key)
+
+Removes an obsolete "Key:" scalar line from a .contract file, if present — a no-op when the key doesn't exist. Used to strip a retired field (e.g. the old PeriodEndApp, superseded by the renamed PeriodEnd) from every real file it still lingers in, on the next write. Collapses a resulting doubled blank line (the removed line's own separators on both sides) back down to one, so file rhythm stays consistent.
+
+**Run:**
+
+```bash
+node scripts/Yamls/deleteScalarLine.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `key` | no | — |
 
 ## extractFirstNumber(str)
 

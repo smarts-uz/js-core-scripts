@@ -309,6 +309,28 @@ export class Yamls {
         console.log(`File ${filePath} has been updated with ${key} (inserted after ${afterKey}).`, value);
     }
 
+    /**
+     * Removes an obsolete "Key:" scalar line from a .contract file, if present — a no-op when the key doesn't exist.
+     * Used to strip a retired field (e.g. the old PeriodEndApp, superseded by the renamed PeriodEnd) from every real file it still lingers in, on the next write.
+     * Collapses a resulting doubled blank line (the removed line's own separators on both sides) back down to one, so file rhythm stays consistent.
+     * @param {string} filePath
+     * @param {string} key
+     */
+    static deleteScalarLine(filePath, key) {
+        console.info(`[Yamls.deleteScalarLine] 🟢 Starting... key=${key}`);
+
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const lines = fileContent.split('\n');
+        const idx = lines.findIndex(l => new RegExp(`^${key}:`).test(l));
+        if (idx === -1) return;
+
+        lines.splice(idx, 1);
+        if (lines[idx - 1] === '' && lines[idx] === '') lines.splice(idx, 1);
+
+        fs.writeFileSync(filePath, lines.join('\n'));
+        console.log(`File ${filePath} had stale key ${key} removed.`);
+    }
+
     // Builds Accrual: entries, every calendar month across contract's active
     // period (PeriodStart..PeriodEnd, both YYYY-MM-DD) — one bare "start"
     // (due date): amount mapping per month, at tariff's normal Price for
@@ -1630,7 +1652,7 @@ export class Yamls {
 
     /**
      * Resolve every date field on yamlData, in place.
-     * Fills IjaraDateEnd/ContractDateEnd when blank, splits Day/Month/Year (+ End/Ijara twins), then derives PeriodStart/PeriodEnd/PeriodEndApp.
+     * Fills IjaraDateEnd/ContractDateEnd when blank, splits Day/Month/Year (+ End/Ijara twins), then derives PeriodStart/PeriodEnd.
      * Warns via Dialogs and returns false on the first unresolvable date, so the caller aborts before writing anything.
      * @param {object} yamlData - Loaded .contract data, mutated in place.
      * @returns {boolean} TRUE when every date resolved, FALSE when the caller must abort.
@@ -1710,16 +1732,15 @@ export class Yamls {
         }
 
         if (!yamlData.ActDateEnd) {
-            yamlData.PeriodEnd = Dates.futureDateByMonth(prepayMonth, false)
+            // futureDateByMonth(prepayMonth, false) returns the FIRST day of the target month — an EXCLUSIVE upper bound — so PeriodEnd is the last day of the month before it (e.g. today 2026-08-17, PrepayMonth=1 -> futureDateByMonth gives 2026-09-01 -> PeriodEnd = 2026-08-31).
+            yamlData.PeriodEnd = Dates.getMinusOneDay(Dates.futureDateByMonth(prepayMonth, false))
             console.log('PeriodEnd from prepayMonth', yamlData.PeriodEnd);
         }
         else {
+            // ActDateEnd is already a real, explicit end date (not an exclusive bound) — used as-is, no shift.
             yamlData.PeriodEnd = yamlData.ActDateEnd
             console.log('PeriodEnd from ActDateEnd', yamlData.PeriodEnd);
         }
-
-        yamlData.PeriodEndApp = Dates.getMinusOneDay(yamlData.PeriodEnd)
-        console.log(yamlData.PeriodEndApp, 'yamlData.PeriodEndApp');
 
         return true;
     }
@@ -2078,6 +2099,13 @@ export class Yamls {
          * Insert-if-missing, since a fresh .contract template doesn't carry this output field yet — the generic replaceTextLine loop above only updates an EXISTING line.
          */
         Yamls.writeScalarSection(ymlFile, 'PrepayMon', yamlData.PrepayMon, 'ContractDateEnd');
+
+        /*
+         * PeriodEndApp is retired — PeriodEnd itself now carries what PeriodEndApp used to compute (see #resolveDates).
+         * Strip any stale PeriodEndApp: line still sitting in an older real file.
+         * The generic loop above never writes it since #resolveDates no longer sets yamlData.PeriodEndApp.
+         */
+        Yamls.deleteScalarLine(ymlFile, 'PeriodEndApp');
 
         // Always record Accrual/Payment/Faktura/Loaners/PenaltyDays/Penalty/
         // Returns per calendar month across the contract's active period

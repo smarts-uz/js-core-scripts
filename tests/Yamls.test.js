@@ -293,6 +293,23 @@ describe('Yamls.writeScalarSection', () => {
   });
 });
 
+describe('Yamls.deleteScalarLine', () => {
+  it('removes an existing "Key:" line and collapses the resulting doubled blank line to one', () => {
+    const f = path.join(workDir, 'del.contract');
+    fs.writeFileSync(f, 'PeriodEnd: 2026-08-31\n\nPeriodEndApp: 2026-08-31\n\nComINN: 312731745\n', 'utf8');
+    Yamls.deleteScalarLine(f, 'PeriodEndApp');
+    expect(read(workDir, 'del.contract')).toBe('PeriodEnd: 2026-08-31\n\nComINN: 312731745\n');
+  });
+
+  it('is a no-op when the key does not exist', () => {
+    const f = path.join(workDir, 'del2.contract');
+    const before = 'Foo: bar\n';
+    fs.writeFileSync(f, before, 'utf8');
+    Yamls.deleteScalarLine(f, 'PeriodEndApp');
+    expect(read(workDir, 'del2.contract')).toBe(before);
+  });
+});
+
 describe('Yamls.writeLoaners', () => {
   it('writes a plain scalar line, not an array block', () => {
     const f = path.join(workDir, 'loaners.contract');
@@ -1668,6 +1685,7 @@ describe('Yamls.replaceYaml', () => {
     expect(DialogsMock.warningBox).not.toHaveBeenCalledWith(
       expect.stringContaining('PrepayMonth is missing')
     );
+    // ActDateEnd is a real, explicit end date — PeriodEnd uses it as-is, no -1-month shift (that shift only applies to the PrepayMonth-derived exclusive-bound path).
     expect(yamlData.PeriodEnd).toBe('2025-03-31');
   });
 
