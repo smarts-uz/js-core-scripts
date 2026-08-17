@@ -225,14 +225,7 @@ export class Excels {
 
     for (const entry of accrual) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-
-      if (intervalKey === 'ALL') {
-        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
-        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
-        row++;
-        continue;
-      }
-
+      if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -268,14 +261,7 @@ export class Excels {
 
     for (const entry of penalty) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-
-      if (intervalKey === 'ALL') {
-        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
-        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
-        row++;
-        continue;
-      }
-
+      if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -311,6 +297,7 @@ export class Excels {
 
     for (const entry of payment) {
       const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
       globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
@@ -343,6 +330,7 @@ export class Excels {
 
     for (const entry of returns) {
       const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
@@ -374,6 +362,7 @@ export class Excels {
 
     for (const entry of history) {
       const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
@@ -405,14 +394,7 @@ export class Excels {
 
     for (const entry of penaltyDays) {
       const [intervalKey, days] = Object.entries(entry)[0];
-
-      if (intervalKey === 'ALL') {
-        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
-        globalThis.excelSheet.Cells(row, found.Column + 2).Value = days;
-        row++;
-        continue;
-      }
-
+      if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -446,14 +428,7 @@ export class Excels {
 
     for (const entry of faktura) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-
-      if (intervalKey === 'ALL') {
-        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
-        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
-        row++;
-        continue;
-      }
-
+      if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -487,14 +462,7 @@ export class Excels {
 
     for (const entry of fakturaSend) {
       const [intervalKey, amount] = Object.entries(entry)[0];
-
-      if (intervalKey === 'ALL') {
-        globalThis.excelSheet.Cells(row, found.Column).Value = 'ALL';
-        globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
-        row++;
-        continue;
-      }
-
+      if (intervalKey === 'ALL') continue;
       const [start, end] = intervalKey.split('#');
 
       globalThis.excelSheet.Cells(row, found.Column).Value = start;
@@ -590,6 +558,7 @@ export class Excels {
 
     for (const entry of priceMon) {
       const [month, amount] = Object.entries(entry)[0];
+      if (month === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
@@ -620,6 +589,7 @@ export class Excels {
 
     for (const entry of priceMaxMon) {
       const [month, amount] = Object.entries(entry)[0];
+      if (month === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
@@ -650,6 +620,7 @@ export class Excels {
 
     for (const entry of priceDay) {
       const [month, amount] = Object.entries(entry)[0];
+      if (month === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
@@ -680,6 +651,7 @@ export class Excels {
 
     for (const entry of priceMaxDay) {
       const [month, amount] = Object.entries(entry)[0];
+      if (month === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = month;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
@@ -698,6 +670,7 @@ export class Excels {
 
     for (const entry of entries) {
       const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
       globalThis.excelSheet.Cells(row, found.Column).Value = date;
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;

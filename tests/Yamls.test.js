@@ -245,11 +245,31 @@ describe('Yamls.replaceTextLine', () => {
     expect(read(workDir, 't.yml')).toBe('Name: new\nAge: 1\n');
   });
 
-  it('wraps values containing braces in double quotes', () => {
+  it('leaves an embedded (non-leading) brace unquoted when safe — real js-yaml round-trips it correctly', () => {
     const f = path.join(workDir, 't.yml');
     fs.writeFileSync(f, 'Format: x\n', 'utf8');
     Yamls.replaceTextLine(f, 'Format', 'RC-{N}/2024');
-    expect(read(workDir, 't.yml')).toBe('Format: "RC-{N}/2024"\n');
+    const content = read(workDir, 't.yml');
+    expect(content).toBe('Format: RC-{N}/2024\n');
+    expect(yaml.load(content, { schema: yaml.JSON_SCHEMA }).Format).toBe('RC-{N}/2024');
+  });
+
+  it('quotes a value that STARTS with a brace (flow-syntax-ambiguous leading character)', () => {
+    const f = path.join(workDir, 't.yml');
+    fs.writeFileSync(f, 'Placeholder: x\n', 'utf8');
+    Yamls.replaceTextLine(f, 'Placeholder', '{ComINN}');
+    const content = read(workDir, 't.yml');
+    expect(content).toBe("Placeholder: '{ComINN}'\n");
+    expect(yaml.load(content, { schema: yaml.JSON_SCHEMA }).Placeholder).toBe('{ComINN}');
+  });
+
+  it('correctly escapes a value with an embedded literal quote character (real incident: a Didox API companyInfo.shortName returning NETORA TECHNOLOGY GROUP" MCHJ broke the whole file YAML parse under the old hand-rolled key + value concatenation)', () => {
+    const f = path.join(workDir, 't.yml');
+    fs.writeFileSync(f, 'ComNameShort: x\n', 'utf8');
+    Yamls.replaceTextLine(f, 'ComNameShort', 'NETORA TECHNOLOGY GROUP" MCHJ');
+    const content = read(workDir, 't.yml');
+    expect(() => yaml.load(content, { schema: yaml.JSON_SCHEMA })).not.toThrow();
+    expect(yaml.load(content, { schema: yaml.JSON_SCHEMA }).ComNameShort).toBe('NETORA TECHNOLOGY GROUP" MCHJ');
   });
 
   it('writes an empty value when the value is empty (Files.isEmpty)', () => {

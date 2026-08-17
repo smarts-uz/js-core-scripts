@@ -471,9 +471,8 @@ describe('Excels.processAccrual', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
-    // the trailing { ALL } entry writes its own final row (label at Column, total at Column+2)
-    expect(sheet.Cells).toHaveBeenCalledWith(7, 2);
-    expect(sheet.Cells).toHaveBeenCalledWith(7, 4);
+    // the trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
+    expect(sheet.Cells).not.toHaveBeenCalledWith(7, 2);
   });
 
   it('writes nothing when yamlData.Accrual is empty or missing', () => {
@@ -519,6 +518,17 @@ describe('Excels.processPayment', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(5, 8);
   });
 
+  it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {
+    const sheet = installSheet({ Row: 4, Column: 6 });
+
+    Excels.processPayment({
+      Payment: [{ '2026-04-21': '1,600,000' }, { ALL: '1,600,000' }],
+    });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 6);
+  });
+
   it('always runs even when yamlData.Payment is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processPayment({})).not.toThrow();
@@ -553,9 +563,8 @@ describe('Excels.processFaktura', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
-    // trailing { ALL } entry writes its own final row (label at Column, total at Column+2)
-    expect(sheet.Cells).toHaveBeenCalledWith(5, 43);
-    expect(sheet.Cells).toHaveBeenCalledWith(5, 45);
+    // trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 43);
   });
 
   it('always runs even when yamlData.Faktura is empty (no PenaltyON-style gate)', () => {
@@ -589,6 +598,15 @@ describe('Excels.processReturns', () => {
     expect(sheet.Cells.Find).toHaveBeenCalledWith('Returns');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 40);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 41);
+  });
+
+  it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {
+    const sheet = installSheet({ Row: 4, Column: 40 });
+
+    Excels.processReturns({ Returns: [{ '2026-01-24': '1,600,000' }, { ALL: '1,600,000' }] });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 40);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 40);
   });
 
   it('always runs even when yamlData.Returns is empty (no PenaltyON-style gate)', () => {
@@ -670,9 +688,8 @@ describe('Excels.processPenaltyDays', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 38);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 39);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 37);
-    // trailing { ALL } entry writes its own final row (label at Column, total at Column+2)
-    expect(sheet.Cells).toHaveBeenCalledWith(6, 37);
-    expect(sheet.Cells).toHaveBeenCalledWith(6, 39);
+    // trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
+    expect(sheet.Cells).not.toHaveBeenCalledWith(6, 37);
   });
 
   it('always runs even when yamlData.PenaltyDays is empty (no PenaltyON-style gate)', () => {
@@ -745,6 +762,15 @@ describe('Excels.processPriceMon', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
   });
 
+  it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {
+    const sheet = installSheet({ Row: 4, Column: 44 });
+
+    Excels.processPriceMon({ PriceMon: [{ '2026-01': '1,620,000' }, { ALL: '1,620,000' }] });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 44);
+  });
+
   it('always runs even when yamlData.PriceMon is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processPriceMon({})).not.toThrow();
@@ -776,6 +802,15 @@ describe('Excels.processPriceMaxMon', () => {
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxMon');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 47);
+  });
+
+  it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {
+    const sheet = installSheet({ Row: 4, Column: 46 });
+
+    Excels.processPriceMaxMon({ PriceMaxMon: [{ '2026-01': '1,620,000' }, { ALL: '1,620,000' }] });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 46);
   });
 
   it('always runs even when yamlData.PriceMaxMon is empty', () => {
@@ -811,6 +846,15 @@ describe('Excels.processPriceDay', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(4, 49);
   });
 
+  it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {
+    const sheet = installSheet({ Row: 4, Column: 48 });
+
+    Excels.processPriceDay({ PriceDay: [{ '2026-01': '52,258' }, { ALL: '52,258' }] });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 48);
+  });
+
   it('always runs even when yamlData.PriceDay is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processPriceDay({})).not.toThrow();
@@ -842,6 +886,15 @@ describe('Excels.processPriceMaxDay', () => {
     expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxDay');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 51);
+  });
+
+  it('never writes the trailing { ALL } entry — ALL is a .contract-yaml-only concept', () => {
+    const sheet = installSheet({ Row: 4, Column: 50 });
+
+    Excels.processPriceMaxDay({ PriceMaxDay: [{ '2026-01': '52,258' }, { ALL: '52,258' }] });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 50);
   });
 
   it('always runs even when yamlData.PriceMaxDay is empty', () => {

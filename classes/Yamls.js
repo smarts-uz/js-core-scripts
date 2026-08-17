@@ -88,6 +88,20 @@ export class Yamls {
         return null;
     }
 
+    /**
+     * Builds one safe "key: value" YAML line via a real js-yaml.dump() of the scalar, never hand-rolled string concatenation.
+     * Guards against a real incident: a raw API value containing an embedded literal quote character (e.g. Didox's companyInfo.shortName returning `NETORA TECHNOLOGY GROUP" MCHJ`) broke the whole file's YAML parse when written via naive `key + ': ' + value` concatenation.
+     * js-yaml.dump({[key]: value}) always produces a correctly escaped scalar regardless of embedded quotes/colons/special leading characters; #stripUnnecessaryQuotes then removes the quoting js-yaml adds defensively when it isn't actually needed, keeping this project's established unquoted-where-safe style.
+     * @param {string} key
+     * @param {*} value
+     * @returns {string}
+     */
+    static #dumpScalarLine(key, value) {
+        if (value === '') return `${key}: `;
+        const dumped = yaml.dump({ [key]: value }, { lineWidth: -1, schema: yaml.JSON_SCHEMA }).trimEnd();
+        return Yamls.#stripUnnecessaryQuotes(dumped);
+    }
+
     // Replace found line with new text
     static replaceTextLine(filePath, key, value) {
         console.info(`[Yamls.replaceTextLine] 🟢 Starting...`);
@@ -109,11 +123,7 @@ export class Yamls {
             if (regex.test(lines[i])) {
                 console.info('Found line:', lines[i], 'Index:', i);
 
-                if (typeof value === "string" && (value.includes('{') || value.includes('}'))) {
-                    lines[i] = key + ': "' + value + '"';
-                } else {
-                    lines[i] = key + ': ' + value;
-                }
+                lines[i] = Yamls.#dumpScalarLine(key, value);
 
                 foundLine = lines[i];
             }
