@@ -193,23 +193,13 @@ export class Excels {
       .map(f => path.join(folderPath, f));
   }
 
-  // Reads yamlData.Accrual — bare-date "start": amount array
-  // Yamls.recomputeChain/writeAccrual already writes into .contract yaml
-  // (period's own end never carried in key, only due date is) — writes one
-  // row per entry starting at {Accrual} placeholder's cell (found.Column =
-  // C, "Начало"): C=start date, D=end date ("Конец" — same start date;
-  // split('#') on bare key yields no second half, end ?? start falls back
-  // to it), amount goes to E ("Стоимость"). SAME amount ALSO written to
-  // column G
-  // (found.Column + 4, "Сумма", one column further right than before the
-  // Конец column insertion), whose row-3 cell (G3) carries a real
-  // =SUM(G4:G172)-shaped formula that re-derives the Accrual grand total
-  // — the one Excel-native formula this session's "keraklisini qoldir"
-  // decision preserved (the stale DATEDIF/LET per-row proration formulas
-  // were removed instead; SUM totals were kept). The trailing
-  // { ALL: sum } entry from the .yml array is skipped here (no "ALL" date
-  // to write a row for) — the SUM formula recomputes the same total live
-  // in Excel, so it is never written as a static value.
+  /**
+   * Reads yamlData.Accrual — a bare-date "start": amount array Yamls.recomputeChain/writeAccrual already writes into the .contract yaml.
+   * Writes one row per entry (date, amount) starting at the {Accrual} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
+   * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
   static processAccrual(yamlData) {
     console.info(`[Excels.processAccrual] 🟢 Starting...`);
     const found = this.findColumn('Accrual');
@@ -224,14 +214,11 @@ export class Excels {
     console.log(`processAccrual: ${accrual.length} Accrual entr(y/ies)`, accrual);
 
     for (const entry of accrual) {
-      const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
-      const [start, end] = intervalKey.split('#');
+      const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = start;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
-      globalThis.excelSheet.Cells(row, found.Column + 4).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -239,8 +226,8 @@ export class Excels {
 
   /**
    * Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml.
-   * Writes one row per entry (start date, penalty amount) starting at the {Penalty} placeholder's cell.
-   * Trailing { ALL: sum } entry writes its own final row: label "ALL" in the start-date column, total in the amount column, end-date column left blank.
+   * Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
+   * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
    * Always runs (no ON/OFF flag) — mirrors processPayment's own unconditional shape.
    * Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
    * @param {object} yamlData
@@ -260,13 +247,11 @@ export class Excels {
     console.log(`processPenalty: ${penalty.length} Penalty entr(y/ies)`, penalty);
 
     for (const entry of penalty) {
-      const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
-      const [start, end] = intervalKey.split('#');
+      const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = start;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -373,8 +358,8 @@ export class Excels {
 
   /**
    * Reads yamlData.PenaltyDays — a bare-date "start": dayCount per-period late-payment day-count array Yamls.writePenaltyDays writes into the .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay).
-   * Writes one row per entry (start date, day count) starting at the {PenaltyDays} placeholder's cell.
-   * Trailing { ALL: sum } entry writes its own final row: label "ALL" in the start-date column, total in the day-count column, end-date column left blank.
+   * Writes one row per entry (date, day count) starting at the {PenaltyDays} placeholder's cell — a 2-column block (Дата/Количество), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
+   * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
    * Always runs (no ON/OFF flag), same as processPenalty.
    * @param {object} yamlData
    */
@@ -393,13 +378,11 @@ export class Excels {
     console.log(`processPenaltyDays: ${penaltyDays.length} PenaltyDays entr(y/ies)`, penaltyDays);
 
     for (const entry of penaltyDays) {
-      const [intervalKey, days] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
-      const [start, end] = intervalKey.split('#');
+      const [date, days] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = start;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = days;
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = days;
 
       row++;
     }
@@ -407,8 +390,8 @@ export class Excels {
 
   /**
    * Reads yamlData.Faktura — a bare-date "end" (period's own last day, NOT Accrual's start-date key) key: amount per-period real EHF-IN invoice sum distributed across Accrual's periods (Yamls.computeFaktura/writeFaktura).
-   * Writes one row per entry (end date, amount) starting at the {Faktura} placeholder's cell.
-   * Trailing { ALL: sum } entry writes its own final row: label "ALL" in the start-date column, total in the amount column, end-date column left blank.
+   * Writes one row per entry (date, amount) starting at the {Faktura} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
+   * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
    * Always runs (no ON/OFF flag) — mirrors processAccrual/processLoaners' own unconditional, bare-date-keyed shape.
    * @param {object} yamlData
    */
@@ -427,13 +410,11 @@ export class Excels {
     console.log(`processFaktura: ${faktura.length} Faktura entr(y/ies)`, faktura);
 
     for (const entry of faktura) {
-      const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
-      const [start, end] = intervalKey.split('#');
+      const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = start;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -441,8 +422,8 @@ export class Excels {
 
   /**
    * Reads yamlData.FakturaSend — bare-date "end" key (same Dates.monthEnd remap as Faktura), per-period amount NOT YET invoiced (Yamls.computeFakturaSend: Accrual[period] minus Faktura[period]), written into the .contract yaml by Yamls.writeFakturaSend.
-   * Writes one row per entry (end date, amount) starting at the {FakturaSend} placeholder's cell — a 3-column block (Начало/Конец/Сумма), same shape as {Faktura}.
-   * Trailing { ALL: sum } entry writes its own final row, same as processFaktura.
+   * Writes one row per entry (date, amount) starting at the {FakturaSend} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Faktura}.
+   * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
    * Always runs (no ON/OFF flag).
    * @param {object} yamlData
    */
@@ -461,13 +442,11 @@ export class Excels {
     console.log(`processFakturaSend: ${fakturaSend.length} FakturaSend entr(y/ies)`, fakturaSend);
 
     for (const entry of fakturaSend) {
-      const [intervalKey, amount] = Object.entries(entry)[0];
-      if (intervalKey === 'ALL') continue;
-      const [start, end] = intervalKey.split('#');
+      const [date, amount] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = start;
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = end ?? start;
-      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
     }
@@ -728,17 +707,24 @@ export class Excels {
   }
 
 
+  /**
+   * Finds the real {search} placeholder cell — never a bare, unbracketed occurrence of the same text elsewhere on the sheet.
+   * A real template can carry a bare copy of a key name (e.g. a stray "Accrual" label in a row above the real {Accrual} placeholder) — Cells.Find on the bare search term would match that stray text first and resolve to the wrong cell.
+   * @param {string} search - the bare key name, e.g. 'Accrual' (braces added here, never passed in by the caller).
+   * @returns {object|null}
+   */
   static findColumn(search) {
       console.info(`[failed.findColumn] 🟢 Starting...`);
-    console.log(`🔍 Searching for "${search}" in Excel...`);
+    const bracketed = `{${search}}`;
+    console.log(`🔍 Searching for "${bracketed}" in Excel...`);
 
-    const found = globalThis.excelSheet.Cells.Find(search);
+    const found = globalThis.excelSheet.Cells.Find(bracketed);
 
     if (found) {
-      console.log(`✅ Found "${search}". Row: ${found.Row}, Column: ${found.Column}`);
+      console.log(`✅ Found "${bracketed}". Row: ${found.Row}, Column: ${found.Column}`);
       console.log(`🔍 Columns: Column: ${found.Column}, Row: ${found.Row}`);
     } else {
-      console.warn(`⚠️ "${search}" not found in Excel sheet "App"`);
+      console.warn(`⚠️ "${bracketed}" not found in Excel sheet "App"`);
 
     }
 

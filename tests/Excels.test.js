@@ -466,7 +466,7 @@ describe('Excels.processAccrual', () => {
       Accrual: [{ '2025-07-09': '390,000' }, { '2025-08-01': '390,000' }, { ALL: '780,000' }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Accrual');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Accrual}');
     expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
@@ -480,7 +480,7 @@ describe('Excels.processAccrual', () => {
 
     expect(() => Excels.processAccrual({})).not.toThrow();
     expect(() => Excels.processAccrual({ Accrual: [] })).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Accrual');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Accrual}');
   });
 
   it('warns and does not throw when {Accrual} is missing from the template', () => {
@@ -511,7 +511,7 @@ describe('Excels.processPayment', () => {
       Payment: [{ '2026-04-21': '1,600,000' }, { '2026-05-26': '1,600,000' }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Payment');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Payment}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 8);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
@@ -532,7 +532,7 @@ describe('Excels.processPayment', () => {
   it('always runs even when yamlData.Payment is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processPayment({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Payment');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Payment}');
   });
 
   it('warns and does not throw when {Payment} is missing from the template', () => {
@@ -559,10 +559,9 @@ describe('Excels.processFaktura', () => {
       Faktura: [{ '2026-03-31': '3,200,000' }, { ALL: '3,200,000' }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Faktura');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Faktura}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
     // trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
     expect(sheet.Cells).not.toHaveBeenCalledWith(5, 43);
   });
@@ -570,7 +569,7 @@ describe('Excels.processFaktura', () => {
   it('always runs even when yamlData.Faktura is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processFaktura({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Faktura');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Faktura}');
   });
 
   it('warns and does not throw when {Faktura} is missing from the template', () => {
@@ -578,6 +577,43 @@ describe('Excels.processFaktura', () => {
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
     expect(() => Excels.processFaktura({ Faktura: [{ '2026-03-31': '3,200,000' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processFakturaSend', () => {
+  function installSheet(found = { Row: 4, Column: 47 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per yamlData.FakturaSend entry, using each bare date', () => {
+    const sheet = installSheet({ Row: 4, Column: 47 });
+
+    Excels.processFakturaSend({
+      FakturaSend: [{ '2026-06-30': '779,355' }, { ALL: '779,355' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{FakturaSend}');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 47);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
+    // trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 47);
+  });
+
+  it('always runs even when yamlData.FakturaSend is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processFakturaSend({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{FakturaSend}');
+  });
+
+  it('warns and does not throw when {FakturaSend} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processFakturaSend({ FakturaSend: [{ '2026-06-30': '779,355' }] })).not.toThrow();
   });
 });
 
@@ -595,7 +631,7 @@ describe('Excels.processReturns', () => {
 
     Excels.processReturns({ Returns: [{ '2026-01-24': '1,600,000' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Returns');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Returns}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 40);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 41);
   });
@@ -612,7 +648,7 @@ describe('Excels.processReturns', () => {
   it('always runs even when yamlData.Returns is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processReturns({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Returns');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Returns}');
   });
 
   it('warns and does not throw when {Returns} is missing from the template', () => {
@@ -642,7 +678,7 @@ describe('Excels.processLoaners', () => {
       Loaners: [{ '2026-09-01': '860,000' }, { ALL: '860,000' }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Loaners');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Loaners}');
     expect(sheet.Cells).toHaveBeenCalledWith(5, 9);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 10);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 11);
@@ -653,7 +689,7 @@ describe('Excels.processLoaners', () => {
   it('always runs even when yamlData.Loaners is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processLoaners({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Loaners');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Loaners}');
   });
 
   it('warns and does not throw when {Loaners} is missing from the template', () => {
@@ -683,10 +719,9 @@ describe('Excels.processPenaltyDays', () => {
       PenaltyDays: [{ '2026-06-01': 6 }, { '2026-07-01': 0 }, { ALL: 6 }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PenaltyDays');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PenaltyDays}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 37);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 38);
-    expect(sheet.Cells).toHaveBeenCalledWith(4, 39);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 37);
     // trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
     expect(sheet.Cells).not.toHaveBeenCalledWith(6, 37);
@@ -695,7 +730,7 @@ describe('Excels.processPenaltyDays', () => {
   it('always runs even when yamlData.PenaltyDays is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processPenaltyDays({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PenaltyDays');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PenaltyDays}');
   });
 
   it('warns and does not throw when {PenaltyDays} is missing from the template', () => {
@@ -724,7 +759,7 @@ describe('Excels.processAccount', () => {
 
     Excels.processAccount({ Account: [{ '2026-01-19': '1,600,000' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Account');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Account}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 42);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 43);
   });
@@ -732,7 +767,7 @@ describe('Excels.processAccount', () => {
   it('always runs even when yamlData.Account is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processAccount({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Account');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Account}');
   });
 
   it('warns and does not throw when {Account} is missing from the template', () => {
@@ -757,7 +792,7 @@ describe('Excels.processPriceMon', () => {
 
     Excels.processPriceMon({ PriceMon: [{ '2026-01': '1,620,000' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMon');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceMon}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 45);
   });
@@ -774,7 +809,7 @@ describe('Excels.processPriceMon', () => {
   it('always runs even when yamlData.PriceMon is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processPriceMon({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMon');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceMon}');
   });
 
   it('warns and does not throw when {PriceMon} is missing from the template', () => {
@@ -799,7 +834,7 @@ describe('Excels.processPriceMaxMon', () => {
 
     Excels.processPriceMaxMon({ PriceMaxMon: [{ '2026-01': '1,620,000' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxMon');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceMaxMon}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 47);
   });
@@ -816,7 +851,7 @@ describe('Excels.processPriceMaxMon', () => {
   it('always runs even when yamlData.PriceMaxMon is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processPriceMaxMon({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxMon');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceMaxMon}');
   });
 
   it('warns and does not throw when {PriceMaxMon} is missing from the template', () => {
@@ -841,7 +876,7 @@ describe('Excels.processPriceDay', () => {
 
     Excels.processPriceDay({ PriceDay: [{ '2026-01': '52,258' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceDay');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceDay}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 49);
   });
@@ -858,7 +893,7 @@ describe('Excels.processPriceDay', () => {
   it('always runs even when yamlData.PriceDay is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processPriceDay({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceDay');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceDay}');
   });
 
   it('warns and does not throw when {PriceDay} is missing from the template', () => {
@@ -883,7 +918,7 @@ describe('Excels.processPriceMaxDay', () => {
 
     Excels.processPriceMaxDay({ PriceMaxDay: [{ '2026-01': '52,258' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxDay');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceMaxDay}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 51);
   });
@@ -900,7 +935,7 @@ describe('Excels.processPriceMaxDay', () => {
   it('always runs even when yamlData.PriceMaxDay is empty', () => {
     const sheet = installSheet();
     expect(() => Excels.processPriceMaxDay({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxDay');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PriceMaxDay}');
   });
 
   it('warns and does not throw when {PriceMaxDay} is missing from the template', () => {
@@ -930,7 +965,7 @@ describe('Excels.processPenalty', () => {
       Penalty: [{ '2026-01-01': '250,000' }, { '2026-02-01': '0' }],
     });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Penalty');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Penalty}');
     expect(sheet.Cells).toHaveBeenCalledWith(5, 15);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 16);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 15);
@@ -940,7 +975,7 @@ describe('Excels.processPenalty', () => {
   it('always runs even when yamlData.Penalty is empty (no PenaltyON-style gate)', () => {
     const sheet = installSheet();
     expect(() => Excels.processPenalty({})).not.toThrow();
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('Penalty');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Penalty}');
   });
 
   it('warns and does not throw when {Penalty} is missing from the template', () => {
