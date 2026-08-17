@@ -366,6 +366,29 @@ export class Yamls {
     }
 
     /**
+     * Builds PriceMaxApp entries, one per Accrual period, key remapped to bare "YYYY-MM".
+     * Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceApp, there is no Price-vs-PriceMax switch here.
+     * @param {Array<Object>} accrual
+     * @param {string|number} priceMax
+     * @returns {Array<Object>}
+     */
+    static buildPriceMaxAppEntries(accrual, priceMax) {
+        console.info(`[Yamls.buildPriceMaxAppEntries] 🟢 Starting...`);
+
+        const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
+
+        const entries = (Array.isArray(accrual) ? accrual : [])
+            .filter(e => !('ALL' in e))
+            .map(entry => {
+                const [start] = Object.entries(entry)[0];
+                return { [start.slice(0, 7)]: priceMaxNum.toLocaleString('en-US') };
+            });
+
+        console.log(`buildPriceMaxAppEntries: ${entries.length} entr(y/ies)`, entries);
+        return entries;
+    }
+
+    /**
      * Builds PriceDay entries, one per PriceApp entry: that month's PriceApp amount / its real day count, rounded to the nearest whole so'm.
      * Same bare "YYYY-MM" key as PriceApp.
      * @param {Array<Object>} priceApp
@@ -390,16 +413,18 @@ export class Yamls {
 
     /**
      * Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive.
-     * Day 1 (startDate itself) is never debited — its value is whatever History carries for that exact date, or 0 when History has no entry there (normally 0, since a client rarely pays on day 1).
-     * Every day after that debits the day's own month's PriceDay rate off the PREVIOUS day's balance, then adds that day's own History entry (History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split).
+     * Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own History entry.
+     * The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on.
+     * History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split.
      * Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
      * @param {string} startDate
      * @param {string} futureDate
      * @param {Array<Object>} history
      * @param {Array<Object>} priceDay
+     * @param {Array<Object>} priceMaxDay
      * @returns {Array<Object>}
      */
-    static buildAccountEntries(startDate, futureDate, history, priceDay) {
+    static buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay) {
         console.info(`[Yamls.buildAccountEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
         const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -421,25 +446,27 @@ export class Yamls {
                 .map(e => Object.entries(e)[0])
                 .map(([m, a]) => [m, toAmount(a)])
         );
+        const priceMaxDayByMonth = new Map(
+            (Array.isArray(priceMaxDay) ? priceMaxDay : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+                .map(([m, a]) => [m, toAmount(a)])
+        );
 
         const entries = [];
         let balance = 0;
         let day = startDate;
-        let isFirstDay = true;
 
         // Hard backstop against any unforeseen non-terminating case — ~137 years of daily entries, far beyond any real contract term.
         const MAX_DAYS = 50000;
 
         while (day <= futureDate && entries.length < MAX_DAYS) {
             const historyAmount = historyByDate.get(day) || 0;
-
-            if (isFirstDay) {
-                balance = historyAmount;
-                isFirstDay = false;
-            } else {
-                const monthDebit = priceDayByMonth.get(day.slice(0, 7)) || 0;
-                balance = balance - monthDebit + historyAmount;
-            }
+            const month = day.slice(0, 7);
+            const monthDebit = balance >= 0
+                ? (priceDayByMonth.get(month) || 0)
+                : (priceMaxDayByMonth.get(month) || 0);
+            balance = balance - monthDebit + historyAmount;
 
             entries.push({ [day]: balance.toLocaleString('en-US') });
             day = Yamls._addOneDayIso(day);
@@ -659,48 +686,37 @@ export class Yamls {
         return ledger;
     }
 
-    // Contract §21.1 — a fixed PerDay penalty for each calendar day the
-    // client's running balance stays negative BEYOND the 1-calendar-day
-    // grace period (§3.7/§1.20: first/each prepayment due within 1 day) —
-    // the first day a deficit appears is grace, never itself a penalty day;
-    // every CONSECUTIVE day after that the balance is still negative counts.
-    // A day where balance recovers to >= 0 resets the grace window — a LATER
-    // deficit starts its own fresh 1-day grace period.
-    //
-    // Returns [{ "start": penaltyDayCount }, ..., { ALL: sum }] — one
-    // bare-date-keyed entry per Accrual period, same key shape as
-    // Accrual/Payment/Loaners. Period's own end never carried in key —
-    // always end of key date's own calendar month, re-derived via
-    // Dates.monthEnd.
-    static computePenaltyDays(accrual, ledger) {
+    /**
+     * Contract §21.1 — a fixed PerDay penalty for each calendar day Account's own running balance stays negative BEYOND the 1-calendar-day grace period (§3.7/§1.20: first/each prepayment due within 1 day).
+     * The first day a deficit appears is grace, never itself a penalty day; every CONSECUTIVE day after that the balance is still negative counts.
+     * A day where balance recovers to >= 0 resets the grace window — a LATER deficit starts its own fresh 1-day grace period.
+     * Reads Account directly (the same daily ledger written to the .contract yaml) rather than a separate internal computeDailyBalance simulation.
+     * @param {Array<Object>} account
+     * @returns {Array<Object>} [{ "YYYY-MM": penaltyDayCount }, ..., { ALL: sum }], one bare-month-keyed entry per calendar month Account covers.
+     */
+    static computePenaltyDays(account) {
         console.info(`[Yamls.computePenaltyDays] 🟢 Starting...`);
 
-        const periods = accrual.filter(e => !('ALL' in e)).map(e => {
-            const [start] = Object.entries(e)[0];
-            return { start, end: Dates.monthEnd(start) };
-        });
+        const entries = (Array.isArray(account) ? account : []).filter(e => !('ALL' in e));
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
 
         let deficitStreak = 0;
-        const penaltyDaysByDate = new Map();
-        for (const { date, balance } of ledger) {
-            if (balance < 0) {
+        const countByMonth = new Map();
+        for (const entry of entries) {
+            const [date, balance] = Object.entries(entry)[0];
+            const month = date.slice(0, 7);
+            if (!countByMonth.has(month)) countByMonth.set(month, 0);
+
+            if (toAmount(balance) < 0) {
                 deficitStreak++;
-                // First day of a NEW deficit streak is the 1-day grace
-                // period — only the 2nd+ consecutive negative day counts.
-                if (deficitStreak > 1) penaltyDaysByDate.set(date, true);
+                // First day of a NEW deficit streak is the 1-day grace period — only the 2nd+ consecutive negative day counts.
+                if (deficitStreak > 1) countByMonth.set(month, countByMonth.get(month) + 1);
             } else {
                 deficitStreak = 0;
             }
         }
 
-        const result = periods.map(({ start, end }) => {
-            let count = 0;
-            for (const date of penaltyDaysByDate.keys()) {
-                if (date >= start && date <= end) count++;
-            }
-            return { [start]: count };
-        });
-
+        const result = [...countByMonth.entries()].map(([month, count]) => ({ [month]: count }));
         const total = result.reduce((s, e) => s + Object.values(e)[0], 0);
         const withTotal = [...result, { ALL: total }];
 
@@ -708,24 +724,34 @@ export class Yamls {
         return withTotal;
     }
 
-    // Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's
-    // fixed per-calendar-day rate, config.yml's Penalty.PerDay, default
-    // 50,000) — no cap, no CapRatio; every late day costs the same fixed
-    // amount, straight multiplication.
-    //
-    // Returns [{ "start": penaltyAmount }, ..., { ALL: sum }], same
-    // order/shape as PenaltyDays.
-    static computePenalty(penaltyDays, penaltyForDay) {
+    /**
+     * Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's fixed per-calendar-day rate, config.yml's Penalty.PerDay, default 50,000), capped at HALF that month's own PriceMaxApp amount.
+     * A month whose straight PenaltyDays * PenaltyForDay figure would exceed PriceMaxApp[month] / 2 is clamped down to that half-PriceMax figure instead.
+     * @param {Array<Object>} penaltyDays
+     * @param {string|number} penaltyForDay
+     * @param {Array<Object>} priceMaxApp
+     * @returns {Array<Object>} [{ "YYYY-MM": penaltyAmount }, ..., { ALL: sum }], same key shape as PenaltyDays.
+     */
+    static computePenalty(penaltyDays, penaltyForDay, priceMaxApp) {
         console.info(`[Yamls.computePenalty] 🟢 Starting... penaltyForDay=${penaltyForDay}`);
 
         const rate = Number(String(penaltyForDay).replace(/,/g, '')) || 0;
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+        const priceMaxByMonth = new Map(
+            (Array.isArray(priceMaxApp) ? priceMaxApp : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+                .map(([m, a]) => [m, toAmount(a)])
+        );
         let total = 0;
 
-        const result = penaltyDays.filter(e => !('ALL' in e)).map(entry => {
-            const [intervalKey, days] = Object.entries(entry)[0];
-            const amount = days * rate;
+        const result = (Array.isArray(penaltyDays) ? penaltyDays : []).filter(e => !('ALL' in e)).map(entry => {
+            const [month, days] = Object.entries(entry)[0];
+            const rawAmount = days * rate;
+            const cap = (priceMaxByMonth.get(month) || 0) / 2;
+            const amount = rawAmount > cap ? cap : rawAmount;
             total += amount;
-            return { [intervalKey]: amount.toLocaleString('en-US') };
+            return { [month]: amount.toLocaleString('en-US') };
         });
 
         const withTotal = [...result, { ALL: total.toLocaleString('en-US') }];
@@ -950,7 +976,21 @@ export class Yamls {
     }
 
     /**
-     * Writes/replaces PriceDay: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceDayEntries).
+     * Writes/replaces PriceMaxApp: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceMaxAppEntries).
+     * Same bare "YYYY-MM" key as PriceApp.
+     * @example
+     *   PriceMaxApp:
+     *     - 2026-01: 1,620,000
+     * @param {string} filePath
+     * @param {Array<Object>} priceMaxApp
+     */
+    static writePriceMaxApp(filePath, priceMaxApp) {
+        console.info(`[Yamls.writePriceMaxApp] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PriceMaxApp', priceMaxApp, 'PriceApp', [], true);
+    }
+
+    /**
+     * Writes/replaces PriceDay: block in place, or after PriceMaxApp: as fallback anchor on first write (see buildPriceDayEntries).
      * Same bare "YYYY-MM" key as PriceApp.
      * @example
      *   PriceDay:
@@ -961,7 +1001,21 @@ export class Yamls {
      */
     static writePriceDay(filePath, priceDay) {
         console.info(`[Yamls.writePriceDay] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceDay', priceDay, 'PriceApp', [], true);
+        this.writeYamlArraySection(filePath, 'PriceDay', priceDay, 'PriceMaxApp', [], true);
+    }
+
+    /**
+     * Writes/replaces PriceMaxDay: block in place, or after PriceDay: as fallback anchor on first write (see buildPriceDayEntries, reused for PriceMaxDay too).
+     * Same bare "YYYY-MM" key as PriceApp.
+     * @example
+     *   PriceMaxDay:
+     *     - 2026-01: 52,258
+     * @param {string} filePath
+     * @param {Array<Object>} priceMaxDay
+     */
+    static writePriceMaxDay(filePath, priceMaxDay) {
+        console.info(`[Yamls.writePriceMaxDay] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PriceMaxDay', priceMaxDay, 'PriceDay', [], true);
     }
 
     // Writes/replaces the Faktura: array block IN PLACE at its existing
@@ -2040,44 +2094,46 @@ export class Yamls {
 
         Yamls.writeLoaners(ymlFile, loaners);
 
-        // Penalty (§21.1 + §3.7/§1.20): a prepaid running-balance simulation
-        // — Accrual debited daily (pro-rated), Payment credits/Returns
-        // debits the balance on their own dates. Every consecutive day
-        // (beyond the first, which is the 1-calendar-day grace period) the
-        // balance stays negative counts as a penalty day; Penalty[month] =
-        // PenaltyDays[month] * PenaltyForDay, no cap — replaces the old
-        // CapRatio-of-Accrual model entirely. PenaltyForDay is
-        // yamlData.PenaltyPerDay (the per-contract override, blank by
-        // default like ContractNumber) when non-empty, else config.yml's
-        // global Penalty.PerDay.
-        const ledger = Yamls.computeDailyBalance(yamlData.PeriodStart, yamlData.PeriodEnd, accrual, paymentFlat, returnsFlat);
-        const penaltyDays = Yamls.computePenaltyDays(accrual, ledger);
+        /*
+         * PriceApp: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
+         * PriceMaxApp: same flat full-month shape, but ALWAYS PriceMax regardless of debt — no Price-vs-PriceMax switch.
+         * PriceDay/PriceMaxDay: each month's own App amount / its real day count, rounded to nearest whole so'm.
+         * All four keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:, in this exact chained order: PriceApp -> PriceMaxApp -> PriceDay -> PriceMaxDay.
+         */
+        const priceApp = Yamls.buildPriceAppEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
+        Yamls.writePriceApp(ymlFile, priceApp);
+
+        const priceMaxApp = Yamls.buildPriceMaxAppEntries(accrual, yamlData.PriceMax);
+        Yamls.writePriceMaxApp(ymlFile, priceMaxApp);
+
+        const priceDay = Yamls.buildPriceDayEntries(priceApp);
+        Yamls.writePriceDay(ymlFile, priceDay);
+
+        const priceMaxDay = Yamls.buildPriceDayEntries(priceMaxApp);
+        Yamls.writePriceMaxDay(ymlFile, priceMaxDay);
+
+        /*
+         * Account: client's own running balance, one entry per calendar day from PeriodStart through PeriodEnd.
+         * Every day debits off the previous day's balance, then adds that day's own History entry.
+         * Debit rate: PriceDay (the prepay discount) when the previous day's balance was >= 0, PriceMaxDay (the full rate, no discount) when it was already negative.
+         * Written directly after History:, before Loaners:.
+         */
+        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, yamlData.PeriodEnd, history, priceDay, priceMaxDay);
+        Yamls.writeAccount(ymlFile, account);
+
+        /*
+         * Penalty (§21.1 + §3.7/§1.20): every consecutive day (beyond the first, which is the 1-calendar-day grace period) Account's own balance stays negative counts as a penalty day, grouped by bare "YYYY-MM".
+         * Penalty[month] = PenaltyDays[month] * PenaltyForDay, capped at HALF that month's own PriceMaxApp amount.
+         * PenaltyForDay is yamlData.PenaltyPerDay (the per-contract override, blank by default like ContractNumber) when non-empty, else config.yml's global Penalty.PerDay.
+         */
+        const penaltyDays = Yamls.computePenaltyDays(account);
         Yamls.writePenaltyDays(ymlFile, penaltyDays);
 
         const penaltyForDay = Files.isEmpty(yamlData.PenaltyPerDay)
             ? Yamls.getConfig('Penalty.PerDay', 'number', 50000)
             : Number(String(yamlData.PenaltyPerDay).replace(/,/g, ''));
-        const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay);
+        const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay, priceMaxApp);
         Yamls.writePenalty(ymlFile, penalty);
-
-        /*
-         * PriceApp: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
-         * PriceDay: that month's PriceApp amount / its real day count, rounded to nearest whole so'm.
-         * Both keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:.
-         */
-        const priceApp = Yamls.buildPriceAppEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
-        Yamls.writePriceApp(ymlFile, priceApp);
-
-        const priceDay = Yamls.buildPriceDayEntries(priceApp);
-        Yamls.writePriceDay(ymlFile, priceDay);
-
-        /*
-         * Account: client's own running balance, one entry per calendar day from PeriodStart through PeriodEnd.
-         * Day 1 is History's own entry for that date (or 0); every later day debits that day's own month's PriceDay rate off the previous day's balance, then adds that day's own History entry.
-         * Written directly after History:, before Loaners:.
-         */
-        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, yamlData.PeriodEnd, history, priceDay);
-        Yamls.writeAccount(ymlFile, account);
 
         Yamls.writeReturns(ymlFile, returnsFlat);
 

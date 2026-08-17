@@ -350,7 +350,7 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writePriceApp/writePriceDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
+  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writePriceApp/writePriceMaxApp/writePriceDay/writePriceMaxDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
@@ -364,7 +364,9 @@ describe('Yamls.writeAccrual', () => {
     Yamls.writePenaltyDays(f, [{ '2026-01-01': 0 }]);
     Yamls.writePenalty(f, [{ '2026-01-01': '0' }]);
     Yamls.writePriceApp(f, [{ '2026-01': '450,000' }]);
+    Yamls.writePriceMaxApp(f, [{ '2026-01': '450,000' }]);
     Yamls.writePriceDay(f, [{ '2026-01': '14,516' }]);
+    Yamls.writePriceMaxDay(f, [{ '2026-01': '14,516' }]);
     Yamls.writeReturns(f, [{ '2026-01-05': '10,000' }]);
 
     expect(read(workDir, 'chain.contract')).toBe(
@@ -397,14 +399,20 @@ describe('Yamls.writeAccrual', () => {
         'Penalty:',
         '  - 2026-01-01: 0',
         '',
-        // Returns' fallback anchor fixed at Penalty — lands ahead of PriceApp/PriceDay despite #writeChain call order.
+        // Returns' fallback anchor fixed at Penalty — lands ahead of PriceApp/PriceMaxApp/PriceDay/PriceMaxDay despite #writeChain call order.
         'Returns:',
         '  - 2026-01-05: 10,000',
         '',
         'PriceApp:',
         '  - 2026-01: 450,000',
         '',
+        'PriceMaxApp:',
+        '  - 2026-01: 450,000',
+        '',
         'PriceDay:',
+        '  - 2026-01: 14,516',
+        '',
+        'PriceMaxDay:',
         '  - 2026-01: 14,516',
         '', // real trailing newline at end of file
       ].join('\n')
@@ -567,59 +575,92 @@ describe('Yamls.computeDailyBalance', () => {
 
 describe('Yamls.computePenaltyDays', () => {
   it('never counts the FIRST consecutive deficit day (1-day grace period)', () => {
-    // Period end re-derived via Dates.monthEnd('2026-01-01') = '2026-01-31'.
-    const accrual = [{ '2026-01-01': '300,000' }];
-    const ledger = [
-      { date: '2026-01-01', balance: -100 },
-      { date: '2026-01-02', balance: -100 },
-      { date: '2026-01-03', balance: -100 },
+    const account = [
+      { '2026-01-01': '-100' },
+      { '2026-01-02': '-100' },
+      { '2026-01-03': '-100' },
     ];
-    const result = Yamls.computePenaltyDays(accrual, ledger);
-    expect(result).toEqual([{ '2026-01-01': 2 }, { ALL: 2 }]);
+    const result = Yamls.computePenaltyDays(account);
+    expect(result).toEqual([{ '2026-01': 2 }, { ALL: 2 }]);
   });
 
   it('resets the grace period once balance recovers to >= 0', () => {
-    const accrual = [{ '2026-01-01': '400,000' }];
-    const ledger = [
-      { date: '2026-01-01', balance: -100 },
-      { date: '2026-01-02', balance: -100 },
-      { date: '2026-01-03', balance: 0 },
-      { date: '2026-01-04', balance: -50 },
+    const account = [
+      { '2026-01-01': '-100' },
+      { '2026-01-02': '-100' },
+      { '2026-01-03': '0' },
+      { '2026-01-04': '-50' },
     ];
-    const result = Yamls.computePenaltyDays(accrual, ledger);
-    expect(result).toEqual([{ '2026-01-01': 1 }, { ALL: 1 }]);
+    const result = Yamls.computePenaltyDays(account);
+    expect(result).toEqual([{ '2026-01': 1 }, { ALL: 1 }]);
   });
 
   it('counts 0 penalty days when balance never goes negative', () => {
-    const accrual = [{ '2026-01-01': '100,000' }];
-    const ledger = [
-      { date: '2026-01-01', balance: 100 },
-      { date: '2026-01-02', balance: 50 },
-    ];
-    expect(Yamls.computePenaltyDays(accrual, ledger)).toEqual([{ '2026-01-01': 0 }, { ALL: 0 }]);
+    const account = [{ '2026-01-01': '100' }, { '2026-01-02': '50' }];
+    expect(Yamls.computePenaltyDays(account)).toEqual([{ '2026-01': 0 }, { ALL: 0 }]);
   });
 
-  it('attributes penalty days only to the period whose own calendar month they fall in', () => {
-    // Two periods, Jan and Feb — a deficit streak spanning the month
-    // boundary must split across both periods' own Dates.monthEnd bounds.
-    const accrual = [{ '2026-01-30': '300,000' }, { '2026-02-01': '300,000' }];
-    const ledger = [
-      { date: '2026-01-30', balance: -100 }, // grace day, Jan period
-      { date: '2026-01-31', balance: -100 }, // 1st penalty day, Jan period
-      { date: '2026-02-01', balance: -100 }, // 2nd consecutive, Feb period
+  it('attributes penalty days to the calendar month the deficit day itself falls in, streak carries across the month boundary', () => {
+    const account = [
+      { '2026-01-30': '-100' }, // grace day, Jan
+      { '2026-01-31': '-100' }, // 1st penalty day, Jan
+      { '2026-02-01': '-100' }, // 2nd consecutive, Feb — streak itself is unbroken, but this day belongs to Feb
     ];
-    const result = Yamls.computePenaltyDays(accrual, ledger);
-    expect(result).toEqual([{ '2026-01-30': 1 }, { '2026-02-01': 1 }, { ALL: 2 }]);
+    const result = Yamls.computePenaltyDays(account);
+    expect(result).toEqual([{ '2026-01': 1 }, { '2026-02': 1 }, { ALL: 2 }]);
+  });
+
+  it('handles a comma-formatted negative balance string ("-1,234") the same as a plain negative number', () => {
+    const account = [{ '2026-01-01': '-1,234' }, { '2026-01-02': '-1,234' }];
+    expect(Yamls.computePenaltyDays(account)).toEqual([{ '2026-01': 1 }, { ALL: 1 }]);
+  });
+
+  it('returns [] entries safely for an empty or non-array account', () => {
+    expect(Yamls.computePenaltyDays([])).toEqual([{ ALL: 0 }]);
+    expect(Yamls.computePenaltyDays(null)).toEqual([{ ALL: 0 }]);
+  });
+
+  it("PeriodStart's own day 1 never counts toward penalty, even if its own Account balance is negative", () => {
+    // Account's real day 1 is never debited (buildAccountEntries), so it can only go negative via a same-day History entry — but even then, day 1 is always the FIRST day of any streak it starts, so the grace-period rule alone already exempts it.
+    const account = [
+      { '2026-01-19': '-500' }, // PeriodStart itself, somehow already negative
+      { '2026-01-20': '-1,000' },
+    ];
+    const result = Yamls.computePenaltyDays(account);
+    expect(result).toEqual([{ '2026-01': 1 }, { ALL: 1 }]);
   });
 });
 
-describe('Yamls.computePenalty (PenaltyDays * PenaltyForDay)', () => {
-  it("multiplies each period's day count by the fixed daily rate, no cap", () => {
-    const penaltyDays = [{ '2026-01-01': 3 }, { '2026-02-01': 0 }, { ALL: 3 }];
-    expect(Yamls.computePenalty(penaltyDays, 50000)).toEqual([
-      { '2026-01-01': '150,000' },
-      { '2026-02-01': '0' },
+describe('Yamls.computePenalty (PenaltyDays * PenaltyForDay, capped at PriceMaxApp / 2)', () => {
+  it("multiplies each month's day count by the fixed daily rate when under the cap", () => {
+    const penaltyDays = [{ '2026-01': 3 }, { '2026-02': 0 }, { ALL: 3 }];
+    const priceMaxApp = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
+    // Cap is 1,620,000 / 2 = 810,000 — 3 * 50,000 = 150,000 stays well under it.
+    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxApp)).toEqual([
+      { '2026-01': '150,000' },
+      { '2026-02': '0' },
       { ALL: '150,000' },
+    ]);
+  });
+
+  it('clamps a month whose raw PenaltyDays * PenaltyForDay exceeds half its own PriceMaxApp', () => {
+    const penaltyDays = [{ '2026-01': 20 }, { ALL: 20 }];
+    const priceMaxApp = [{ '2026-01': '1,620,000' }];
+    // Raw: 20 * 50,000 = 1,000,000.
+    // Cap: 1,620,000 / 2 = 810,000.
+    // Clamped to 810,000.
+    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxApp)).toEqual([
+      { '2026-01': '810,000' },
+      { ALL: '810,000' },
+    ]);
+  });
+
+  it('treats a month with no matching PriceMaxApp entry as a 0 cap (0 penalty)', () => {
+    const penaltyDays = [{ '2026-03': 5 }, { ALL: 5 }];
+    const priceMaxApp = [{ '2026-01': '1,620,000' }];
+    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxApp)).toEqual([
+      { '2026-03': '0' },
+      { ALL: '0' },
     ]);
   });
 });
@@ -753,6 +794,29 @@ describe('Yamls.buildPriceAppEntries', () => {
   });
 });
 
+describe('Yamls.buildPriceMaxAppEntries', () => {
+  const accrual = [
+    { '2026-01-09': '289,355' },
+    { '2026-02-01': '390,000' },
+    { '2026-03-01': '390,000' },
+    { ALL: '1,069,355' },
+  ];
+
+  it('uses PriceMax for every month, regardless of debt — no Price-vs-PriceMax switch', () => {
+    const entries = Yamls.buildPriceMaxAppEntries(accrual, '450,000');
+    expect(entries).toEqual([
+      { '2026-01': '450,000' },
+      { '2026-02': '450,000' },
+      { '2026-03': '450,000' },
+    ]);
+  });
+
+  it('ignores the trailing ALL entry on accrual', () => {
+    const entries = Yamls.buildPriceMaxAppEntries(accrual, '450,000');
+    expect(entries).toHaveLength(3);
+  });
+});
+
 describe('Yamls.buildPriceDayEntries', () => {
   it("divides each month's PriceApp by that month's own real day count, rounded to the nearest whole so'm", () => {
     // Jan 2026 = 31 days: 1,620,000 / 31 = 52,258.06... -> 52,258. Feb 2026 = 28 days: 1,620,000 / 28 = 57,857.14... -> 57,857.
@@ -769,58 +833,80 @@ describe('Yamls.buildPriceDayEntries', () => {
 });
 
 describe('Yamls.buildAccountEntries', () => {
-  it("day 1 is History's own entry for that date, never debited", () => {
+  it('day 1 (PeriodStart) also debits its own month PriceDay (previous balance 0 is >= 0), then adds History', () => {
+    // Day 1's previous balance is 0, so PriceDay applies.
+    // 0 - 50,000 + 1,600,000 = 1,550,000.
     const history = [{ '2026-01-19': '1,600,000' }];
     const priceDay = [{ '2026-01': '50,000' }];
-    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', history, priceDay);
-    expect(entries).toEqual([{ '2026-01-19': '1,600,000' }]);
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', history, priceDay, priceMaxDay);
+    expect(entries).toEqual([{ '2026-01-19': '1,550,000' }]);
   });
 
-  it('day 1 defaults to 0 when History has no entry for that date', () => {
+  it('day 1 goes negative when unpaid, same as any other day', () => {
     const priceDay = [{ '2026-01': '50,000' }];
-    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', [], priceDay);
-    expect(entries).toEqual([{ '2026-01-19': '0' }]);
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', [], priceDay, priceMaxDay);
+    expect(entries).toEqual([{ '2026-01-19': '-50,000' }]);
   });
 
-  it('every day after day 1 debits that day\'s own month PriceDay off the previous balance, then adds History', () => {
-    // Day 1 = 0 (no History).
-    // Day 2 debits PriceDay (50,000): 0 - 50,000 = -50,000.
-    // That same day a 1,000,000 payment lands: -50,000 + 1,000,000 = 950,000.
-    // Day 3: 950,000 - 50,000 = 900,000.
-    // Day 4: 900,000 - 50,000 = 850,000.
+  it("stays on PriceDay once balance recovers, credits History as a plain add", () => {
+    // Day 1: 0 - 50,000 = -50,000 (no History, uses PriceDay since previous balance 0 is >= 0).
+    // Day 2's own debit uses PriceMaxDay (80,000), since day 1's balance was already negative: -50,000 - 80,000 = -130,000.
+    // That same day a 1,000,000 payment lands: -130,000 + 1,000,000 = 870,000.
+    // Day 3: day 2's balance (870,000) is >= 0, so PriceDay applies: 870,000 - 50,000 = 820,000.
+    // Day 4: day 3's balance is still >= 0, PriceDay again: 820,000 - 50,000 = 770,000.
     const history = [{ '2026-01-02': '1,000,000' }];
     const priceDay = [{ '2026-01': '50,000' }];
-    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-04', history, priceDay);
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-04', history, priceDay, priceMaxDay);
     expect(entries).toEqual([
-      { '2026-01-01': '0' },
-      { '2026-01-02': '950,000' },
-      { '2026-01-03': '900,000' },
-      { '2026-01-04': '850,000' },
+      { '2026-01-01': '-50,000' },
+      { '2026-01-02': '870,000' },
+      { '2026-01-03': '820,000' },
+      { '2026-01-04': '770,000' },
+    ]);
+  });
+
+  it('switches to PriceMaxDay (the full rate, no prepay discount) once the previous day goes negative, and back to PriceDay once it recovers', () => {
+    // Day 1: 0 - 50,000 = -50,000 (previous balance 0 is >= 0, PriceDay applies).
+    // Day 2: previous balance -50,000 is negative, so PriceMaxDay (80,000) applies: -50,000 - 80,000 = -130,000.
+    // Day 3: previous balance still negative, PriceMaxDay again: -130,000 - 80,000 = -210,000.
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-03', [], priceDay, priceMaxDay);
+    expect(entries).toEqual([
+      { '2026-01-01': '-50,000' },
+      { '2026-01-02': '-130,000' },
+      { '2026-01-03': '-210,000' },
     ]);
   });
 
   it('a Returns entry in History (already negative) reduces the balance on its own date', () => {
     const history = [{ '2026-01-02': '-200,000' }];
     const priceDay = [{ '2026-01': '50,000' }];
-    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-02', history, priceDay);
-    expect(entries).toEqual([{ '2026-01-01': '0' }, { '2026-01-02': '-250,000' }]);
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-02', history, priceDay, priceMaxDay);
+    expect(entries).toEqual([{ '2026-01-01': '-50,000' }, { '2026-01-02': '-330,000' }]);
   });
 
-  it('looks up PriceDay by the CURRENT day\'s own calendar month, not the start month', () => {
-    // Jan (50,000/day) through Feb 1 (60,000/day) — day 2 (2026-01-02) still debits January's own rate.
+  it('looks up PriceDay/PriceMaxDay by the CURRENT day\'s own calendar month, not the start month', () => {
+    // Jan (50,000/day) day 1: 0 - 50,000 = -50,000 (PriceDay, previous balance 0 is >= 0).
+    // Feb 1: previous balance (Jan 31's) is negative, so PriceMaxDay applies — February's own rate (90,000): -50,000 - 90,000 = -140,000.
     const priceDay = [{ '2026-01': '50,000' }, { '2026-02': '60,000' }];
-    const entries = Yamls.buildAccountEntries('2026-01-31', '2026-02-02', [], priceDay);
+    const priceMaxDay = [{ '2026-01': '80,000' }, { '2026-02': '90,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-31', '2026-02-02', [], priceDay, priceMaxDay);
     expect(entries).toEqual([
-      { '2026-01-31': '0' },
-      { '2026-02-01': '-60,000' },
-      { '2026-02-02': '-120,000' },
+      { '2026-01-31': '-50,000' },
+      { '2026-02-01': '-140,000' },
+      { '2026-02-02': '-230,000' },
     ]);
   });
 
   it('returns [] for an invalid or empty startDate/futureDate', () => {
-    expect(Yamls.buildAccountEntries('', '2026-01-01', [], [])).toEqual([]);
-    expect(Yamls.buildAccountEntries('2026-01-05', '2026-01-01', [], [])).toEqual([]);
-    expect(Yamls.buildAccountEntries('Invalid Date', '2026-01-01', [], [])).toEqual([]);
+    expect(Yamls.buildAccountEntries('', '2026-01-01', [], [], [])).toEqual([]);
+    expect(Yamls.buildAccountEntries('2026-01-05', '2026-01-01', [], [], [])).toEqual([]);
+    expect(Yamls.buildAccountEntries('Invalid Date', '2026-01-01', [], [], [])).toEqual([]);
   });
 });
 
@@ -1799,10 +1885,13 @@ describe('Yamls.replaceYaml', () => {
     // PriceDay: 4,200,000 / 31 days in January = 135,483.87... -> 135,484.
     expect(content).toContain('PriceDay:');
     expect(content).toContain('2026-01: 135,484');
-    // Account: day 1 (PeriodStart) is never debited and there is no History in this fixture, so it starts at 0; day 2 debits January's own 135,484 PriceDay rate.
+    // PriceMaxApp/PriceMaxDay: same flat full-month shape, always PriceMax (4,200,000 here, same as Price in this fixture).
+    expect(content).toContain('PriceMaxApp:');
+    expect(content).toContain('PriceMaxDay:');
+    // Account: day 1 (PeriodStart) already debits January's own 135,484 rate (no History in this fixture); day 2 debits the same rate again off day 1's balance (PriceDay === PriceMaxDay here, since Price === PriceMax in this fixture).
     expect(content).toContain('Account:');
-    expect(content).toContain('2026-01-01: 0');
-    expect(content).toContain("2026-01-02: '-135,484'");
+    expect(content).toContain("2026-01-01: '-135,484'");
+    expect(content).toContain("2026-01-02: '-270,968'");
   });
 
   it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {
@@ -1923,15 +2012,15 @@ describe('Yamls.replaceYaml', () => {
     // PenaltyDays: block specifically (not Accrual/Faktura/Loaners, which
     // repeat the same bare "2026-01-01" key with different values).
     const penaltyDaysBlock = content.match(/PenaltyDays:\n((?:.|\n)*?)\n\nPenalty:/)[1];
-    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01: (\d+)/);
+    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01: (\d+)/);
     expect(janPenaltyDaysMatch).not.toBeNull();
     const janPenaltyDays = Number(janPenaltyDaysMatch[1]);
     expect(janPenaltyDays).toBeGreaterThan(0);
 
     const penaltyBlock = content.match(/\nPenalty:\n((?:.|\n)*?)\n\nReturns:/)[1];
-    expect(penaltyBlock).toContain(
-      `2026-01-01: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
-    );
+    // Capped at half PriceMax (4,200,000 / 2 = 2,100,000) same as computePenalty's own rule.
+    const expectedJanPenalty = Math.min(janPenaltyDays * 50000, 4200000 / 2);
+    expect(penaltyBlock).toContain(`2026-01: ${expectedJanPenalty.toLocaleString('en-US')}`);
 
     const lines = content.split('\n');
     const accrualIdx = lines.findIndex((l) => l.startsWith('Accrual:'));
@@ -1992,17 +2081,16 @@ describe('Yamls.replaceYaml', () => {
 
     const content = fs.readFileSync(ymlFile, 'utf8');
     const penaltyDaysBlock = content.match(/PenaltyDays:\n((?:.|\n)*?)\n\nPenalty:/)[1];
-    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01-01: (\d+)/);
+    const janPenaltyDaysMatch = penaltyDaysBlock.match(/2026-01: (\d+)/);
     const janPenaltyDays = Number(janPenaltyDaysMatch[1]);
     expect(janPenaltyDays).toBeGreaterThan(0);
 
     const penaltyBlock = content.match(/\nPenalty:\n((?:.|\n)*?)\n\nReturns:/)[1];
-    // 75,000/day (the override), never 50,000/day (the config default).
-    expect(penaltyBlock).toContain(
-      `2026-01-01: ${(janPenaltyDays * 75000).toLocaleString('en-US')}`
-    );
-    expect(penaltyBlock).not.toContain(
-      `2026-01-01: ${(janPenaltyDays * 50000).toLocaleString('en-US')}`
-    );
+    // 75,000/day (the override), never 50,000/day (the config default) — capped at half PriceMax (4,200,000 / 2 = 2,100,000) same as computePenalty's own rule.
+    const cap = 4200000 / 2;
+    const expected75 = Math.min(janPenaltyDays * 75000, cap);
+    const expected50 = Math.min(janPenaltyDays * 50000, cap);
+    expect(penaltyBlock).toContain(`2026-01: ${expected75.toLocaleString('en-US')}`);
+    expect(penaltyBlock).not.toContain(`2026-01: ${expected50.toLocaleString('en-US')}`);
   });
 });

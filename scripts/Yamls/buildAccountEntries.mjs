@@ -24,11 +24,12 @@ async function main() {
         .option("futureDate", { describe: "futureDate" })
         .option("history", { describe: "history" })
         .option("priceDay", { describe: "priceDay" })
+        .option("priceMaxDay", { describe: "priceMaxDay" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.buildAccountEntries(argv["startDate"], argv["futureDate"], argv["history"], argv["priceDay"]);
+        const result = await Yamls.buildAccountEntries(argv["startDate"], argv["futureDate"], argv["history"], argv["priceDay"], argv["priceMaxDay"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

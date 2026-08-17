@@ -22,11 +22,12 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("penaltyDays", { describe: "penaltyDays" })
         .option("penaltyForDay", { describe: "penaltyForDay" })
+        .option("priceMaxApp", { describe: "priceMaxApp" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.computePenalty(argv["penaltyDays"], argv["penaltyForDay"]);
+        const result = await Yamls.computePenalty(argv["penaltyDays"], argv["penaltyForDay"], argv["priceMaxApp"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

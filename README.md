@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 334 runnable methods.
+**Coverage:** 23 classes, 337 runnable methods.
 
 ---
 # Category
@@ -3929,7 +3929,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 43 public static method(s).
+Runners: `scripts/Yamls/` — 46 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3958,9 +3958,9 @@ node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
 | `startDate` | no | — |
 | `priceMax` | no | — |
 
-## buildAccountEntries(startDate, futureDate, history, priceDay)
+## buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay)
 
-Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Day 1 (startDate itself) is never debited — its value is whatever History carries for that exact date, or 0 when History has no entry there (normally 0, since a client rarely pays on day 1). Every day after that debits the day's own month's PriceDay rate off the PREVIOUS day's balance, then adds that day's own History entry (History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split). Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
+Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own History entry. The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on. History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split. Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
 
 **Run:**
 
@@ -3974,6 +3974,7 @@ node scripts/Yamls/buildAccountEntries.mjs --startDate <startDate>
 | `futureDate` | no | — |
 | `history` | no | — |
 | `priceDay` | no | — |
+| `priceMaxDay` | no | — |
 
 ## buildAccrualEntries(startDate, futureDate, price)
 
@@ -4019,6 +4020,21 @@ node scripts/Yamls/buildPriceDayEntries.mjs --priceApp <priceApp>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `priceApp` | no | — |
+
+## buildPriceMaxAppEntries(accrual, priceMax)
+
+Builds PriceMaxApp entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceApp, there is no Price-vs-PriceMax switch here.
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildPriceMaxAppEntries.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `priceMax` | no | — |
 
 ## computeDailyBalance(startDate, futureDate, accrual, payment, returns)
 
@@ -4088,7 +4104,9 @@ node scripts/Yamls/computePaymentChain.mjs --accrual <accrual>
 | `accrual` | no | — |
 | `payments` | no | — |
 
-## computePenalty(penaltyDays, penaltyForDay)
+## computePenalty(penaltyDays, penaltyForDay, priceMaxApp)
+
+Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's fixed per-calendar-day rate, config.yml's Penalty.PerDay, default 50,000), capped at HALF that month's own PriceMaxApp amount. A month whose straight PenaltyDays * PenaltyForDay figure would exceed PriceMaxApp[month] / 2 is clamped down to that half-PriceMax figure instead.
 
 **Run:**
 
@@ -4100,19 +4118,25 @@ node scripts/Yamls/computePenalty.mjs --penaltyDays <penaltyDays>
 |-----------|----------|-------------|
 | `penaltyDays` | no | — |
 | `penaltyForDay` | no | — |
+| `priceMaxApp` | no | — |
 
-## computePenaltyDays(accrual, ledger)
+**Returns:** [{ "YYYY-MM": penaltyAmount }, ..., { ALL: sum }], same key shape as PenaltyDays.
+
+## computePenaltyDays(account)
+
+Contract §21.1 — a fixed PerDay penalty for each calendar day Account's own running balance stays negative BEYOND the 1-calendar-day grace period (§3.7/§1.20: first/each prepayment due within 1 day). The first day a deficit appears is grace, never itself a penalty day; every CONSECUTIVE day after that the balance is still negative counts. A day where balance recovers to >= 0 resets the grace window — a LATER deficit starts its own fresh 1-day grace period. Reads Account directly (the same daily ledger written to the .contract yaml) rather than a separate internal computeDailyBalance simulation.
 
 **Run:**
 
 ```bash
-node scripts/Yamls/computePenaltyDays.mjs --accrual <accrual>
+node scripts/Yamls/computePenaltyDays.mjs --account <account>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `accrual` | no | — |
-| `ledger` | no | — |
+| `account` | no | — |
+
+**Returns:** [{ "YYYY-MM": penaltyDayCount }, ..., { ALL: sum }], one bare-month-keyed entry per calendar month Account covers.
 
 ## extractFirstNumber(str)
 
@@ -4481,7 +4505,7 @@ node scripts/Yamls/writePriceApp.mjs --file "<path>"
 
 ## writePriceDay(filePath, priceDay)
 
-Writes/replaces PriceDay: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceApp. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
+Writes/replaces PriceDay: block in place, or after PriceMaxApp: as fallback anchor on first write (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceApp. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
 
 **Run:**
 
@@ -4493,6 +4517,36 @@ node scripts/Yamls/writePriceDay.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `priceDay` | no | — |
+
+## writePriceMaxApp(filePath, priceMaxApp)
+
+Writes/replaces PriceMaxApp: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceMaxAppEntries). Same bare "YYYY-MM" key as PriceApp. PriceMaxApp: - 2026-01: 1,620,000
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceMaxApp.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceMaxApp` | no | — |
+
+## writePriceMaxDay(filePath, priceMaxDay)
+
+Writes/replaces PriceMaxDay: block in place, or after PriceDay: as fallback anchor on first write (see buildPriceDayEntries, reused for PriceMaxDay too). Same bare "YYYY-MM" key as PriceApp. PriceMaxDay: - 2026-01: 52,258
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceMaxDay.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceMaxDay` | no | — |
 
 ## writeReturns(filePath, returns)
 
