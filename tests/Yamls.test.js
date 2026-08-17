@@ -350,7 +350,7 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writeHistory/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
+  it('chaining writeAccrual/writeHistory/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writePriceApp/writePriceDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
@@ -361,6 +361,8 @@ describe('Yamls.writeAccrual', () => {
     Yamls.writeLoaners(f, [{ '2026-01-01': '0' }]);
     Yamls.writePenaltyDays(f, [{ '2026-01-01': 0 }]);
     Yamls.writePenalty(f, [{ '2026-01-01': '0' }]);
+    Yamls.writePriceApp(f, [{ '2026-01': '450,000' }]);
+    Yamls.writePriceDay(f, [{ '2026-01': '14,516' }]);
     Yamls.writeReturns(f, [{ '2026-01-05': '10,000' }]);
 
     expect(read(workDir, 'chain.contract')).toBe(
@@ -390,8 +392,15 @@ describe('Yamls.writeAccrual', () => {
         'Penalty:',
         '  - 2026-01-01: 0',
         '',
+        /* Returns' own fallback anchor is Penalty (fixed), so on a brand-new file it lands directly after Penalty: — ahead of PriceApp/PriceDay, even though #writeChain calls writePriceApp/writePriceDay BEFORE writeReturns. */
         'Returns:',
         '  - 2026-01-05: 10,000',
+        '',
+        'PriceApp:',
+        '  - 2026-01: 450,000',
+        '',
+        'PriceDay:',
+        '  - 2026-01: 14,516',
         '', // real trailing newline at end of file
       ].join('\n')
     );
@@ -701,6 +710,56 @@ describe('Yamls.buildAccrualEntries', () => {
   it('leaves a full-month period exactly at Price, never touched by rounding', () => {
     const entries = Yamls.buildAccrualEntries('2026-01-01', '2026-02-28', '390,000');
     expect(entries).toEqual([{ '2026-01-01': '390,000' }, { '2026-02-01': '390,000' }]);
+  });
+});
+
+describe('Yamls.buildPriceAppEntries', () => {
+  const accrual = [
+    { '2026-01-09': '289,355' },
+    { '2026-02-01': '390,000' },
+    { '2026-03-01': '390,000' },
+    { ALL: '1,069,355' },
+  ];
+
+  it('uses the flat, never-prorated Price for a month with no debt, even a partial first month', () => {
+    const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '0' }, { ALL: '0' }];
+    const entries = Yamls.buildPriceAppEntries(accrual, loaners, '390,000', '450,000');
+    expect(entries).toEqual([
+      { '2026-01': '390,000' },
+      { '2026-02': '390,000' },
+      { '2026-03': '390,000' },
+    ]);
+  });
+
+  it('switches a month with Loaners > 0 to PriceMax, leaving every other month at Price', () => {
+    const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '390,000' }, { ALL: '390,000' }];
+    const entries = Yamls.buildPriceAppEntries(accrual, loaners, '390,000', '450,000');
+    expect(entries).toEqual([
+      { '2026-01': '390,000' },
+      { '2026-02': '390,000' },
+      { '2026-03': '450,000' },
+    ]);
+  });
+
+  it('ignores the trailing ALL entry on both accrual and loaners', () => {
+    const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '0' }, { ALL: '0' }];
+    const entries = Yamls.buildPriceAppEntries(accrual, loaners, '390,000', '450,000');
+    expect(entries).toHaveLength(3);
+  });
+});
+
+describe('Yamls.buildPriceDayEntries', () => {
+  it("divides each month's PriceApp by that month's own real day count, rounded to the nearest whole so'm", () => {
+    // Jan 2026 = 31 days: 1,620,000 / 31 = 52,258.06... -> 52,258. Feb 2026 = 28 days: 1,620,000 / 28 = 57,857.14... -> 57,857.
+    const priceApp = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
+    const entries = Yamls.buildPriceDayEntries(priceApp);
+    expect(entries).toEqual([{ '2026-01': '52,258' }, { '2026-02': '57,857' }]);
+  });
+
+  it('ignores a trailing ALL entry on priceApp', () => {
+    const priceApp = [{ '2026-01': '1,620,000' }, { ALL: '1,620,000' }];
+    const entries = Yamls.buildPriceDayEntries(priceApp);
+    expect(entries).toHaveLength(1);
   });
 });
 
@@ -1673,6 +1732,12 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('Accrual:');
     // ActDateStart 2026-01-01 -> ActDateEnd 2026-01-31: a single full-month range, keyed by its own start (due) date.
     expect(content).toContain('2026-01-01: 4,200,000');
+    // PriceApp: bare "YYYY-MM" key, flat full-month Price (PriceMax === Price here, so the debt-vs-no-debt branch is unobservable in this fixture).
+    expect(content).toContain('PriceApp:');
+    expect(content).toContain('2026-01: 4,200,000');
+    // PriceDay: 4,200,000 / 31 days in January = 135,483.87... -> 135,484.
+    expect(content).toContain('PriceDay:');
+    expect(content).toContain('2026-01: 135,484');
   });
 
   it('always writes one PenaltyDays/Penalty entry per month, computed from a real Bank-OT folder via the daily-balance model', () => {

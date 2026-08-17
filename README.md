@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 326 runnable methods.
+**Coverage:** 23 classes, 332 runnable methods.
 
 ---
 # Category
@@ -580,7 +580,7 @@ node scripts/Com/pidsOf.mjs --imageName <imageName>
 
 # Dates
 
-Runners: `scripts/Dates/` — 22 public static method(s).
+Runners: `scripts/Dates/` — 23 public static method(s).
 
 ## addDays(dateStr, days)
 
@@ -865,6 +865,18 @@ node scripts/Dates/splitExcelDate.mjs --date <date>
 | `date` | no | Date in YYYY-MM-DD. |
 
 **Returns:** |null} Parts, or null when invalid.
+
+## today()
+
+Current calendar date as YYYY-MM-DD.
+
+**Run:**
+
+```bash
+node scripts/Dates/today.mjs
+```
+
+**Returns:** Today's date, Excel-format.
 
 
 ---
@@ -1941,7 +1953,7 @@ node scripts/ExcelsJS/replaceFormula.mjs --file "<path>"
 
 # Files
 
-Runners: `scripts/Files/` — 41 public static method(s).
+Runners: `scripts/Files/` — 42 public static method(s).
 
 ## archiveFolder(folder, fileName)
 
@@ -2071,6 +2083,20 @@ node scripts/Files/copyFolderRecursiveSync.mjs --file "<path>"
 ```bash
 node scripts/Files/currentDir.mjs
 ```
+
+## deleteDateMarkers(folderCompan)
+
+Remove every DD.MM.YYYY.(txt|app) date marker in folderCompan — same pattern getDateFromTXT reads. Used before writing a fresh date marker, so a stale prior date never lingers alongside the new one.
+
+**Run:**
+
+```bash
+node scripts/Files/deleteDateMarkers.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `folderCompan` | no | Compan/ folder to scan. |
 
 ## deleteInfo(folder, filename)
 
@@ -3903,7 +3929,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 37 public static method(s).
+Runners: `scripts/Yamls/` — 41 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3945,6 +3971,37 @@ node scripts/Yamls/buildAccrualEntries.mjs --startDate <startDate>
 | `startDate` | no | — |
 | `futureDate` | no | — |
 | `price` | no | — |
+
+## buildPriceAppEntries(accrual, loaners, price, priceMax)
+
+Builds PriceApp: entries, one per Accrual period (same YYYY-MM-DD periods, remapped to a bare "YYYY-MM" key). Value is the tariff's FLAT full-month rent price for that month, never prorated (unlike Accrual, which prorates a partial first/last month). A month with outstanding debt (Loaners > 0 for that same period) uses PriceMax instead of Price — same debt signal applyPriceMaxToDebtMonths uses, but PriceApp's own value is always the flat rate, never re-prorated. Must run against the FINAL, already-recomputeChain-settled accrual/loaners pair (same inputs writeAccrual/writeLoaners use), never a pre-recompute baseline.
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildPriceAppEntries.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `loaners` | no | — |
+| `price` | no | — |
+| `priceMax` | no | — |
+
+## buildPriceDayEntries(priceApp)
+
+Builds PriceDay: entries, one per PriceApp entry — that month's own PriceApp amount divided by however many calendar days that month actually has, rounded to the nearest whole so'm. Same bare "YYYY-MM" key as PriceApp.
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildPriceDayEntries.mjs --priceApp <priceApp>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `priceApp` | no | — |
 
 ## computeDailyBalance(startDate, futureDate, accrual, payment, returns)
 
@@ -4374,6 +4431,36 @@ node scripts/Yamls/writePenaltyDays.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `penaltyDays` | no | — |
+
+## writePriceApp(filePath, priceApp)
+
+Writes/replaces the PriceApp: array block IN PLACE at its existing position, or after Penalty: as a fallback anchor for a file that has never had this key before (see buildPriceAppEntries). Keyed by bare "YYYY-MM" (no day), one entry per Accrual period. PriceApp: - 2026-01: 1,620,000 - 2026-02: 1,620,000
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceApp.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceApp` | no | — |
+
+## writePriceDay(filePath, priceDay)
+
+Writes/replaces the PriceDay: array block IN PLACE at its existing position, or after PriceApp: as a fallback anchor for a file that has never had this key before (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceApp. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceDay.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceDay` | no | — |
 
 ## writeReturns(filePath, returns)
 

@@ -330,6 +330,64 @@ export class Yamls {
         });
     }
 
+    /**
+     * Builds PriceApp: entries, one per Accrual period (same YYYY-MM-DD periods, remapped to a bare "YYYY-MM" key).
+     * Value is the tariff's FLAT full-month rent price for that month, never prorated (unlike Accrual, which prorates a partial first/last month).
+     * A month with outstanding debt (Loaners > 0 for that same period) uses PriceMax instead of Price — same debt signal applyPriceMaxToDebtMonths uses, but PriceApp's own value is always the flat rate, never re-prorated.
+     * Must run against the FINAL, already-recomputeChain-settled accrual/loaners pair (same inputs writeAccrual/writeLoaners use), never a pre-recompute baseline.
+     * @param {Array<Object>} accrual
+     * @param {Array<Object>} loaners
+     * @param {string|number} price
+     * @param {string|number} priceMax
+     * @returns {Array<Object>}
+     */
+    static buildPriceAppEntries(accrual, loaners, price, priceMax) {
+        console.info(`[Yamls.buildPriceAppEntries] 🟢 Starting...`);
+
+        const priceNum = Number(String(price).replace(/,/g, '')) || 0;
+        const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
+        const loanersByKey = new Map(
+            (Array.isArray(loaners) ? loaners : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+        );
+
+        const entries = (Array.isArray(accrual) ? accrual : [])
+            .filter(e => !('ALL' in e))
+            .map(entry => {
+                const [start] = Object.entries(entry)[0];
+                const debt = Number(String(loanersByKey.get(start) ?? '0').replace(/,/g, '')) || 0;
+                const amount = debt > 0 ? priceMaxNum : priceNum;
+                return { [start.slice(0, 7)]: amount.toLocaleString('en-US') };
+            });
+
+        console.log(`buildPriceAppEntries: ${entries.length} entr(y/ies)`, entries);
+        return entries;
+    }
+
+    /**
+     * Builds PriceDay: entries, one per PriceApp entry — that month's own PriceApp amount divided by however many calendar days that month actually has, rounded to the nearest whole so'm.
+     * Same bare "YYYY-MM" key as PriceApp.
+     * @param {Array<Object>} priceApp
+     * @returns {Array<Object>}
+     */
+    static buildPriceDayEntries(priceApp) {
+        console.info(`[Yamls.buildPriceDayEntries] 🟢 Starting...`);
+
+        const entries = (Array.isArray(priceApp) ? priceApp : [])
+            .filter(e => !('ALL' in e))
+            .map(entry => {
+                const [month, amount] = Object.entries(entry)[0];
+                const amountNum = Number(String(amount).replace(/,/g, '')) || 0;
+                const daysInMonth = Dates.daysInMonth(`${month}-01`);
+                const perDay = daysInMonth > 0 ? Math.round(amountNum / daysInMonth) : 0;
+                return { [month]: perDay.toLocaleString('en-US') };
+            });
+
+        console.log(`buildPriceDayEntries: ${entries.length} entr(y/ies)`, entries);
+        return entries;
+    }
+
     // Chains real cash payments (Bank-OT + Trans-OT + Card-OT, in date
     // order) across Accrual's own periods, in order, starting from period 1
     // — never by arrival-date-vs-due-date comparison, never banking credit
@@ -798,6 +856,36 @@ export class Yamls {
     static writePenalty(filePath, penalty) {
         console.info(`[Yamls.writePenalty] 🟢 Starting...`);
         this.writeYamlArraySection(filePath, 'Penalty', penalty, 'PenaltyDays', ['Punish'], true);
+    }
+
+    /**
+     * Writes/replaces the PriceApp: array block IN PLACE at its existing position, or after Penalty: as a fallback anchor for a file that has never had this key before (see buildPriceAppEntries).
+     * Keyed by bare "YYYY-MM" (no day), one entry per Accrual period.
+     * @example
+     *   PriceApp:
+     *     - 2026-01: 1,620,000
+     *     - 2026-02: 1,620,000
+     * @param {string} filePath
+     * @param {Array<Object>} priceApp
+     */
+    static writePriceApp(filePath, priceApp) {
+        console.info(`[Yamls.writePriceApp] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PriceApp', priceApp, 'Penalty', [], true);
+    }
+
+    /**
+     * Writes/replaces the PriceDay: array block IN PLACE at its existing position, or after PriceApp: as a fallback anchor for a file that has never had this key before (see buildPriceDayEntries).
+     * Same bare "YYYY-MM" key as PriceApp.
+     * @example
+     *   PriceDay:
+     *     - 2026-01: 52,258
+     *     - 2026-02: 57,857
+     * @param {string} filePath
+     * @param {Array<Object>} priceDay
+     */
+    static writePriceDay(filePath, priceDay) {
+        console.info(`[Yamls.writePriceDay] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PriceDay', priceDay, 'PriceApp', [], true);
     }
 
     // Writes/replaces the Faktura: array block IN PLACE at its existing
@@ -1894,6 +1982,17 @@ export class Yamls {
             : Number(String(yamlData.PenaltyPerDay).replace(/,/g, ''));
         const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay);
         Yamls.writePenalty(ymlFile, penalty);
+
+        /*
+         * PriceApp: the tariff's flat full-month rent price per calendar month (Price, or PriceMax for a month with Loaners > 0) — never prorated, unlike Accrual.
+         * PriceDay: that same month's PriceApp amount divided by its own real day count, rounded to the nearest whole so'm.
+         * Both keyed by bare "YYYY-MM", written directly after Penalty:, before Bonuses:.
+         */
+        const priceApp = Yamls.buildPriceAppEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
+        Yamls.writePriceApp(ymlFile, priceApp);
+
+        const priceDay = Yamls.buildPriceDayEntries(priceApp);
+        Yamls.writePriceDay(ymlFile, priceDay);
 
         Yamls.writeReturns(ymlFile, returnsFlat);
 
