@@ -439,6 +439,156 @@ export class Excels {
     }
   }
 
+  /**
+   * Reads yamlData.Account — a flat "YYYY-MM-DD": balance array (Yamls.buildAccountEntries/writeAccount), no trailing { ALL } entry.
+   * Writes one row per entry (date, balance) starting at {Account} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}.
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processAccount(yamlData) {
+    console.info(`[Excels.processAccount] 🟢 Starting...`);
+
+    const found = this.findColumn('Account');
+    if (!found) {
+      console.warn('⚠️ processAccount: {Account} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const account = Array.isArray(yamlData.Account) ? yamlData.Account : [];
+    console.log(`processAccount: ${account.length} Account entr(y/ies)`, account);
+
+    for (const entry of account) {
+      const [date, balance] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = balance;
+
+      row++;
+    }
+  }
+
+  /**
+   * Reads yamlData.PriceMon — a bare "YYYY-MM": amount array (Yamls.buildPriceMonEntries/writePriceMon), no trailing { ALL } entry.
+   * Writes one row per entry (month, amount) starting at {PriceMon} placeholder's cell — a 2-column block (Месяц/Сумма).
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processPriceMon(yamlData) {
+    console.info(`[Excels.processPriceMon] 🟢 Starting...`);
+
+    const found = this.findColumn('PriceMon');
+    if (!found) {
+      console.warn('⚠️ processPriceMon: {PriceMon} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const priceMon = Array.isArray(yamlData.PriceMon) ? yamlData.PriceMon : [];
+    console.log(`processPriceMon: ${priceMon.length} PriceMon entr(y/ies)`, priceMon);
+
+    for (const entry of priceMon) {
+      const [month, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
+  /**
+   * Reads yamlData.PriceMaxMon — same bare "YYYY-MM": amount shape as PriceMon (Yamls.buildPriceMaxMonEntries/writePriceMaxMon).
+   * Writes one row per entry (month, amount) starting at {PriceMaxMon} placeholder's cell — a 2-column block (Месяц/Сумма).
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processPriceMaxMon(yamlData) {
+    console.info(`[Excels.processPriceMaxMon] 🟢 Starting...`);
+
+    const found = this.findColumn('PriceMaxMon');
+    if (!found) {
+      console.warn('⚠️ processPriceMaxMon: {PriceMaxMon} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const priceMaxMon = Array.isArray(yamlData.PriceMaxMon) ? yamlData.PriceMaxMon : [];
+    console.log(`processPriceMaxMon: ${priceMaxMon.length} PriceMaxMon entr(y/ies)`, priceMaxMon);
+
+    for (const entry of priceMaxMon) {
+      const [month, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
+  /**
+   * Reads yamlData.PriceDay — same bare "YYYY-MM": amount shape as PriceMon (Yamls.buildPriceDayEntries/writePriceDay).
+   * Writes one row per entry (month, amount) starting at {PriceDay} placeholder's cell — a 2-column block (Месяц/Сумма).
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processPriceDay(yamlData) {
+    console.info(`[Excels.processPriceDay] 🟢 Starting...`);
+
+    const found = this.findColumn('PriceDay');
+    if (!found) {
+      console.warn('⚠️ processPriceDay: {PriceDay} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const priceDay = Array.isArray(yamlData.PriceDay) ? yamlData.PriceDay : [];
+    console.log(`processPriceDay: ${priceDay.length} PriceDay entr(y/ies)`, priceDay);
+
+    for (const entry of priceDay) {
+      const [month, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
+  /**
+   * Reads yamlData.PriceMaxDay — same bare "YYYY-MM": amount shape as PriceMon (Yamls.buildPriceDayEntries/writePriceMaxDay).
+   * Writes one row per entry (month, amount) starting at {PriceMaxDay} placeholder's cell — a 2-column block (Месяц/Сумма).
+   * Always runs (no ON/OFF flag).
+   * @param {object} yamlData
+   */
+  static processPriceMaxDay(yamlData) {
+    console.info(`[Excels.processPriceMaxDay] 🟢 Starting...`);
+
+    const found = this.findColumn('PriceMaxDay');
+    if (!found) {
+      console.warn('⚠️ processPriceMaxDay: {PriceMaxDay} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const priceMaxDay = Array.isArray(yamlData.PriceMaxDay) ? yamlData.PriceMaxDay : [];
+    console.log(`processPriceMaxDay: ${priceMaxDay.length} PriceMaxDay entr(y/ies)`, priceMaxDay);
+
+    for (const entry of priceMaxDay) {
+      const [month, amount] = Object.entries(entry)[0];
+
+      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
+
+      row++;
+    }
+  }
+
   // Writes one row per {date: amount} entry from yamlData[cellName] — the
   // array Yamls.writeCellArrays already wrote into the .contract yaml for
   // this Excel.CellNames key (Bank-OT, EHF-IN, …). No folder scan: the
@@ -1082,6 +1232,11 @@ export class Excels {
       this.processLoaners(yamlData);
       this.processPenaltyDays(yamlData);
       this.processPenalty(yamlData);
+      this.processAccount(yamlData);
+      this.processPriceMon(yamlData);
+      this.processPriceMaxMon(yamlData);
+      this.processPriceDay(yamlData);
+      this.processPriceMaxDay(yamlData);
 
       for (const cellName of cellNames) {
         const found = this.findColumn(cellName);

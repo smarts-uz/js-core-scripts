@@ -688,6 +688,174 @@ describe('Excels.processPenaltyDays', () => {
 });
 
 // =============================================================================
+// processAccount, processPriceMon, processPriceMaxMon, processPriceDay, and processPriceMaxDay are 2-column blocks mirroring processReturns's Column/Column+2 shape.
+// =============================================================================
+describe('Excels.processAccount', () => {
+  function installSheet(found = { Row: 4, Column: 42 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per flat date-keyed yamlData.Account entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 42 });
+
+    Excels.processAccount({ Account: [{ '2026-01-19': '1,600,000' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Account');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 42);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
+  });
+
+  it('always runs even when yamlData.Account is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processAccount({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('Account');
+  });
+
+  it('warns and does not throw when {Account} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processAccount({ Account: [{ '2026-01-19': '1,600,000' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processPriceMon', () => {
+  function installSheet(found = { Row: 4, Column: 44 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per bare-month-keyed yamlData.PriceMon entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 44 });
+
+    Excels.processPriceMon({ PriceMon: [{ '2026-01': '1,620,000' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMon');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 44);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
+  });
+
+  it('always runs even when yamlData.PriceMon is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processPriceMon({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMon');
+  });
+
+  it('warns and does not throw when {PriceMon} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processPriceMon({ PriceMon: [{ '2026-01': '1,620,000' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processPriceMaxMon', () => {
+  function installSheet(found = { Row: 4, Column: 46 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per bare-month-keyed yamlData.PriceMaxMon entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 46 });
+
+    Excels.processPriceMaxMon({ PriceMaxMon: [{ '2026-01': '1,620,000' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxMon');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 46);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
+  });
+
+  it('always runs even when yamlData.PriceMaxMon is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processPriceMaxMon({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxMon');
+  });
+
+  it('warns and does not throw when {PriceMaxMon} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processPriceMaxMon({ PriceMaxMon: [{ '2026-01': '1,620,000' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processPriceDay', () => {
+  function installSheet(found = { Row: 4, Column: 48 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per bare-month-keyed yamlData.PriceDay entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 48 });
+
+    Excels.processPriceDay({ PriceDay: [{ '2026-01': '52,258' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceDay');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 48);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
+  });
+
+  it('always runs even when yamlData.PriceDay is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processPriceDay({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceDay');
+  });
+
+  it('warns and does not throw when {PriceDay} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processPriceDay({ PriceDay: [{ '2026-01': '52,258' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processPriceMaxDay', () => {
+  function installSheet(found = { Row: 4, Column: 50 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per bare-month-keyed yamlData.PriceMaxDay entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 50 });
+
+    Excels.processPriceMaxDay({ PriceMaxDay: [{ '2026-01': '52,258' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxDay');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 50);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 52);
+  });
+
+  it('always runs even when yamlData.PriceMaxDay is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processPriceMaxDay({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('PriceMaxDay');
+  });
+
+  it('warns and does not throw when {PriceMaxDay} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processPriceMaxDay({ PriceMaxDay: [{ '2026-01': '52,258' }] })).not.toThrow();
+  });
+});
+
+// =============================================================================
 // processPenalty — drives globalThis.excelSheet via findColumn, always runs
 // =============================================================================
 describe('Excels.processPenalty', () => {

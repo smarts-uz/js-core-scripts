@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 339 runnable methods.
+**Coverage:** 23 classes, 344 runnable methods.
 
 ---
 # Category
@@ -1264,7 +1264,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 47 public static method(s).
+Runners: `scripts/Excels/` — 52 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1514,6 +1514,20 @@ node scripts/Excels/openWorkbookSafely.mjs --excelApp <excelApp>
 | `filePath` | no | — |
 | `opts` | yes (default `{}`) | — |
 
+## processAccount(yamlData)
+
+Reads yamlData.Account — a flat "YYYY-MM-DD": balance array (Yamls.buildAccountEntries/writeAccount), no trailing { ALL } entry. Writes one row per entry (date, balance) starting at {Account} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}. Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processAccount.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
 ## processAccrual(yamlData)
 
 **Run:**
@@ -1595,6 +1609,62 @@ node scripts/Excels/processPenalty.mjs --file "<path>"
 
 ```bash
 node scripts/Excels/processPenaltyDays.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPriceDay(yamlData)
+
+Reads yamlData.PriceDay — same bare "YYYY-MM": amount shape as PriceMon (Yamls.buildPriceDayEntries/writePriceDay). Writes one row per entry (month, amount) starting at {PriceDay} placeholder's cell — a 2-column block (Месяц/Сумма). Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processPriceDay.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPriceMaxDay(yamlData)
+
+Reads yamlData.PriceMaxDay — same bare "YYYY-MM": amount shape as PriceMon (Yamls.buildPriceDayEntries/writePriceMaxDay). Writes one row per entry (month, amount) starting at {PriceMaxDay} placeholder's cell — a 2-column block (Месяц/Сумма). Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processPriceMaxDay.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPriceMaxMon(yamlData)
+
+Reads yamlData.PriceMaxMon — same bare "YYYY-MM": amount shape as PriceMon (Yamls.buildPriceMaxMonEntries/writePriceMaxMon). Writes one row per entry (month, amount) starting at {PriceMaxMon} placeholder's cell — a 2-column block (Месяц/Сумма). Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processPriceMaxMon.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processPriceMon(yamlData)
+
+Reads yamlData.PriceMon — a bare "YYYY-MM": amount array (Yamls.buildPriceMonEntries/writePriceMon), no trailing { ALL } entry. Writes one row per entry (month, amount) starting at {PriceMon} placeholder's cell — a 2-column block (Месяц/Сумма). Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processPriceMon.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
