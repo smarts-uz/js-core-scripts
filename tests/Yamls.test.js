@@ -1759,7 +1759,11 @@ describe('Yamls.replaceYaml', () => {
     DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
     DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
 
-    /* An array-valued yamlData key with no dedicated writer. Mirrors a real incident: a stray Account: block, loaded off disk into yamlData by a real caller, got stringified into "Account: [object Object],[object Object]" by the generic replaceTextLine loop, which js-yaml could no longer re-parse. */
+    /*
+     * Array-valued yamlData key with no dedicated writer.
+     * Mirrors real incident: stray Account: block, loaded off disk by real caller, stringified into "Account: [object Object],[object Object]" by generic replaceTextLine loop.
+     * js-yaml could no longer re-parse it.
+     */
     Yamls.replaceYaml(
       ymlFile,
       {
