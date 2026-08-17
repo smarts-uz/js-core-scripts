@@ -1740,6 +1740,58 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('2026-01: 135,484');
   });
 
+  it('never stomps an array-valued yamlData key (e.g. a stray Account: block with no dedicated writer) into a broken "[object Object]" scalar line', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(
+      ymlFile,
+      'ContractDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n\nAccount:\n  - 2026-01-19: 1,600,000\n',
+      'utf8'
+    );
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    /* An array-valued yamlData key with no dedicated writer. Mirrors a real incident: a stray Account: block, loaded off disk into yamlData by a real caller, got stringified into "Account: [object Object],[object Object]" by the generic replaceTextLine loop, which js-yaml could no longer re-parse. */
+    Yamls.replaceYaml(
+      ymlFile,
+      {
+        ComType: 'MChJ',
+        ContractDate: '2026-01-01',
+        ActDateStart: '2026-01-01',
+        ActDateEnd: '2026-01-31',
+        Price: '4,200,000',
+        PriceMax: '4,200,000',
+        SurEnable: false,
+        RepEnable: false,
+        Account: [{ '2026-01-19': '1,600,000' }],
+      },
+      {
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).not.toContain('[object Object]');
+    // The pre-existing Account: block on disk (never targeted by any writer) stays exactly as it was loaded.
+    expect(content).toContain('Account:');
+    expect(content).toContain('2026-01-19: 1,600,000');
+  });
+
   it('always writes one PenaltyDays/Penalty entry per month, computed from a real Bank-OT folder via the daily-balance model', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });

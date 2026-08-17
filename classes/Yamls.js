@@ -1881,8 +1881,9 @@ export class Yamls {
     static #writeChain(ymlFile, yamlData) {
         console.info(`[Yamls.#writeChain] 🟢 Starting...`);
 
-        // iterate yamldata and write via reoplacetextline func
+        /* Iterate yamlData and write each SCALAR value via replaceTextLine. Array-valued keys (Accrual, History, Account, and the rest of the chain) are skipped here — each has its own dedicated writeYamlArraySection-based writer below (or, for a key like Account with no writer at all, is left exactly as loaded), never the generic key + ': ' + value scalar line, which stringifies an array into a broken "[object Object],[object Object]" that js-yaml can't re-parse. */
         for (const [key, value] of Object.entries(yamlData)) {
+            if (Array.isArray(value)) continue;
             this.replaceTextLine(ymlFile, key, value);
         }
 
