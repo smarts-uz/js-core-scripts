@@ -388,6 +388,67 @@ export class Yamls {
         return entries;
     }
 
+    /**
+     * Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive.
+     * Day 1 (startDate itself) is never debited — its value is whatever History carries for that exact date, or 0 when History has no entry there (normally 0, since a client rarely pays on day 1).
+     * Every day after that debits the day's own month's PriceDay rate off the PREVIOUS day's balance, then adds that day's own History entry (History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split).
+     * Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
+     * @param {string} startDate
+     * @param {string} futureDate
+     * @param {Array<Object>} history
+     * @param {Array<Object>} priceDay
+     * @returns {Array<Object>}
+     */
+    static buildAccountEntries(startDate, futureDate, history, priceDay) {
+        console.info(`[Yamls.buildAccountEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
+
+        const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+        if (!ISO_DATE.test(startDate) || !ISO_DATE.test(futureDate) || startDate > futureDate) {
+            console.warn(`buildAccountEntries: invalid or empty startDate/futureDate (startDate=${startDate}, futureDate=${futureDate}); returning empty Account.`);
+            return [];
+        }
+
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+        const historyByDate = new Map(
+            (Array.isArray(history) ? history : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+                .map(([d, a]) => [d, toAmount(a)])
+        );
+        const priceDayByMonth = new Map(
+            (Array.isArray(priceDay) ? priceDay : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+                .map(([m, a]) => [m, toAmount(a)])
+        );
+
+        const entries = [];
+        let balance = 0;
+        let day = startDate;
+        let isFirstDay = true;
+
+        // Hard backstop against any unforeseen non-terminating case — ~137 years of daily entries, far beyond any real contract term.
+        const MAX_DAYS = 50000;
+
+        while (day <= futureDate && entries.length < MAX_DAYS) {
+            const historyAmount = historyByDate.get(day) || 0;
+
+            if (isFirstDay) {
+                balance = historyAmount;
+                isFirstDay = false;
+            } else {
+                const monthDebit = priceDayByMonth.get(day.slice(0, 7)) || 0;
+                balance = balance - monthDebit + historyAmount;
+            }
+
+            entries.push({ [day]: balance.toLocaleString('en-US') });
+            day = Yamls._addOneDayIso(day);
+        }
+
+        console.log(`buildAccountEntries: ${entries.length} day(s), final balance=${entries.length ? Object.values(entries[entries.length - 1])[0] : 0}`);
+        return entries;
+    }
+
     // Chains real cash payments (Bank-OT + Trans-OT + Card-OT, in date
     // order) across Accrual's own periods, in order, starting from period 1
     // — never by arrival-date-vs-due-date comparison, never banking credit
@@ -763,6 +824,21 @@ export class Yamls {
     static writeHistory(filePath, history) {
         console.info(`[Yamls.writeHistory] 🟢 Starting...`);
         this.writeYamlArraySection(filePath, 'History', history, 'Accrual', [], true);
+    }
+
+    /**
+     * Writes/replaces the Account: array block IN PLACE at its existing position, or after History: as a fallback anchor for a file that has never had this key before (see buildAccountEntries).
+     * One entry per calendar day, "YYYY-MM-DD" key, the client's own running balance for that exact day.
+     * @example
+     *   Account:
+     *     - 2026-01-19: 0
+     *     - 2026-01-20: -50,000
+     * @param {string} filePath
+     * @param {Array<Object>} account
+     */
+    static writeAccount(filePath, account) {
+        console.info(`[Yamls.writeAccount] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'Account', account, 'History', [], true);
     }
 
     // Writes/replaces the Returns: array block IN PLACE at its existing
@@ -1994,6 +2070,14 @@ export class Yamls {
 
         const priceDay = Yamls.buildPriceDayEntries(priceApp);
         Yamls.writePriceDay(ymlFile, priceDay);
+
+        /*
+         * Account: client's own running balance, one entry per calendar day from PeriodStart through PeriodEnd.
+         * Day 1 is History's own entry for that date (or 0); every later day debits that day's own month's PriceDay rate off the previous day's balance, then adds that day's own History entry.
+         * Written directly after History:, before Loaners:.
+         */
+        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, yamlData.PeriodEnd, history, priceDay);
+        Yamls.writeAccount(ymlFile, account);
 
         Yamls.writeReturns(ymlFile, returnsFlat);
 

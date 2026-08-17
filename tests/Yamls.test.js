@@ -350,13 +350,15 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writeHistory/writePayment/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writePriceApp/writePriceDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
+  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeFaktura/writeLoaners/writePenaltyDays/writePenalty/writePriceApp/writePriceDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
     Yamls.writeAccrual(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writeHistory(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
+    /* Account's own fallback anchor is History (fixed) — calling it AFTER writePayment (which shares that same anchor) is what makes it land BETWEEN History: and Payment:, matching #writeChain's own real call order. */
+    Yamls.writeAccount(f, [{ '2026-01-01': '0' }]);
     Yamls.writeFaktura(f, [{ '2026-01-01': '0' }]);
     Yamls.writeLoaners(f, [{ '2026-01-01': '0' }]);
     Yamls.writePenaltyDays(f, [{ '2026-01-01': 0 }]);
@@ -376,6 +378,9 @@ describe('Yamls.writeAccrual', () => {
         '',
         'History:',
         '  - 2026-01-01: 450,000',
+        '',
+        'Account:',
+        '  - 2026-01-01: 0',
         '',
         'Payment:',
         '  - 2026-01-01: 450,000',
@@ -760,6 +765,62 @@ describe('Yamls.buildPriceDayEntries', () => {
     const priceApp = [{ '2026-01': '1,620,000' }, { ALL: '1,620,000' }];
     const entries = Yamls.buildPriceDayEntries(priceApp);
     expect(entries).toHaveLength(1);
+  });
+});
+
+describe('Yamls.buildAccountEntries', () => {
+  it("day 1 is History's own entry for that date, never debited", () => {
+    const history = [{ '2026-01-19': '1,600,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', history, priceDay);
+    expect(entries).toEqual([{ '2026-01-19': '1,600,000' }]);
+  });
+
+  it('day 1 defaults to 0 when History has no entry for that date', () => {
+    const priceDay = [{ '2026-01': '50,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', [], priceDay);
+    expect(entries).toEqual([{ '2026-01-19': '0' }]);
+  });
+
+  it('every day after day 1 debits that day\'s own month PriceDay off the previous balance, then adds History', () => {
+    // Day 1 = 0 (no History).
+    // Day 2 debits PriceDay (50,000): 0 - 50,000 = -50,000.
+    // That same day a 1,000,000 payment lands: -50,000 + 1,000,000 = 950,000.
+    // Day 3: 950,000 - 50,000 = 900,000.
+    // Day 4: 900,000 - 50,000 = 850,000.
+    const history = [{ '2026-01-02': '1,000,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-04', history, priceDay);
+    expect(entries).toEqual([
+      { '2026-01-01': '0' },
+      { '2026-01-02': '950,000' },
+      { '2026-01-03': '900,000' },
+      { '2026-01-04': '850,000' },
+    ]);
+  });
+
+  it('a Returns entry in History (already negative) reduces the balance on its own date', () => {
+    const history = [{ '2026-01-02': '-200,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-01', '2026-01-02', history, priceDay);
+    expect(entries).toEqual([{ '2026-01-01': '0' }, { '2026-01-02': '-250,000' }]);
+  });
+
+  it('looks up PriceDay by the CURRENT day\'s own calendar month, not the start month', () => {
+    // Jan (50,000/day) through Feb 1 (60,000/day) — day 2 (2026-01-02) still debits January's own rate.
+    const priceDay = [{ '2026-01': '50,000' }, { '2026-02': '60,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-31', '2026-02-02', [], priceDay);
+    expect(entries).toEqual([
+      { '2026-01-31': '0' },
+      { '2026-02-01': '-60,000' },
+      { '2026-02-02': '-120,000' },
+    ]);
+  });
+
+  it('returns [] for an invalid or empty startDate/futureDate', () => {
+    expect(Yamls.buildAccountEntries('', '2026-01-01', [], [])).toEqual([]);
+    expect(Yamls.buildAccountEntries('2026-01-05', '2026-01-01', [], [])).toEqual([]);
+    expect(Yamls.buildAccountEntries('Invalid Date', '2026-01-01', [], [])).toEqual([]);
   });
 });
 
@@ -1738,9 +1799,13 @@ describe('Yamls.replaceYaml', () => {
     // PriceDay: 4,200,000 / 31 days in January = 135,483.87... -> 135,484.
     expect(content).toContain('PriceDay:');
     expect(content).toContain('2026-01: 135,484');
+    // Account: day 1 (PeriodStart) is never debited and there is no History in this fixture, so it starts at 0; day 2 debits January's own 135,484 PriceDay rate.
+    expect(content).toContain('Account:');
+    expect(content).toContain('2026-01-01: 0');
+    expect(content).toContain("2026-01-02: '-135,484'");
   });
 
-  it('never stomps an array-valued yamlData key (e.g. a stray Account: block with no dedicated writer) into a broken "[object Object]" scalar line', () => {
+  it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
@@ -1749,7 +1814,7 @@ describe('Yamls.replaceYaml', () => {
     const ymlFile = path.join(workDir, 'ALL.contract');
     fs.writeFileSync(
       ymlFile,
-      'ContractDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n\nAccount:\n  - 2026-01-19: 1,600,000\n',
+      'ContractDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n\nStrayNote:\n  - 2026-01-19: 1,600,000\n',
       'utf8'
     );
 
@@ -1760,8 +1825,8 @@ describe('Yamls.replaceYaml', () => {
     DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
 
     /*
-     * Array-valued yamlData key with no dedicated writer.
-     * Mirrors real incident: stray Account: block, loaded off disk by real caller, stringified into "Account: [object Object],[object Object]" by generic replaceTextLine loop.
+     * Array-valued yamlData key with no dedicated writer (StrayNote — a stand-in for any future ad-hoc array block, same shape as the real Account: incident before Account got its own writer).
+     * Mirrors real incident: an array key loaded off disk got stringified into "StrayNote: [object Object],[object Object]" by the generic replaceTextLine loop.
      * js-yaml could no longer re-parse it.
      */
     Yamls.replaceYaml(
@@ -1775,7 +1840,7 @@ describe('Yamls.replaceYaml', () => {
         PriceMax: '4,200,000',
         SurEnable: false,
         RepEnable: false,
-        Account: [{ '2026-01-19': '1,600,000' }],
+        StrayNote: [{ '2026-01-19': '1,600,000' }],
       },
       {
         soliq: {
@@ -1791,8 +1856,8 @@ describe('Yamls.replaceYaml', () => {
 
     const content = fs.readFileSync(ymlFile, 'utf8');
     expect(content).not.toContain('[object Object]');
-    // The pre-existing Account: block on disk (never targeted by any writer) stays exactly as it was loaded.
-    expect(content).toContain('Account:');
+    // The pre-existing StrayNote: block on disk (never targeted by any writer) stays exactly as it was loaded.
+    expect(content).toContain('StrayNote:');
     expect(content).toContain('2026-01-19: 1,600,000');
   });
 

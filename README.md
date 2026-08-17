@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 332 runnable methods.
+**Coverage:** 23 classes, 334 runnable methods.
 
 ---
 # Category
@@ -3929,7 +3929,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 41 public static method(s).
+Runners: `scripts/Yamls/` — 43 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3958,6 +3958,23 @@ node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
 | `startDate` | no | — |
 | `priceMax` | no | — |
 
+## buildAccountEntries(startDate, futureDate, history, priceDay)
+
+Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Day 1 (startDate itself) is never debited — its value is whatever History carries for that exact date, or 0 when History has no entry there (normally 0, since a client rarely pays on day 1). Every day after that debits the day's own month's PriceDay rate off the PREVIOUS day's balance, then adds that day's own History entry (History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split). Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildAccountEntries.mjs --startDate <startDate>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `startDate` | no | — |
+| `futureDate` | no | — |
+| `history` | no | — |
+| `priceDay` | no | — |
+
 ## buildAccrualEntries(startDate, futureDate, price)
 
 **Run:**
@@ -3974,7 +3991,7 @@ node scripts/Yamls/buildAccrualEntries.mjs --startDate <startDate>
 
 ## buildPriceAppEntries(accrual, loaners, price, priceMax)
 
-Builds PriceApp: entries, one per Accrual period (same YYYY-MM-DD periods, remapped to a bare "YYYY-MM" key). Value is the tariff's FLAT full-month rent price for that month, never prorated (unlike Accrual, which prorates a partial first/last month). A month with outstanding debt (Loaners > 0 for that same period) uses PriceMax instead of Price — same debt signal applyPriceMaxToDebtMonths uses, but PriceApp's own value is always the flat rate, never re-prorated. Must run against the FINAL, already-recomputeChain-settled accrual/loaners pair (same inputs writeAccrual/writeLoaners use), never a pre-recompute baseline.
+Builds PriceApp entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month rent price, never prorated (unlike Accrual). Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated. Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
 
 **Run:**
 
@@ -3991,7 +4008,7 @@ node scripts/Yamls/buildPriceAppEntries.mjs --accrual <accrual>
 
 ## buildPriceDayEntries(priceApp)
 
-Builds PriceDay: entries, one per PriceApp entry — that month's own PriceApp amount divided by however many calendar days that month actually has, rounded to the nearest whole so'm. Same bare "YYYY-MM" key as PriceApp.
+Builds PriceDay entries, one per PriceApp entry: that month's PriceApp amount / its real day count, rounded to the nearest whole so'm. Same bare "YYYY-MM" key as PriceApp.
 
 **Run:**
 
@@ -4315,6 +4332,21 @@ node scripts/Yamls/update.mjs --file "<path>"
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
 
+## writeAccount(filePath, account)
+
+Writes/replaces the Account: array block IN PLACE at its existing position, or after History: as a fallback anchor for a file that has never had this key before (see buildAccountEntries). One entry per calendar day, "YYYY-MM-DD" key, the client's own running balance for that exact day. Account: - 2026-01-19: 0 - 2026-01-20: -50,000
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeAccount.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `account` | no | — |
+
 ## writeAccrual(filePath, accrual)
 
 **Run:**
@@ -4434,7 +4466,7 @@ node scripts/Yamls/writePenaltyDays.mjs --file "<path>"
 
 ## writePriceApp(filePath, priceApp)
 
-Writes/replaces the PriceApp: array block IN PLACE at its existing position, or after Penalty: as a fallback anchor for a file that has never had this key before (see buildPriceAppEntries). Keyed by bare "YYYY-MM" (no day), one entry per Accrual period. PriceApp: - 2026-01: 1,620,000 - 2026-02: 1,620,000
+Writes/replaces PriceApp: block in place, or after Penalty: as fallback anchor on first write (see buildPriceAppEntries). Keyed by bare "YYYY-MM" (no day), one entry per Accrual period. PriceApp: - 2026-01: 1,620,000 - 2026-02: 1,620,000
 
 **Run:**
 
@@ -4449,7 +4481,7 @@ node scripts/Yamls/writePriceApp.mjs --file "<path>"
 
 ## writePriceDay(filePath, priceDay)
 
-Writes/replaces the PriceDay: array block IN PLACE at its existing position, or after PriceApp: as a fallback anchor for a file that has never had this key before (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceApp. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
+Writes/replaces PriceDay: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceApp. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
 
 **Run:**
 
