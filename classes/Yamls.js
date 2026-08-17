@@ -404,7 +404,7 @@ export class Yamls {
     }
 
     /**
-     * Builds PriceApp entries, one per Accrual period, key remapped to bare "YYYY-MM".
+     * Builds PriceMon entries, one per Accrual period, key remapped to bare "YYYY-MM".
      * Value: tariff's flat full-month rent price, never prorated (unlike Accrual).
      * Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated.
      * Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
@@ -414,8 +414,8 @@ export class Yamls {
      * @param {string|number} priceMax
      * @returns {Array<Object>}
      */
-    static buildPriceAppEntries(accrual, loaners, price, priceMax) {
-        console.info(`[Yamls.buildPriceAppEntries] 🟢 Starting...`);
+    static buildPriceMonEntries(accrual, loaners, price, priceMax) {
+        console.info(`[Yamls.buildPriceMonEntries] 🟢 Starting...`);
 
         const priceNum = Number(String(price).replace(/,/g, '')) || 0;
         const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
@@ -434,19 +434,19 @@ export class Yamls {
                 return { [start.slice(0, 7)]: amount.toLocaleString('en-US') };
             });
 
-        console.log(`buildPriceAppEntries: ${entries.length} entr(y/ies)`, entries);
+        console.log(`buildPriceMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
     }
 
     /**
-     * Builds PriceMaxApp entries, one per Accrual period, key remapped to bare "YYYY-MM".
-     * Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceApp, there is no Price-vs-PriceMax switch here.
+     * Builds PriceMaxMon entries, one per Accrual period, key remapped to bare "YYYY-MM".
+     * Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceMon, there is no Price-vs-PriceMax switch here.
      * @param {Array<Object>} accrual
      * @param {string|number} priceMax
      * @returns {Array<Object>}
      */
-    static buildPriceMaxAppEntries(accrual, priceMax) {
-        console.info(`[Yamls.buildPriceMaxAppEntries] 🟢 Starting...`);
+    static buildPriceMaxMonEntries(accrual, priceMax) {
+        console.info(`[Yamls.buildPriceMaxMonEntries] 🟢 Starting...`);
 
         const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
 
@@ -457,20 +457,20 @@ export class Yamls {
                 return { [start.slice(0, 7)]: priceMaxNum.toLocaleString('en-US') };
             });
 
-        console.log(`buildPriceMaxAppEntries: ${entries.length} entr(y/ies)`, entries);
+        console.log(`buildPriceMaxMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
     }
 
     /**
-     * Builds PriceDay entries, one per PriceApp entry: that month's PriceApp amount / its real day count, rounded to the nearest whole so'm.
-     * Same bare "YYYY-MM" key as PriceApp.
-     * @param {Array<Object>} priceApp
+     * Builds PriceDay entries, one per PriceMon entry: that month's PriceMon amount / its real day count, rounded to the nearest whole so'm.
+     * Same bare "YYYY-MM" key as PriceMon.
+     * @param {Array<Object>} priceMon
      * @returns {Array<Object>}
      */
-    static buildPriceDayEntries(priceApp) {
+    static buildPriceDayEntries(priceMon) {
         console.info(`[Yamls.buildPriceDayEntries] 🟢 Starting...`);
 
-        const entries = (Array.isArray(priceApp) ? priceApp : [])
+        const entries = (Array.isArray(priceMon) ? priceMon : [])
             .filter(e => !('ALL' in e))
             .map(entry => {
                 const [month, amount] = Object.entries(entry)[0];
@@ -798,20 +798,20 @@ export class Yamls {
     }
 
     /**
-     * Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's fixed per-calendar-day rate, config.yml's Penalty.PerDay, default 50,000), capped at HALF that month's own PriceMaxApp amount.
-     * A month whose straight PenaltyDays * PenaltyForDay figure would exceed PriceMaxApp[month] / 2 is clamped down to that half-PriceMax figure instead.
+     * Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's fixed per-calendar-day rate, config.yml's Penalty.PerDay, default 50,000), capped at HALF that month's own PriceMaxMon amount.
+     * A month whose straight PenaltyDays * PenaltyForDay figure would exceed PriceMaxMon[month] / 2 is clamped down to that half-PriceMax figure instead.
      * @param {Array<Object>} penaltyDays
      * @param {string|number} penaltyForDay
-     * @param {Array<Object>} priceMaxApp
+     * @param {Array<Object>} priceMaxMon
      * @returns {Array<Object>} [{ "YYYY-MM": penaltyAmount }, ..., { ALL: sum }], same key shape as PenaltyDays.
      */
-    static computePenalty(penaltyDays, penaltyForDay, priceMaxApp) {
+    static computePenalty(penaltyDays, penaltyForDay, priceMaxMon) {
         console.info(`[Yamls.computePenalty] 🟢 Starting... penaltyForDay=${penaltyForDay}`);
 
         const rate = Number(String(penaltyForDay).replace(/,/g, '')) || 0;
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
         const priceMaxByMonth = new Map(
-            (Array.isArray(priceMaxApp) ? priceMaxApp : [])
+            (Array.isArray(priceMaxMon) ? priceMaxMon : [])
                 .filter(e => !('ALL' in e))
                 .map(e => Object.entries(e)[0])
                 .map(([m, a]) => [m, toAmount(a)])
@@ -1038,37 +1038,37 @@ export class Yamls {
     }
 
     /**
-     * Writes/replaces PriceApp: block in place, or after Penalty: as fallback anchor on first write (see buildPriceAppEntries).
+     * Writes/replaces PriceMon: block in place, or after Penalty: as fallback anchor on first write (see buildPriceMonEntries).
      * Keyed by bare "YYYY-MM" (no day), one entry per Accrual period.
      * @example
-     *   PriceApp:
+     *   PriceMon:
      *     - 2026-01: 1,620,000
      *     - 2026-02: 1,620,000
      * @param {string} filePath
-     * @param {Array<Object>} priceApp
+     * @param {Array<Object>} priceMon
      */
-    static writePriceApp(filePath, priceApp) {
-        console.info(`[Yamls.writePriceApp] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceApp', priceApp, 'Penalty', [], true);
+    static writePriceMon(filePath, priceMon) {
+        console.info(`[Yamls.writePriceMon] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PriceMon', priceMon, 'Penalty', [], true);
     }
 
     /**
-     * Writes/replaces PriceMaxApp: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceMaxAppEntries).
-     * Same bare "YYYY-MM" key as PriceApp.
+     * Writes/replaces PriceMaxMon: block in place, or after PriceMon: as fallback anchor on first write (see buildPriceMaxMonEntries).
+     * Same bare "YYYY-MM" key as PriceMon.
      * @example
-     *   PriceMaxApp:
+     *   PriceMaxMon:
      *     - 2026-01: 1,620,000
      * @param {string} filePath
-     * @param {Array<Object>} priceMaxApp
+     * @param {Array<Object>} priceMaxMon
      */
-    static writePriceMaxApp(filePath, priceMaxApp) {
-        console.info(`[Yamls.writePriceMaxApp] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceMaxApp', priceMaxApp, 'PriceApp', [], true);
+    static writePriceMaxMon(filePath, priceMaxMon) {
+        console.info(`[Yamls.writePriceMaxMon] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PriceMaxMon', priceMaxMon, 'PriceMon', [], true);
     }
 
     /**
-     * Writes/replaces PriceDay: block in place, or after PriceMaxApp: as fallback anchor on first write (see buildPriceDayEntries).
-     * Same bare "YYYY-MM" key as PriceApp.
+     * Writes/replaces PriceDay: block in place, or after PriceMaxMon: as fallback anchor on first write (see buildPriceDayEntries).
+     * Same bare "YYYY-MM" key as PriceMon.
      * @example
      *   PriceDay:
      *     - 2026-01: 52,258
@@ -1078,12 +1078,12 @@ export class Yamls {
      */
     static writePriceDay(filePath, priceDay) {
         console.info(`[Yamls.writePriceDay] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceDay', priceDay, 'PriceMaxApp', [], true);
+        this.writeYamlArraySection(filePath, 'PriceDay', priceDay, 'PriceMaxMon', [], true);
     }
 
     /**
      * Writes/replaces PriceMaxDay: block in place, or after PriceDay: as fallback anchor on first write (see buildPriceDayEntries, reused for PriceMaxDay too).
-     * Same bare "YYYY-MM" key as PriceApp.
+     * Same bare "YYYY-MM" key as PriceMon.
      * @example
      *   PriceMaxDay:
      *     - 2026-01: 52,258
@@ -2183,21 +2183,21 @@ export class Yamls {
         Yamls.writeFakturaSend(ymlFile, fakturaSend);
 
         /*
-         * PriceApp: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
-         * PriceMaxApp: same flat full-month shape, but ALWAYS PriceMax regardless of debt — no Price-vs-PriceMax switch.
-         * PriceDay/PriceMaxDay: each month's own App amount / its real day count, rounded to nearest whole so'm.
-         * All four keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:, in this exact chained order: PriceApp -> PriceMaxApp -> PriceDay -> PriceMaxDay.
+         * PriceMon: tariff's flat full-month rent per calendar month (Price, or PriceMax if Loaners > 0), never prorated.
+         * PriceMaxMon: same flat full-month shape, but ALWAYS PriceMax regardless of debt — no Price-vs-PriceMax switch.
+         * PriceDay/PriceMaxDay: each month's own Mon amount / its real day count, rounded to nearest whole so'm.
+         * All four keyed bare "YYYY-MM", written directly after Penalty:, before Bonuses:, in this exact chained order: PriceMon -> PriceMaxMon -> PriceDay -> PriceMaxDay.
          */
-        const priceApp = Yamls.buildPriceAppEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
-        Yamls.writePriceApp(ymlFile, priceApp);
+        const priceMon = Yamls.buildPriceMonEntries(accrual, loaners, yamlData.Price, yamlData.PriceMax);
+        Yamls.writePriceMon(ymlFile, priceMon);
 
-        const priceMaxApp = Yamls.buildPriceMaxAppEntries(accrual, yamlData.PriceMax);
-        Yamls.writePriceMaxApp(ymlFile, priceMaxApp);
+        const priceMaxMon = Yamls.buildPriceMaxMonEntries(accrual, yamlData.PriceMax);
+        Yamls.writePriceMaxMon(ymlFile, priceMaxMon);
 
-        const priceDay = Yamls.buildPriceDayEntries(priceApp);
+        const priceDay = Yamls.buildPriceDayEntries(priceMon);
         Yamls.writePriceDay(ymlFile, priceDay);
 
-        const priceMaxDay = Yamls.buildPriceDayEntries(priceMaxApp);
+        const priceMaxDay = Yamls.buildPriceDayEntries(priceMaxMon);
         Yamls.writePriceMaxDay(ymlFile, priceMaxDay);
 
         /*
@@ -2219,7 +2219,7 @@ export class Yamls {
 
         /*
          * Penalty (§21.1 + §3.7/§1.20): every consecutive day (beyond the first, which is the 1-calendar-day grace period) Account's own balance stays negative counts as a penalty day, grouped by bare "YYYY-MM".
-         * Penalty[month] = PenaltyDays[month] * PenaltyForDay, capped at HALF that month's own PriceMaxApp amount.
+         * Penalty[month] = PenaltyDays[month] * PenaltyForDay, capped at HALF that month's own PriceMaxMon amount.
          * PenaltyForDay is yamlData.PenaltyPerDay (the per-contract override, blank by default like ContractNumber) when non-empty, else config.yml's global Penalty.PerDay.
          */
         const penaltyDays = Yamls.computePenaltyDays(account);
@@ -2228,7 +2228,7 @@ export class Yamls {
         const penaltyForDay = Files.isEmpty(yamlData.PenaltyPerDay)
             ? Yamls.getConfig('Penalty.PerDay', 'number', 50000)
             : Number(String(yamlData.PenaltyPerDay).replace(/,/g, ''));
-        const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay, priceMaxApp);
+        const penalty = Yamls.computePenalty(penaltyDays, penaltyForDay, priceMaxMon);
         Yamls.writePenalty(ymlFile, penalty);
 
         Yamls.writeReturns(ymlFile, returnsFlat);

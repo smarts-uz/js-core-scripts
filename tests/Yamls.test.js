@@ -403,7 +403,7 @@ describe('Yamls.writeAccrual', () => {
     expect(content).toContain('Accrual:');
   });
 
-  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeLoaners/writeFaktura/writePenaltyDays/writePenalty/writePriceApp/writePriceMaxApp/writePriceDay/writePriceMaxDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
+  it('chaining writeAccrual/writeHistory/writePayment/writeAccount/writeLoaners/writeFaktura/writePenaltyDays/writePenalty/writePriceMon/writePriceMaxMon/writePriceDay/writePriceMaxDay/writeReturns inserts every NEW block with exactly one blank line before/after it, never touching unrelated file content', () => {
     const f = path.join(workDir, 'chain.contract');
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
@@ -419,8 +419,8 @@ describe('Yamls.writeAccrual', () => {
     Yamls.writeFaktura(f, [{ '2026-01-01': '0' }]);
     Yamls.writePenaltyDays(f, [{ '2026-01-01': 0 }]);
     Yamls.writePenalty(f, [{ '2026-01-01': '0' }]);
-    Yamls.writePriceApp(f, [{ '2026-01': '450,000' }]);
-    Yamls.writePriceMaxApp(f, [{ '2026-01': '450,000' }]);
+    Yamls.writePriceMon(f, [{ '2026-01': '450,000' }]);
+    Yamls.writePriceMaxMon(f, [{ '2026-01': '450,000' }]);
     Yamls.writePriceDay(f, [{ '2026-01': '14,516' }]);
     Yamls.writePriceMaxDay(f, [{ '2026-01': '14,516' }]);
     Yamls.writeReturns(f, [{ '2026-01-05': '10,000' }]);
@@ -454,14 +454,14 @@ describe('Yamls.writeAccrual', () => {
         'Penalty:',
         '  - 2026-01-01: 0',
         '',
-        // Returns' fallback anchor fixed at Penalty — lands ahead of PriceApp/PriceMaxApp/PriceDay/PriceMaxDay despite #writeChain call order.
+        // Returns' fallback anchor fixed at Penalty — lands ahead of PriceMon/PriceMaxMon/PriceDay/PriceMaxDay despite #writeChain call order.
         'Returns:',
         '  - 2026-01-05: 10,000',
         '',
-        'PriceApp:',
+        'PriceMon:',
         '  - 2026-01: 450,000',
         '',
-        'PriceMaxApp:',
+        'PriceMaxMon:',
         '  - 2026-01: 450,000',
         '',
         'PriceDay:',
@@ -686,34 +686,34 @@ describe('Yamls.computePenaltyDays', () => {
   });
 });
 
-describe('Yamls.computePenalty (PenaltyDays * PenaltyForDay, capped at PriceMaxApp / 2)', () => {
+describe('Yamls.computePenalty (PenaltyDays * PenaltyForDay, capped at PriceMaxMon / 2)', () => {
   it("multiplies each month's day count by the fixed daily rate when under the cap", () => {
     const penaltyDays = [{ '2026-01': 3 }, { '2026-02': 0 }, { ALL: 3 }];
-    const priceMaxApp = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
+    const priceMaxMon = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
     // Cap is 1,620,000 / 2 = 810,000 — 3 * 50,000 = 150,000 stays well under it.
-    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxApp)).toEqual([
+    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxMon)).toEqual([
       { '2026-01': '150,000' },
       { '2026-02': '0' },
       { ALL: '150,000' },
     ]);
   });
 
-  it('clamps a month whose raw PenaltyDays * PenaltyForDay exceeds half its own PriceMaxApp', () => {
+  it('clamps a month whose raw PenaltyDays * PenaltyForDay exceeds half its own PriceMaxMon', () => {
     const penaltyDays = [{ '2026-01': 20 }, { ALL: 20 }];
-    const priceMaxApp = [{ '2026-01': '1,620,000' }];
+    const priceMaxMon = [{ '2026-01': '1,620,000' }];
     // Raw: 20 * 50,000 = 1,000,000.
     // Cap: 1,620,000 / 2 = 810,000.
     // Clamped to 810,000.
-    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxApp)).toEqual([
+    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxMon)).toEqual([
       { '2026-01': '810,000' },
       { ALL: '810,000' },
     ]);
   });
 
-  it('treats a month with no matching PriceMaxApp entry as a 0 cap (0 penalty)', () => {
+  it('treats a month with no matching PriceMaxMon entry as a 0 cap (0 penalty)', () => {
     const penaltyDays = [{ '2026-03': 5 }, { ALL: 5 }];
-    const priceMaxApp = [{ '2026-01': '1,620,000' }];
-    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxApp)).toEqual([
+    const priceMaxMon = [{ '2026-01': '1,620,000' }];
+    expect(Yamls.computePenalty(penaltyDays, 50000, priceMaxMon)).toEqual([
       { '2026-03': '0' },
       { ALL: '0' },
     ]);
@@ -814,7 +814,7 @@ describe('Yamls.buildAccrualEntries', () => {
   });
 });
 
-describe('Yamls.buildPriceAppEntries', () => {
+describe('Yamls.buildPriceMonEntries', () => {
   const accrual = [
     { '2026-01-09': '289,355' },
     { '2026-02-01': '390,000' },
@@ -824,7 +824,7 @@ describe('Yamls.buildPriceAppEntries', () => {
 
   it('uses the flat, never-prorated Price for a month with no debt, even a partial first month', () => {
     const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '0' }, { ALL: '0' }];
-    const entries = Yamls.buildPriceAppEntries(accrual, loaners, '390,000', '450,000');
+    const entries = Yamls.buildPriceMonEntries(accrual, loaners, '390,000', '450,000');
     expect(entries).toEqual([
       { '2026-01': '390,000' },
       { '2026-02': '390,000' },
@@ -834,7 +834,7 @@ describe('Yamls.buildPriceAppEntries', () => {
 
   it('switches a month with Loaners > 0 to PriceMax, leaving every other month at Price', () => {
     const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '390,000' }, { ALL: '390,000' }];
-    const entries = Yamls.buildPriceAppEntries(accrual, loaners, '390,000', '450,000');
+    const entries = Yamls.buildPriceMonEntries(accrual, loaners, '390,000', '450,000');
     expect(entries).toEqual([
       { '2026-01': '390,000' },
       { '2026-02': '390,000' },
@@ -844,12 +844,12 @@ describe('Yamls.buildPriceAppEntries', () => {
 
   it('ignores the trailing ALL entry on both accrual and loaners', () => {
     const loaners = [{ '2026-01-09': '0' }, { '2026-02-01': '0' }, { '2026-03-01': '0' }, { ALL: '0' }];
-    const entries = Yamls.buildPriceAppEntries(accrual, loaners, '390,000', '450,000');
+    const entries = Yamls.buildPriceMonEntries(accrual, loaners, '390,000', '450,000');
     expect(entries).toHaveLength(3);
   });
 });
 
-describe('Yamls.buildPriceMaxAppEntries', () => {
+describe('Yamls.buildPriceMaxMonEntries', () => {
   const accrual = [
     { '2026-01-09': '289,355' },
     { '2026-02-01': '390,000' },
@@ -858,7 +858,7 @@ describe('Yamls.buildPriceMaxAppEntries', () => {
   ];
 
   it('uses PriceMax for every month, regardless of debt — no Price-vs-PriceMax switch', () => {
-    const entries = Yamls.buildPriceMaxAppEntries(accrual, '450,000');
+    const entries = Yamls.buildPriceMaxMonEntries(accrual, '450,000');
     expect(entries).toEqual([
       { '2026-01': '450,000' },
       { '2026-02': '450,000' },
@@ -867,22 +867,22 @@ describe('Yamls.buildPriceMaxAppEntries', () => {
   });
 
   it('ignores the trailing ALL entry on accrual', () => {
-    const entries = Yamls.buildPriceMaxAppEntries(accrual, '450,000');
+    const entries = Yamls.buildPriceMaxMonEntries(accrual, '450,000');
     expect(entries).toHaveLength(3);
   });
 });
 
 describe('Yamls.buildPriceDayEntries', () => {
-  it("divides each month's PriceApp by that month's own real day count, rounded to the nearest whole so'm", () => {
+  it("divides each month's PriceMon by that month's own real day count, rounded to the nearest whole so'm", () => {
     // Jan 2026 = 31 days: 1,620,000 / 31 = 52,258.06... -> 52,258. Feb 2026 = 28 days: 1,620,000 / 28 = 57,857.14... -> 57,857.
-    const priceApp = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
-    const entries = Yamls.buildPriceDayEntries(priceApp);
+    const priceMon = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
+    const entries = Yamls.buildPriceDayEntries(priceMon);
     expect(entries).toEqual([{ '2026-01': '52,258' }, { '2026-02': '57,857' }]);
   });
 
-  it('ignores a trailing ALL entry on priceApp', () => {
-    const priceApp = [{ '2026-01': '1,620,000' }, { ALL: '1,620,000' }];
-    const entries = Yamls.buildPriceDayEntries(priceApp);
+  it('ignores a trailing ALL entry on priceMon', () => {
+    const priceMon = [{ '2026-01': '1,620,000' }, { ALL: '1,620,000' }];
+    const entries = Yamls.buildPriceDayEntries(priceMon);
     expect(entries).toHaveLength(1);
   });
 });
@@ -1935,14 +1935,14 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('Accrual:');
     // ActDateStart 2026-01-01 -> ActDateEnd 2026-01-31: a single full-month range, keyed by its own start (due) date.
     expect(content).toContain('2026-01-01: 4,200,000');
-    // PriceApp: bare "YYYY-MM" key, flat full-month Price (PriceMax === Price here, so the debt-vs-no-debt branch is unobservable in this fixture).
-    expect(content).toContain('PriceApp:');
+    // PriceMon: bare "YYYY-MM" key, flat full-month Price (PriceMax === Price here, so the debt-vs-no-debt branch is unobservable in this fixture).
+    expect(content).toContain('PriceMon:');
     expect(content).toContain('2026-01: 4,200,000');
     // PriceDay: 4,200,000 / 31 days in January = 135,483.87... -> 135,484.
     expect(content).toContain('PriceDay:');
     expect(content).toContain('2026-01: 135,484');
-    // PriceMaxApp/PriceMaxDay: same flat full-month shape, always PriceMax (4,200,000 here, same as Price in this fixture).
-    expect(content).toContain('PriceMaxApp:');
+    // PriceMaxMon/PriceMaxDay: same flat full-month shape, always PriceMax (4,200,000 here, same as Price in this fixture).
+    expect(content).toContain('PriceMaxMon:');
     expect(content).toContain('PriceMaxDay:');
     // Account: day 1 (PeriodStart) already debits January's own 135,484 rate (no History in this fixture); day 2 debits the same rate again off day 1's balance (PriceDay === PriceMaxDay here, since Price === PriceMax in this fixture).
     expect(content).toContain('Account:');

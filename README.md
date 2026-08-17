@@ -3992,14 +3992,43 @@ node scripts/Yamls/buildAccrualEntries.mjs --startDate <startDate>
 | `futureDate` | no | — |
 | `price` | no | — |
 
-## buildPriceAppEntries(accrual, loaners, price, priceMax)
+## buildPriceDayEntries(priceMon)
 
-Builds PriceApp entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month rent price, never prorated (unlike Accrual). Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated. Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
+Builds PriceDay entries, one per PriceMon entry: that month's PriceMon amount / its real day count, rounded to the nearest whole so'm. Same bare "YYYY-MM" key as PriceMon.
 
 **Run:**
 
 ```bash
-node scripts/Yamls/buildPriceAppEntries.mjs --accrual <accrual>
+node scripts/Yamls/buildPriceDayEntries.mjs --priceMon <priceMon>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `priceMon` | no | — |
+
+## buildPriceMaxMonEntries(accrual, priceMax)
+
+Builds PriceMaxMon entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceMon, there is no Price-vs-PriceMax switch here.
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildPriceMaxMonEntries.mjs --accrual <accrual>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `accrual` | no | — |
+| `priceMax` | no | — |
+
+## buildPriceMonEntries(accrual, loaners, price, priceMax)
+
+Builds PriceMon entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month rent price, never prorated (unlike Accrual). Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated. Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildPriceMonEntries.mjs --accrual <accrual>
 ```
 
 | Parameter | Optional | Description |
@@ -4007,35 +4036,6 @@ node scripts/Yamls/buildPriceAppEntries.mjs --accrual <accrual>
 | `accrual` | no | — |
 | `loaners` | no | — |
 | `price` | no | — |
-| `priceMax` | no | — |
-
-## buildPriceDayEntries(priceApp)
-
-Builds PriceDay entries, one per PriceApp entry: that month's PriceApp amount / its real day count, rounded to the nearest whole so'm. Same bare "YYYY-MM" key as PriceApp.
-
-**Run:**
-
-```bash
-node scripts/Yamls/buildPriceDayEntries.mjs --priceApp <priceApp>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `priceApp` | no | — |
-
-## buildPriceMaxAppEntries(accrual, priceMax)
-
-Builds PriceMaxApp entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceApp, there is no Price-vs-PriceMax switch here.
-
-**Run:**
-
-```bash
-node scripts/Yamls/buildPriceMaxAppEntries.mjs --accrual <accrual>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `accrual` | no | — |
 | `priceMax` | no | — |
 
 ## computeDailyBalance(startDate, futureDate, accrual, payment, returns)
@@ -4106,9 +4106,9 @@ node scripts/Yamls/computePaymentChain.mjs --accrual <accrual>
 | `accrual` | no | — |
 | `payments` | no | — |
 
-## computePenalty(penaltyDays, penaltyForDay, priceMaxApp)
+## computePenalty(penaltyDays, penaltyForDay, priceMaxMon)
 
-Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's fixed per-calendar-day rate, config.yml's Penalty.PerDay, default 50,000), capped at HALF that month's own PriceMaxApp amount. A month whose straight PenaltyDays * PenaltyForDay figure would exceed PriceMaxApp[month] / 2 is clamped down to that half-PriceMax figure instead.
+Penalty[month] = PenaltyDays[month] * PenaltyForDay (contract §21.1's fixed per-calendar-day rate, config.yml's Penalty.PerDay, default 50,000), capped at HALF that month's own PriceMaxMon amount. A month whose straight PenaltyDays * PenaltyForDay figure would exceed PriceMaxMon[month] / 2 is clamped down to that half-PriceMax figure instead.
 
 **Run:**
 
@@ -4120,7 +4120,7 @@ node scripts/Yamls/computePenalty.mjs --penaltyDays <penaltyDays>
 |-----------|----------|-------------|
 | `penaltyDays` | no | — |
 | `penaltyForDay` | no | — |
-| `priceMaxApp` | no | — |
+| `priceMaxMon` | no | — |
 
 **Returns:** [{ "YYYY-MM": penaltyAmount }, ..., { ALL: sum }], same key shape as PenaltyDays.
 
@@ -4509,24 +4509,9 @@ node scripts/Yamls/writePenaltyDays.mjs --file "<path>"
 | `filePath` | no | — |
 | `penaltyDays` | no | — |
 
-## writePriceApp(filePath, priceApp)
-
-Writes/replaces PriceApp: block in place, or after Penalty: as fallback anchor on first write (see buildPriceAppEntries). Keyed by bare "YYYY-MM" (no day), one entry per Accrual period. PriceApp: - 2026-01: 1,620,000 - 2026-02: 1,620,000
-
-**Run:**
-
-```bash
-node scripts/Yamls/writePriceApp.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-| `priceApp` | no | — |
-
 ## writePriceDay(filePath, priceDay)
 
-Writes/replaces PriceDay: block in place, or after PriceMaxApp: as fallback anchor on first write (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceApp. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
+Writes/replaces PriceDay: block in place, or after PriceMaxMon: as fallback anchor on first write (see buildPriceDayEntries). Same bare "YYYY-MM" key as PriceMon. PriceDay: - 2026-01: 52,258 - 2026-02: 57,857
 
 **Run:**
 
@@ -4539,24 +4524,9 @@ node scripts/Yamls/writePriceDay.mjs --file "<path>"
 | `filePath` | no | — |
 | `priceDay` | no | — |
 
-## writePriceMaxApp(filePath, priceMaxApp)
-
-Writes/replaces PriceMaxApp: block in place, or after PriceApp: as fallback anchor on first write (see buildPriceMaxAppEntries). Same bare "YYYY-MM" key as PriceApp. PriceMaxApp: - 2026-01: 1,620,000
-
-**Run:**
-
-```bash
-node scripts/Yamls/writePriceMaxApp.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-| `priceMaxApp` | no | — |
-
 ## writePriceMaxDay(filePath, priceMaxDay)
 
-Writes/replaces PriceMaxDay: block in place, or after PriceDay: as fallback anchor on first write (see buildPriceDayEntries, reused for PriceMaxDay too). Same bare "YYYY-MM" key as PriceApp. PriceMaxDay: - 2026-01: 52,258
+Writes/replaces PriceMaxDay: block in place, or after PriceDay: as fallback anchor on first write (see buildPriceDayEntries, reused for PriceMaxDay too). Same bare "YYYY-MM" key as PriceMon. PriceMaxDay: - 2026-01: 52,258
 
 **Run:**
 
@@ -4568,6 +4538,36 @@ node scripts/Yamls/writePriceMaxDay.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `priceMaxDay` | no | — |
+
+## writePriceMaxMon(filePath, priceMaxMon)
+
+Writes/replaces PriceMaxMon: block in place, or after PriceMon: as fallback anchor on first write (see buildPriceMaxMonEntries). Same bare "YYYY-MM" key as PriceMon. PriceMaxMon: - 2026-01: 1,620,000
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceMaxMon.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceMaxMon` | no | — |
+
+## writePriceMon(filePath, priceMon)
+
+Writes/replaces PriceMon: block in place, or after Penalty: as fallback anchor on first write (see buildPriceMonEntries). Keyed by bare "YYYY-MM" (no day), one entry per Accrual period. PriceMon: - 2026-01: 1,620,000 - 2026-02: 1,620,000
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePriceMon.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `priceMon` | no | — |
 
 ## writeReturns(filePath, returns)
 

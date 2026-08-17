@@ -20,12 +20,12 @@ async function main() {
     console.log('1️⃣ Yamls buildPriceDayEntries Start');
 
     const argv = yargs(hideBin(process.argv))
-        .option("priceApp", { describe: "priceApp" })
+        .option("priceMon", { describe: "priceMon" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.buildPriceDayEntries(argv["priceApp"]);
+        const result = await Yamls.buildPriceDayEntries(argv["priceMon"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 
