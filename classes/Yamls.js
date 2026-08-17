@@ -89,6 +89,17 @@ export class Yamls {
     }
 
     /**
+     * Replaces every literal apostrophe (') in a string with a backtick (`) — standing normalization applied before any value is written into a .contract yaml.
+     * Reason: this project's loadAndParseYaml has its own hand-rolled single-quoted-scalar re-escaping pass that only understands backslash-escaping, never real YAML's doubled-single-quote ('') convention — a real value containing an apostrophe (e.g. MAS'ULIYATI) written as valid YAML ('MAS''ULIYATI') gets mangled into invalid YAML (MAS\'\'ULIYATI) on the next read, breaking the whole file's parse.
+     * Normalizing the apostrophe away at write time means no value ever needs single-quote-doubling in the first place, sidestepping that bug entirely rather than trying to fix every hand-rolled re-escaping pass that touches a .contract file.
+     * @param {*} value
+     * @returns {*}
+     */
+    static #normalizeApostrophe(value) {
+        return typeof value === 'string' ? value.replaceAll("'", '`') : value;
+    }
+
+    /**
      * Builds one safe "key: value" YAML line via a real js-yaml.dump() of the scalar, never hand-rolled string concatenation.
      * Guards against a real incident: a raw API value containing an embedded literal quote character (e.g. Didox's companyInfo.shortName returning `NETORA TECHNOLOGY GROUP" MCHJ`) broke the whole file's YAML parse when written via naive `key + ': ' + value` concatenation.
      * js-yaml.dump({[key]: value}) always produces a correctly escaped scalar regardless of embedded quotes/colons/special leading characters; #stripUnnecessaryQuotes then removes the quoting js-yaml adds defensively when it isn't actually needed, keeping this project's established unquoted-where-safe style.
@@ -97,6 +108,7 @@ export class Yamls {
      * @returns {string}
      */
     static #dumpScalarLine(key, value) {
+        value = Yamls.#normalizeApostrophe(value);
         if (value === '') return `${key}: `;
         const dumped = yaml.dump({ [key]: value }, { lineWidth: -1, schema: yaml.JSON_SCHEMA }).trimEnd();
         return Yamls.#stripUnnecessaryQuotes(dumped);
@@ -219,6 +231,11 @@ export class Yamls {
             return;
         }
 
+        entries = entries.map((entry) => {
+            const [entryKey, entryValue] = Object.entries(entry)[0];
+            return { [Yamls.#normalizeApostrophe(entryKey)]: Yamls.#normalizeApostrophe(entryValue) };
+        });
+
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const lines = fileContent.split('\n');
 
@@ -292,6 +309,8 @@ export class Yamls {
      */
     static writeScalarSection(filePath, key, value, afterKey) {
         console.info(`[Yamls.writeScalarSection] 🟢 Starting... key=${key}`);
+
+        value = Yamls.#normalizeApostrophe(value);
 
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const lines = fileContent.split('\n');
@@ -1336,8 +1355,9 @@ export class Yamls {
 
             if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
                 let inner = value.slice(1, -1);
-                inner = inner.replace(/\\'/g, "'");
-                inner = inner.replace(/'/g, "\\'");
+                // Undo YAML's own doubled-single-quote escaping ('' -> '), then re-apply it.
+                inner = inner.replace(/''/g, "'");
+                inner = inner.replace(/'/g, "''");
                 return `${key}: '${inner}'`;
             }
 
@@ -1365,9 +1385,12 @@ export class Yamls {
         const data = yaml.load(ymlPatched, yamlOptions);
         // console.log(data);
 
-        // iterate data and trim all values into new array
+        /*
+         * Trim every string value.
+         * Normalize any raw apostrophe still sitting in a top-level scalar (a value written before Yamls.#normalizeApostrophe existed) — enforced on every READ, same as every WRITE path.
+         */
         const trimmedData = Object.entries(data).reduce((acc, [key, value]) => {
-            acc[key] = typeof value === 'string' ? value.trim() : value;
+            acc[key] = typeof value === 'string' ? Yamls.#normalizeApostrophe(value.trim()) : value;
             return acc;
         }, {});
 

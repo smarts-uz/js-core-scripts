@@ -272,6 +272,15 @@ describe('Yamls.replaceTextLine', () => {
     expect(yaml.load(content, { schema: yaml.JSON_SCHEMA }).ComNameShort).toBe('NETORA TECHNOLOGY GROUP" MCHJ');
   });
 
+  it("normalizes an embedded apostrophe to a backtick (real incident: MAS'ULIYATI CHEKLANGAN JAMIYAT, written as valid single-quote-doubled YAML, got mangled into invalid backslash-escaped YAML by loadAndParseYaml's own re-quoting pass on the next read)", () => {
+    const f = path.join(workDir, 't.yml');
+    fs.writeFileSync(f, 'ComNameLong: x\n', 'utf8');
+    Yamls.replaceTextLine(f, 'ComNameLong', "NETORA TECHNOLOGY GROUP MAS'ULIYATI CHEKLANGAN JAMIYAT");
+    const content = read(workDir, 't.yml');
+    expect(content).toBe('ComNameLong: NETORA TECHNOLOGY GROUP MAS`ULIYATI CHEKLANGAN JAMIYAT\n');
+    expect(() => yaml.load(content, { schema: yaml.JSON_SCHEMA })).not.toThrow();
+  });
+
   it('writes an empty value when the value is empty (Files.isEmpty)', () => {
     const f = path.join(workDir, 't.yml');
     fs.writeFileSync(f, 'Key: something\n', 'utf8');
@@ -318,6 +327,13 @@ describe('Yamls.writeScalarSection', () => {
     fs.writeFileSync(f, 'ContractDateEnd:\nLoaners: 100,000\nComBase: x\n', 'utf8');
     Yamls.writeScalarSection(f, 'Loaners', '250,000', 'ContractDateEnd');
     expect(read(workDir, 'scalar.contract')).toBe('ContractDateEnd:\nLoaners: 250,000\nComBase: x\n');
+  });
+
+  it('normalizes an embedded apostrophe to a backtick before writing', () => {
+    const f = path.join(workDir, 'scalar-apos.contract');
+    fs.writeFileSync(f, "Note: x\n", 'utf8');
+    Yamls.writeScalarSection(f, 'Note', "MAS'ULIYATI", 'MissingAnchor');
+    expect(read(workDir, 'scalar-apos.contract')).toContain('Note: MAS`ULIYATI');
   });
 
   it('inserts a genuinely new key directly after afterKey, with one blank line on each side', () => {
@@ -436,6 +452,13 @@ describe('Yamls.writeAccrual', () => {
     fs.writeFileSync(f, before, 'utf8');
     Yamls.writeAccrual(f, []);
     expect(read(workDir, 't4.contract')).toBe(before);
+  });
+
+  it('normalizes an embedded apostrophe to a backtick in an array entry value (writeYamlArraySection applies the same normalization every scalar writer does)', () => {
+    const f = path.join(workDir, 't5.contract');
+    fs.writeFileSync(f, 'ComBase: Устава\n', 'utf8');
+    Yamls.writeAccrual(f, [{ "2026-01-01": "MAS'ULIYATI" }]);
+    expect(read(workDir, 't5.contract')).toContain('MAS`ULIYATI');
   });
 
   it('appends at end of file with a warning when ComBase: is missing', () => {
@@ -1244,6 +1267,20 @@ describe('Yamls.loadAndParseYaml', () => {
     fs.writeFileSync(f, 'Price: 1,000,000\n', 'utf8');
     const data = Yamls.loadAndParseYaml(f);
     expect(data.Price).toBe('1,000,000');
+  });
+
+  it('normalizes a raw apostrophe still present in a top-level scalar (a value written before the normalization fix existed) into a backtick on read', () => {
+    const f = path.join(workDir, 'apos.yml');
+    fs.writeFileSync(f, "ComNameLong: NETORA TECHNOLOGY GROUP MAS'ULIYATI CHEKLANGAN JAMIYAT\n", 'utf8');
+    const data = Yamls.loadAndParseYaml(f);
+    expect(data.ComNameLong).toBe('NETORA TECHNOLOGY GROUP MAS`ULIYATI CHEKLANGAN JAMIYAT');
+  });
+
+  it("correctly re-escapes a pre-existing valid single-quoted YAML value with a doubled-apostrophe ('') without mangling it into invalid backslash-escaped YAML", () => {
+    const f = path.join(workDir, 'apos2.yml');
+    fs.writeFileSync(f, "ComNameLong: 'NETORA TECHNOLOGY GROUP MAS''ULIYATI CHEKLANGAN JAMIYAT'\n", 'utf8');
+    const data = Yamls.loadAndParseYaml(f);
+    expect(data.ComNameLong).toBe('NETORA TECHNOLOGY GROUP MAS`ULIYATI CHEKLANGAN JAMIYAT');
   });
 
   it('preserves null / true / false literals', () => {
