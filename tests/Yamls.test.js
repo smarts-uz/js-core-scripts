@@ -382,21 +382,22 @@ describe('Yamls.writeLoaners', () => {
 });
 
 describe('Yamls.writeAccrual', () => {
-  it('inserts the Accrual array directly after the Loaners: line, separated by exactly one blank line', () => {
+  it('inserts the Accrual array directly after the AccrualDays: line, separated by exactly one blank line', () => {
     const f = path.join(workDir, 't.contract');
     fs.writeFileSync(
       f,
-      'ActDateStart: 09.07.2025\nActDateEnd: \nLoaners: 0\nPrepayMonth: \n',
+      'ActDateStart: 09.07.2025\nActDateEnd: \nAccrualDays:\n  - ALL: 0\nPrepayMonth: \n',
       'utf8'
     );
 
     Yamls.writeAccrual(f, [{ '2026-03-01': '450,000' }]);
 
     const lines = read(workDir, 't.contract').split('\n');
-    const loanersIdx = lines.findIndex((l) => l.startsWith('Loaners:'));
-    expect(lines[loanersIdx + 1]).toBe('');
-    expect(lines[loanersIdx + 2]).toBe('Accrual:');
-    expect(lines[loanersIdx + 3]).toBe('  - 2026-03-01: 450,000');
+    const accrualDaysIdx = lines.findIndex((l) => l.startsWith('AccrualDays:'));
+    const blockEndIdx = accrualDaysIdx + 2;
+    expect(lines[blockEndIdx]).toBe('');
+    expect(lines[blockEndIdx + 1]).toBe('Accrual:');
+    expect(lines[blockEndIdx + 2]).toBe('  - 2026-03-01: 450,000');
   });
 
   it('replaces an existing Accrual block instead of duplicating it', () => {
@@ -475,7 +476,7 @@ describe('Yamls.writeAccrual', () => {
     fs.writeFileSync(f, 'ActDateEnd:\n\nComBase: x\n', 'utf8');
 
     // Same order Yamls.#writeChain itself calls these writers in.
-    // Each block's own fallback anchor now chains PriceMon -> PriceMaxMon -> PriceDay -> PriceMaxDay -> History -> Payment -> Account -> AccrualDays -> Loaners -> Accrual -> Faktura -> FakturaSend -> PenaltyDays -> Penalty -> Returns.
+    // Each block's own fallback anchor now chains PriceMon -> PriceMaxMon -> PriceDay -> PriceMaxDay -> History -> Payment -> Account -> AccrualDays -> Accrual -> Loaners -> Faktura -> FakturaSend -> PenaltyDays -> Penalty -> Returns.
     Yamls.writePriceMon(f, [{ '2026-01': '450,000' }]);
     Yamls.writePriceMaxMon(f, [{ '2026-01': '450,000' }]);
     Yamls.writePriceDay(f, [{ '2026-01': '14,516' }]);
@@ -484,8 +485,8 @@ describe('Yamls.writeAccrual', () => {
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writeAccount(f, [{ '2026-01-01': '0' }]);
     Yamls.writeAccrualDays(f, [{ '2026-01-01': '14,516' }]);
-    Yamls.writeLoaners(f, '893,342');
     Yamls.writeAccrual(f, [{ '2026-01-01#2026-01-31': '450,000' }]);
+    Yamls.writeLoaners(f, '893,342');
     Yamls.writeFaktura(f, [{ '2026-01-31': '0' }]);
     Yamls.writeFakturaSend(f, [{ '2026-01-31': '450,000' }]);
     Yamls.writePenaltyDays(f, [{ '2026-01': 0 }]);
@@ -522,10 +523,10 @@ describe('Yamls.writeAccrual', () => {
         'AccrualDays:',
         '  - 2026-01-01: 14,516',
         '',
-        'Loaners: 893,342',
-        '',
         'Accrual:',
         '  - 2026-01-01#2026-01-31: 450,000',
+        '',
+        'Loaners: 893,342',
         '',
         'Faktura:',
         '  - 2026-01-31: 0',
@@ -1040,11 +1041,12 @@ describe('Yamls.writePriceMon / Yamls.writePriceMaxMon — legacy key migration'
 });
 
 describe('Yamls.buildPriceDayEntries', () => {
-  it("divides each month's PriceMon by that month's own real day count, rounded to the nearest whole so'm", () => {
-    // Jan 2026 = 31 days: 1,620,000 / 31 = 52,258.06... -> 52,258. Feb 2026 = 28 days: 1,620,000 / 28 = 57,857.14... -> 57,857.
+  it("divides each month's PriceMon by that month's own real day count, rounded to 2 decimal places (tiyin)", () => {
+    // Jan 2026 = 31 days: 1,620,000 / 31 = 52,258.0645... -> 52,258.06.
+    // Feb 2026 = 28 days: 1,620,000 / 28 = 57,857.1428... -> 57,857.14.
     const priceMon = [{ '2026-01': '1,620,000' }, { '2026-02': '1,620,000' }];
     const entries = Yamls.buildPriceDayEntries(priceMon);
-    expect(entries).toEqual([{ '2026-01': '52,258' }, { '2026-02': '57,857' }]);
+    expect(entries).toEqual([{ '2026-01': '52,258.06' }, { '2026-02': '57,857.14' }]);
   });
 
   it('ignores a trailing ALL entry on priceMon', () => {
@@ -1129,6 +1131,66 @@ describe('Yamls.buildAccountEntries', () => {
     expect(Yamls.buildAccountEntries('', '2026-01-01', [], [], [])).toEqual([]);
     expect(Yamls.buildAccountEntries('2026-01-05', '2026-01-01', [], [], [])).toEqual([]);
     expect(Yamls.buildAccountEntries('Invalid Date', '2026-01-01', [], [], [])).toEqual([]);
+  });
+});
+
+describe('Yamls.buildAccrualDaysEntries', () => {
+  it("mirrors Account's own rate for every day Account covers, without a futureDate argument", () => {
+    // Day 1's rate depends on the PREVIOUS balance (0, so PriceDay).
+    // Day 2's rate depends on day 1's own recorded balance (-50,000, negative, so PriceMaxDay) — same previous-day-balance rule buildAccountEntries itself uses.
+    const account = [{ '2026-01-01': '-50,000' }, { '2026-01-02': '-130,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccrualDaysEntries(account, priceDay, priceMaxDay);
+    expect(entries).toEqual([
+      { '2026-01-01': '50,000' },
+      { '2026-01-02': '80,000' },
+      { ALL: '130,000' },
+    ]);
+  });
+
+  it("extends past Account's own last day through futureDate, always at the flat PriceDay rate, never PriceMaxDay", () => {
+    // Account only covers 2026-01-01 (e.g. capped at today) — futureDate (the real PeriodEnd) reaches 2026-01-04.
+    // Every day BEYOND Account's coverage uses the flat PriceDay rate regardless of Account's own last recorded balance sign — a future day's balance is not knowable yet, so it is never assumed to be in debt.
+    const account = [{ '2026-01-01': '-50,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccrualDaysEntries(account, priceDay, priceMaxDay, '2026-01-04');
+    expect(entries).toEqual([
+      { '2026-01-01': '50,000' },
+      { '2026-01-02': '50,000' },
+      { '2026-01-03': '50,000' },
+      { '2026-01-04': '50,000' },
+      { ALL: '200,000' },
+    ]);
+  });
+
+  it('does not extend when futureDate is not after Account\'s own last day', () => {
+    const account = [{ '2026-01-01': '-50,000' }, { '2026-01-02': '-130,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccrualDaysEntries(account, priceDay, priceMaxDay, '2026-01-02');
+    expect(entries).toEqual([
+      { '2026-01-01': '50,000' },
+      { '2026-01-02': '80,000' },
+      { ALL: '130,000' },
+    ]);
+  });
+
+  it('looks up the extension rate by each extended day\'s own calendar month', () => {
+    const account = [{ '2026-01-31': '-50,000' }];
+    const priceDay = [{ '2026-01': '50,000' }, { '2026-02': '60,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }, { '2026-02': '90,000' }];
+    const entries = Yamls.buildAccrualDaysEntries(account, priceDay, priceMaxDay, '2026-02-01');
+    expect(entries).toEqual([
+      { '2026-01-31': '50,000' },
+      { '2026-02-01': '60,000' },
+      { ALL: '110,000' },
+    ]);
+  });
+
+  it('returns just the trailing ALL when Account is empty and futureDate is invalid/absent', () => {
+    expect(Yamls.buildAccrualDaysEntries([], [], [])).toEqual([{ ALL: '0' }]);
   });
 });
 
@@ -2116,20 +2178,20 @@ describe('Yamls.replaceYaml', () => {
     // PriceMon: bare "YYYY-MM" key, flat full-month Price (PriceMax === Price here, so the debt-vs-no-debt branch is unobservable in this fixture).
     expect(content).toContain('PriceMon:');
     expect(content).toContain('2026-01: 4,200,000');
-    // PriceDay: 4,200,000 / 31 days in January = 135,483.87... -> 135,484.
+    // PriceDay: 4,200,000 / 31 days in January = 135,483.8709... -> 135,483.87.
     expect(content).toContain('PriceDay:');
-    expect(content).toContain('2026-01: 135,484');
+    expect(content).toContain('2026-01: 135,483.87');
     // PriceMaxMon/PriceMaxDay: same flat full-month shape, always PriceMax (4,200,000 here, same as Price in this fixture).
     expect(content).toContain('PriceMaxMon:');
     expect(content).toContain('PriceMaxDay:');
-    // AccrualDays: one entry per Account day, the actual per-day rate that day debited — 135,484 every day here (PriceDay === PriceMaxDay, since Price === PriceMax in this fixture).
+    // AccrualDays: one entry per Account day, the actual per-day rate that day debited — 135,483.87 every day here (PriceDay === PriceMaxDay, since Price === PriceMax in this fixture).
     expect(content).toContain('AccrualDays:');
-    expect(content).toContain('2026-01-01: 135,484');
-    expect(content).toMatch(/AccrualDays:\n(?:.*\n)*?\s+-\s+ALL: 4,200,004/);
-    // Account: day 1 (PeriodStart) already debits January's own 135,484 rate (no History in this fixture); day 2 debits the same rate again off day 1's balance (PriceDay === PriceMaxDay here, since Price === PriceMax in this fixture).
+    expect(content).toContain('2026-01-01: 135,483.87');
+    expect(content).toMatch(/AccrualDays:\n(?:.*\n)*?\s+-\s+ALL: 4,199,999\.97/);
+    // Account: day 1 (PeriodStart) already debits January's own 135,483.87 rate (no History in this fixture); day 2 debits the same rate again off day 1's balance (PriceDay === PriceMaxDay here, since Price === PriceMax in this fixture).
     expect(content).toContain('Account:');
-    expect(content).toContain("2026-01-01: '-135,484'");
-    expect(content).toContain("2026-01-02: '-270,968'");
+    expect(content).toContain("2026-01-01: '-135,483.87'");
+    expect(content).toContain("2026-01-02: '-270,967.74'");
     // Loaners: a plain scalar now — the absolute value of Account's own last (2026-01-31) entry, never an array.
     expect(content).toMatch(/^Loaners: '?[\d,]+'?$/m);
     expect(content).not.toMatch(/Loaners:\n\s+-/);
@@ -2204,15 +2266,16 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('2026-02: 500,000');
     expect(content).toContain('2026-01: 450,000');
     expect(content).toContain('2026-02: 550,000');
-    // PriceDay/PriceMaxDay for January derive from the FROZEN PriceMon/PriceMaxMon (390,000/450,000), never the new yamlData.Price/PriceMax (500,000/550,000) — 390,000/31 = 12,581, 450,000/31 = 14,516.
-    expect(content).toContain('2026-01: 12,581');
-    expect(content).toContain('2026-01: 14,516');
+    // PriceDay/PriceMaxDay for January derive from the FROZEN PriceMon/PriceMaxMon (390,000/450,000), never the new yamlData.Price/PriceMax (500,000/550,000).
+    // 390,000/31 = 12,580.6451... -> 12,580.65, 450,000/31 = 14,516.1290... -> 14,516.13.
+    expect(content).toContain('2026-01: 12,580.65');
+    expect(content).toContain('2026-01: 14,516.13');
     expect(content).not.toContain('2026-01: 16,129'); // 500,000 / 31, would appear if the freeze leaked into PriceDay.
-    // AccrualDays' own January entries are built from the frozen PriceDay/PriceMaxDay only — every value is either 12,581 (on-time) or 14,516 (in-debt), never a rate derived from the new 500,000/550,000 Price/PriceMax.
+    // AccrualDays' own January entries are built from the frozen PriceDay/PriceMaxDay only — every value is either 12,580.65 (on-time) or 14,516.13 (in-debt), never a rate derived from the new 500,000/550,000 Price/PriceMax.
     const accrualDaysBlock = content.match(/AccrualDays:\n((?:\s+-.*\n)*)/)[1];
-    const januaryRates = [...accrualDaysBlock.matchAll(/2026-01-\d\d: ([\d,]+)/g)].map((m) => m[1]);
+    const januaryRates = [...accrualDaysBlock.matchAll(/2026-01-\d\d: ([\d,.]+)/g)].map((m) => m[1]);
     expect(januaryRates.length).toBeGreaterThan(0);
-    expect(januaryRates.every((r) => r === '12,581' || r === '14,516')).toBe(true);
+    expect(januaryRates.every((r) => r === '12,580.65' || r === '14,516.13')).toBe(true);
     // Accrual's own January interval-keyed entry exists — its exact sum is the sum of the frozen-rate AccrualDays above, not the flat PriceMon figure (see buildAccrualEntries' sum-of-days model).
     expect(content).toMatch(/2026-01-01#2026-01-31: [\d,]+/);
   });
@@ -2269,6 +2332,14 @@ describe('Yamls.replaceYaml', () => {
     expect(accountDates[accountDates.length - 1]).toBe(today);
     expect(accountDates).not.toContain('2030-12-31');
     expect(accountDates.every((d) => d <= today)).toBe(true);
+
+    // AccrualDays is a rent CHARGE, not a balance simulation — unlike Account, it always runs through the real PeriodEnd (2030-12-31 here), never capped at today.
+    const accrualDaysBlock = content.match(/AccrualDays:\n((?:\s+-.*\n)*)/)[1];
+    const accrualDaysDates = [...accrualDaysBlock.matchAll(/-\s+(\d{4}-\d{2}-\d{2}):/g)].map((m) => m[1]);
+    expect(accrualDaysDates[accrualDaysDates.length - 1]).toBe('2030-12-31');
+
+    // Accrual itself must also reach the real PeriodEnd, not stop at today.
+    expect(content).toMatch(/2030-12-01#2030-12-31:/);
   });
 
   it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {
