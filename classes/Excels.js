@@ -194,8 +194,8 @@ export class Excels {
   }
 
   /**
-   * Reads yamlData.Accrual — a bare-date "start": amount array Yamls.recomputeChain/writeAccrual already writes into the .contract yaml.
-   * Writes one row per entry (date, amount) starting at the {Accrual} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
+   * Reads yamlData.Accrual — a "start#end" interval-key: amount array Yamls.recomputeChain/writeAccrual already writes into the .contract yaml.
+   * Writes one row per entry (start, end, amount) starting at the {Accrual} placeholder's cell — a 3-column block (Начало/Конец/Сумма), per the real Act N.xlsx template layout.
    * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
    * Always runs (no ON/OFF flag).
    * @param {object} yamlData
@@ -214,11 +214,13 @@ export class Excels {
     console.log(`processAccrual: ${accrual.length} Accrual entr(y/ies)`, accrual);
 
     for (const entry of accrual) {
-      const [date, amount] = Object.entries(entry)[0];
-      if (date === 'ALL') continue;
+      const [intervalKey, amount] = Object.entries(entry)[0];
+      if (intervalKey === 'ALL') continue;
+      const [start, end] = intervalKey.split('#');
 
-      this.#writeDateCell(row, found.Column, date);
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+      this.#writeDateCell(row, found.Column, start);
+      this.#writeDateCell(row, found.Column + 1, end ?? start);
+      globalThis.excelSheet.Cells(row, found.Column + 2).Value = amount;
 
       row++;
     }
@@ -539,6 +541,41 @@ export class Excels {
       dateCell.Font.Color = isNegative ? RED_BGR : 0;
       amountCell.Font.Bold = isNegative;
       amountCell.Font.Color = isNegative ? RED_BGR : 0;
+
+      row++;
+    }
+
+    this.#clearPlaceholderIfEmpty(found, row);
+  }
+
+  /**
+   * Reads yamlData.AccrualDays — a flat "YYYY-MM-DD": rate array (Yamls.buildAccrualDaysEntries/writeAccrualDays), the actual per-day PriceDay/PriceMaxDay rate that day debited in Account.
+   * Writes one row per entry (date, rate) starting at {AccrualDays} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Account}.
+   * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
+   * Always runs (no ON/OFF flag).
+   * Warns and skips when the template has no {AccrualDays} placeholder cell.
+   * @param {object} yamlData
+   */
+  static processAccrualDays(yamlData) {
+    console.info(`[Excels.processAccrualDays] 🟢 Starting...`);
+
+    const found = this.findColumn('AccrualDays');
+    if (!found) {
+      console.warn('⚠️ processAccrualDays: {AccrualDays} placeholder not found in Excel template; skipping.');
+      return;
+    }
+
+    let row = found.Row;
+
+    const accrualDays = Array.isArray(yamlData.AccrualDays) ? yamlData.AccrualDays : [];
+    console.log(`processAccrualDays: ${accrualDays.length} AccrualDays entr(y/ies)`, accrualDays);
+
+    for (const entry of accrualDays) {
+      const [date, rate] = Object.entries(entry)[0];
+      if (date === 'ALL') continue;
+
+      this.#writeDateCell(row, found.Column, date);
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = rate;
 
       row++;
     }
@@ -1356,6 +1393,7 @@ export class Excels {
       this.processPenaltyDays(yamlData);
       this.processPenalty(yamlData);
       this.processAccount(yamlData);
+      this.processAccrualDays(yamlData);
       this.processPriceMon(yamlData);
       this.processPriceMaxMon(yamlData);
       this.processPriceDay(yamlData);

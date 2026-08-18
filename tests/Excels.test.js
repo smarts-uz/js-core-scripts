@@ -459,18 +459,26 @@ describe('Excels.processAccrual', () => {
     return sheet;
   }
 
-  it('writes one row per yamlData.Accrual entry, using each bare start (due) date', () => {
+  it("writes one row per yamlData.Accrual entry, splitting each interval key into start/end/amount (3 columns)", () => {
     const sheet = installSheet({ Row: 5, Column: 2 });
 
     Excels.processAccrual({
-      Accrual: [{ '2025-07-09': '390,000' }, { '2025-08-01': '390,000' }, { ALL: '780,000' }],
+      Accrual: [
+        { '2025-07-09#2025-07-31': '390,000' },
+        { '2025-08-01#2025-08-31': '390,000' },
+        { ALL: '780,000' },
+      ],
     });
 
     expect(sheet.Cells.Find).toHaveBeenCalledWith('{Accrual}');
+    // Row 5: start (col 2), end (col 3), amount (col 4).
     expect(sheet.Cells).toHaveBeenCalledWith(5, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 4);
+    // Row 6: same 3-column shape for the second entry.
     expect(sheet.Cells).toHaveBeenCalledWith(6, 2);
     expect(sheet.Cells).toHaveBeenCalledWith(6, 3);
+    expect(sheet.Cells).toHaveBeenCalledWith(6, 4);
     // the trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
     expect(sheet.Cells).not.toHaveBeenCalledWith(7, 2);
   });
@@ -810,6 +818,45 @@ describe('Excels.processAccount', () => {
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
     expect(() => Excels.processAccount({ Account: [{ '2026-01-19': '1,600,000' }] })).not.toThrow();
+  });
+});
+
+describe('Excels.processAccrualDays', () => {
+  function installSheet(found = { Row: 4, Column: 10 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per flat date-keyed yamlData.AccrualDays entry', () => {
+    const sheet = installSheet({ Row: 4, Column: 10 });
+
+    Excels.processAccrualDays({
+      AccrualDays: [{ '2026-01-19': '52,258' }, { '2026-01-20': '52,258' }, { ALL: '104,516' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{AccrualDays}');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 10);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 11);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 10);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 11);
+    // the trailing { ALL } entry is never written to Excel — ALL is a .contract-yaml-only concept
+    expect(sheet.Cells).not.toHaveBeenCalledWith(6, 10);
+  });
+
+  it('always runs even when yamlData.AccrualDays is empty', () => {
+    const sheet = installSheet();
+    expect(() => Excels.processAccrualDays({})).not.toThrow();
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{AccrualDays}');
+  });
+
+  it('warns and does not throw when {AccrualDays} is missing from the template', () => {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => null);
+    globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    expect(() => Excels.processAccrualDays({ AccrualDays: [{ '2026-01-19': '52,258' }] })).not.toThrow();
   });
 });
 

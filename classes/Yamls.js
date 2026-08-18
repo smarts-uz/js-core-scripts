@@ -388,33 +388,57 @@ export class Yamls {
         );
     }
 
-    // Builds Accrual: entries, one bare "start" (due date) to amount mapping per calendar month across the contract's active period (PeriodStart..PeriodEnd, both YYYY-MM-DD).
-    // Each month uses that month's own PriceMon rate as its on-time baseline.
-    // A month is re-priced at that month's own PriceMaxMon rate by Yamls.applyPriceMaxToDebtMonths below, once the real payment chain (Loaners) for that month is known.
-    // This function alone only produces the PriceMon-rate baseline.
-    //
-    // Every downstream chain block (Loaners/Faktura/PenaltyDays/Penalty) copies the same bare-date key verbatim (computePaymentChain forwards it as-is).
-    // The period's own end is never carried in the key — always the end of the key date's own calendar month, re-derived via Dates wherever still needed (computePenaltyDays).
-    //
-    // The first period is prorated by real day count within its own calendar month, rounded to the nearest whole so'm only (never fractional tiyin, never rounded to the nearest 1,000).
-    // E.g. a 23-of-31-day first month at 390,000/mo rounds to round(23/31*390000) = 289,355.
-    static buildAccrualEntries(startDate, futureDate, priceMon) {
+    // Builds Accrual: entries, one "start#end" interval-key to amount mapping per calendar month across the contract's active period (PeriodStart..PeriodEnd, both YYYY-MM-DD).
+    // A FULL calendar-month period never sums daily rates — it reads the flat PriceMon rate for that month directly, UNLESS Price differs from PriceMax AND that month has real PenaltyDays (a debt-affected month, whose real per-day cost blends PriceDay/PriceMaxDay), in which case it sums AccrualDays for that month instead.
+    // A PARTIAL period (the first or last month, when it does not span the whole calendar month) ALWAYS sums AccrualDays' own per-day rate for its real date range, never PriceMon.
+    // A day beyond AccrualDays' own coverage (AccrualDays stops at min(PeriodEnd, today) — see buildAccrualDaysEntries) falls back to that day's own month's flat PriceDay rate when summing is needed, since its real per-day rate (which depends on Account's own future balance) is not knowable yet.
+    // The LAST period's own end is clamped to the real futureDate (never the full calendar month end) — a period ending mid-month (e.g. PeriodEnd = 2026-09-29) keys as "2026-09-01#2026-09-29", not "...#2026-09-30".
+    static buildAccrualEntries(startDate, futureDate, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays) {
         console.info(`[Yamls.buildAccrualEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+        const accrualDayByDate = new Map(
+            (Array.isArray(accrualDays) ? accrualDays : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+                .map(([d, a]) => [d, toAmount(a)])
+        );
+        const priceMonByMonth = Yamls.#priceMonLookup(priceMon);
+        const priceDayByMonth = Yamls.#priceMonLookup(priceDay);
+        const penaltyDaysByMonth = new Map(
+            (Array.isArray(penaltyDays) ? penaltyDays : [])
+                .filter(e => !('ALL' in e))
+                .map(e => Object.entries(e)[0])
+                .map(([m, n]) => [m, toAmount(n)])
+        );
+
+        const sumAccrualDays = (start, periodEnd) => {
+            let amount = 0;
+            let day = start;
+            while (day <= periodEnd) {
+                amount += accrualDayByDate.has(day)
+                    ? accrualDayByDate.get(day)
+                    : (priceDayByMonth.get(day.slice(0, 7)) || 0);
+                day = Yamls._addOneDayIso(day);
+            }
+            return Math.round(amount);
+        };
+
         const monthRanges = Dates.monthsBetween(startDate, futureDate);
-        const priceByMonth = Yamls.#priceMonLookup(priceMon);
 
-        const entries = monthRanges.map(({ start, end }) => {
-            const daysInPeriod = Dates.daysBetween(start, end) + 1;
-            const daysInMonth = Dates.daysInMonth(start);
-            const isFullMonth = daysInPeriod === daysInMonth;
-            const priceNum = priceByMonth.get(start.slice(0, 7)) ?? 0;
+        const entries = monthRanges.map(({ start, end }, index) => {
+            const isLast = index === monthRanges.length - 1;
+            const periodEnd = isLast && futureDate < end ? futureDate : end;
+            // A period is a genuinely FULL calendar month only when its start is that month's own day 1 AND its end was not clamped away from the real calendar month-end.
+            const isFullMonth = start.slice(8, 10) === '01' && periodEnd === end;
+            const month = start.slice(0, 7);
+            const monthHasPenalty = (penaltyDaysByMonth.get(month) || 0) !== 0;
 
-            const amount = isFullMonth
-                ? priceNum
-                : Math.round((daysInPeriod / daysInMonth) * priceNum);
+            const amount = (!isFullMonth || (!priceEqualsMax && monthHasPenalty))
+                ? sumAccrualDays(start, periodEnd)
+                : (priceMonByMonth.get(month) || 0);
 
-            return { [start]: amount.toLocaleString('en-US') };
+            return { [`${start}#${periodEnd}`]: amount.toLocaleString('en-US') };
         });
 
         console.log(`buildAccrualEntries: ${entries.length} entr(y/ies)`, entries);
@@ -604,6 +628,43 @@ export class Yamls {
         return entries;
     }
 
+    /**
+     * Builds AccrualDays entries — one entry per Account calendar day, value = the actual per-day rate that day debited (PriceDay when the PREVIOUS day's balance was >= 0, PriceMaxDay when it was already negative).
+     * Reads the already-built Account array — never re-simulates the balance.
+     * A day's own debit rate depends only on the PREVIOUS day's balance sign, already recorded in Account itself.
+     * Account's own first entry (day 1) always debits at PriceDay (day 1's "previous balance" is 0, which is >= 0).
+     * Returns [{ "YYYY-MM-DD": rate }, ...] plus a trailing { ALL: sum }, same key shape as Account itself.
+     * @param {Array<Object>} account
+     * @param {Array<Object>} priceDay
+     * @param {Array<Object>} priceMaxDay
+     * @returns {Array<Object>}
+     */
+    static buildAccrualDaysEntries(account, priceDay, priceMaxDay) {
+        console.info(`[Yamls.buildAccrualDaysEntries] 🟢 Starting...`);
+
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+        const priceDayByMonth = Yamls.#priceMonLookup(priceDay);
+        const priceMaxDayByMonth = Yamls.#priceMonLookup(priceMaxDay);
+        const days = (Array.isArray(account) ? account : []).filter(e => !('ALL' in e));
+
+        let previousBalance = 0;
+        const entries = days.map(entry => {
+            const [day, balanceStr] = Object.entries(entry)[0];
+            const month = day.slice(0, 7);
+            const rate = previousBalance >= 0
+                ? (priceDayByMonth.get(month) || 0)
+                : (priceMaxDayByMonth.get(month) || 0);
+            previousBalance = toAmount(balanceStr);
+            return { [day]: rate.toLocaleString('en-US') };
+        });
+
+        const sum = entries.reduce((s, e) => s + toAmount(Object.values(e)[0]), 0);
+        const result = [...entries, { ALL: sum.toLocaleString('en-US') }];
+
+        console.log(`buildAccrualDaysEntries: ${entries.length} day(s), sum=${sum}`, result);
+        return result;
+    }
+
     // Chains real cash payments (Bank-OT + Trans-OT + Card-OT, in date
     // order) across Accrual's own periods, in order, starting from period 1
     // — never by arrival-date-vs-due-date comparison, never banking credit
@@ -649,13 +710,9 @@ export class Yamls {
     // already produces exactly that once running `remaining` pool hits
     // zero.
     //
-    // Faktura's OWN key is each period's END date (Dates.monthEnd of
-    // Accrual's own start-date key) — deliberately NOT the same bare start
-    // date Accrual/Payment/Loaners/PenaltyDays/Penalty all share, since an
-    // invoice document is dated by when its period closes, not when it
-    // opened. computePaymentChain itself still forwards accrual's own key
-    // verbatim (shared by Loaners' own call) — the start->end remap happens
-    // here, after chaining, output-only.
+    // Faktura's OWN key is each period's END date, extracted directly from Accrual's own "start#end" interval key, never re-derived.
+    // An invoice document is dated by when its period closes, not when it opened.
+    // computePaymentChain itself still forwards accrual's own key verbatim (shared by Loaners' own call) — the interval-key-to-end-only remap happens here, after chaining, output-only.
     //
     // Returns [{ "end": amount }, ..., { ALL: sum }], same order as
     // Payment/Loaners (accrual's own trailing { ALL } entry skipped —
@@ -667,8 +724,9 @@ export class Yamls {
         const { payment: chained } = Yamls.computePaymentChain(periods, ehfIn);
 
         const faktura = chained.map(entry => {
-            const [start, amount] = Object.entries(entry)[0];
-            return { [Dates.monthEnd(start)]: amount };
+            const [intervalKey, amount] = Object.entries(entry)[0];
+            const [, end] = intervalKey.split('#');
+            return { [end ?? intervalKey]: amount };
         });
 
         const sum = faktura.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
@@ -678,15 +736,9 @@ export class Yamls {
         return result;
     }
 
-    // Per-period amount NOT YET invoiced — Accrual[period] minus that
-    // period's own Faktura amount (an invoice is always eventually sent for
-    // the full Accrual; FakturaSend is the shortfall still owed). Reuses
-    // computePaymentChain's own `loaners` half (owed - paid, same math
-    // computeFaktura's `payment` half is built from) rather than
-    // recomputing the subtraction by hand — same bare-date key remap as
-    // computeFaktura (Accrual's start date -> Dates.monthEnd), so
-    // FakturaSend and Faktura always share the same key for the same
-    // period.
+    // Per-period amount NOT YET invoiced — Accrual[period] minus that period's own Faktura amount (an invoice is always eventually sent for the full Accrual; FakturaSend is the shortfall still owed).
+    // Reuses computePaymentChain's own `loaners` half (owed - paid, same math computeFaktura's `payment` half is built from) rather than recomputing the subtraction by hand.
+    // Same interval-key-to-end-only remap as computeFaktura, so FakturaSend and Faktura always share the same key for the same period.
     //
     // Returns [{ "end": amount }, ..., { ALL: sum }], same order/shape as
     // Faktura.
@@ -697,8 +749,9 @@ export class Yamls {
         const { loaners: chained } = Yamls.computePaymentChain(periods, ehfIn);
 
         const fakturaSend = chained.map(entry => {
-            const [start, amount] = Object.entries(entry)[0];
-            return { [Dates.monthEnd(start)]: amount };
+            const [intervalKey, amount] = Object.entries(entry)[0];
+            const [, end] = intervalKey.split('#');
+            return { [end ?? intervalKey]: amount };
         });
 
         const sum = fakturaSend.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
@@ -708,12 +761,12 @@ export class Yamls {
         return result;
     }
 
-    // Builds Accrual from PriceMon (the permanent source of truth for each month's own rate — see #priceMonLookup) and chains the real payments across it via computePaymentChain.
-    // PriceMon/PriceMaxMon are decided BEFORE this call now (see #writeChain), so there is no debt-based re-pricing feedback loop left to run to a fixed point — a month needing PriceMax instead of PriceMon is a manual edit the user makes before setting PriceOK: true.
-    static recomputeChain(startDate, futureDate, priceMon, payments) {
+    // Builds Accrual — a full month reads PriceMon directly, a partial period or a debt-affected month (Price != PriceMax AND real PenaltyDays) sums AccrualDays instead (see buildAccrualEntries) — and chains the real payments across it via computePaymentChain.
+    // PriceMon/PriceMaxMon/Account/AccrualDays/PenaltyDays are all decided BEFORE this call now (see #writeChain), so there is no debt-based re-pricing feedback loop left to run to a fixed point.
+    static recomputeChain(startDate, futureDate, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays, payments) {
         console.info(`[Yamls.recomputeChain] 🟢 Starting...`);
 
-        const accrualBase = Yamls.buildAccrualEntries(startDate, futureDate, priceMon);
+        const accrualBase = Yamls.buildAccrualEntries(startDate, futureDate, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays);
         const { payment, loaners } = Yamls.computePaymentChain(accrualBase, payments);
 
         const sum = (arr) => arr.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0);
@@ -956,7 +1009,7 @@ export class Yamls {
     //     - '2026-04-25': '-10,000'
     static writeHistory(filePath, history) {
         console.info(`[Yamls.writeHistory] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'History', history, 'Accrual', [], true);
+        this.writeYamlArraySection(filePath, 'History', history, 'PriceMaxDay', [], true);
     }
 
     /**
@@ -971,7 +1024,24 @@ export class Yamls {
      */
     static writeAccount(filePath, account) {
         console.info(`[Yamls.writeAccount] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Account', account, 'History', [], true);
+        this.writeYamlArraySection(filePath, 'Account', account, 'Payment', [], true);
+    }
+
+    /**
+     * Writes/replaces the AccrualDays: array block IN PLACE at its existing position, or after Account: as a fallback anchor for a file that has never had this key before (see buildAccrualDaysEntries).
+     * One entry per Account calendar day, "YYYY-MM-DD" key, the actual per-day rate (PriceDay or PriceMaxDay) that day debited, plus a trailing ALL sum.
+     * @example
+     *   AccrualDays:
+     *     - 2026-01-19: 52,258
+     *     - 2026-01-20: 52,258
+     *     - 2026-02-02: 57,857
+     *     - ALL: 1,234,567
+     * @param {string} filePath
+     * @param {Array<Object>} accrualDays
+     */
+    static writeAccrualDays(filePath, accrualDays) {
+        console.info(`[Yamls.writeAccrualDays] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'AccrualDays', accrualDays, 'Account', [], true);
     }
 
     // Writes/replaces the Returns: array block IN PLACE at its existing
@@ -998,8 +1068,8 @@ export class Yamls {
     // BEFORE them on that first-ever write. An already-populated file's own
     // order (whatever it is) is never touched.
     //   Accrual:
-    //     - 2026-03-01: 450,000
-    //     - 2026-04-01: 450,000
+    //     - 2026-03-01#2026-03-31: 450,000
+    //     - 2026-04-01#2026-04-30: 450,000
     //     - ALL: 900,000
     static writeAccrual(filePath, accrual) {
         console.info(`[Yamls.writeAccrual] 🟢 Starting...`);
@@ -1007,7 +1077,7 @@ export class Yamls {
         // had an Accrual: key before — an already-existing block updates
         // strictly in place, at its own real position, per
         // writeYamlArraySection's order-preserving contract.
-        this.writeYamlArraySection(filePath, 'Accrual', accrual, 'ComBase', ['Pricings', 'PriceHistory'], false);
+        this.writeYamlArraySection(filePath, 'Accrual', accrual, 'Loaners', ['Pricings', 'PriceHistory'], false);
     }
 
     // Writes/replaces the Payment: array block IN PLACE at its existing
@@ -1036,7 +1106,7 @@ export class Yamls {
      */
     static writeLoaners(filePath, loanersTotal) {
         console.info(`[Yamls.writeLoaners] 🟢 Starting...`);
-        this.writeScalarSection(filePath, 'Loaners', loanersTotal, 'History');
+        this.writeScalarSection(filePath, 'Loaners', loanersTotal, 'AccrualDays');
     }
 
     /**
@@ -1053,7 +1123,7 @@ export class Yamls {
      */
     static writePenaltyDays(filePath, penaltyDays) {
         console.info(`[Yamls.writePenaltyDays] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PenaltyDays', penaltyDays, 'Faktura', [], true);
+        this.writeYamlArraySection(filePath, 'PenaltyDays', penaltyDays, 'FakturaSend', [], true);
     }
 
     // Writes/replaces the Penalty: array block IN PLACE at its existing
@@ -1084,7 +1154,7 @@ export class Yamls {
      */
     static writePriceMon(filePath, priceMon) {
         console.info(`[Yamls.writePriceMon] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PriceMon', priceMon, 'Penalty', ['PriceApp'], true);
+        this.writeYamlArraySection(filePath, 'PriceMon', priceMon, 'ComBase', ['PriceApp'], true);
     }
 
     /**
@@ -1142,7 +1212,7 @@ export class Yamls {
     //     - ALL: 450,000
     static writeFaktura(filePath, faktura) {
         console.info(`[Yamls.writeFaktura] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Faktura', faktura, 'Payment', [], true);
+        this.writeYamlArraySection(filePath, 'Faktura', faktura, 'Accrual', [], true);
     }
 
     // Writes/replaces the FakturaSend: array block IN PLACE at its existing
@@ -2170,18 +2240,20 @@ export class Yamls {
         const priceMaxMon = Yamls.freezePriceMonEntries(yamlData.PriceMaxMon, priceMaxMonFresh, yamlData.PriceOK);
         Yamls.writePriceMaxMon(ymlFile, Yamls.appendAllTotal(priceMaxMon));
 
-        // Accrual reads each month's own rate from PriceMon (never the flat yamlData.Price scalar directly — see recomputeChain/buildAccrualEntries) and chains the real cash payments (Bank-OT + Trans-OT + Card-OT + BaaR-OT, scanned fresh from folderALL — not from yamlData, since a freshly-filled contract has no in-memory payment history yet) across the resulting periods, producing Loaners in lockstep with Accrual.
-        // This internal chain drives Loaners only now (PriceMax re-pricing of Accrual is retired — see recomputeChain); the Payment: key actually WRITTEN to the yaml is a separate, flat date-keyed merge (see below), not this chain's own per-period allocation.
+        // PriceDay/PriceMaxDay: each month's own PriceMon/PriceMaxMon amount divided by its real day count, rounded to the nearest whole so'm.
+        // Built right after PriceMon/PriceMaxMon since Account (below) needs both to compute its own daily debit rate.
+        const priceDay = Yamls.buildPriceDayEntries(priceMon);
+        Yamls.writePriceDay(ymlFile, Yamls.appendAllTotal(priceDay));
+
+        const priceMaxDay = Yamls.buildPriceDayEntries(priceMaxMon);
+        Yamls.writePriceMaxDay(ymlFile, Yamls.appendAllTotal(priceMaxDay));
+
+        // Real cash movement, scanned fresh from folderALL — never from yamlData, since a freshly-filled contract has no in-memory payment history yet.
         const bankOT = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-OT');
         const transOT = Yamls.scanCellFolder(globalThis.folderALL, 'Trans-OT');
         const cardOT = Yamls.scanCellFolder(globalThis.folderALL, 'Card-OT');
         const baarOT = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-OT');
         const payments = [...bankOT, ...transOT, ...cardOT, ...baarOT];
-
-        const { accrual, loaners } = Yamls.recomputeChain(
-            yamlData.PeriodStart, yamlData.PeriodEnd, priceMon, payments
-        );
-        Yamls.writeAccrual(ymlFile, accrual);
 
         // Payment: WRITTEN form — flat date-keyed merge of Bank-OT + Card-OT
         // + BaaR-OT + Trans-OT (same-date entries from different sources
@@ -2191,11 +2263,7 @@ export class Yamls {
 
         // Returns: flat date-keyed merge of Bank-IN + Card-IN + BaaR-IN
         // (money refunded BACK to the tenant) — same shape/merge rule as
-        // Payment:, Trans-IN intentionally excluded. Computed here (ahead of
-        // its own written position after Penalty:) so History: below can
-        // merge it together with Payment: — the written position of
-        // Returns: itself is unaffected, only this computation moved
-        // earlier.
+        // Payment:, Trans-IN intentionally excluded.
         const bankIN = Yamls.scanCellFolder(globalThis.folderALL, 'Bank-IN');
         const cardIN = Yamls.scanCellFolder(globalThis.folderALL, 'Card-IN');
         const baarIN = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-IN');
@@ -2208,6 +2276,39 @@ export class Yamls {
         Yamls.writeHistory(ymlFile, Yamls.appendAllTotal(history));
 
         Yamls.writePayment(ymlFile, Yamls.appendAllTotal(paymentFlat));
+
+        // Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
+        // Account exists only to feed AccrualDays/Loaners/PenaltyDays/Penalty — it never projects into days that have not happened yet, which would fabricate a debt/penalty for a future day nobody has missed a payment on.
+        // Every day debits off the previous day's balance, then adds that day's own History entry.
+        // Debit rate: PriceDay (the prepay discount) when the previous day's balance was >= 0, PriceMaxDay (the full rate, no discount) when it was already negative.
+        // Written directly after History:, before AccrualDays:.
+        const accountEnd = yamlData.PeriodEnd < Dates.today() ? yamlData.PeriodEnd : Dates.today();
+        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, history, priceDay, priceMaxDay);
+        Yamls.writeAccount(ymlFile, account);
+
+        // AccrualDays: one entry per Account calendar day, the actual per-day rate (PriceDay or PriceMaxDay) that day debited.
+        // Built from Account itself, never re-simulated (see buildAccrualDaysEntries).
+        // Written directly after Account:, before Loaners:.
+        const accrualDays = Yamls.buildAccrualDaysEntries(account, priceDay, priceMaxDay);
+        Yamls.writeAccrualDays(ymlFile, accrualDays);
+
+        // PenaltyDays computed HERE (before Accrual) since Accrual's own full-month rule needs to know each month's real penalty-day count.
+        // See #writeChain's Penalty section below for the full contract-clause rationale — this is purely a computation-order move, the value itself is unchanged.
+        const penaltyDays = Yamls.computePenaltyDays(account);
+
+        // Loaners: the client's own outstanding debt (or surplus, if positive) at PeriodEnd — a plain scalar, the ABSOLUTE value of Account's own LAST entry.
+        // No longer an array — Account itself now carries the full daily detail.
+        const lastAccountEntry = account.length ? Object.values(account[account.length - 1])[0] : '0';
+        const loanersTotal = Math.abs(Number(String(lastAccountEntry).replace(/,/g, '')) || 0).toLocaleString('en-US');
+        Yamls.writeLoaners(ymlFile, loanersTotal);
+
+        // Accrual: a FULL calendar month reads PriceMon directly; a partial period, or a full month where Price != PriceMax AND that month has real PenaltyDays, sums AccrualDays instead (see buildAccrualEntries).
+        // The internal chain against real payments drives Loaners only now (PriceMax re-pricing of Accrual is retired — see recomputeChain); the Payment: key actually WRITTEN to the yaml is the separate, flat date-keyed merge above, not this chain's own per-period allocation.
+        const priceEqualsMax = Number(String(yamlData.Price).replace(/,/g, '')) === Number(String(yamlData.PriceMax).replace(/,/g, ''));
+        const { accrual } = Yamls.recomputeChain(
+            yamlData.PeriodStart, yamlData.PeriodEnd, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays, payments
+        );
+        Yamls.writeAccrual(ymlFile, accrual);
 
         // Faktura: the real EHF-IN invoice sum (scanned fresh from folderALL, same as Bank-OT/Trans-OT/Card-OT/BaaR-OT above), distributed across recomputeChain's own returned Accrual periods.
         // Once the whole EHF-IN sum is distributed, every remaining period gets 0.
@@ -2223,42 +2324,10 @@ export class Yamls {
         const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn);
         Yamls.writeFakturaSend(ymlFile, fakturaSend);
 
-        /*
-         * PriceDay/PriceMaxDay: each month's own PriceMon/PriceMaxMon amount divided by its real day count, rounded to the nearest whole so'm.
-         * PriceMon/PriceMaxMon were already built and written above (before Accrual) — this only derives the per-day rate from them.
-         * Written directly after Penalty:, before Bonuses:, in this exact chained order: PriceDay -> PriceMaxDay.
-         */
-        const priceDay = Yamls.buildPriceDayEntries(priceMon);
-        Yamls.writePriceDay(ymlFile, Yamls.appendAllTotal(priceDay));
-
-        const priceMaxDay = Yamls.buildPriceDayEntries(priceMaxMon);
-        Yamls.writePriceMaxDay(ymlFile, Yamls.appendAllTotal(priceMaxDay));
-
-        /*
-         * Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
-         * Account exists only to feed Loaners/PenaltyDays/Penalty — it never projects into days that have not happened yet, which would fabricate a debt/penalty for a future day nobody has missed a payment on.
-         * Every day debits off the previous day's balance, then adds that day's own History entry.
-         * Debit rate: PriceDay (the prepay discount) when the previous day's balance was >= 0, PriceMaxDay (the full rate, no discount) when it was already negative.
-         * Written directly after History:, before Loaners:.
-         */
-        const accountEnd = yamlData.PeriodEnd < Dates.today() ? yamlData.PeriodEnd : Dates.today();
-        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, history, priceDay, priceMaxDay);
-        Yamls.writeAccount(ymlFile, account);
-
-        /*
-         * Loaners: the client's own outstanding debt (or surplus, if positive) at PeriodEnd — a plain scalar, the ABSOLUTE value of Account's own LAST entry.
-         * No longer an array — Account itself now carries the full daily detail.
-         */
-        const lastAccountEntry = account.length ? Object.values(account[account.length - 1])[0] : '0';
-        const loanersTotal = Math.abs(Number(String(lastAccountEntry).replace(/,/g, '')) || 0).toLocaleString('en-US');
-        Yamls.writeLoaners(ymlFile, loanersTotal);
-
-        /*
-         * Penalty (§21.1 + §3.7/§1.20): every consecutive day (beyond the first, which is the 1-calendar-day grace period) Account's own balance stays negative counts as a penalty day, grouped by bare "YYYY-MM".
-         * Penalty[month] = PenaltyDays[month] * PenaltyForDay, capped at HALF that month's own PriceMaxMon amount.
-         * PenaltyForDay is yamlData.PenaltyPerDay (the per-contract override, blank by default like ContractNumber) when non-empty, else config.yml's global Penalty.PerDay.
-         */
-        const penaltyDays = Yamls.computePenaltyDays(account);
+        // Penalty (§21.1 + §3.7/§1.20): every consecutive day (beyond the first, which is the 1-calendar-day grace period) Account's own balance stays negative counts as a penalty day, grouped by bare "YYYY-MM".
+        // Penalty[month] = PenaltyDays[month] * PenaltyForDay, capped at HALF that month's own PriceMaxMon amount.
+        // PenaltyForDay is yamlData.PenaltyPerDay (the per-contract override, blank by default like ContractNumber) when non-empty, else config.yml's global Penalty.PerDay.
+        // penaltyDays itself was already computed above (before Accrual) — this only writes it at its own documented position in the file.
         Yamls.writePenaltyDays(ymlFile, penaltyDays);
 
         const penaltyForDay = Files.isEmpty(yamlData.PenaltyPerDay)
