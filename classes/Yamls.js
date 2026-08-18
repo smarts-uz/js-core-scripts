@@ -2235,12 +2235,14 @@ export class Yamls {
         Yamls.writePriceMaxDay(ymlFile, Yamls.appendAllTotal(priceMaxDay));
 
         /*
-         * Account: client's own running balance, one entry per calendar day from PeriodStart through PeriodEnd.
+         * Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
+         * Account exists only to feed Loaners/PenaltyDays/Penalty — it never projects into days that have not happened yet, which would fabricate a debt/penalty for a future day nobody has missed a payment on.
          * Every day debits off the previous day's balance, then adds that day's own History entry.
          * Debit rate: PriceDay (the prepay discount) when the previous day's balance was >= 0, PriceMaxDay (the full rate, no discount) when it was already negative.
          * Written directly after History:, before Loaners:.
          */
-        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, yamlData.PeriodEnd, history, priceDay, priceMaxDay);
+        const accountEnd = yamlData.PeriodEnd < Dates.today() ? yamlData.PeriodEnd : Dates.today();
+        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, history, priceDay, priceMaxDay);
         Yamls.writeAccount(ymlFile, account);
 
         /*

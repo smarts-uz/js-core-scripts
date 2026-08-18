@@ -2171,6 +2171,60 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('2026-02-01: 500,000');
   });
 
+  it('Account never projects past today, even when ActDateEnd/PeriodEnd is far in the future', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(
+      ymlFile,
+      'ContractDateEnd: \nComDate: \nActDate: \nActDateEnd: \nComBase: Устава\n',
+      'utf8'
+    );
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    Yamls.replaceYaml(
+      ymlFile,
+      {
+        ComType: 'MChJ',
+        ContractDate: '2026-01-01',
+        ActDateStart: '2026-01-01',
+        // Far in the future relative to any real "today" — Account must never reach this date.
+        ActDateEnd: '2030-12-31',
+        Price: '1,000,000',
+        PriceMax: '1,100,000',
+        SurEnable: false,
+        RepEnable: false,
+      },
+      {
+        soliq: {
+          company: {
+            okedDetail: { name_uz_latn: '' },
+            businessStructureDetail: { name_uz_latn: '' },
+            statusDetail: { name_uz_latn: '', group: '' },
+          },
+          companyBillingAddress: {},
+        },
+      }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    const today = Dates.today();
+    const accountBlock = content.match(/Account:\n((?:\s+-.*\n)*)/)[1];
+    const accountDates = [...accountBlock.matchAll(/-\s+(\d{4}-\d{2}-\d{2}):/g)].map((m) => m[1]);
+    expect(accountDates.length).toBeGreaterThan(0);
+    expect(accountDates[accountDates.length - 1]).toBe(today);
+    expect(accountDates).not.toContain('2030-12-31');
+    expect(accountDates.every((d) => d <= today)).toBe(true);
+  });
+
   it('never stomps an array-valued yamlData key with no dedicated writer into a broken "[object Object]" scalar line', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });

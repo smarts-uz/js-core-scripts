@@ -217,7 +217,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -252,7 +252,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -288,7 +288,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -323,7 +323,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -357,7 +357,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -391,7 +391,7 @@ export class Excels {
       const [date, days] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = days;
 
       row++;
@@ -425,7 +425,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -459,7 +459,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -531,6 +531,7 @@ export class Excels {
       const dateCell = globalThis.excelSheet.Cells(row, found.Column);
       const amountCell = globalThis.excelSheet.Cells(row, found.Column + 1);
 
+      dateCell.NumberFormat = '@';
       dateCell.Value = date;
       amountCell.Value = balance;
 
@@ -569,7 +570,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
       if (month === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      this.#writeDateCell(row, found.Column, month);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -602,7 +603,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
       if (month === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      this.#writeDateCell(row, found.Column, month);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -635,7 +636,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
       if (month === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      this.#writeDateCell(row, found.Column, month);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -668,7 +669,7 @@ export class Excels {
       const [month, amount] = Object.entries(entry)[0];
       if (month === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = month;
+      this.#writeDateCell(row, found.Column, month);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -689,7 +690,7 @@ export class Excels {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
-      globalThis.excelSheet.Cells(row, found.Column).Value = date;
+      this.#writeDateCell(row, found.Column, date);
       globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
 
       row++;
@@ -758,6 +759,15 @@ export class Excels {
     if (row === found.Row) {
       globalThis.excelSheet.Cells(found.Row, found.Column).Value = '';
     }
+  }
+
+  // Excel auto-recognizes a plain "YYYY-MM-DD"/"YYYY-MM" string assigned via .Value as a real date and silently converts it to its own serial-number representation.
+  // The very first row written into a fresh column often inherits a date NumberFormat from the template and displays fine; every later row does not, so it shows the raw serial number instead of the date text (confirmed live: 2026-01-19 rendered correctly, every row after it showed 46045/46046/... instead).
+  // Fix: force the cell's own NumberFormat to Text ('@') BEFORE assigning .Value, so Excel stores the literal string, never a date serial, regardless of which row/column it lands in.
+  static #writeDateCell(row, col, value) {
+    const cell = globalThis.excelSheet.Cells(row, col);
+    cell.NumberFormat = '@';
+    cell.Value = value;
   }
 
   /**
