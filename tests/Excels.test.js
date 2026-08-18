@@ -78,6 +78,7 @@ const FilesMock = {
     }
     return latest;
   }),
+  retainLatestFiles: jest.fn(() => []),
 };
 
 const DialogsMock = {
@@ -1720,6 +1721,8 @@ describe('Excels.generate', () => {
       false,
       false
     );
+    // Retention runs after a successful generate, on this company's own ActReco folder.
+    expect(FilesMock.retainLatestFiles).toHaveBeenCalledWith(folderActReco, 5, '.xlsx');
     killSpy.mockRestore();
   });
 

@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 344 runnable methods.
+**Coverage:** 23 classes, 352 runnable methods.
 
 ---
 # Category
@@ -1264,7 +1264,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 52 public static method(s).
+Runners: `scripts/Excels/` — 55 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1355,6 +1355,8 @@ node scripts/Excels/fileSave.mjs
 
 ## findColumn(search)
 
+Finds the real {search} placeholder cell — never a bare, unbracketed occurrence of the same text elsewhere on the sheet. A real template can carry a bare copy of a key name (e.g. a stray "Accrual" label in a row above the real {Accrual} placeholder) — Cells.Find on the bare search term would match that stray text first and resolve to the wrong cell.
+
 **Run:**
 
 ```bash
@@ -1363,7 +1365,7 @@ node scripts/Excels/findColumn.mjs --search <search>
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `search` | no | — |
+| `search` | no | the bare key name, e.g. 'Accrual' (braces added here, never passed in by the caller). |
 
 ## generate(ymlFile)
 
@@ -1530,6 +1532,8 @@ node scripts/Excels/processAccount.mjs --file "<path>"
 
 ## processAccrual(yamlData)
 
+Reads yamlData.Accrual — a "start#end" interval-key: amount array Yamls.recomputeChain/writeAccrual already writes into the .contract yaml. Writes one row per entry (start, end, amount) starting at the {Accrual} placeholder's cell — a 3-column block (Начало/Конец/Сумма), per the real Act N.xlsx template layout. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag).
+
 **Run:**
 
 ```bash
@@ -1540,12 +1544,42 @@ node scripts/Excels/processAccrual.mjs --file "<path>"
 |-----------|----------|-------------|
 | `yamlData` | no | — |
 
+## processAccrualDays(yamlData)
+
+Reads yamlData.AccrualDays — a flat "YYYY-MM-DD": rate array (Yamls.buildAccrualDaysEntries/writeAccrualDays), the actual per-day PriceDay/PriceMaxDay rate that day debited in Account. Writes one row per entry (date, rate) starting at {AccrualDays} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Account}. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag). Warns and skips when the template has no {AccrualDays} placeholder cell.
+
+**Run:**
+
+```bash
+node scripts/Excels/processAccrualDays.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
 ## processFaktura(yamlData)
+
+Reads yamlData.Faktura — a bare-date "end" (period's own last day, NOT Accrual's start-date key) key: amount per-period real EHF-IN invoice sum distributed across Accrual's periods (Yamls.computeFaktura/writeFaktura). Writes one row per entry (date, amount) starting at the {Faktura} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag) — mirrors processAccrual/processLoaners' own unconditional, bare-date-keyed shape.
 
 **Run:**
 
 ```bash
 node scripts/Excels/processFaktura.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
+## processFakturaSend(yamlData)
+
+Reads yamlData.FakturaSend — bare-date "end" key (same Dates.monthEnd remap as Faktura), per-period amount NOT YET invoiced (Yamls.computeFakturaSend: Accrual[period] minus Faktura[period]), written into the .contract yaml by Yamls.writeFakturaSend. Writes one row per entry (date, amount) starting at the {FakturaSend} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Faktura}. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processFakturaSend.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
@@ -1564,6 +1598,20 @@ node scripts/Excels/processFolders.mjs --entries <entries>
 |-----------|----------|-------------|
 | `entries` | no | — |
 | `found` | no | — |
+
+## processHistory(yamlData)
+
+Reads yamlData.History — a flat, date-keyed array (Yamls.computeHistory: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writeHistory. Writes one row per entry (date, net amount) starting at the {History} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}. No trailing { ALL } entry to skip. Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processHistory.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
 
 ## processLoaners(yamlData)
 
@@ -1593,6 +1641,8 @@ node scripts/Excels/processPayment.mjs --file "<path>"
 
 ## processPenalty(yamlData)
 
+Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml. Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag) — mirrors processPayment's own unconditional shape. Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
+
 **Run:**
 
 ```bash
@@ -1604,6 +1654,8 @@ node scripts/Excels/processPenalty.mjs --file "<path>"
 | `yamlData` | no | — |
 
 ## processPenaltyDays(yamlData)
+
+Reads yamlData.PenaltyDays — a bare-date "start": dayCount per-period late-payment day-count array Yamls.writePenaltyDays writes into the .contract yaml (Penalty[i] = PenaltyDays[i] * Penalty.PerDay). Writes one row per entry (date, day count) starting at the {PenaltyDays} placeholder's cell — a 2-column block (Дата/Количество), same shape as every other block on this template now that Начало/Конец columns are gone everywhere. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag), same as processPenalty.
 
 **Run:**
 
@@ -2025,7 +2077,7 @@ node scripts/ExcelsJS/replaceFormula.mjs --file "<path>"
 
 # Files
 
-Runners: `scripts/Files/` — 42 public static method(s).
+Runners: `scripts/Files/` — 43 public static method(s).
 
 ## archiveFolder(folder, fileName)
 
@@ -2525,6 +2577,24 @@ node scripts/Files/removeFilesWithExtension.mjs --dir <dir>
 |-----------|----------|-------------|
 | `dir` | no | — |
 | `extension` | no | — |
+
+## retainLatestFiles(folder, keep, [ext])
+
+Keeps only the `keep` most-recently-modified files (by mtime) directly inside `folder`'s own top level. Moves every older file into `folder\@ Other\`. Skips sub-folders (including an existing "@ Other") and a locked Office `~$*` temp file. Never deletes — always a move (`fs.renameSync`).
+
+**Run:**
+
+```bash
+node scripts/Files/retainLatestFiles.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `folder` | no | Folder whose own top-level files are retained. |
+| `keep` | no | How many most-recent files stay in `folder`. |
+| `ext` | yes (default `null`) | Optional extension filter (e.g. ".xlsx"); null = any file. |
+
+**Returns:** Absolute paths of files moved into "@ Other".
 
 ## safeCopy(src, dest)
 
@@ -4001,7 +4071,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 48 public static method(s).
+Runners: `scripts/Yamls/` — 52 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -4015,7 +4085,21 @@ node scripts/Yamls/actualPayments.mjs --file "<path>"
 |-----------|----------|-------------|
 | `yamlData` | no | — |
 
-## applyPriceMaxToDebtMonths(accrual, loaners, startDate, priceMax)
+## appendAllTotal(entries)
+
+Appends { ALL: sum } to any date/month-keyed entries array — every entry's own value summed, comma-stripped, re-formatted via toLocaleString. An entry already keyed 'ALL' is never double-counted. Empty input still returns [{ ALL: '0' }] — every array-shaped yaml key carries an ALL subkey unconditionally, per standing convention.
+
+**Run:**
+
+```bash
+node scripts/Yamls/appendAllTotal.mjs --entries <entries>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `entries` | no | — |
+
+## applyPriceMaxToDebtMonths(accrual, loaners, startDate, priceMaxMon)
 
 **Run:**
 
@@ -4028,7 +4112,7 @@ node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
 | `accrual` | no | — |
 | `loaners` | no | — |
 | `startDate` | no | — |
-| `priceMax` | no | — |
+| `priceMaxMon` | no | — |
 
 ## buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay)
 
@@ -4048,7 +4132,24 @@ node scripts/Yamls/buildAccountEntries.mjs --startDate <startDate>
 | `priceDay` | no | — |
 | `priceMaxDay` | no | — |
 
-## buildAccrualEntries(startDate, futureDate, price)
+## buildAccrualDaysEntries(account, priceDay, priceMaxDay, futureDate)
+
+Builds AccrualDays entries — one entry per calendar day from Account's own first day through futureDate (the real PeriodEnd), value = the actual per-day rate that day debited (PriceDay when the PREVIOUS day's balance was >= 0, PriceMaxDay when it was already negative). Reads the already-built Account array for every day Account actually covers — never re-simulates the balance for those days. A day's own debit rate depends only on the PREVIOUS day's balance sign, already recorded in Account itself. Account's own first entry (day 1) always debits at PriceDay (day 1's "previous balance" is 0, which is >= 0). A day BEYOND Account's own coverage (Account stops at min(PeriodEnd, today) — its own balance for a future day is not knowable yet) falls back to the flat PriceDay rate for that day's month — the same on-time/no-debt assumption buildAccrualEntries' own sumAccrualDays fallback already uses. Returns [{ "YYYY-MM-DD": rate }, ...] plus a trailing { ALL: sum }, one entry per day from Account's first day through futureDate inclusive.
+
+**Run:**
+
+```bash
+node scripts/Yamls/buildAccrualDaysEntries.mjs --account <account>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `account` | no | — |
+| `priceDay` | no | — |
+| `priceMaxDay` | no | — |
+| `futureDate` | no | — |
+
+## buildAccrualEntries(startDate, futureDate, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays)
 
 **Run:**
 
@@ -4060,11 +4161,15 @@ node scripts/Yamls/buildAccrualEntries.mjs --startDate <startDate>
 |-----------|----------|-------------|
 | `startDate` | no | — |
 | `futureDate` | no | — |
-| `price` | no | — |
+| `accrualDays` | no | — |
+| `priceMon` | no | — |
+| `priceDay` | no | — |
+| `priceEqualsMax` | no | — |
+| `penaltyDays` | no | — |
 
 ## buildPriceDayEntries(priceMon)
 
-Builds PriceDay entries, one per PriceMon entry: that month's PriceMon amount / its real day count, rounded to the nearest whole so'm. Same bare "YYYY-MM" key as PriceMon.
+Builds PriceDay entries, one per PriceMon entry: that month's PriceMon amount / its real day count, rounded to 2 decimal places (tiyin). Same bare "YYYY-MM" key as PriceMon.
 
 **Run:**
 
@@ -4076,37 +4181,37 @@ node scripts/Yamls/buildPriceDayEntries.mjs --priceMon <priceMon>
 |-----------|----------|-------------|
 | `priceMon` | no | — |
 
-## buildPriceMaxMonEntries(accrual, priceMax)
+## buildPriceMaxMonEntries(startDate, futureDate, priceMax)
 
-Builds PriceMaxMon entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month PriceMax rate for EVERY month, regardless of debt — unlike PriceMon, there is no Price-vs-PriceMax switch here.
+Builds PriceMaxMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM". Value: the flat yamlData.PriceMax rate for every month — same shape as buildPriceMonEntries, different source scalar.
 
 **Run:**
 
 ```bash
-node scripts/Yamls/buildPriceMaxMonEntries.mjs --accrual <accrual>
+node scripts/Yamls/buildPriceMaxMonEntries.mjs --startDate <startDate>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `accrual` | no | — |
+| `startDate` | no | — |
+| `futureDate` | no | — |
 | `priceMax` | no | — |
 
-## buildPriceMonEntries(accrual, loaners, price, priceMax)
+## buildPriceMonEntries(startDate, futureDate, price)
 
-Builds PriceMon entries, one per Accrual period, key remapped to bare "YYYY-MM". Value: tariff's flat full-month rent price, never prorated (unlike Accrual). Debt month (Loaners > 0 same period) uses PriceMax instead of Price, still flat, never reprorated. Requires FINAL recomputeChain-settled accrual/loaners pair, never pre-recompute baseline.
+Builds PriceMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM". Value: the flat yamlData.Price rate for every month — never prorated, never debt-conditioned. PriceMon is now the source Accrual is built FROM, so it cannot itself depend on Accrual/Loaners — a month needing PriceMax instead is a manual edit the user makes before setting PriceOK: true.
 
 **Run:**
 
 ```bash
-node scripts/Yamls/buildPriceMonEntries.mjs --accrual <accrual>
+node scripts/Yamls/buildPriceMonEntries.mjs --startDate <startDate>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `accrual` | no | — |
-| `loaners` | no | — |
+| `startDate` | no | — |
+| `futureDate` | no | — |
 | `price` | no | — |
-| `priceMax` | no | — |
 
 ## computeDailyBalance(startDate, futureDate, accrual, payment, returns)
 
@@ -4196,7 +4301,7 @@ node scripts/Yamls/computePenalty.mjs --penaltyDays <penaltyDays>
 
 ## computePenaltyDays(account)
 
-Contract §21.1 — a fixed PerDay penalty for each calendar day Account's own running balance stays negative BEYOND the 1-calendar-day grace period (§3.7/§1.20: first/each prepayment due within 1 day). The first day a deficit appears is grace, never itself a penalty day; every CONSECUTIVE day after that the balance is still negative counts. A day where balance recovers to >= 0 resets the grace window — a LATER deficit starts its own fresh 1-day grace period. Reads Account directly (the same daily ledger written to the .contract yaml) rather than a separate internal computeDailyBalance simulation.
+Contract §21.1 — a fixed PerDay penalty for each calendar day Account's own running balance is negative, BEYOND the single 1-calendar-day grace period on PeriodStart's own day (§3.7/§1.20: first prepayment due within 1 day). The grace period applies ONLY ONCE, on Account's very first entry (PeriodStart) — every OTHER negative day counts, including the first day of a later deficit streak (a balance recovering to >= 0 and then going negative again does NOT get a fresh grace day). Reads Account directly (the same daily ledger written to the .contract yaml) rather than a separate internal computeDailyBalance simulation.
 
 **Run:**
 
@@ -4264,6 +4369,22 @@ node scripts/Yamls/findTextLine.mjs --file "<path>"
 |-----------|----------|-------------|
 | `filePath` | no | — |
 | `text` | no | — |
+
+## freezePriceMonEntries(existing, freshlyBuilt, priceOK)
+
+PriceOK: true freezes every existing PriceMon/PriceMaxMon month at its own on-disk value — only months strictly after the existing block's own last month get a fresh entry, computed from the current price/priceMax. PriceOK is not true (default false) -> freshlyBuilt is returned unchanged (the normal, always-recompute behavior). Lets a user hand-edit each month's historical rate (rent changes year to year), lock it in via PriceOK: true, and still have new months auto-append at the current rate.
+
+**Run:**
+
+```bash
+node scripts/Yamls/freezePriceMonEntries.mjs --existing <existing>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `existing` | no | yamlData.PriceMon/PriceMaxMon as loaded from disk, before this run's rewrite |
+| `freshlyBuilt` | no | buildPriceMonEntries/buildPriceMaxMonEntries's own freshly-computed output |
+| `priceOK` | no | yamlData.PriceOK |
 
 ## getConfig(keyPath, [type], [defaultValue])
 
@@ -4359,7 +4480,7 @@ node scripts/Yamls/mergeYamlsInFolder.mjs --file "<path>"
 |-----------|----------|-------------|
 | `folderPath` | no | — |
 
-## recomputeChain(startDate, futureDate, price, priceMax, payments)
+## recomputeChain(startDate, futureDate, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays, payments)
 
 **Run:**
 
@@ -4371,8 +4492,11 @@ node scripts/Yamls/recomputeChain.mjs --startDate <startDate>
 |-----------|----------|-------------|
 | `startDate` | no | — |
 | `futureDate` | no | — |
-| `price` | no | — |
-| `priceMax` | no | — |
+| `accrualDays` | no | — |
+| `priceMon` | no | — |
+| `priceDay` | no | — |
+| `priceEqualsMax` | no | — |
+| `penaltyDays` | no | — |
 | `payments` | no | — |
 
 ## replaceTextLine(filePath, key, value)
@@ -4471,6 +4595,21 @@ node scripts/Yamls/writeAccrual.mjs --file "<path>"
 | `filePath` | no | — |
 | `accrual` | no | — |
 
+## writeAccrualDays(filePath, accrualDays)
+
+Writes/replaces the AccrualDays: array block IN PLACE at its existing position, or after Account: as a fallback anchor for a file that has never had this key before (see buildAccrualDaysEntries). One entry per Account calendar day, "YYYY-MM-DD" key, the actual per-day rate (PriceDay or PriceMaxDay) that day debited, plus a trailing ALL sum. AccrualDays: - 2026-01-19: 52,258 - 2026-01-20: 52,258 - 2026-02-02: 57,857 - ALL: 1,234,567
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeAccrualDays.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `accrualDays` | no | — |
+
 ## writeCellArrays(ymlFile, folderALL)
 
 **Run:**
@@ -4525,7 +4664,7 @@ node scripts/Yamls/writeHistory.mjs --file "<path>"
 
 ## writeLoaners(filePath, loanersTotal)
 
-Writes/replaces the Loaners: scalar line IN PLACE at its existing position, or after History: as a fallback anchor for a file that has never had this key before. Value: the ABSOLUTE value of Account's own LAST entry — the outstanding debt (or surplus, if positive) at PeriodEnd. A plain scalar, NOT an array — the array shape was retired once Account itself carried the full daily detail. Loaners: 893,342
+Writes/replaces the Loaners: scalar line IN PLACE at its existing position, or after Accrual: as a fallback anchor for a file that has never had this key before. Value: Accrual's own ALL total minus History's own ALL total — total charged minus total paid/returned, always. A plain scalar, NOT an array — the array shape was retired once Account itself carried the full daily detail; the Account-last-entry formula was retired in favor of this total-vs-total figure. Loaners: 893,342
 
 **Run:**
 

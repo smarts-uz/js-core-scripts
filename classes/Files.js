@@ -171,6 +171,61 @@ export class Files {
   }
 
   /**
+   * Keeps only the `keep` most-recently-modified files (by mtime) directly inside `folder`'s own top level.
+   * Moves every older file into `folder\@ Other\`.
+   * Skips sub-folders (including an existing "@ Other") and a locked Office `~$*` temp file.
+   * Never deletes — always a move (`fs.renameSync`).
+   *
+   * @param {string} folder - Folder whose own top-level files are retained.
+   * @param {number} keep - How many most-recent files stay in `folder`.
+   * @param {string|null} ext - Optional extension filter (e.g. ".xlsx"); null = any file.
+   * @returns {string[]} Absolute paths of files moved into "@ Other".
+   */
+  static retainLatestFiles(folder, keep, ext = null) {
+    console.info(`[Files.retainLatestFiles] 🟢 Starting... folder=${folder}, keep=${keep}, ext=${ext}`);
+
+    if (!fs.existsSync(folder)) {
+      console.warn(`[Files.retainLatestFiles] Folder not found: ${folder}`);
+      return [];
+    }
+
+    const wantExt = ext ? ext.toLowerCase() : null;
+    const entries = fs.readdirSync(folder, { withFileTypes: true });
+
+    const candidates = [];
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (entry.name.startsWith('~$')) continue;
+      if (wantExt && path.extname(entry.name).toLowerCase() !== wantExt) continue;
+
+      const fullPath = path.join(folder, entry.name);
+      candidates.push({ path: fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs });
+    }
+
+    if (candidates.length <= keep) {
+      console.info(`[Files.retainLatestFiles] ⏩ ${candidates.length} file(s), within keep=${keep}, nothing to move`);
+      return [];
+    }
+
+    candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const toMove = candidates.slice(keep);
+
+    const archiveDir = path.join(folder, '@ Other');
+    this.mkdirIfNotExists(archiveDir);
+
+    const moved = [];
+    for (const { path: filePath } of toMove) {
+      const dest = this.incrementFileName(path.join(archiveDir, path.basename(filePath)));
+      fs.renameSync(filePath, dest);
+      console.log(`[Files.retainLatestFiles] Moved to @ Other: ${filePath} → ${dest}`);
+      moved.push(dest);
+    }
+
+    console.info(`[Files.retainLatestFiles] ✅ Moved ${moved.length} file(s) into: ${archiveDir}`);
+    return moved;
+  }
+
+  /**
    * Checks if a URL already exists in any relevant directory
    * @param {string} url - The URL to check
    * @param {string} currentSaveDir - The current save directory to exclude from checking

@@ -468,6 +468,68 @@ describe('Files.incrementFileName', () => {
   });
 });
 
+describe('Files.retainLatestFiles', () => {
+  // Writes N files with distinct, increasing mtimes (oldest first, index 0).
+  function writeAged(names) {
+    const now = Date.now();
+    names.forEach((name, i) => {
+      const f = path.join(dir, name);
+      fs.writeFileSync(f, 'x', 'utf8');
+      const t = new Date(now + i * 1000);
+      fs.utimesSync(f, t, t);
+    });
+  }
+
+  it('does nothing when file count is within keep', () => {
+    writeAged(['a.xlsx', 'b.xlsx']);
+    const moved = Files.retainLatestFiles(dir, 5, '.xlsx');
+    expect(moved).toEqual([]);
+    expect(fs.existsSync(path.join(dir, '@ Other'))).toBe(false);
+  });
+
+  it('moves every file beyond keep, oldest first, into "@ Other"', () => {
+    writeAged(['a.xlsx', 'b.xlsx', 'c.xlsx', 'd.xlsx', 'e.xlsx', 'f.xlsx', 'g.xlsx']);
+    const moved = Files.retainLatestFiles(dir, 5, '.xlsx');
+
+    expect(moved).toHaveLength(2);
+    expect(fs.existsSync(path.join(dir, 'a.xlsx'))).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'b.xlsx'))).toBe(false);
+    expect(fs.existsSync(path.join(dir, '@ Other', 'a.xlsx'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, '@ Other', 'b.xlsx'))).toBe(true);
+
+    // The 5 newest stay in place.
+    for (const name of ['c.xlsx', 'd.xlsx', 'e.xlsx', 'f.xlsx', 'g.xlsx']) {
+      expect(fs.existsSync(path.join(dir, name))).toBe(true);
+    }
+  });
+
+  it('ignores extension mismatches and locked ~$ temp files', () => {
+    writeAged(['a.xlsx', 'b.docx', '~$c.xlsx']);
+    const moved = Files.retainLatestFiles(dir, 1, '.xlsx');
+    expect(moved).toEqual([]);
+    expect(fs.existsSync(path.join(dir, 'a.xlsx'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'b.docx'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, '~$c.xlsx'))).toBe(true);
+  });
+
+  it('never overwrites a same-named file already sitting in "@ Other"', () => {
+    fs.mkdirSync(path.join(dir, '@ Other'));
+    fs.writeFileSync(path.join(dir, '@ Other', 'a.xlsx'), 'old', 'utf8');
+    writeAged(['a.xlsx', 'b.xlsx']);
+
+    const moved = Files.retainLatestFiles(dir, 1, '.xlsx');
+
+    expect(moved).toEqual([path.join(dir, '@ Other', 'a 1.xlsx')]);
+    expect(read(path.join(dir, '@ Other', 'a.xlsx'))).toBe('old');
+    expect(read(path.join(dir, '@ Other', 'a 1.xlsx'))).toBe('x');
+  });
+
+  it('returns an empty array when the folder does not exist', () => {
+    const moved = Files.retainLatestFiles(path.join(dir, 'missing'), 5, '.xlsx');
+    expect(moved).toEqual([]);
+  });
+});
+
 // =============================================================================
 // fs mutation helpers
 // =============================================================================

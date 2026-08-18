@@ -1438,6 +1438,10 @@ export class Excels {
       this.fileClose();
     }
 
+    // Keeps only the 5 most-recent ActReco reports in this company's own output folder.
+    // Every older one moves into "@ Other" (never deleted).
+    Files.retainLatestFiles(globalThis.folderActReco, 5, '.xlsx');
+
   }
 
   static protectFile(filename, password) {
