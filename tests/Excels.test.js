@@ -47,13 +47,19 @@ const FilesMock = {
   incrementFileName: jest.fn((filePath) => {
     if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
-    let i = 1;
-    let np = filePath;
-    while (fs.existsSync(np)) {
-      np = path.join(parsed.dir, `${parsed.name} ${i}${parsed.ext}`);
-      i++;
+    let baseName = parsed.name;
+    let counter = 1;
+    const match = baseName.match(/^(.*?)\s+(\d+)$/);
+    if (match) {
+      baseName = match[1];
+      counter = parseInt(match[2], 10);
     }
-    return np;
+    let newPath = filePath;
+    while (fs.existsSync(newPath)) {
+      newPath = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
+      counter++;
+    }
+    return newPath;
   }),
   mkdirIfNotExists: jest.fn((d) => fs.mkdirSync(d, { recursive: true })),
   copyFileWithRetry: jest.fn((src, dest) => fs.copyFileSync(src, dest)),
@@ -460,7 +466,7 @@ describe('Excels.processAccrual', () => {
     return sheet;
   }
 
-  it("writes one row per yamlData.Accrual entry, splitting each interval key into start/end/amount (3 columns)", () => {
+  it('writes one row per yamlData.Accrual entry, splitting each interval key into start/end/amount (3 columns)', () => {
     const sheet = installSheet({ Row: 5, Column: 2 });
 
     Excels.processAccrual({
@@ -622,7 +628,9 @@ describe('Excels.processFakturaSend', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
-    expect(() => Excels.processFakturaSend({ FakturaSend: [{ '2026-06-30': '779,355' }] })).not.toThrow();
+    expect(() =>
+      Excels.processFakturaSend({ FakturaSend: [{ '2026-06-30': '779,355' }] })
+    ).not.toThrow();
   });
 });
 
@@ -758,8 +766,14 @@ describe('Excels.processAccount', () => {
   // A plain (non-Proxy) stand-in cell whose .Font is memoized across accesses.
   function makeFontTrackingCell() {
     const font = { __sets__: {} };
-    Object.defineProperty(font, 'Bold', { set: (v) => (font.__sets__.Bold = v), get: () => font.__sets__.Bold });
-    Object.defineProperty(font, 'Color', { set: (v) => (font.__sets__.Color = v), get: () => font.__sets__.Color });
+    Object.defineProperty(font, 'Bold', {
+      set: (v) => (font.__sets__.Bold = v),
+      get: () => font.__sets__.Bold,
+    });
+    Object.defineProperty(font, 'Color', {
+      set: (v) => (font.__sets__.Color = v),
+      get: () => font.__sets__.Color,
+    });
     return { Value: undefined, Font: font };
   }
 
@@ -857,7 +871,9 @@ describe('Excels.processAccrualDays', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
-    expect(() => Excels.processAccrualDays({ AccrualDays: [{ '2026-01-19': '52,258' }] })).not.toThrow();
+    expect(() =>
+      Excels.processAccrualDays({ AccrualDays: [{ '2026-01-19': '52,258' }] })
+    ).not.toThrow();
   });
 });
 
@@ -941,7 +957,9 @@ describe('Excels.processPriceMaxMon', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
-    expect(() => Excels.processPriceMaxMon({ PriceMaxMon: [{ '2026-01': '1,620,000' }] })).not.toThrow();
+    expect(() =>
+      Excels.processPriceMaxMon({ PriceMaxMon: [{ '2026-01': '1,620,000' }] })
+    ).not.toThrow();
   });
 });
 
@@ -1025,7 +1043,9 @@ describe('Excels.processPriceMaxDay', () => {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
-    expect(() => Excels.processPriceMaxDay({ PriceMaxDay: [{ '2026-01': '52,258' }] })).not.toThrow();
+    expect(() =>
+      Excels.processPriceMaxDay({ PriceMaxDay: [{ '2026-01': '52,258' }] })
+    ).not.toThrow();
   });
 });
 
@@ -1851,6 +1871,62 @@ describe('Excels.generate', () => {
       false,
       false
     );
+    killSpy.mockRestore();
+  });
+
+  /*
+   * Regression: generate() built a fully deterministic output filename (company + template name + today's date + prepay month), no version suffix.
+   * Files.copyFileWithRetry then silently deleted+overwrote whatever already sat at that exact path.
+   * A second run the same day for the same company/template destroyed the first run's report instead of versioning it.
+   * The base filename now always carries a trailing " 1", routed through Files.incrementFileName.
+   * The first-ever report is created as "... 1.xlsx"; every later run the same day bumps to " 2", " 3", never overwriting.
+   */
+  it('always increments the ActReco output filename, starting at " 1", never overwriting a prior report', () => {
+    globalThis.folderActReco = path.join(workDir, 'ActReco4');
+    globalThis.folderALL = path.join(workDir, 'ALL4');
+    fs.mkdirSync(globalThis.folderALL, { recursive: true });
+    const templateFolder4 = path.join(workDir, 'excel-tpl-folder-4');
+    fs.mkdirSync(templateFolder4, { recursive: true });
+    fs.writeFileSync(path.join(templateFolder4, 'Tpl4.xlsx'), 'tpl', 'utf8');
+
+    YamlsMock.getConfig.mockImplementation((key) => {
+      if (key === 'Templates.Excel') return templateFolder4;
+      if (key === 'Excel.CellNames') return [];
+      return null;
+    });
+    YamlsMock.loadYamlWithDeps.mockReturnValue({ ComName: 'Acme' });
+    YamlsMock.getPrepayMonth.mockReturnValue(1);
+
+    const cellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    cellsFn.Find = jest.fn(() => makeComProxy({ Row: 1, Column: 1 }, 'found'));
+    cellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: cellsFn }, 'AppSheet');
+
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+    // First run: no file exists yet at the " 1" path, so it lands exactly there.
+    installApp(
+      makeComProxy({ Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() }, 'Workbook'),
+      { ExecuteExcel4Macro: jest.fn(() => 1), CalculateFull: jest.fn(), Quit: jest.fn() }
+    );
+    expect(() => Excels.generate(path.join(workDir, 'f.yml'))).not.toThrow();
+
+    const files1 = fs.readdirSync(globalThis.folderActReco);
+    expect(files1).toHaveLength(1);
+    expect(files1[0]).toMatch(/^ActReco, Acme, Tpl4, \d{4}-\d{2}-\d{2}, PrePay-1 1\.xlsx$/);
+
+    // Second run, same day/company/template/prepay: must not overwrite the first file, must bump to a fresh " 2" name.
+    installApp(
+      makeComProxy({ Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() }, 'Workbook'),
+      { ExecuteExcel4Macro: jest.fn(() => 1), CalculateFull: jest.fn(), Quit: jest.fn() }
+    );
+    expect(() => Excels.generate(path.join(workDir, 'f.yml'))).not.toThrow();
+
+    const files2 = fs.readdirSync(globalThis.folderActReco).sort();
+    expect(files2).toHaveLength(2);
+    expect(files2).toContain(files1[0]);
+    expect(files2.some((f) => /PrePay-1 2\.xlsx$/.test(f))).toBe(true);
+
     killSpy.mockRestore();
   });
 });

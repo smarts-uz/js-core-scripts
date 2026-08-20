@@ -1355,10 +1355,11 @@ export class Excels {
     const templateFileName = Files.getBaseName(templatePath, '.xlsx');
     const dateString = `${new Intl.DateTimeFormat('en-CA').format(new Date())}`;
 
-    const actRecoFile = `ActReco, ${yamlData.ComName}, ${templateFileName}, ${dateString}, PrePay-${prepayMonth}.xlsx`;
+    const actRecoFile = `ActReco, ${yamlData.ComName}, ${templateFileName}, ${dateString}, PrePay-${prepayMonth} 1.xlsx`;
     console.log(`New file name: ${actRecoFile}`);
 
-    const newFilePath = path.join(globalThis.folderActReco, actRecoFile);
+    const baseFilePath = path.join(globalThis.folderActReco, actRecoFile);
+    const newFilePath = Files.incrementFileName(baseFilePath);
     console.log(`New file path: ${newFilePath}`);
 
     // Attempt to copy the file
