@@ -1030,7 +1030,7 @@ describe('Excels.processPriceMaxDay', () => {
 });
 
 // =============================================================================
-// processPenalty — drives globalThis.excelSheet via findColumn, always runs
+// processPenalty — drives globalThis.excelSheet via findColumn, gated by yamlData.PenaltyON
 // =============================================================================
 describe('Excels.processPenalty', () => {
   function installSheet(found = { Row: 5, Column: 15 }) {
@@ -1041,10 +1041,11 @@ describe('Excels.processPenalty', () => {
     return sheet;
   }
 
-  it('writes one row per yamlData.Penalty entry, using each bare start date', () => {
+  it('writes one row per yamlData.Penalty entry when PenaltyON is true', () => {
     const sheet = installSheet({ Row: 5, Column: 15 });
 
     Excels.processPenalty({
+      PenaltyON: true,
       Penalty: [{ '2026-01-01': '250,000' }, { '2026-02-01': '0' }],
     });
 
@@ -1055,9 +1056,22 @@ describe('Excels.processPenalty', () => {
     expect(sheet.Cells).toHaveBeenCalledWith(6, 16);
   });
 
-  it('always runs even when yamlData.Penalty is empty (no PenaltyON-style gate)', () => {
+  it('clears the {Penalty} placeholder to empty when PenaltyON is false, even with real Penalty entries', () => {
+    const sheet = installSheet({ Row: 5, Column: 15 });
+
+    Excels.processPenalty({
+      PenaltyON: false,
+      Penalty: [{ '2026-01-01': '250,000' }],
+    });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{Penalty}');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 15);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(6, 15);
+  });
+
+  it('clears the {Penalty} placeholder to empty when PenaltyON is missing (default)', () => {
     const sheet = installSheet();
-    expect(() => Excels.processPenalty({})).not.toThrow();
+    expect(() => Excels.processPenalty({ Penalty: [{ '2026-01-01': '250,000' }] })).not.toThrow();
     expect(sheet.Cells.Find).toHaveBeenCalledWith('{Penalty}');
   });
 
@@ -1066,7 +1080,9 @@ describe('Excels.processPenalty', () => {
     CellsFn.Find = jest.fn(() => null);
     globalThis.excelSheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
 
-    expect(() => Excels.processPenalty({ Penalty: [{ '2026-01-01': '250,000' }] })).not.toThrow();
+    expect(() =>
+      Excels.processPenalty({ PenaltyON: true, Penalty: [{ '2026-01-01': '250,000' }] })
+    ).not.toThrow();
   });
 });
 

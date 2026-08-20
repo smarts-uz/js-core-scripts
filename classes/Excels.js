@@ -230,14 +230,15 @@ export class Excels {
 
   /**
    * Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml.
-   * Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
+   * Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Sum), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
    * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
-   * Always runs (no ON/OFF flag) — mirrors processPayment's own unconditional shape.
+   * Gated by yamlData.PenaltyON — true writes the real Penalty rows; anything else (including missing/default) leaves the {Penalty} placeholder cleared to empty, same as a zero-row write.
+   * PenaltyDays is unaffected by this flag — it always writes (see processPenaltyDays).
    * Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
    * @param {object} yamlData
    */
   static processPenalty(yamlData) {
-    console.info(`[Excels.processPenalty] 🟢 Starting...`);
+    console.info(`[Excels.processPenalty] 🟢 Starting... PenaltyON=${yamlData.PenaltyON}`);
 
     const found = this.findColumn('Penalty');
     if (!found) {
@@ -247,7 +248,7 @@ export class Excels {
 
     let row = found.Row;
 
-    const penalty = Array.isArray(yamlData.Penalty) ? yamlData.Penalty : [];
+    const penalty = yamlData.PenaltyON === true && Array.isArray(yamlData.Penalty) ? yamlData.Penalty : [];
     console.log(`processPenalty: ${penalty.length} Penalty entr(y/ies)`, penalty);
 
     for (const entry of penalty) {
