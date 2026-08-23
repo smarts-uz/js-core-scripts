@@ -1917,7 +1917,6 @@ export class Yamls {
         Files.saveInfoToFile(globalThis.folderCompan, `${price}`)
 
         yamlData.ComName = Word.cleanCompanyName(companyInfo.shortName)
-        yamlData.IsYatt = isYatt
 
         yamlData.ComNameLong = companyInfo.name
         yamlData.ComNameShort = companyInfo.shortName
