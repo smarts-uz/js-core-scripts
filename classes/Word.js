@@ -314,8 +314,8 @@ export class Word {
 
     const area = data.Area;
     const outputCore = `${data.ContractNum}, ${area}-kv, ${data.MyCompany}, ${docBaseName}`;
-    const outputDocxPath = path.join(contractNumFolder, `${outputCore}.docx`);
-    const outputPdfPath = path.join(contractNumFolder, `${outputCore}.pdf`);
+    const outputDocxPath = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.docx`));
+    const outputPdfPath = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.pdf`));
 
     this.wordReplace(data, templatePath, outputDocxPath, outputPdfPath);
 

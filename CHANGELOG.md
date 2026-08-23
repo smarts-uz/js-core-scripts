@@ -7,6 +7,14 @@ be regenerated from the git history.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`Word.makeContract` output docx/pdf paths now increment-versioned via `Files.incrementFileName`** — same universal pattern already used by `Excels.js`/`Homoglyph.js`/`Markdown.js`/`PowerPoints.js`. Previously `doc.SaveAs(outputDocxPath, ...)` wrote straight to a fixed computed path, silently overwriting a prior run's contract docx/pdf for the same `ContractNum`/area/company combination.
+
+### Removed
+
+- **`yamlData.IsYatt` retired — never assigned, never read anywhere in this codebase.** `Yamls.js:1920`'s `yamlData.IsYatt = isYatt` write deleted. `isYatt` itself unaffected — still computed fresh as a local `const` from `yamlData.ComType === 'YaTT'` at every check site (`#resolveCompany`, `#resolveContractDate`, `fillYamlWithInfo`). `smarts-firm-docums`'s `templa\ALL.contract` had its own `IsYatt: #Auto` placeholder removed in the same pass (see that skill's own CHANGELOG).
+
 ### Added
 
 - **Per-method runner architecture** — every public static method of every
