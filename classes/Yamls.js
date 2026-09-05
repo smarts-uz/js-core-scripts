@@ -1604,8 +1604,9 @@ export class Yamls {
                 companyInfo.ceo = ceo
             }
 
-            if (!Files.isEmpty(yamlData.RepPINFL)) {
-                let reps = await Didox.infoByTinPinfl(yamlData.RepPINFL, globalThis.folderPartners)
+            const repPinfl = String(yamlData.RepPINFL ?? '').trim();
+            if (repPinfl) {
+                let reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
                 console.log(reps, 'surety');
                 companyInfo.reps = reps
             }
@@ -1625,6 +1626,13 @@ export class Yamls {
 
             Files.writeJson(jsonCachePath, companyInfo)
             console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
+        }
+
+        const repPinfl = String(yamlData.RepPINFL ?? '').trim();
+        if (repPinfl && !companyInfo.reps) {
+            companyInfo.reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
+            if (companyInfo.reps)
+                Files.writeJson(jsonCachePath, companyInfo)
         }
 
         // SurPINFL/surety derivation must run for BOTH the cache path and the API
@@ -2003,7 +2011,9 @@ export class Yamls {
         }
 
 
-        if (!Files.isEmpty(yamlData.RepPINFL) && yamlData.RepEnable === true) {
+        const repPinfl = String(yamlData.RepPINFL ?? '').trim();
+        const repEnabled = yamlData.RepEnable === true || String(yamlData.RepEnable).toLowerCase() === 'true';
+        if (repPinfl && repEnabled) {
             yamlData.RepName = companyInfo.reps?.fullName ?? ''
             yamlData.RepTIN = companyInfo.reps?.tin ?? ''
             yamlData.RepAddress = companyInfo.reps?.address ?? ''
@@ -2226,6 +2236,11 @@ export class Yamls {
          * Insert-if-missing, since a fresh .contract template doesn't carry this output field yet — the generic replaceTextLine loop above only updates an EXISTING line.
          */
         Yamls.writeScalarSection(ymlFile, 'PrepayMon', yamlData.PrepayMon, 'ContractDateEnd');
+        Yamls.writeScalarSection(ymlFile, 'RepName', yamlData.RepName, 'RepCard');
+        Yamls.writeScalarSection(ymlFile, 'RepTIN', yamlData.RepTIN, 'RepName');
+        Yamls.writeScalarSection(ymlFile, 'RepAddress', yamlData.RepAddress, 'RepTIN');
+        Yamls.writeScalarSection(ymlFile, 'RepNs10Code', yamlData.RepNs10Code, 'RepAddress');
+        Yamls.writeScalarSection(ymlFile, 'RepNs11Code', yamlData.RepNs11Code, 'RepNs10Code');
 
         /*
          * PeriodEndApp is retired — PeriodEnd itself now carries what PeriodEndApp used to compute (see #resolveDates).
