@@ -2028,6 +2028,73 @@ describe('Yamls.replaceYaml', () => {
     expect(yamlData.ContractDate).toBe('2024-11-05');
   });
 
+  // Regression: a company/YaTT cannot sign a rental contract before it legally
+  // exists — a real .contract once shipped ContractDate 2026-09-15 against a
+  // real registrationDate of 18.09.2026 (3 days AFTER the contract's own
+  // date). This never auto-corrects ContractDate (a hand/registry-filled
+  // starting-Variable value the user must re-check against the real source
+  // document) — it only surfaces the conflict loudly via Dialogs.warningBox.
+  it('warns when an already-filled ContractDate sits BEFORE the company\'s own registrationDate', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComType: 'MChJ', ContractDate: '2026-09-15', Price: '1,200,000' };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliq: { company: { streetName: 'Chilonzor MFY', registrationDate: '18.09.2026' } },
+      });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(yamlData.ContractDate).toBe('2026-09-15'); // never auto-corrected
+    expect(DialogsMock.warningBox).toHaveBeenCalledWith(
+      expect.stringContaining('is BEFORE the company\'s own registration date')
+    );
+  });
+
+  it('does NOT warn when ContractDate sits ON OR AFTER the company\'s own registrationDate', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComType: 'MChJ', ContractDate: '2026-09-18', Price: '1,200,000' };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliq: { company: { streetName: 'Chilonzor MFY', registrationDate: '18.09.2026' } },
+      });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(DialogsMock.warningBox).not.toHaveBeenCalledWith(
+      expect.stringContaining('is BEFORE the company\'s own registration date')
+    );
+  });
+
+  it('skips the ContractDate-vs-registrationDate comparison when registrationDate is missing (never a false warning)', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+
+    const yamlData = { ComType: 'MChJ', ContractDate: '2020-01-01', Price: '1,200,000' };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, {
+        soliq: { company: { streetName: 'Chilonzor MFY', registrationDate: null } },
+      });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(DialogsMock.warningBox).not.toHaveBeenCalledWith(
+      expect.stringContaining('is BEFORE the company\'s own registration date')
+    );
+  });
+
   it('computes ContractDateEnd from ContractDate + Contract.AddDays when left blank', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });

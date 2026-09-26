@@ -1759,9 +1759,15 @@ export class Yamls {
     static #resolveContractDate(yamlData, companyInfo) {
         console.info(`[Yamls.#resolveContractDate] 🟢 Starting...`);
 
-        if (!Files.isEmpty(yamlData.ContractDate)) return;
-
         const isYatt = yamlData.ComType === 'YaTT';
+        const registrationDate = isYatt
+            ? companyInfo.soliqYatt?.registrationDate
+            : companyInfo.soliq?.company?.registrationDate;
+
+        if (!Files.isEmpty(yamlData.ContractDate)) {
+            Yamls.#warnIfContractDateBeforeRegistration(yamlData.ContractDate, registrationDate);
+            return;
+        }
 
         const address = isYatt
             ? (companyInfo.soliqYatt?.entrepreneurshipAddress?.address ?? '')
@@ -1770,15 +1776,31 @@ export class Yamls {
         console.log('address', address, 'isAdolatMFY', isAdolatMFY);
 
         if (isAdolatMFY) {
-            const registrationDate = isYatt
-                ? companyInfo.soliqYatt?.registrationDate
-                : companyInfo.soliq?.company.registrationDate;
-
             yamlData.ContractDate = Dates.didoxToExcel(registrationDate);
             console.log('ContractDate from registrationDate (Adolat MFY)', yamlData.ContractDate);
         } else {
             yamlData.ContractDate = Dates.today();
             console.log('ContractDate from today', yamlData.ContractDate);
+        }
+
+        Yamls.#warnIfContractDateBeforeRegistration(yamlData.ContractDate, registrationDate);
+    }
+
+    /*
+     * ContractDate can never sit before the company/YaTT's own real registration date (ComRegDate/RegDate) — a company cannot sign a rental contract before it legally exists.
+     * Real, live-caught defect: a real .contract shipped ContractDate 2026-09-15 against a real registrationDate of 18.09.2026 (3 days AFTER the contract's own date) — never auto-corrected here, since ContractDate is a hand/registry-filled starting-Variable value the user may need to re-check against the real source document; this only surfaces the conflict loudly so it never ships silently again.
+     * Comparison is skipped (never a false warning) when either date is missing/unparseable — registrationDate arrives DD.MM.YYYY from the API, ContractDate is YYYY-MM-DD in the yaml.
+     */
+    static #warnIfContractDateBeforeRegistration(contractDate, registrationDateDMY) {
+        if (Files.isEmpty(contractDate) || Files.isEmpty(registrationDateDMY)) return;
+
+        const registrationDateExcel = Dates.didoxToExcel(registrationDateDMY);
+        if (!Dates.isExcelDate(contractDate) || !Dates.isExcelDate(registrationDateExcel)) return;
+
+        if (contractDate < registrationDateExcel) {
+            Dialogs.warningBox(
+                `ContractDate (${contractDate}) is BEFORE the company's own registration date (${registrationDateExcel}, from ${registrationDateDMY}) — a company cannot sign a contract before it legally exists. Re-check ContractDate against the real registration document (ComRegDate/RegDate marker).`
+            );
         }
     }
 

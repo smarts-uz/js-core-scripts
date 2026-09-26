@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "codetree": {
+      "command": "node",
+      "args": [
+        "c:/Users/Administrator/.vscode/extensions/rishuni30.codetree-claude-1.8.8/bundled-codetree/dist/server/mcp-server.js"
+      ],
+      "cwd": "d:\\Develop\\Projects\\DevApp\\Execute\\JS\\Sources",
+      "env": {
+        "CODETREE_PROJECT_ROOT": "d:\\Develop\\Projects\\DevApp\\Execute\\JS\\Sources"
+      }
+    }
+  }
+}
