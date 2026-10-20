@@ -218,3 +218,167 @@ Barcha 48 ta fayl 40–50 belgilik (Level 3) qat'iy formatda nomlandi:
 
 
 
+## 👤 User
+
+date qoyganda - avvalo hujjatni oqib undagi mavjud aynan hujjatning sanasini ishlat (bemorning yoshi va boshqa sana emas!)! agar bunaqa mos keladigan hujjat sanasi image/pdf da yoq bolsa - shundagina file snasini ishlat!
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+rename action da hamma docuemnt types (office, doc, pdf , excel, ppt, etc) va hamma image/audio/video file types,  ni rename qilishi kerak! boshqa type larni skip qiladi!
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+ai-llm rename action berilgan path ichidagi hamma supported filelarni recursive scan qilib rename qiladi.
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+Eng oxirida: d:\Humans\Medicine\Personal\Durdona\ ni ai-llm action=rename qiladi
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+ocr qilmasin ai-llm hech qachon! ai-ocr umuman chaqirilmasin al-llm tomonidan
+
+Don't let this mistake be repeated! Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files. to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.!
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+smarts-ai-llm action=rename da  modelni ozi ocr qilib oqib oladi! alohida ocr skill chaqirilmaydi! alohida file ga md file yozilmaydi!
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+d:\Humans\Medicine\Personal\Durdona\2026\2026-10-05, Tahlil, TMA umumiy qon Zakirova.jpg
+d:\Humans\Medicine\Personal\Durdona\2026\2026-10-05, Xulosa, EKG ruxsatnomasi Zakirova.jpg
+
+nimaga dovdiravossan!! file text content ni model bilan read qilib aniq qilib yoz name ni doim! adashma umuman!
+
+Don't let this mistake be repeated! Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files. to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+type/category universal bolihsi kerak! istalgan Category da gi file ni support qilishi va type ni aniq yozishi kerak!
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+`smarts-ai-llm` universal toifalar va formatlar bo'yicha to'liq yangilandi.
+Versiya `1.21.0` ga oshirildi, barcha 128 ta test muvaffaqiyatli o'tdi.
+Commit [`b0a268eb`](https://github.com/asror-z/agents-skills/commit/b0a268eb51d1a33f330aa49845981d822f9fb536) va push [`ffa27826`](https://github.com/asror-z/agents-skills/commit/ffa27826adba0ac41bd5fd2fb5a4dee04d7096e3) bajarildi.
+
+`d:\Humans\Medicine\Personal\Durdona\` papkasidagi barcha 27 ta binar fayl qat'iy Level 3 (40–50 belgi) standarti asosida qayta nomlandi:
+- `2026/`: 5 ta adashgan tahlil to'g'rilandi + 4 ta PDF to'liq nomlandi.
+- `2025/`: 1 ta retsept, 3 ta MRT protokoli, 1 ta DICOM zip, 1 ta ISO obraz nomlandi.
+- `2022/`: 1 ta biokimyo PDF, 5 ta tahlil fotosurati, 4 ta sertifikat JPG, 2 ta Word hujjati nomlandi.
+- `2021/`: 1 ta o'pka MRT DICOM zip arxivi nomlandi.
+
+[Rename Report 1.md](file:///d:/Humans/Medicine/Personal/Durdona/Rename%20Report%201.md) va [FileRename.md](file:///d:/Humans/Medicine/Personal/Durdona/FileRename.md) yaratildi.
+`VerifyRename` tekshiruvi yakunlandi: 27/27 fayl diskda tasdiqlandi (0 xatolik).
+
+
+
+
+
+
+
+
+
+

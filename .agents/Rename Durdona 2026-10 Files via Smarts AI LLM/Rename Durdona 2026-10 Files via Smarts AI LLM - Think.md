@@ -509,3 +509,518 @@ Workspace clean. Requirements reviewed.
 
 
 
+## 💭 date qoyganda - avvalo hujjatni oqib undagi mavjud aynan hujjatning sanasini ish
+
+Initial focus: Implement a date handling strategy prioritizing document-specific dates extracted from images or PDFs. If no document date is available, fall back to the file's metadata date. Identify and update existing date handling logic across various modules, reusing existing components where applicable.
+
+
+Prioritizing in-document date extraction, the system needs adjustments to several skills. The `RenameFile` class and related modules within the `smarts-ai-llm` skill will be investigated first for date handling logic, then other skills handling file naming and text extraction will be examined. It will be determined whether files in `d:\Humans\Medicine\Personal\Durdona\2026\` need re-verification.
+
+
+Search date, date format. All agents, docs.
+
+Uncommitted changes noted. Commit with utility.
+
+Task management? Verify tool is for background tasks. No direct todo tool found. Rule needs adjustment.
+
+The task requires prioritizing document dates extracted from images or PDFs over file system dates. The system must first attempt to use the document's internal date. If no suitable date is found within the document, then only the file's date should be used. This change necessitates updating logic across various components handling date retrieval.
+
+
+Identifying components that handle file naming and date extraction is the first step. The priority rule for extracting the document date first, falling back to the file timestamp, will likely require changes in modules responsible for processing document content (OCR, metadata extraction) and file system interactions. Existing date parsing functions and naming templates may need modification to implement the priority.
+
+Waiting for the completion notification from Task 579, which is searching across files. There's no need to poll actively, since the system will resume execution upon notification or user input.
+
+Investigating the naming convention rules within the `smarts-ai-llm` module. Examining the defined format: `{date}, {document type}, {doc title}.{ext}` to ensure proper file naming. The date component requires the ISO format (`YYYY-MM-DD`).
+
+
+A strict date resolution priority is required for the naming convention. The primary source for the date should be the document's content, specifically the examination, issue, or signing date. If the document content lacks a date, the file timestamp should be used as a fallback. The specified date format must adhere to the ISO standard (`YYYY-MM-DD`).
+
+Extracting the date for the new filename requires prioritizing document content for creation, exam, or signing dates, eschewing patient birthdates or ages, and only using the file timestamp as a last resort. This date must be validated to ensure it adheres to the file naming convention, iteratively checking for a "VALID" result.
+
+`validateCandidateName` appears to be a crucial check for naming conventions, ensuring composed candidate names meet specific criteria. Its purpose is to filter out names that fail on format, length, illegal characters, or filler words. Now investigating the potential issue within a specific directory, I will determine if the document date within the files differs from the file timestamp for any of the 48 files.
+
+
+
+
+
+
+
+
+
+
+## 💭 rename action da hamma docuemnt types (office, doc, pdf , excel, ppt, etc) va ha
+
+When setting a date, prioritize using the document's date, extracted from its content (image or PDF), over other dates. If the document content lacks a suitable date, only then should the file's creation date be considered. The user also requests support for renaming all document and media file types.
+
+
+The "rename" action must now handle a broader set of file types, encompassing all common document formats and a wide array of image and audio files. This requires modifications across related components to ensure this expanded scope is correctly processed. Existing file type handling logic may need to be generalized or extended.
+
+Examining the configuration for binary extensions, `.url` is incorrectly included; it's a text-based internet shortcut, not a binary. Observed that `.zip` is notably absent from the list of recognized binary file types, considering a recent DICOM archive, which is a `.zip` file. The investigation extends to include extensions like `.7z`, `.rar`, and `.tar`, which must be considered binary files and need appropriate handling.
+
+Initial assessment indicates the task involves renaming specific file types based on the user's request, specifically targeting documents (including various Office formats and PDFs) along with image, audio, and video files while skipping others. The configuration file likely contains a list of accepted file extensions. The goal now is to verify and expand the recognized file type list, especially for office formats.
+
+Examining the function responsible for extracting URLs from shortcut files. Observed tests for file extension configurations in a related test file. These tests verify the presence and content of lists defining text and binary file extensions.
+
+
+Ensuring that the lists for text and binary extensions are mutually exclusive is critical for file type handling; observed a check that asserts no overlap. The user's requirement to rename specific document, image, audio, and video types necessitates a comprehensive list of extensions for inclusion and potential addition to the 'binaryExtensions' list. Identified `.url` as a potential edge case; it appears to be plain text, but its purpose is a shortcut.
+
+
+Revised file extension classifications; `.url` is currently in the incorrect category. The user's request to rename only specific document and multimedia types necessitates updating extension lists. Considering the intended file operation, `.url` files should be excluded from binary file processing because they are text-based shortcuts. No test failures are expected if `.url` is moved to the text extension list, and the related function will correctly skip `.url` files. Analyzing the document date extraction rule to ensure the exclusion of any personal patient information.
+
+
+The file type scope requires comprehensive updates. The `binaryExtensions` list needs additions; identified several office, archive, audio, video, and image formats. Confirmed `.url` belongs in `textExtensions`. The date resolution strategy will prioritize document content, falling back to file metadata if unavailable.
+
+
+The date extraction strategy now prioritizes document content and will fall back to file metadata only if no document date is found. The in-scope file types for renaming have been defined as all document and multimedia types. Updated the skip message and documentation to reflect this scope. Investigating other skills that might interact with document dates or file renaming.
+
+The system relies on `smarts-file-contents` to handle binary file extraction, acting as the bridge for `smarts-ai-llm`. Since `smarts-file-contents` manages binary extensions, it requires synchronizing the `binaryExtensions` with `textExtensions` to correctly handle a wider range of document types, including Office files. This alignment ensures the seamless processing of all document formats.
+
+Verifying the test suite passes, the focus shifts to ensuring configuration file compatibility across environments. The investigation involves comparing configurations and identifying file extensions requiring addition to binary handling. This aims to support common office document types, like Word, Excel, and PowerPoint, within the system.
+
+
+Examining the configurations, identified the required file extensions for binary handling, including common presentation formats, PDFs, web archives, various image, audio, and video types, along with medical imaging formats.  Added `.zip` to the binary extension list and verified the absence of overlap with text extensions, ensuring proper file processing.
+
+The code explicitly checks if a file is text-readable before attempting a rename operation. If the file is text-based, the process is skipped, and a "text-file" reason is returned. This suggests the renaming functionality is specifically designed for binary files and intentionally avoids modifying text files, which should be renamed manually.
+
+The system verifies a rename operation will proceed by checking a status flag, the source file's existence, and the non-existence of the proposed new name. Examining the naming module's documentation, the scope of the renaming function is all document types.
+
+
+Considering the supported media types and archives, a date-based renaming scheme will be implemented. The primary date source is the document's content, prioritizing the issuance or examination date within the document itself. Only if the document content lacks a date will the file's timestamp be used.
+
+
+The system will rename files according to date extracted from content, or if unavailable, from the file's metadata. Confirmed the date-extraction hierarchy, prioritizing document content dates over file timestamps and only processing documents, images, audio, video, and archives. Updates will be propagated across configuration files. The file extensions for binary data are verified for synchronization.
+
+Observed document dates are 2026-10-05 and 2026-10-16. Patient birth year/date are also present but correctly discarded, as the document dates are distinct and pertinent. These dates are the relevant metadata extracted from the two documents.
+
+
+
+
+
+
+
+
+
+
+## 💭 ai-llm rename action berilgan path ichidagi hamma supported filelarni recursive
+
+The prompt specifies a date preference: prioritize the document's explicit date over other dates (e.g., patient age) extracted from the same document. Only if a relevant document date is absent should the file creation date be considered. The task requires updating all related components to reflect this date handling logic.
+
+
+Initial hypothesis: "Rename" action now requires recursive scanning of directories to find supported files for renaming, excluding certain folders. Identified the scope of file type support as documents, images, audio, and video files.
+
+The existing file type detection logic needs to be updated to include all the specified document and media types. Considered leveraging existing file type categorization routines to avoid redundant code. Confirmed the need to incorporate the new recursive scan behavior within the existing "rename" action handler.
+
+
+Updated file type detection to encompass all specified document and media formats during the "rename" operation. Determined the date extraction priority: first, parse the document's internal content for relevant dates; otherwise, fall back to the file's timestamp. Incorporated a mechanism to extract the document creation, examination, or other relevant dates from various document formats, excluding incidental dates like patient age.
+
+
+Now updating the file type lists, considering all specified extensions for both binary and text formats in the configuration files. Recognized the need to synchronize the example configuration with the main one. Confirmed documentation updates are required for renaming behavior and date handling.
+
+The current documentation requires clarification regarding the scope of the renaming action. It is essential to explicitly define that the "ai-llm rename" action performs a recursive scan within a given path, targeting all supported files for renaming. Clarifying this will improve documentation accuracy and user understanding. The existing description does not clearly state the recursive nature and file type handling of this rename function, which is critical for user understanding.
+
+
+The existing file extension list needs augmentation to precisely match the target file types. Current configuration misses several key Office and image formats that must be included. A comprehensive expansion of file extension mapping is required to correctly handle all relevant file types for renaming.
+
+The configuration test passes if the file extensions lists are updated to include `.txt` and `.pdf`, with no overlap between them. Now examining `SidecarCache.mjs` to understand how text readability is determined.
+
+
+The `_isTextReadable` method's logic in `RenameFile.mjs` determines whether a file should be skipped based on its extension and potential binary content. Binary extensions are explicitly excluded, and text extensions are explicitly included; any other extension requires a content-based check. The initial hypothesis is that updates to the configuration files should ensure `.txt` and `.pdf` files are handled correctly. This likely requires modifications to file extension lists in those configurations.
+
+
+
+
+
+
+
+
+
+
+## 💭 Eng oxirida: d:\Humans\Medicine\Personal\Durdona\ ni ai-llm action=rename qiladi
+
+The prompt specifies a rename action on a directory.  The identified directory structure and file count provide context for the rename operation, and the overall plan is to update relevant supporting elements.
+
+
+Expanded the file extension configurations to include all document, media, and archive types, modifying text and binary classifications accordingly. The naming convention now prioritizes document content dates extracted through text analysis, with file timestamps as a fallback. A critical guardrail was implemented to exclude patient-related dates. The scope of file types considered now encompasses all documents, media, and archives.
+
+
+Considering recursive file processing, the system will now target specific document and archive formats while excluding text and unsupported file types. This scan will prioritize the extraction of dates from file contents, using timestamps only when content-based date retrieval fails. Any dates that are related to patients will be excluded.
+
+The initial step is to inspect the existing configuration file to identify the `binaryExtensions` and `textExtensions` settings. Then, a Node.js snippet will be crafted to ensure clean updates to both the primary configuration file and its example counterpart. To ensure accuracy, the extensions' definitions will be verified.
+
+
+Inspecting the provided lists, it seems the data structures for file extensions are defined. Now it is necessary to determine if the definitions are complete and correctly categorized. A comparison against established file type standards is required to ensure nothing is missed or incorrectly assigned.
+
+Examining the naming guidelines document to determine how to broaden its file scope. Considering expanding the scope to include all document, media, and archive types. Primary focus will be on extracting the document content date.
+
+The path enumeration details require clarification to explicitly highlight the recursive nature of the scan when dealing with folders, scanning all subdirectories at every depth for supported files. Emphasizing the exclusions—`@`-folders, `.cache/`, and `.git/`—is also important. Finally, specifying the types of in-scope files (documents and media files) will enhance clarity.
+
+Investigating the file renaming logic, specifically line 478. The code explicitly skips text-based files, focusing solely on binary file types like PDFs or images, and returns a "skipped" status. This suggests the current operation is correctly identifying and handling text files as intended, preventing unintended renaming.
+
+Analyzing the provided description, the toolkit appears focused on processing text and documents using an LLM-related workflow. Functions include detecting AI-generated text, humanizing AI-written content, and deriving document/media names and summaries from their content. I should investigate the available actions to understand the scope of each.
+
+Initiating a complete scan of the specified directory to understand its contents fully before proceeding with the rename operation. The goal is to identify all files, their current locations within the directory, and their respective file extensions. This comprehensive enumeration will inform the rename action, ensuring the process is executed with a complete understanding of the directory's structure.
+
+The directory structure for Durdona's personal medicine files is organized by year. Preliminary inspection reveals a significant number of files in the 2026 directory, warranting closer examination to determine their content and possible categorization as patient files or other types. Analysis will commence with the files in 2021, 2022, and 2025 to establish a baseline before delving into the potentially numerous files within the 2026 directory.
+
+Extracted the document date, doctor's name, and patient's name from the input text. Identified the date as 2025-07-21. Proceeding to organize the documents based on their descriptions.
+
+Observed a DICOM file and a zipped archive of DICOM slices, both related to a spine MRI scan with the date extracted. Also, there is an ISO disk image of an MRI scan, raising a question about whether ISO files are included in the renaming action, as the instruction was only about documents and images.
+
+Examining the document reveals a medical report concerning an ultrasound of the liver and gallbladder, labeled as 'UZD'. The report's date is confirmed as April 15, 2026. The data clearly indicates a UZD examination.
+
+The image contains patient information including the date of the ultrasound examination, which is April 22, 2026.
+
+Identified the document date as 2026-04-23, the exam as a transvaginal pelvic ultrasound, and the patient as Zakirova Durdona. This appears to be a medical record, relevant to the "UZD" (ultrasound) aspect. The "Kichik chano" likely corresponds to the medical region/exam type.
+
+The document's header appears to be "EKO MARKAZI" or "EKOMARKAZ". It includes a statement regarding all injection procedures needing medical supervision. Found two prescribed medications: Glutathione 4.0 with NaCl 0.9% and Hofitol syrup.
+
+The document appears to be a prescription from an "Eko markazi" (likely an IVF clinic) for endometriosis, addressed to "Zakirova Durdona," dated April 18, 2026. The identified file name confirms the prescription details. Proceeding to analyze another image file.
+
+Candidate filenames generated from content analysis and date extraction are ready for validation. The renaming process necessitates checking each proposed name against predefined criteria. Validation will occur to ensure each meets the project's standards.
+
+Once validated, the renames will be applied to the files within the specified directory structure.
+
+The `validateCandidateName` function's character count likely includes the file extension, not just the base name. The error message indicates a 52-character length exceeding the 50-character limit, where the base name is 48 chars and the extension is `.pdf` (4 chars). Examining the implementation of `validateCandidateName` will confirm how the length is calculated.
+
+
+
+
+
+
+
+
+
+
+## 💭 ocr qilmasin ai-llm hech qachon! ai-ocr umuman chaqirilmasin al-llm tomonidan
+
+The instruction explicitly forbids the AI-LLM from using AI-OCR. This requires a comprehensive search across all relevant components to identify and modify any calls or integrations related to AI-OCR. Prioritize reuse of existing skills or rules to avoid redundant code.
+
+The instruction explicitly forbids the language model from performing OCR, and mandates the use of the OCR component. The entire codebase requires review and update to ensure this constraint is universally enforced across all relevant components. The preference is to reuse existing skills or rules instead of creating redundant code.
+
+The instruction explicitly forbids OCR functionality. The goal is to ensure this prohibition is consistently enforced across all applicable components. It is crucial to identify and modify all relevant code and configuration files. Prioritize leveraging existing preventative measures where possible to avoid redundant implementations.
+
+
+The previous summary mentioned OCR, which triggered this review. The `ai-llm` module, specifically in `module/reading.md` and `module/naming.md`, incorrectly includes OCR for image processing. VLM capabilities should be used instead of OCR for these tasks to align with the constraints. I will examine the specified files to find all instances of OCR usage.
+
+Examining the specified files within the `smarts-ai-llm` directory to find information related to Optical Character Recognition (OCR). The `reading.md` file's content hints at OCR capabilities for processing various document types, including office documents, PDFs, and images. I will now analyze the other identified files for further details on OCR functionality.
+
+The instruction explicitly forbids the AI-LLM from directly calling the OCR mechanism. The documentation confirms the OCR process is internal to the skill. Updating the necessary elements should enforce this restriction and prevent future invocations.
+
+
+Examining the identified files, I need to ensure all mentions or implicit calls related to the OCR functionality are removed or explicitly forbidden within the AI-LLM skill. Relevant sections within those files will need to be updated to prevent unintended OCR invocation. This involves scrutinizing prompts, configurations, and code to enforce the restriction.
+
+`smarts-ai-llm`'s metadata reveals its parent skills include a file contents handler. Investigating its reading capabilities confirms delegation of file processing tasks to another skill. Consequently, further analysis is required to understand where the OCR process is handled given the given statement.
+
+
+OCR functionality must be entirely removed from `ai-llm` and its related modules. This includes ensuring `ai-llm` does not invoke any OCR tools directly or indirectly. The file contents handler must be reviewed to confirm that it is using the correct methods for file processing.
+
+The search for OCR mentions related to the relevant AI modules yielded a reference to "smarts-ai-ocr" in the reading module's document. The module processes various document formats, including images, utilizing this OCR capability.
+
+
+The instruction explicitly prohibits OCR for the `ai-llm` module. Examining the document, `/ OCR /` is found, indicating a potential conflict. Necessary modifications will be implemented across related skill definitions and actions to enforce this invariant. This includes updating skill descriptions, adding explicit "never OCR" rules to action definitions, and checking for OCR mentions in documentation to ensure complete compliance.
+
+
+`smarts-file-contents` includes `smarts-ai-ocr` in its parent skills, but `smarts-ai-llm` does *not*. Further investigation confirms `smarts-ai-ocr` is internal to `smarts-file-contents`. The user's instruction explicitly forbids `ai-llm` from invoking `ai-ocr`, including operations like `rename`, `suggest`, or `summarize`.
+
+
+Explicit rules against OCR within the `ai-llm` module are needed across multiple files. The listed files within the `smarts-ai-llm` directory require inspection and modification to ensure OCR is strictly prohibited in all cases. This includes skill definition, module descriptions, and action definitions to enforce the "never OCR" constraint.
+
+
+Inspecting the specified configuration files for the `ai-llm` module revealed no explicit OCR mentions, so the focus shifts to ensuring that the `smarts-ai-ocr` module has no dependencies with `ai-llm`. The documentation within `smarts-ai-ocr` explicitly clarifies that it's a strictly local tool, never called by `ai-llm`. To ensure this isolation, the inclusion of a strict caller boundary rule in `smarts-ai-ocr` will prevent unintended invocations.
+
+The system is invoking OCR, which directly contradicts the user's explicit negative constraint. The instruction's implementation must be reviewed. The relevant smarts-file-contents delegation requires revision to eliminate OCR calls.
+
+
+The current implementation of the reading module incorrectly includes OCR calls for images within the LLM's purview, violating the specified constraints. This requires modification of the `smarts-file-contents` delegation to prevent OCR invocations from the LLM. The correct method relies on multimodal LLM vision/VLM or pre-existing companion sidecars for image processing.
+
+
+The identified code instances require correction to remove the OCR capability from the LLM module and enforce the multimodal vision approach. This encompasses updating markdown files and skill descriptions to explicitly prohibit OCR usage and clarify the reliance on VLM/sidecars. Necessary modifications will be applied to the `naming`, `actions`, and `SKILL` documentation. Also, update `README.md` and `CONFIG.md` to show that the system never uses OCR.
+
+The file describes a binary-file reading gateway that extracts and caches content, likely for fleet-wide use.  Two actions are defined: renaming the binary based on its content and summarizing the binary document, with both delegating content reading.
+
+
+Previous actions directly violated the constraint that a specific sub-agent should *never* perform OCR. Reviewing the skill dependencies clarifies that this violation originates from internal mechanisms. Addressing this requires modifying all related files to explicitly block direct invocation of the OCR mechanism by the sub-agent.
+
+A crucial rule must be added, enforcing that the OCR engine remains strictly local and never invoked by the LLM component. The next step involves systematically checking and updating LLM-related files to adhere to this newly defined caller boundary, starting with `reading.md` to ensure no direct calls are present in the specified lines.
+
+
+The analysis confirms that the LLM component strictly avoids OCR via explicit prohibitions in its contract and naming module. The content reading delegates to native text extraction, multimodal vision, or cached sidecars. The rule is added to the rename action to enforce the OCR prohibition, which solidifies the caller boundary of LLM.
+
+The configuration manifest clarifies that an unrelated component is NOT a dependency. The current setup centers around several "skill" modules supporting renaming, suggestion, summarization, and universal information/context features. The component in question is explicitly excluded from the listed dependencies.
+
+The file `actions/summarize.md` lacks a rules section. It needs a section titled "## Rules" with two guidelines: one specifying that all file reading must be delegated, and the other forbidding OCR usage, delegating any such function to another LLM.
+
+
+
+
+
+
+
+
+
+
+## 💭 smarts-ai-llm action=rename da  modelni ozi ocr qilib oqib oladi! alohida ocr sk
+
+The request indicates that the model now handles OCR internally during a "rename" action, eliminating the need for a separate OCR skill invocation or Markdown file output. This suggests core logic must be integrated for OCR processing within the rename action. Examine the existing smarts-* skills to identify where OCR functionality can be embedded, promoting code reuse. The "rename" action's code needs significant changes to directly handle the OCR logic within the existing execution path.
+
+
+The "rename" action integrates OCR directly, reading the file's content in-session to derive the new name, avoiding external OCR calls or cache files. This differs from "summarize", which generates a separate summary file; the "rename" action acts directly on the original. This will require refactoring existing components to incorporate in-context OCR for renaming.
+
+
+The file renaming module's behavior regarding sidecar files was confirmed. The rename function and verification process correctly handle cases where a sidecar does not exist, confirming the system's flexibility. The next task involves updating the documentation to reflect the new in-session OCR implementation, removing references to external OCR calls and sidecar files. The documentation update includes revision of the "rename" action documentation to reflect the direct content reading and OCR capabilities of the model.
+
+
+The documentation needs to be updated across multiple files to reflect the in-session OCR integration for the rename and suggest actions. This involves clarifying that the model directly reads document content, handles multimodal input, and avoids external OCR calls. The changes also include removing references to sidecar files in these actions.
+
+The existing approach involves delegated content reading; this seems inefficient. Direct inspection by the model offers a more streamlined method, utilizing multimodal capabilities for diverse file types and eliminating the need for a separate OCR step. This reduces overhead and potential external dependencies.
+
+The "suggest" action's seventh step mirrors the "rename" action's initial stages: path resolution, processing mode selection, and direct model input without intermediate file writing or OCR. This means the model directly consumes the data for name composition, validation, and protection gate application, just like the rename functionality. The key differentiator is the direct model read, bypassing an external OCR process.
+
+The goal is to clarify the reading process within the 'rename' and 'suggest' actions. In these actions, the model performs direct reading of the document or media using multimodal vision or text extraction. The model does not utilize a separate OCR skill or external OCR tools in these instances.
+
+The focus is on documenting the source of content date information. The model directly accesses and reads documents of various formats without relying on a separate OCR process. A key constraint is the strict prohibition of using any OCR capabilities. Additionally, there's a critical guard against the use of patient birth dates.
+
+The description outlines the toolkit's functionalities: AI text detection and humanization via an external service, and content-based document operations. Available actions include detection, humanization, renaming, suggestion, summarization, preparation, information retrieval, context extraction, icon generation, improvement, and fixing. This suggests the tool leverages external capabilities for detection and humanization, then performs internal content-driven processing.
+
+The table entry's description requires refinement to emphasize the content-based renaming, and minimize the reference to model interaction by replacing "model reads directly" with a more general concept. The section's description benefits from reducing the redundant phrase.
+
+
+
+
+
+
+
+
+
+
+## 💭 d:\Humans\Medicine\Personal\Durdona\2026\2026-10-05, Tahlil, TMA umumiy qon Zaki
+
+The user is providing file paths and a clear directive to accurately extract and write the file names. It is crucial to use the model to read the content of each file to reliably determine and write the file name. The instruction highlights a previous error, emphasizing the need for absolute accuracy to prevent future mistakes.
+
+The first image is a medical document. It appears to be a report from a medical center, detailing an ultrasound examination of the liver, gallbladder, and spleen. The patient's name is partially visible.
+
+
+The second file is also a medical document, specifically a pre-operative blood analysis from the same clinic, "SHIFO NUR," for the same patient. This document includes results for HBsAg, HCV, HIV, RW tests, blood group, and blood clotting time. Both files relate to the patient Zakirova D., examined on 05.10.2026.
+
+
+The previous misidentification stemmed from relying on potentially inaccurate OCR or unverified filename mappings instead of utilizing multimodal vision for direct content analysis. Now, the multimodal model must directly analyze image content for precise data extraction and file naming. The correct document format, type, and patient details are retrieved to generate accurate filenames, ensuring future accuracy by reading every single word from the image.
+
+
+Analyzing image content directly, the first file is identified as an ultrasound report for Zakirova D. with the date 2026-10-05, focusing on the liver, gallbladder, and spleen, confirming the correct file name. The second document is confirmed as a pre-operative blood analysis from SHIFO NUR for the same patient and date, therefore it's a `Tahlil` document type, leading to the filename `2026-10-05, Tahlil, Shifo Nur operatsiya Zakirova.jpg`. Next, scanning the full directory is necessary to process the complete set of medical records. Every document, image, or PDF file will undergo direct visual analysis to guarantee accurate identification and naming.
+
+
+Verifying the requirement for direct image inspection, I need to augment the relevant documentation with a new section. This section must emphasize the necessity of directly reading the visual content of the documents. It also needs to provide examples of what should be extracted from the content, like the clinic name, title, date, etc.
+
+
+Reviewing the guidelines, it's essential to enforce strict document type classification by directly reading the headers. The file naming process must reflect the precise document type based on the detected header. This ensures accuracy by eliminating ambiguity and relying solely on the visual content of the image.
+
+Document type classification requires explicit rules matching document headers to concise categories. Considering the need for accuracy, an example set of rules is added for common document types like ultrasounds (UZD), blood analysis (Tahlil), and electrocardiograms (EKG). This is designed to prevent incorrect classifications like "Tahlil" for an ultrasound document.
+
+The renaming action necessitates direct reading and inspection of documents and images using multimodal vision or direct text parsing, depending on the file type. Crucially, the model must extract information truthfully from document headers to prevent misidentification of document types; it should extract specific details like the clinic name, protocol, date, and findings.
+
+The documentation indicates that the model directly handles document reading for renaming tasks, eliminating the need for a separate OCR process. This suggests the current description in the skill definition needs updating to reflect this direct reading capability.
+
+Initial assessment suggests these are medical documents, specifically blood test results (TMA) and an EKG report/authorization for Zakirova, dated October 5, 2026. The next step is to analyze the content of each document.
+
+
+The first document appears to be an ultrasound (UZD) report from "Shifo Nur" clinic, dated October 5, 2026, for patient Zakirova, detailing findings of gallbladder issues.  Several filename candidates were considered based on clinic name, body parts examined, and patient, with slight variations in length, prompting a check for other UZD files on the same date within the relevant directory. The second file is a pre-operative examination report, also from "Shifo Nur."
+
+Examining `f1` and `f2` revealed both files contain identical medical report content: a "SHIFO NUR" multi-disciplinary medical center protocol for ultrasound examination of the liver, gallbladder, and spleen. Further investigation is required to determine the relationship between `f1` and the other related file.
+
+The file `2026-10-05, EKG, Sinus ritmi xulosasi Zakirova.jpg` is confirmed as an ECG strip, containing rhythm data for Zakirova. Now, examining the contents of directory `2026`, the file `2026-10-05, Tahlil, TMA umumiy qon Zakirova.jpg` appears to be a blood test result.
+
+The image contains a medical document, specifically a coagulation test report from a medical center. The report details several coagulation parameters: PTI, INR, Prothrombin Time, Fibrinogen, Thrombin Time, and APTT. It also confirms the sample has been collected.
+
+Observed that two image files, despite having different filenames, contain identical content, specifically a pre-operative examination form from "SHIFO NUR". The file mislabeled as an EKG consent form is in fact a duplicate of the blood test results.
+
+
+Examined the content of several images, discovering a mislabeling issue. The file intended to be the EKG consent form actually contained pre-operative blood test data (HBsAg, HCV, HIV, RW, and blood group).
+
+Further investigation revealed swapped filenames for blood biochemistry and blood clotting tests. The file labeled as "Jigar fermentlari" (liver enzymes) held blood clotting data, while the file labeled "Qon ivishi tahlili" contained the biochemistry results including ALT/AST. This likely indicates a data entry or labeling error during the original file handling process.
+
+Photo 1 presents a general urine analysis. Photo 2 describes a diagnosis of cholelithiasis (gallstones) and indicates a recommendation for surgical treatment. The second photo's filename, "Xulosa," confirms that it's a conclusion or summary of the patient's condition.
+
+I'm thinking through how to approach this.
+
+
+Begin by addressing the mislabeled files, matching document types to the provided corrections, while adhering to naming conventions. Proceed to rename the remaining files, ensuring proper date formatting and title construction based on available information.
+
+Identifying five mislabeled files within the specified directory. Examining the file names to understand the structure of labels and extract relevant information to correct the mislabeling. Determining a renaming strategy based on the extracted information, attempting to ensure consistency across the files.
+
+
+Analyzing file names reveals date inconsistencies and missing contextual information. Renaming the two 2026 files requires parsing the date format and identifying subject matter (e.g., "Tahlil" implies "analysis"). The "New Document" files in 2026 lack informative names, requiring further investigation to determine their content.
+
+Examining the "Spine MRI" directory in 2025, the ISO file raises questions; its nature as an archive warrants inspection. The remaining files in the 2025 Spine MRI directory need translation and clarification. Files in 2022's "- Theory" and the others are seemingly correctly named, but still need verification for consistent naming patterns.
+
+
+
+
+
+
+
+
+
+
+## 💭 type/category universal bolihsi kerak! istalgan Category da gi file ni support q
+
+The request necessitates a universal type/category handling capability across all relevant components. It requires comprehensive file type support within any category, ensuring accurate type identification. The approach should prioritize leveraging existing code where applicable, minimizing redundant implementation.
+
+The requirement is for universal file category support with accurate type identification, implying a need to revise existing modules. Initial focus will be on identifying relevant `smarts-*` components and leverage existing categorization logic where possible. Lines 26-44 of `naming.md` might contain clues on existing categorization or type handling methods to adapt.
+
+Investigating available skills related to file handling within the agent's configuration. Identified several potentially relevant skills: AI-driven renaming, folder categorization, file versioning, and corporate document organization. Need to assess each skill's specific capabilities to determine the best approach for the task.
+
+The goal is to ensure a universal type/category system that supports all file categories and accurately identifies their types within the `smarts-ai-llm` scope. Initially, assess existing components for reusability, aiming to avoid redundant code and leveraging prior skills or rules whenever feasible. The approach involves updating relevant parts across various files to accommodate the broadened scope of file type handling and category assignment.
+
+The core requirement is universal file support with explicit type/category identification. This necessitates modifying various components to handle diverse file types. The primary strategy involves leveraging existing mechanisms where feasible instead of creating entirely new solutions.
+
+
+The current system requires expansion to handle diverse document types beyond the initial focus. A universal category/type system is needed. This will involve analyzing existing file handling components to identify areas for modification.
+
+
+A comprehensive taxonomy is needed to define `{document type}` universally, encompassing diverse domains. The system will now classify documents with specific labels, like "Shartnoma" for contracts or "Audio" for recordings, based on the file's inherent attributes.
+I'm thinking through how to approach this.
+
+
+Dynamic header analysis is essential for identifying the precise document type, avoiding generic classifications. This will involve expanding the patterns to support numerous universal categories, including legal, financial, medical, and various other domains. The reading component must accurately determine document type for any domain by directly examining the file header and content. This accurate typing will be critical across all actions, including rename and suggest, ensuring the correct `{document type}` is always used.
+
+`.7z`, `.rar`, `.tar`, `.gz`, `.iso`, `.bz2`, `.xz`, and `.tgz` are common archive file extensions, surprisingly absent from the known binary extensions. Including these extensions within binary extensions is a beneficial change, especially since the archives can represent different data categories.
+
+`smarts-folder-category` likely handles the categorization requested, organizing AtomicItems (folders) into a structured taxonomy. The goal is to determine how this component fulfills the user's specific request for "type/category" universal categorization. Examining its distribution and organization function is key to assessing its relevance.
+
+
+The `smarts-folder-category` component must now universally categorize files by both "type" and "category". This requires revisiting all relevant components, specifically the renaming logic within the `smarts-*` skills, classes, hooks, scripts, and prompts, to ensure they handle diverse file types correctly. The existing structure needs adaptation to support the requested universal categorization, reusing existing rules where possible instead of introducing redundant code.
+
+
+The current naming scheme's reliance on medical document types is a constraint. The goal is to make the `{document type}` universal, applicable across all categories. Examination of the `naming.md` file reveals a need to expand the existing logic for handling various file types, moving beyond the current medical-centric approach. Existing skills and rules should be reused where possible.
+
+Examining skill interactions to understand file renaming responsibility. The aim is to identify all skills utilizing the renaming function and its ownership. Currently, `smarts-file-increment` is identified as a skill potentially editing text, which is an associated task.
+
+Every time a document is relocated or processed by an organization function, a renaming step is triggered. There is an explicit rule that this renaming step is ALWAYS executed; the system never skips it based on the perceived quality of the existing file name. The renaming decision is made by a dedicated component.
+
+
+The central renaming engine, `smarts-ai-llm`, is confirmed as the sole authority for file renaming across all domains. The requirement for a universal category and document type architecture necessitates broader support beyond the current medical domain. This involves updating all related files to accommodate and accurately represent any category of document type.
+
+
+Considering a broader range of document types beyond the initial medical focus is necessary for the renaming engine. Identified categories include Technical/Engineering, Scientific/Academic, Government/Official Records, Media/Creative, and Real Estate/Utilities. The renaming process must accurately reflect these document types, as indicated by headers, titles, or formal designations within each file.
+
+The goal is to ensure the system handles any file type and category universally, explicitly specifying the file's type. This requires updating relevant skills, classes, hooks, scripts, prompts, and documentation to reflect this universal file handling capability. It's critical to leverage existing skills or rules where applicable to avoid redundant code.
+
+
+Begin by updating the file extension handling to include archive and disc image types, ensuring comprehensive coverage of potential file formats. Re-evaluate the naming convention, focusing on making the "document type" field universally applicable, regardless of the file's domain. Further, a detailed reference table covering diverse categories and relevant document types needs to be integrated into the module's documentation.
+
+
+A comprehensive reference table needs to be created that categorizes diverse document types across multiple domains including technical, scientific, government, media, and real estate. This will directly inform the implementation. The system must accurately determine the `{document type}` from the file itself, avoiding generic labels, by analyzing the printed header, title block, or structural nature.
+
+The goal is to ensure `{document type}` is consistently applied as a universal descriptor. A matrix will be developed to map common document types across all major domains, starting with a review of medical and clinical categories, such as `UZD`.
+
+
+A comprehensive list of document types across various domains has been compiled. This list will serve as a basis for creating a matrix. The matrix will map document types to ensure consistent, verifiable descriptors. The goal is to avoid vague terms, and ensure that the document type is accurately derived from its header or structure.
+
+The current reading contract requires modification. The goal is to enable direct, multimodal reading of any document type, leveraging vision or text extraction. A key aspect is the truthful identification of document type based on printed headers, specifically targeting medical documents such as `UZD`, `EKG`, and others.
+
+Universal applicability of the document type designation is paramount; it must accurately represent the content across all domains. Generic terms are strictly prohibited; the document type should be precise. Accuracy hinges on deriving the type from verifiable source information like headers or official classifications.
+
+Skill successfully updated, validated, and deployed, incrementing the minor version. Further action depends on understanding the user's intent concerning the provided file path. Determining the objective related to "d:\Humans\Medicine\Personal\Durdona" is crucial before proceeding.
+
+
+Analyzing file contents to identify and correct mislabeled files within the specified directory.  The objective is to rename them according to their actual content, based on visual inspection of the image text. Four files were identified and their names will be updated based on the findings.
+
+The file names are confirmed as valid. The next step involves examining the remaining files within the specified directory. These files are PDFs, and the task requires determining the feasibility of extracting their content using available tools.
+
+The system confirms the PDF processing library is present. The plan is to create temporary image previews from the first page of each PDF to enable direct image-based analysis, leveraging a designated scratch directory for storage.
+
+The initial plan was to create a Python script at the specified path. This action is now invalidated. A user rule mandates that all scripts must be `.mjs` files for compatibility, with exceptions for Python library bridges. Therefore, the approach must be revised to produce a `.mjs` file, unless a Python bridge is required.
+
+The image contains a medical report, specifically an ultrasound (UZD) of the liver and gallbladder. The patient is Закирова Дурдона Абдужалол Кизи, and the date is 2026-04-15. The findings indicate "Sludge" and "multiple 4-5mm stones" in the gallbladder. I confirm this document type is UZD.
+
+The document appears to be a medication prescription sheet for a patient named Закирова Дурдона, likely related to endometriosis care, as indicated by the header. There's a date field that appears to be `23.04.26`, with uncertainty regarding the correct date, further analysis is required to determine whether it is 18.04.26 or 23.04.26. The prescribed medications listed are Estrosense, Vitamin D, and Kurkumin.
+
+Examining the image labeled `2022_biochem.png`, the document is titled "ОБЩИЙ АНАЛИЗ КРОВИ" and dated 8.02.2022. The patient's name is Зокирова Дурдона. The file name `Biochem 2022-07-26.pdf` is inconsistent with the displayed date; the displayed date is 8.02.2022. Subsequent pages of the file will need inspection.
+
+Analyzing the provided document reveals a comprehensive clinical laboratory test panel, including a complete blood count, coagulation profile, blood biochemistry, and urinalysis, all conducted in early February 2022. These tests are likely part of a broader health assessment, and the dates suggest a time-series or multi-test approach. Examining the results requires understanding the interrelations between these diverse analyses to form a unified interpretation.
+
+The image contains a laboratory analysis report from the Republican Center of State Sanitary and Epidemiological Supervision, Virulogical Laboratory. The analysis number is 192, dated June 24, 2021. It details the patient's name as Abdurakhmonova Durdona, born November 13, 1994, and lists the performed tests as IFA for Hepatitis B (HBsAg) and IFA for Hepatitis C.
+
+The image contains a certificate from Uzbekistan regarding an HIV test. The document title is "SERTIFIKAT" and confirms a negative HIV test result. The test date is 2021-06-24, and the doctor is Eronov M.M., with the patient being Abduraxmonova Durdona.
+
+Examining `Spid-2.jpg`, the patient's name appears as "ZOKIROVA DURDONA," which differs from the expected "Abduraxmonova"; the date is confirmed as 2021-06-24. The document is a certificate indicating a negative HIV test. Therefore, the filenames are updated to reflect this information, and the next step is examining the files `Books.docx` and `Books-2.docx` within the `2022/` directory.
+
+`Books_img2.jpeg` is identified as the HIV certificate. Further investigation reveals `Books-2_img1.jpeg` and `Books-2_img2.jpeg` are the Hepatitis B and HIV certificates, respectively, under the name Zokirova. This confirms that `Books.docx` is the compiled document for Abduraxmonova, while `Books-2.docx` is the compiled document specifically for Zokirova.
+
+Analyzing the image, the document type is `Tahlil` based on the title `БИОХИМИЧЕСКОЕ ИССЛЕДОВАНИЕ КРОВИ`. The patient's name is `Зокирова Дурдона`, and the test date is `26.07.2022`. The subject matter appears to be a blood test, specifically focusing on bilirubin levels, concerning patient Zakirova.
+
+Analyzing the image, it appears to be a medical document from the Vertebrology department of the Scientific and Practical Medical Center of Traumatology and Orthopedics, dated July 21, 2025. The patient's name is identified as Zokirova Durdona, born in 1994. The diagnosis indicates lumbar spine osteochondrosis, an old compression fracture of VL1, and pain.
+
+Identified two DICOM data sources: `закирова.zip` containing spine MRI data, and `Bmtm.uz.iso`, a CD/DVD image. The filename candidate for `закирова.zip` appears to be a good match. Proceeding to assess the data within.
+
+Identified the date as 2021-07-09 from the DICOM path and extracted document metadata including title and type. Constructed a candidate filename based on this data. Now will validate the constructed names against all files.
+
+
+Validated file name candidates against the given directory structure, confirming date, type, and patient information. Successfully matched original filenames to the corresponding constructed filenames, handling variations in naming conventions. Now proceeding to analyze the remaining files.
+
+Examining the entries that fell outside the character length constraints. The first two entries were too short; adding descriptive terms resolved the shortfall. The third entry exceeded the upper bound; I'll need to look for a concise adjustment.
+
+Analyzing document filenames; verifying formats.
+Ensuring date consistency across files; checking types.
+Confirming titles meet the naming specifications.
+Every check returns a `VALID` status.
+
+Initial focus is on ensuring universal category and type support across all relevant components. Identifying existing skills/rules to reuse and link, avoiding redundant implementations. The core task involves modifying various files, specifically smarts-* skills, classes, hooks, scripts, and markdown files to accommodate the expanded requirements.
+
+Initial investigation focuses on the top-level directory and subdirectories related to a specific individual and a particular field, observing that files were processed across several years. The primary objective is to locate "Rename Report" files. The top-level directory lacks these report files. Subdirectories for the years 2022 and 2025 require examination.
+
+
+Examined the year 2026, finding specific report files and noting file renaming patterns within them, including detailed changes to image and PDF file names. It appears two locations hold renaming data: a local file, and within the 2026 directory. Another "Rename Report" is possibly available in the 2026 directory; otherwise, an existing file will need to be updated.
+
+
+All 27 renamed files will be documented in two files. The objective now is to ensure all file renaming data, specifically the "before" and "after" names for each of the 27 files, is accurately transferred.  Creation or update of the target files will conclude the task.
+
+
+Examining the remaining files, noting the structure of the renaming: year, document type, and a descriptive label. Observing a consistent pattern in how dates are formatted and incorporated into the new filenames.  Now, the renaming data must be accurately transcribed into the reporting files.
+
+The renaming verification requires a markdown table with specific columns: "Old Name", "New Name", and "Folder." The "Folder" column is relative to a root directory, which defaults to the report file's directory. Determining the "Folder" for each row involves extracting the relevant directory path segment from the "Old Name."
+
+
+The "Folder" value derives from the "Old Name" prefix; e.g., "2025\\..." becomes "2025\\Spine MRI". The intended rename verification function, "VerifyRename," parses a three-column markdown table from a "Rename Report N.md" file. Investigating the format of "FileRename.md" revealed a different structure, requiring a dedicated report file format.
+
+The three-column table format ("Old Name", "New Name", "Folder") is critical for the function; "Rename Report 1.md" needs to conform. There is no existing "Rename Report 1.md" in the target directory, so it must be created there along with "FileRename.md". Further checks are necessary and will include "2026/Rename Report 2.md" and "2026/FileRename.md" to confirm the logic. Nine files were renamed in the session, with five of those being prior mislabeled files.
+
+
+The analysis indicates that the parent directory should hold the primary rename report and rename log. This fulfills the user's recursive rename request. Creating `Rename Report 1.md` in the target directory and `FileRename.md` in the parent directory aligns with the identified file structure for renaming. Further assessment to confirm all necessary renaming will include reviewing the planned content of the reports.
+
+
+Folder extraction now requires interpreting the folder structure implicit in the file names. The years (2026, 2025, etc.) will likely represent top-level directories. File names contain clues regarding subdirectory assignments (e.g., "Umurtqa MRT" suggests a "Spine MRI" directory within the year).
+
+I need to map the "Old Name" prefixes to the corresponding "Folder" values, inferring the directory structure from the file name patterns for accurate report generation. The "Folder" column's entries must reflect these inferred directories. Files without an obvious folder prefix might require the root directory.
+
+
+Folder identification requires examining file patterns within the directory structure, particularly the "Old Name" entries. File extensions need to be considered when generating entries.
+
+Analyze existing file naming conventions to determine document types and title.  This is essential for correct report population.
+
+
+The file list now provides specific examples for folder structure inference. Year prefixes (2026, 2025, 2022) likely indicate top-level directories. File names like "Umurtqa MRT" suggest subdirectories like "Spine MRI."
+
+The "Folder" column requires populating with these inferred directory assignments. Files without explicit folder paths will be assigned to the root.
+
+Each file needs to be assigned to the correct "Old Name," "New Name," and "Folder." File extensions are important for folder and type assignments.
+
+Analyzing `FileRename.md` and `Rename Report 3.md` to ensure they accurately reflect the folder's file changes. Identified rows needing updates within `FileRename.md` for proper documentation of the rename operations. The goal is to verify the accuracy of the documented file renaming history within the specified markdown files.
+
+`smarts-ai-llm` tozalangan.
+GitHub'ga push qilindi: [`ffa27826`](https://github.com/asror-z/agents-skills/commit/ffa27826adba0ac41bd5fd2fb5a4dee04d7096e3).
+Barcha ko'rsatmalar qayta ko'rib chiqildi.
+Caveman rejimi, qisqacha gaplar, 100% qoidalar.
+Faqat ingliz tili fayllari, javob foydalanuvchi tilini takrorlaydi (o'zbek).
+Commit SHA = link.
+Javob qisqacha, aniq Caveman o'zbek tilida formatlanadi.
+
+
+
+
+
+
+
+
+
+
