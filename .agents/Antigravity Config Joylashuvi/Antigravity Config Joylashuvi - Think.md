@@ -75,3 +75,16 @@ The code checks for a remote repository configured for the current branch. If no
 
 
 
+## 💭 (no prompt)
+
+The `Stop hook` unexpectedly triggered during the `git push` operation, despite the task being incomplete. The likely cause is that each turn, the agent sends a user update, which results in the "end of turn" trigger, which then activates the `Stop hook`. Consequently, the `Stop hook` checks the `git status`, and writes session telemetry/chat logs. This premature termination needs to be corrected.
+
+
+
+
+
+
+
+
+
+
