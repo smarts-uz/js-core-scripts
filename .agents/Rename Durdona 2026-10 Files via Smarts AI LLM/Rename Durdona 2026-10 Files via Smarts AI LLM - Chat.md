@@ -523,3 +523,20 @@ Faqat ko'rsatilgan 3 ta fayl Level 3 standarti (40–50 belgi) bo'yicha nomlandi
 
 
 
+## 👤 User
+
+file name da date qoshish faqatgina date argument true bolganda ishlasin! agarda path string "Medicine" ni include qilsa date arg = true boladi. default date=false. date=false bolganda - filename da date umuman yozilmaydi. agar path string "Medicine" ni include qilsa ammo user tomonidan promptda date=false berilsa ham date arg yozilmaydi.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+

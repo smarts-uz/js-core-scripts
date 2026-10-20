@@ -51,3 +51,22 @@ d:\Humans\Medicine\Personal\Durdona\2026\New Document(44).pdf
 ▫️▫️▫️
 
 @[Quote] qilingna changelarni qoldir! revert qilma! ketyin renmae qil
+
+▫️▫️▫️
+
+d:\Machine\Platform\Provider\claude.ai, code.claude.com\Features\Projects Context\20261020_115936.mp4
+d:\Machine\Platform\Provider\claude.ai, code.claude.com\Features\Projects Context\20261020_120759.mp4
+d:\Machine\Platform\Provider\claude.ai, code.claude.com\Features\Projects Context\20261020_122402.mp4
+
+rename these too
+
+▫️▫️▫️
+
+file name da date qoshish faqatgina date argument true bolganda ishlasin! agarda path string "Medicine" ni include qilsa date arg = true boladi. default date=false. date=false bolganda - filename da date umuman yozilmaydi. agar path string "Medicine" ni include qilsa ammo user tomonidan promptda date=false berilsa ham date arg yozilmaydi.
+
+▫️▫️▫️
+
+ai-llm skill da 
+file name da date qoshish faqatgina date argument true bolganda ishlasin! agarda path string "Medicine" ni include qilsa date arg = true boladi. default date=false. date=false bolganda - filename da date umuman yozilmaydi. agar path string "Medicine" ni include qilsa ammo user tomonidan promptda date=false berilsa ham date arg yozilmaydi.
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
