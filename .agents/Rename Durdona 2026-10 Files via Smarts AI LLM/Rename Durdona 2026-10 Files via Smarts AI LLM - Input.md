@@ -22,3 +22,32 @@ Update the necessary lines throughout all relevant smarts-* skills / classes / h
 text files ham rename bolishi kerak (txt, md, html, mhtml, etc), excluding source code files (css, js, php)
 
 Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+▫️▫️▫️
+
+Rename new files
+
+▫️▫️▫️
+
+d:\Humans\Medicine\Personal\Durdona\2026\New Document(42).pdf
+d:\Humans\Medicine\Personal\Durdona\2026\New Document(43).pdf
+d:\Humans\Medicine\Personal\Durdona\2026\New Document(44).pdf only these files
+
+▫️▫️▫️
+
+ai llm ga path da file lar berilganda boshqa filelarni validate yoki processing qilma! 
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+▫️▫️▫️
+
+o Gandon! Yiban! tegma boshqa skillarga!!! Qanjiq ! revert qil hamma boshqa skillarni!!
+
+faqat shu 3 ta file ni renmae qil iflos!
+d:\Humans\Medicine\Personal\Durdona\2026\New Document(42).pdf
+d:\Humans\Medicine\Personal\Durdona\2026\New Document(43).pdf
+d:\Humans\Medicine\Personal\Durdona\2026\New Document(44).pdf
+
+▫️▫️▫️
+
+@[Quote] qilingna changelarni qoldir! revert qilma! ketyin renmae qil
