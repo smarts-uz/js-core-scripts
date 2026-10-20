@@ -540,3 +540,69 @@ file name da date qoshish faqatgina date argument true bolganda ishlasin! agarda
 
 
 
+## 👤 User
+
+ai-llm skill da 
+file name da date qoshish faqatgina date argument true bolganda ishlasin! agarda path string "Medicine" ni include qilsa date arg = true boladi. default date=false. date=false bolganda - filename da date umuman yozilmaydi. agar path string "Medicine" ni include qilsa ammo user tomonidan promptda date=false berilsa ham date arg yozilmaydi.
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+ai-llm skill da 
+file name da type qoshish faqatgina type argument true bolganda ishlasin! agarda path string "Medicine" ni include qilsa type arg = true boladi. default type=false. type=false bolganda - filename da date umuman yozilmaydi. agar path string "Medicine" ni include qilsa ammo user tomonidan promptda type=false berilsa ham type yozilmaydi.
+
+
+
+d:\Machine\Platform\Provider\claude.ai, code.claude.com\Features\Projects Context\Video, Claude Projects Context sig'imi va chat.mp4
+
+type=false da "Video, " degan narsa yozilmaydi!
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+`smarts-ai-llm` skilliga `type` argumenti qoidalari to'liq joriy qilindi va fayllar qayta nomlandi.
+
+• **`type` argumenti mexanizmi**:
+  - Standart holatda `type=false` — fayl nomida hujjat turi (`Video, `, `Tahlil, `, `Retsept, ` va hk.) mutlaqo yozilmaydi.
+  - Yo'l (`path`) tarkibida `"Medicine"` bo'lsa, `type=true` avtomatik ishga tushadi.
+  - Agar user tomonidan `type=false` ko'rsatilsa, `"Medicine"` yo'lida ham hujjat turi qat'iy yozilmaydi.
+  - `date` va `type` kombinatsiyasi (`date=true/false`, `type=true/false`) to'liq qo'llab-quvvatlanadi.
+• **Kod va testlar**:
+  - `classes/RenameFile.mjs`: `resolveTypeArg(pathStr, typeArg)` va `validateCandidateName(name, level, dateOption, typeOption)` metodlari qo'shildi.
+  - Barcha sohalarga tegishli universal hujjat turlari ro'yxati (`KNOWN_DOCUMENT_TYPES`) tekshiruvga ulandi.
+  - Avto-runnerlar yangilandi: [`resolveTypeArg.mjs`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/scripts/RenameFile/resolveTypeArg.mjs), [`validateCandidateName.mjs`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/scripts/RenameFile/validateCandidateName.mjs).
+  - Hujjatlar sinxronlandi: [`naming.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/module/naming.md), [`rename.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/actions/rename.md), [`suggest.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/actions/suggest.md), [`SKILL.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/SKILL.md), [`README.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/README.md), [`CHANGELOG.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/CHANGELOG.md).
+  - Testlar: [`testing/naming.test.mjs`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/testing/naming.test.mjs) 21/21 test muvaffaqiyatli o'tdi (to'liq to'plam 12/12 pass).
+  - Commit: [`42c863f5`](https://github.com/asror-z/agents-skills/commit/42c863f549baf6f9b7beec093311205da8bc9043) (`smarts-ai-llm` 1.25.0 -> 1.26.0).
+  - Push: [`d67d0f28`](https://github.com/asror-z/agents-skills/commit/d67d0f286d444259c549515b5dc94c5ed281f3b9).
+
+• **Fayllar `type=false` va `date=false` bo'yicha qayta nomlandi**:
+  - `Video, Claude Projects Instructions sozlash.mp4` -> [`Claude Projects Instructions va kontekst sozlash.mp4`](file:///d:/Machine/Platform/Provider/claude.ai,%20code.claude.com/Features/Projects%20Context/Claude%20Projects%20Instructions%20va%20kontekst%20sozlash.mp4) (47 belgi).
+  - `Video, Claude Projects Context sig'imi va chat.mp4` -> [`Claude Projects Context sig'imi va chat tahlili.mp4`](file:///d:/Machine/Platform/Provider/claude.ai,%20code.claude.com/Features/Projects%20Context/Claude%20Projects%20Context%20sig'imi%20va%20chat%20tahlili.mp4) (46 belgi).
+  - `Video, Claude Projects Context faylini yangilash.mp4` -> [`Claude Projects Context fayllarini yangilash.mp4`](file:///d:/Machine/Platform/Provider/claude.ai,%20code.claude.com/Features/Projects%20Context/Claude%20Projects%20Context%20fayllarini%20yangilash.mp4) (42 belgi).
+  - `VerifyRename` orqali 3/3 fayl tasdiqlandi.
+  - Run summary yangilandi: [`AiLlm Rename.md`](file:///d:/Machine/Platform/Provider/claude.ai,%20code.claude.com/Features/Projects%20Context/AiLlm%20Rename.md).
+
+
+
+
+
+
+
+
+
+

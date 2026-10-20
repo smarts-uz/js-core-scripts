@@ -1592,3 +1592,272 @@ Response style confirmed.
 
 
 
+## 💭 ai-llm skill da
+
+The core logic hinges on conditional date inclusion in filenames. The default behavior is no date unless explicitly overridden or the path contains "Medicine". Presence of "Medicine" triggers date inclusion, but user-provided `date=false` takes precedence, overriding the path-based trigger. Thus the date will be added to the file name only if the date argument is true.
+
+
+The logic requires examining each file's path for "Medicine". If present, the date flag defaults to true, otherwise false. However, user-provided `date` overrides this path-based default. Therefore, the presence of "Medicine" is a factor, but the user's `date` argument is the definitive trigger. If date is false, no date.
+
+
+Since the provided path doesn't contain "Medicine", the default date behavior is "false". The explicit instruction to rename the files uses the format `{document type}, {doc title}.{ext}` indicating no date should be in the filenames. Now, validating the renaming logic by reviewing existing constraints and band validations to meet file naming standards.
+
+
+Examined the defined filename format when the date is omitted; it's `{document type}, {doc title}.{ext}`. The concern is how this affects Level 3 length restrictions, which I'll check within the file validation function. Investigating the length band constraints to see if the removal of the date string (12 chars) impacts required content length to validate file name. Determined the naming guideline's length requirement is based on content excluding extensions, and the filename can achieve 40-50 chars without date. The validation function's purpose needs confirmation.
+
+Initial assessment of `validateCandidateName` reveals it handles name validation, but needs further investigation regarding date handling. Specifically, it's necessary to determine if the function currently supports date-related options, enforces date formats, or can be extended to do so. The user's input indicates date inclusion should be conditional based on a "date argument" being true.
+
+
+The presence of "Medicine" in the file path string dictates a `date=true` default, but user input can override this. If the user explicitly sets `date=false`, the date will not be included in the filename, even if the path contains "Medicine." Date inclusion is strictly governed by the `date` argument, and filename formatting depends on its value. Further investigation into the filename validation logic is needed to account for the dynamic behavior and correctly implement validation.
+
+
+The `resolveDateArg` helper method's logic clarifies how the `date` argument affects filename validation, with "Medicine" in the path string acting as a default. The documentation is being revised to explicitly state that the presence of the `date` argument dictates format validation, and an updated document example is provided. The name format is `{date}, {document type}, {doc title}.{ext}` when date is included.
+
+
+The documentation and associated scripts have been checked to ensure consistent implementation of the date argument. The `SKILL.md` file now includes the `date` argument definition, clarifying its default value and its impact on the naming convention.  The renaming step's instructions and the date resolution rules have been verified to match the defined behavior, where user overrides always take precedence, and the date is completely omitted if `date=false`.
+
+The function `runValidateInProcess` and its variations are central to the name validation process. Observing the existing tests reveals that a third parameter, `dateOption`, is commonly omitted, leading to general validation without date-specific checks. The presence of `dateOption` signifies a date-aware validation; `true` enforces a date prefix requirement.
+
+
+Examining the `resolveDateArg` function reveals how the date inclusion logic functions. The function prioritizes an explicit user argument, overriding the default or path-based heuristic. Testing edge cases like explicit `false` arguments confirms backward compatibility with existing behaviors.
+
+
+Now analyzing the `validateCandidateName` function to understand date validation. The logic checks for the `dateOption` parameter and its influence on date prefix validation within candidate names. Explicit `dateOption` values of `true` or `false` force the inclusion or exclusion of date prefixes, respectively. Level-based candidate length validation is also present but appears orthogonal to the date concerns.
+
+
+Name validation involves several checks: length against level-specific bands, presence of illegal Windows filename characters or control characters, and disallowance of filler words and specific "X from Y" phrasing. Parsing arguments reveals the options available including `--validate-name` and `--level`, relevant to the validation process.
+
+Examining `classes/RenameFile.mjs` to incorporate the `resolveDateArg` function and implement the handling of the `--date` command-line argument. The focus is on updating the `_parseArgs` method to correctly handle the new `--date` option alongside existing arguments.
+
+
+The `--date` command-line argument needs parsing within the argument handling logic, considering both short and long forms. Implementing a function to determine if a date should be included based on an explicit argument and a path heuristic is required. The `resolveDateArg` function will use the command-line argument and path string to determine if the date should be added to the filename, with the explicit argument overriding the path heuristic.
+
+
+The `resolveDateArg` function's logic now explicitly handles boolean string representations ("true", "false", "yes", "no", "0", "1") for the `--date` argument.  A path-based heuristic checks for "Medicine" in the path string to infer date inclusion if the explicit argument is not provided. The function now correctly converts input to a boolean value.
+
+The `validateCandidateName` function has been updated to consider whether a date prefix is present, in the form "YYYY-MM-DD, ". The function also correctly handles the `dateOption` parameter, making sure to parse it correctly if it's set to either `true` or `false` or as a string.
+
+
+The candidate name validation now incorporates the `--date` flag to enforce date presence or absence based on its value. It checks for a date prefix and validates that it aligns with the expected date inclusion setting. Name length is validated against configured bands based on a level parameter.
+
+Further, the validation now checks for illegal characters in Windows filenames, filler words, and the prohibited "X from Y" phrasing to ensure the candidate name is valid.
+
+The code's `validateCandidateName` function requires inspection, specifically its handling of date prefixes and empty candidate names. The function's logic needs examination to confirm that date validation interacts correctly with the empty name check and date option. This is to ensure that a date-related validation does not prevent empty names from being handled appropriately.
+
+
+The date validation logic will be inspected to confirm the handling of `dateOption`, considering cases where a date prefix is present or absent. Length constraints based on a detail level are being checked, using `min` and `max` values to determine valid candidate name length. Illegal characters and filler words within the candidate name are also being tested to ensure the name conforms to required standards.
+
+The naming format is based on a comma-separated structure. Date inclusion depends on either an explicit `date=true` argument or the presence of "Medicine" within the file path, unless `date=false` is explicitly set. The default behavior is no date when the path is not related to medicine, or when `date=false` is used.
+
+The naming convention for files depends on the `date` argument, which defaults to false. The presence of "Medicine" in the file path triggers a date inclusion by default. This needs to be explicitly reflected in the file renaming logic.
+
+The `date` argument needs to be incorporated into the Arguments table within the specified skill's documentation. Its behavior should be contingent on the file path, defaulting to true for paths containing "Medicine" unless explicitly set to false, which overrides the path-based default. This argument dictates whether the document's date is included in the filename, affecting the file naming convention.
+
+The documentation needs an update to clarify the `date` argument's behavior in file renaming. Specifically, add details on how the default value is `false`, unless the file path includes "Medicine," in which case it defaults to `true`.  An explicit setting of `date=false` overrides this path-based heuristic. The update will be performed in the designated documentation file.
+
+Testing the `RenameFile.resolveDateArg` function, focusing on how it handles undefined, boolean, and string values for the date argument alongside different file paths. The hypothesis is to check if the logic correctly interprets the date argument to decide whether to incorporate the date into the filename, considering both absolute paths and drive letters. Specific edge cases are tested to confirm expected behavior with a variety of true/false values.
+
+Observed that the generated strings exceed the character limit for the specified level. The "withoutDate" string is 52 characters, and "withDate" is 53 characters, both exceeding the 50-character limit. This likely caused the failure.
+
+The initial title suggestion exceeds the character limit. Confirmed the string length via a quick script, finding the original title is 51 characters. Shorter alternatives were checked, landing on "2026-10-20, Video, Claude Projects Walkthrough" at 47 characters, which fits the constraint. It's time to update the relevant test file.
+
+Added a new entry to the changelog detailing the introduction of a configurable `date` argument for filename prefixes within the rename/suggest functions. This argument defaults to false, generating filenames without a date prefix; however, a path-based heuristic automatically sets the default to true if "Medicine" is present in the path. Explicit user configuration takes precedence, allowing strict overriding of this path heuristic.
+
+The task involves processing three video files. Initial assessment suggests these files might contain information pertinent to a specific project's context. Investigation will focus on extracting and interpreting relevant data or insights from the video content.
+
+Initial hypothesis: Video inspection requires available tools like frame extraction or metadata inspection. Another possibility involves the file reading capability, if it supports video format. Doubting the initial assumptions, the file reading tool's declaration needs review to verify video file compatibility.
+
+The task involves generating a temporary script. The script's placement is determined. The script is designed to address a string-quoting issue observed in a particular environment. The intended location of the scratch script, in a known temporary directory, is confirmed. The location is relative to a standard cache directory with predictable subdirectories.
+
+Three screen recordings identified, varying in duration. The files reside within a specific directory related to a platform's context. Hypothesis: Extracting frames from each video for detailed inspection using a file reading mechanism.
+
+Initial hypothesis: A direct renaming approach should be sufficient given the file paths. Verify path validity first to prevent errors. Once validated, will proceed with renaming the files with the requested format.
+
+Examining the displayed Total Commander window, the content of the two panes is noted. The left pane reveals a path and a medical document, while the right pane shows a path related to a platform and several HTML files. The goal is to obtain additional frames from video 3 to understand its content.
+
+A file was deleted from the project context, reducing the count from 31 to 30 files. The user subsequently initiated a file upload or replacement operation, targeting a directory related to personal medical records and a specific year. This suggests an intention to update or add context files after removing an older one.
+
+Examining the project session titled "Differensial diagnostika analizi" and the user's prompt regarding necessary analyses for differential diagnosis. Initial step is to review associated project files and materials to establish context.
+
+The chronological order of the recordings is established. The first recording captures the user initiating a project, providing instructions, and uploading context files. The user then begins crafting a prompt.
+
+The document type is "Video" and the `date` flag is false, dictating the base naming convention: "{document type}, {doc title}". The target naming level mandates a base name length between 40 and 50 characters, employing a comma and space separator, and excluding underscores or illegal characters. The words in the title must be separated by spaces, with the band's upper bound being a hard limit.
+
+Validating the candidate name requires checking several criteria. The checks include character length constraints specific to level 3 (40-50 characters), date prefix presence based on a date option, and the absence of illegal characters or filler words. A final check ensures the name does not conclude with a period or space.
+
+
+Analyzing video content to determine the most accurate and descriptive file name, considering character limits and existing naming conventions. Initial candidate "Video, Claude Projects Instructions sozlash demo" fits the character count for the third level. However, exploring alternative phrasing to ensure the name precisely reflects the video's content: "Instructions va Context," or "ko'rsatma va kontekst." "Projects Context" folder name suggests the correct focus. Applying the pattern "Video, {Topic Speakers/Channel}."
+
+
+Video 2 highlights context file inspection within the project, including its capacity and subsequent interaction via chat for analysis requests. The name candidates are also tested and validated: `Video, Claude Projects Context sig'imi va chat` seems most accurate.
+
+Video 3 shows context file list management, local file verification, and updating the context by adding or removing files from the project.
+
+Video 1 showcases the user inputting project instructions and attaching context files. Considering potential video titles, "Video, Claude Projects Instructions sozlash" appears to be a very clear descriptor.
+
+
+Video, Claude Projects Instructions sozlash.
+
+Video, Claude Projects Context sig'imi va chat is descriptive for the actions in video 2. Video 3 seems focused on file updates so "Video, Claude Projects Context faylini yangilash" will be the descriptor. Now verifying `date=false` parameter in a separate scenario. Initial result looks right. Need to check file renaming in other project.
+
+Candidate solutions appear valid based on length criteria. A final check is required to confirm the existence of necessary files before proceeding with execution.
+
+Examined the project directory for relevant video resources. Identified a verification script to potentially validate a rename operation. Attempting to execute the script with the specified path to confirm the change.
+
+Run summary requirements are now under review. Focus is on the format: one log per skill action, named in PascalCase, and structured like a changelog with appended date-stamped sections for each write/edit. The goal is to ensure a concise, timestamped record of each producing run.
+
+The `writeFile.mjs` script requires a directory, skill, action, and content path as inputs. The `RunSummary.mjs` script formats and appends content to a markdown file named after the skill and action within the specified directory. A temporary file will be created to store the Caveman Mode summary before appending it to the final markdown file.
+
+
+
+
+
+
+
+
+
+
+## 💭 ai-llm skill da
+
+The file naming logic requires conditional application of a 'type' identifier. This identifier should be added only when the `type` argument is true, or if the file path contains "Medicine," defaulting to false. Even if the path contains "Medicine," a user-specified `type=false` will override the automatic true setting, and `type` identifier will not be included.
+
+
+The conditional logic for applying the `type` identifier mirrors the existing implementation for `date`. The file naming routine needs updating to incorporate the `type` argument's state, checking for "Medicine" in the file path, and user-specified overrides. The existing skill handling conditional arguments can be reused or linked to avoid redundancy.
+
+
+The `type` argument's behavior in file naming is now understood. A document type identifier will be included in filenames only when `type` is true, or when the path contains "Medicine," unless the user explicitly sets `type=false`. This override takes precedence, confirming no document type identifier inclusion.
+Also understood is how date and type work together in file naming: the format combinations must be applied.
+
+Initial investigation reveals that `smarts-ai-llm` defines `fileType` and `date`, prompting a search for the `type` parameter. Examination of the `authoring-structure.md` file in `smarts-app-skill` indicates `type` is a key selector, governing filename prefixing behavior in the `rename`/`suggest` functions. It appears that `type` has a conditional behavior based on file path including "Medicine".
+
+Determining if the filename should include a "type" requires `resolveTypeArg`. This function depends on two conditions: the `typeArg` must be true, or the `pathStr` contains "Medicine". The default for `typeArg` is false, meaning the "type" is not included in the filename unless either condition is met. The user's input, despite containing a slip, requires the agent to handle this special case.
+
+
+The logic must ensure "type" is excluded from filenames when explicitly set to false, even if the path includes "Medicine". Specific files within the specified paths, particularly those under the "Projects Context" directory, require renaming to remove "Video, " when `type` is false, aligning with the explicit instruction. The "date" logic is irrelevant when `type` is false as it applies only to conditional `type` inclusion.
+
+
+The analysis confirms that the "type" should be omitted due to the default being false and the path not containing "Medicine." These files now require filename adjustments, specifically the removal of "Video, ". The filename's character count is evaluated to ensure it falls within the specified Level 3 band (40-50 characters) after removing "Video, ", aiming for informative content without under- or overshooting.
+
+A "type" parameter needs to be added to the documentation, specifically in the designated section. This parameter controls whether the document type prefixes the filename, with a default "true" when the file path contains "Medicine" but can be overridden by explicitly setting the value to "false." The defaults in the configuration file will be checked to confirm this.
+
+The argument parser needs modification to handle a document type. The plan is to introduce a `type: null` setting within the argument parsing logic and incorporate handling for command-line flags related to `--type`. Additionally, a new `resolveTypeArg` function will be created to determine if the document type should be included in the filename, utilizing a default value, a path-based heuristic, and user-provided overrides.
+
+
+The `resolveTypeArg` function appears to determine whether a document type should be included.  It checks for explicit boolean or string overrides, and if none are provided, infers from the path if "Medicine" is present, defaulting to include the type.  This informs how the `typeOption` influences the output filename format.
+
+
+Examining the document type inclusion in filenames, a pattern emerges tied to date presence and the `type` flag. With both date and type enabled, the structure is `{date}, {document type}, {doc title}`. If only the date is present, then the structure becomes `{date}, {doc title}`. If only the type is present then `{document type}, {doc title}`.
+
+
+A document type heuristic needs to be implemented. A known list of document types will be used to determine if a type prefix exists, resolving ambiguity if the title itself contains commas. This check will determine if the first token prior to the comma is a known type. This helps with the accurate classification of document titles.
+
+
+A set of known document types must be established to determine if a type prefix exists in a given filename. This includes a diverse list of document types. A check needs to be added that looks for a type prefix (e.g., "Video, ") at the beginning of filenames. If the prefix exists and the `type` flag is set to false, it should be removed from the filename.
+
+The testing approach for `resolveDateArg` and `validateCandidateName dateOption` provides a good template. Now examining how to define `resolveTypeArg(pathStr, typeArg)`. The function will determine whether the document type should be included in the filename, with a default of false and a heuristic favoring inclusion if "Medicine" is present in the path string, unless explicitly overridden by a user argument.
+
+
+The logic first checks for an explicit type argument. If present, it converts string representations of "true" or "false" to booleans. Absent an explicit type, the code defaults to including the type if "Medicine" is present in the path. Finally, examining how to extract the document type from a candidate filename involves removing a possible date prefix. The resulting string should be tested to see if it starts with the document type and a comma-space separator.
+
+
+Considering potential variations in document types, a known list must be consulted and checked. The structure of document type strings within filenames is examined. The regex `^([^,]+),\s+` is used to validate the expected pattern: a category descriptor followed by a comma and a space.
+
+
+Checking KNOWN_DOCUMENT_TYPES.
+Filename DocumentType Extraction.
+Regex Pattern Validation.
+Type Argument Logic.
+Medicine Path Heuristic.
+Boolean Conversion Logic.
+
+
+Checking if the document type is explicitly present as a prefix involves extracting a potential type candidate from the filename after removing a date prefix and checking if it's in a known list. A regex helps identify the prefix pattern. A self-doubt about the implementation arises, particularly about filenames that might have commas in their titles, potentially leading to incorrect type identification, and this is solved by using two conditions `KNOWN_DOCUMENT_TYPES.has(typeCandidate)` OR `match[1].trim().split(/\s+/).length <= 2`. Case-insensitive matching is also implemented.
+
+
+Verified the completeness of the known document types against documentation and added missing types. Examined the logic for handling the `isTypeExpected` flag, considering cases where a type prefix is present or absent. Tested the logic against example scenarios to ensure the validation rules are correctly enforced.
+
+
+Analyzing CLI argument handling for `validateCandidateName`. Specifically, how `--date` and `--type` interact when both are `false` within the CLI. The function should respect explicit `--type false` settings from the user. Testing this configuration is critical for correct behavior. Cases where explicit arguments are not given are checked.
+
+Revised name formatting logic is needed due to the introduction of the 'type' flag. The format matrix now dictates the naming convention based on the presence or absence of both 'date' and 'type'. It's important to differentiate between cases with and without these flags, ensuring proper file extension handling. The new logic must include adding the file extension.
+
+
+The file renaming logic requires an update to respect the `type` flag and associated rules, including the precedence of explicitly setting `type=false`. Analyzing existing code is crucial to determine the scope of these changes and potential reuse of existing components. Systematically searching other skills for relevant calls will identify all required modifications.
+
+File naming logic and validation is handled by the `smarts-ai-llm` skill, not `smarts-firm-docums`.
+The `type` parameter's behavior is determined by specific conditions: adding `type` to the file name only if the argument is `true`.
+If the path string includes "Medicine," the `type` argument defaults to `true`; otherwise, it defaults to `false`. When the argument is `false`, the file name excludes the `type`.
+
+
+The primary focus is on refining the `RenameFile.mjs` class to handle the `type` argument correctly, including a new `resolveTypeArg` function to manage default and override logic. The function will also integrate a set of known document types and modify argument parsing to include `--type` flags. The validation logic now checks for the presence of document type prefixes based on the `type` argument, returning an error if a prefix exists when `type` is explicitly `false`.
+
+
+The file naming validation will now enforce document type prefixes based on the `type` argument. A new function, `resolveTypeArg`, is added to handle the default `type` argument and override logic. Test cases are expanded to include `resolveTypeArg` and `validateCandidateName` with `typeOption`. Documentation is updated to reflect the new naming format with the inclusion of the `type` argument.
+
+
+The file naming logic is updated with new constraints for the `type` parameter, affecting how document types are incorporated into filenames. The default behavior is to omit the document type unless specifically enabled through the `type` argument or triggered by the path containing "Medicine". This includes the integration of a new function (`resolveTypeArg`) to manage the defaulting and overriding logic of the parameter.
+
+Examining the code, the `KNOWN_DOCUMENT_TYPES` set is used to validate document type prefixes in candidate names. It appears the location of this declaration, near `FILLER_WORDS`, is a design choice worth noting for context. This structure enables a check on the presence or absence of a document type prefix when a specific type option is enforced.
+
+
+The code defines a comprehensive list of document type prefixes categorized by domain. The intent appears to be a robust system for document type classification based on these prefixes. This structure suggests a need to accurately identify document types through prefix matching.
+
+
+The document type prefix matching appears to correctly handle multi-word types due to the `trim()` and `toLowerCase()` operations. The code correctly identifies prefixes in the format "Type, remaining text." However, it fails if no comma is present. The use of an apostrophe in document types like `Ma'lumotnoma` raises another potential issue that should be checked.
+
+
+The code normalizes various apostrophe characters to a standard single quote before checking against `KNOWN_DOCUMENT_TYPES`, which increases the robustness of document type matching. Analyzing the `typeOption` logic, it correctly enforces the presence or absence of a document type prefix based on the `type` flag's value. Testing with `name = "Video, Claude Projects Context sig'imi va chat"` and `typeOption = false` confirms the expected behavior, flagging an invalid candidate.
+
+
+The analysis now involves specific candidate names with varied `dateOption` and `typeOption` configurations to validate the prefix logic. Testing scenarios with and without expected date and type prefixes are used to verify the code's behavior. A case where the type prefix is present but not expected will be flagged.
+
+
+The date regex pattern currently used is `/^\d{4}(-\d{2}-\d{2})?,\s+/`, which might not handle `YYYY-MM` or `YYYY` formats. The documentation specifies that the date can be in `YYYY-MM-DD` or `YYYY` format. A revised regex of `/^\d{4}(-\d{2}(-\d{2})?)?,\s+/` is needed to cover all expected date formats. Now reviewing argument parsing in another part of the codebase to understand how `date` option is used.
+
+
+Analyzing how command-line arguments are parsed to understand how the `date` option influences validation. The code iterates through arguments, extracting values for flags like `--date` and their corresponding values.  The `--date` argument's presence and value influence the behavior of the validation routine in the `main` function.
+
+The `main` function uses parsed arguments, including date and type options, to validate the candidate name.  The validation routine appears to use the `date` and `type` arguments to determine the validation rules.
+
+
+The `resolveTypeArg` function determines whether the document type should be included in the filename based on a path heuristic and user input. The code prioritizes explicit boolean arguments provided by the user, overriding the path-based default. If no user argument is provided, it checks if "Medicine" is present in the path string to determine the default value. The logic seems correct.
+
+The function validates candidate names based on several criteria. It checks the name's length against a band determined by a detail level. Also, it looks for illegal characters and verifies the name isn't a filler word. Further validation confirms date presence, when the date option is specified.
+
+
+The function now includes a check for an optional document type requirement. This is determined by another boolean-like parameter. Initially, I will examine whether the date prefix rule enforcement behaves correctly depending on whether the `dateOption` parameter evaluates to true or false. If it is specified and evaluates to true the validation enforces the presence of the date prefix and vice-versa.
+
+
+Now focusing on the logic to ensure document type prefixes are handled correctly based on the `typeOption`. The code checks if a type prefix exists in the candidate name after removing a date prefix, if present. Then, depending on whether the `typeOption` is interpreted as "true", it validates the presence or absence of the prefix accordingly. I'll need to verify all the conditions in which `typeOption` will evaluate as a boolean `true`.
+
+Adding tests to `testing/naming.test.mjs` to cover `RenameFile.resolveTypeArg` and `validateCandidateName` with `typeOption` enforcement, including combined tests for `dateOption` and `typeOption`. The initial test will verify default `typeOption` behavior and how it's overridden. A new `describe` block will organize these tests.
+
+
+The `resolveTypeArg` function's behavior with various inputs is tested, confirming it correctly interprets `undefined`, `false`, and `"false"` as disabling the type check, while `true` and `"true"` enable it. Tests are added to validate that `validateCandidateName` correctly enforces the absence or presence of a document type based on the `typeOption` setting. The regular expression check ensures the error message indicating document type inclusion is correct when enforcement is turned off.
+
+Test suite validation confirms successful completion. Proceeding to update the relevant documentation files related to the `smarts-ai-llm` module, specifically the naming conventions and action descriptions. The updates will focus on clarifying the module's functions and purpose.
+
+Examining the naming convention documentation reveals a specific comma-separated structure for renamed files, dependent on date and document type arguments. The naming format dynamically changes based on boolean flags for date and type inclusion. Understanding these rules is crucial to correctly rename documents.
+
+Examining the structure of `SKILL.md`, it seems necessary to incorporate a new column named `type`. The existing table appears to handle date and renaming conventions based on the file path; I'll extend this logic to also include a 'type' designation. The intent is to update the metadata definition in this markdown file.
+
+The changelog entry describes a new feature for the rename/suggest function. This feature introduces a `type` argument, allowing a document type prefix to be added to filenames conditionally. The default behavior is to omit the prefix; it's only included when `type` is explicitly set to `true` or determined by a path-based heuristic.
+
+The latest code changes have been successfully integrated. Versioning for a key dependency was updated, indicating a potential improvement or new feature set. Now evaluating the second aspect of the request regarding specific file paths, and related components.
+
+
+Candidate filenames are being generated for three video files, ensuring they are within the specified character count. Each candidate name omits the file type and incorporates relevant keywords while staying between 40 and 50 characters. These candidates will be validated using a dedicated script.
+
+The validation error strongly suggests a naming convention conflict based on the 'type' attribute. Therefore, when 'type' is false, the file name should not include any document type indicators. Proceeding with renaming the files, ensuring the 'Video,' prefix and any document type designations are adjusted appropriately.
+
+File renaming completed successfully based on specified criteria: `type=false` and `date=false`. The file `Video, Claude Projects Instructions sozlash.` was renamed.
+
+
+
+
+
+
+
+
+
+
