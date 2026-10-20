@@ -382,3 +382,40 @@ Commit [`b0a268eb`](https://github.com/asror-z/agents-skills/commit/b0a268eb51d1
 
 
 
+## 👤 User
+
+text files ham rename bolishi kerak (txt, md, html, mhtml, etc), excluding source code files (css, js, php)
+
+Update the necessary lines throughout all relevant smarts-* skills / classes / hooks / scripts / prompts / markdown files to take into account all the above cases Reuse and link to existing skills/rules where relevant instead of writing from scratch.
+
+## 🤖 Assistant
+
+`smarts-ai-llm` va bog'liq skillar matnli hujjatlarni (`.txt`, `.md`, `.html`, `.mhtml`, `.rst`, `.rtf`, `.tex`, `.log`) qayta nomlashni to'liq qo'llab-quvvatlaydi.
+Dasturiy kod fayllari (`.css`, `.js`, `.php`, `.py`, `.c`, `.cpp`, `.go`, `.rs` va h.k.) hamda konfiguratsiya fayllari (`.json`, `.yml`, `.xml`, `.ini`, `.env`) qat'iy chetlatildi.
+
+Kiritilgan o'zgarishlar:
+- `config.json` va [`Config.mjs`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/classes/Config.mjs): `documentTextExtensions`, `sourceCodeExtensions`, `configDataExtensions`, `protectedFileNames` konfiguratsiya to'plamlari qo'shildi.
+- [`RenameFile.mjs`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/classes/RenameFile.mjs): matnli fayllar saralab olinadi va diskda qayta nomlanadi; kod va konfiguratsiya fayllari avtomatik chetlatiladi.
+- [`actions/rename.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/actions/rename.md), [`actions/suggest.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/actions/suggest.md), [`module/naming.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/module/naming.md), [`module/reading.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/module/reading.md), [`module/running.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/module/running.md), [`SKILL.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/SKILL.md), [`README.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/README.md), [`CONFIG.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/CONFIG.md), [`CHANGELOG.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-ai-llm/CHANGELOG.md) yangilandi.
+- `smarts-firm-docums` [`actions/organize.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-firm-docums/actions/organize.md) va [`actions/organize-person.md`](file:///D:/Machine/Agentor/Settings/.agents/skills/smarts-firm-docums/actions/organize-person.md) yangilandi.
+- Testlar yangilandi: 130/130 test muvaffaqiyatli o'tdi (100% yashil).
+- Git commitlar: [`29f08b42`](https://github.com/asror-z/agents-skills/commit/29f08b42e338a8f06f59d94ced3f3eafea929833) va [`798c4f60`](https://github.com/asror-z/agents-skills/commit/798c4f602637a52713797de28fcad948dcf4f876).
+- Git push bajarildi: [`13dc111b`](https://github.com/asror-z/agents-skills/commit/13dc111b263ff917088dc43d69c74b625a7023e1).
+
+`d:\Humans\Medicine\Personal\Durdona\` papkasidagi barcha qolgan matnli fayllar Level 3 (40–50 belgi) standarti asosida qayta nomlandi:
+- `2026\- Theory\Readme.txt` → `2026-10-18, Qayd, Past bosim va og'riq Zakirova.txt` (46 belgi)
+- `2026\Shikoyat\Readme.txt` → `2026-10-20, Shikoyat, Bemor alomatlari Zakirova.txt` (47 belgi)
+- `2026\Treatment\Treatment.md` → `2026-10-20, Qayd, O't qopi davolash Zakirova.md` (43 belgi)
+
+[Rename Report 2.md](file:///d:/Humans/Medicine/Personal/Durdona/Rename%20Report%202.md) yozildi va [FileRename.md](file:///d:/Humans/Medicine/Personal/Durdona/FileRename.md) 30 ta fayl bilan yangilandi.
+`VerifyRename` tekshiruvi: 3/3 fayl diskda tasdiqlandi (0 xatolik). Papkada nomlanmagan birorta ham fayl qolmadi.
+
+
+
+
+
+
+
+
+
+
