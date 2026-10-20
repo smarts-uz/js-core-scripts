@@ -306,6 +306,7 @@ export class Didox {
             console.log(`infoByTinPinfl not exists in ${file}`);
 
             const myHeaders = new Headers();
+            myHeaders.append("user-key", Secrets.env("DIDOX_USER_KEY") ?? "");
             myHeaders.append("Partner-Authorization", Secrets.get('Didox', 'SRental'));
 
             const requestOptions = {
