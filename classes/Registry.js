@@ -7,6 +7,15 @@ import { Yamls } from './Yamls.js';
 import { Files } from './Files.js';
 import { Dialogs } from './Dialogs.js';
 
+// `clean` hive argument (lower-cased) -> scope; anything else means both hives.
+const CLEAN_SCOPE_ALIASES = new Map([
+    ['system', 'System'],
+    ['hklm', 'System'],
+    ['machine', 'System'],
+    ['user', 'User'],
+    ['hkcu', 'User'],
+]);
+
 /**
  * Registry — deterministic Windows registry maintenance helpers.
  *
@@ -123,9 +132,7 @@ export class Registry {
 
             const requested = Files.isEmpty(hives) ? this._cfg('clean', 'Hives') : hives;
             const s = String(requested || 'Both').toLowerCase();
-            const scope = (s === 'system' || s === 'hklm' || s === 'machine') ? 'System'
-                : (s === 'user' || s === 'hkcu') ? 'User'
-                : 'Both';
+            const scope = CLEAN_SCOPE_ALIASES.get(s) ?? 'Both';
             const doBackup = this._resolveBool(backup, 'clean', 'Backup', true);
             const doBroadcast = this._resolveBool(broadcast, 'clean', 'Broadcast', true);
             console.info(`[Registry.clean] requested=${requested} scope=${scope} doBackup=${doBackup} doBroadcast=${doBroadcast}`);
