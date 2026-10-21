@@ -43,8 +43,10 @@ const comState = {
 function makeDoc() {
   const handler = {
     get(_t, prop) {
-      if (prop === 'ProtectionType' && comState.protectionType !== undefined) {
-        return comState.protectionType;
+      if (prop === 'ProtectionType') {
+        if (comState.protectionType !== undefined) {
+          return comState.protectionType;
+        }
       }
       if (prop === 'Content') {
         return new Proxy(function () {}, {
@@ -52,14 +54,27 @@ function makeDoc() {
             if (p2 === 'Text') {
               return comState.contentText !== undefined ? comState.contentText : 'Doc.Content.Text';
             }
-            if (p2 === 'then' || p2 === 'catch' || p2 === 'finally') return undefined;
+            switch (p2) {
+              case 'then':
+              case 'catch':
+              case 'finally': {
+                return undefined;
+              }
+            }
             return makeComProxy({}, `Doc.Content.${String(p2)}`);
           },
         });
       }
-      if (prop === 'then' || prop === 'catch' || prop === 'finally') return undefined;
-      if (prop === Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString')
-        return () => 'Doc';
+      switch (prop) {
+        case 'then':
+        case 'catch':
+        case 'finally': {
+          return undefined;
+        }
+      }
+      if (prop === Symbol.toPrimitive) return () => 'Doc';
+      if (prop === 'valueOf') return () => 'Doc';
+      if (prop === 'toString') return () => 'Doc';
       return makeComProxy({}, `Doc.${String(prop)}`);
     },
   };
@@ -87,13 +102,24 @@ function freshApp() {
   const app = new Proxy(function () {}, {
     get(_t, prop) {
       if (prop === 'Documents') return documents;
-      if (prop === '__sets__' || prop === '__rawSets__') return rawSets;
+      switch (prop) {
+        case '__sets__':
+        case '__rawSets__': {
+          return rawSets;
+        }
+      }
       if (prop === 'Quit')
         return () => {
           comState.quitCount += 1;
         };
       if (prop === 'Selection') return comState.selection || makeComProxy({}, 'Selection');
-      if (prop === 'then' || prop === 'catch' || prop === 'finally') return undefined;
+      switch (prop) {
+        case 'then':
+        case 'catch':
+        case 'finally': {
+          return undefined;
+        }
+      }
       return makeComProxy({}, `App.${String(prop)}`);
     },
     set(_t, prop, value) {
@@ -171,7 +197,12 @@ const FilesMock = {
   getDirName: (filePath) => path.dirname(path.resolve(filePath)),
   mkdirIfNotExists: (d) => fs.mkdirSync(d, { recursive: true }),
   isEmpty: (v) => {
-    if (v === null || v === undefined) return true;
+    switch (v) {
+      case null:
+      case undefined: {
+        return true;
+      }
+    }
     if (typeof v === 'string') return v.trim() === '';
     if (Array.isArray(v)) return v.length === 0;
     if (typeof v === 'object') return Object.keys(v).length === 0;
@@ -192,16 +223,23 @@ const FilesMock = {
   // — the newest matching file in the folder. Mirror that with a real fs scan so
   // the tests' on-disk template folder drives the COM merge for real.
   getLatestMatchingFile: (folder, ext) => {
-    if (!folder || !fs.existsSync(folder)) return null;
+    if (!folder) return null;
+    if (!fs.existsSync(folder)) return null;
     let latest = null;
     let latestTime = -1;
     for (const name of fs.readdirSync(folder)) {
-      if (ext && !name.toLowerCase().endsWith(String(ext).toLowerCase())) continue;
+      if (ext) {
+        if (!name.toLowerCase().endsWith(String(ext).toLowerCase())) {
+          continue;
+        }
+      }
       const full = path.join(folder, name);
       const st = fs.statSync(full);
-      if (st.isFile() && st.mtimeMs > latestTime) {
-        latestTime = st.mtimeMs;
-        latest = full;
+      if (st.isFile()) {
+        if (st.mtimeMs > latestTime) {
+          latestTime = st.mtimeMs;
+          latest = full;
+        }
       }
     }
     return latest;
@@ -433,7 +471,13 @@ describe('Word.initFolders', () => {
   afterEach(() => {
     // initFolders writes onto globalThis; clean the keys it sets.
     for (const k of Object.keys(globalThis)) {
-      if (k.startsWith('folder') || k === 'ymlFile') delete globalThis[k];
+      switch (true) {
+        case k.startsWith('folder'):
+        case k === 'ymlFile': {
+          delete globalThis[k];
+          break;
+        }
+      }
     }
   });
 
@@ -961,7 +1005,12 @@ function makeOpenThrowOnce() {
           return () => {
             comState.quitCount += 1;
           };
-        if (prop === '__rawSets__' || prop === '__sets__') return {};
+        switch (prop) {
+          case '__rawSets__':
+          case '__sets__': {
+            return {};
+          }
+        }
         return makeComProxy({}, `App.${String(prop)}`);
       },
       set() {

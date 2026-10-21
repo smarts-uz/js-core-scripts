@@ -23,12 +23,12 @@ async function main() {
         .option("accrual", { describe: "accrual" })
         .option("loaners", { describe: "loaners" })
         .option("startDate", { describe: "startDate" })
-        .option("priceMax", { describe: "priceMax" })
+        .option("priceMaxMon", { describe: "priceMaxMon" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.applyPriceMaxToDebtMonths(argv["accrual"], argv["loaners"], argv["startDate"], argv["priceMax"]);
+        const result = await Yamls.applyPriceMaxToDebtMonths(argv["accrual"], argv["loaners"], argv["startDate"], argv["priceMaxMon"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

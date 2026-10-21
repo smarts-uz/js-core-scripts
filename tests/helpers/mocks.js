@@ -27,15 +27,24 @@ export function makeComProxy(overrides = {}, label = 'COM') {
       if (prop === '__sets__') return sets;
       if (prop === '__calls__') return calls;
       if (prop === '__isComProxy__') return true;
-      if (prop === Symbol.toPrimitive || prop === 'valueOf') return () => label;
+      if (prop === Symbol.toPrimitive) return () => label;
+      if (prop === 'valueOf') return () => label;
       if (prop === 'toString') return () => label;
       if (prop === Symbol.iterator) return undefined;
-      if (typeof prop === 'string' && Object.prototype.hasOwnProperty.call(overrides, prop)) {
-        const v = overrides[prop];
-        return typeof v === 'function' ? v : v;
+      if (typeof prop === 'string') {
+        if (Object.prototype.hasOwnProperty.call(overrides, prop)) {
+          const v = overrides[prop];
+          return typeof v === 'function' ? v : v;
+        }
       }
       // then/catch must be undefined so `await comProxy` does not hang.
-      if (prop === 'then' || prop === 'catch' || prop === 'finally') return undefined;
+      switch (prop) {
+        case 'then':
+        case 'catch':
+        case 'finally': {
+          return undefined;
+        }
+      }
       return makeComProxy(
         overrides[prop] && typeof overrides[prop] === 'object' ? overrides[prop] : {},
         `${label}.${String(prop)}`

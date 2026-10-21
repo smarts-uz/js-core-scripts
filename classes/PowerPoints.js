@@ -81,10 +81,12 @@ export class PowerPoints {
       console.log(`📂 Opening presentation for protection: ${absPath}`);
       const presentation = this._safeOpen(pptApp, absPath);
 
-      if (presentation.Password && presentation.Password !== '') {
-        console.warn(`⚠️ Presentation already has an open-password: ${absPath}. Skipping.`);
-        presentation.Close();
-        return absPath;
+      if (presentation.Password) {
+        if (presentation.Password !== '') {
+          console.warn(`⚠️ Presentation already has an open-password: ${absPath}. Skipping.`);
+          presentation.Close();
+          return absPath;
+        }
       }
 
       console.log(`🔒 Setting open-password${writePassword ? ' and write-password' : ''}...`);
@@ -129,11 +131,14 @@ export class PowerPoints {
       // WithWindow=0 (hidden); pass open-password as 4th arg
       const presentation = this._safeOpen(pptApp, absPath);
 
-      if (!presentation.Password || presentation.Password === '') {
-        console.warn(`⚠️ Presentation is not password-protected: ${absPath}.`);
-        Dialogs.warningBox('File is not protected', 'Unprotect Presentation');
-        presentation.Close();
-        return;
+      switch (true) {
+        case !presentation.Password:
+        case presentation.Password === '': {
+          console.warn(`⚠️ Presentation is not password-protected: ${absPath}.`);
+          Dialogs.warningBox('File is not protected', 'Unprotect Presentation');
+          presentation.Close();
+          return;
+        }
       }
 
       console.log(`🔓 Removing presentation passwords...`);
@@ -194,7 +199,10 @@ export class PowerPoints {
    */
   static merge(filePaths, mergedName = '') {
     console.info(`[PowerPoints.merge] 🟢 Starting...`);
-    if (!filePaths || filePaths.length === 0) {
+    if (!filePaths) {
+      throw new Error('PowerPoints.merge: No files provided to merge.');
+    }
+    if (filePaths.length === 0) {
       throw new Error('PowerPoints.merge: No files provided to merge.');
     }
 
@@ -275,7 +283,10 @@ export class PowerPoints {
    */
   static mergeFolder(folderPaths) {
     console.info(`[PowerPoints.mergeFolder] 🟢 Starting...`);
-    if (!folderPaths || folderPaths.length === 0) {
+    if (!folderPaths) {
+      throw new Error('PowerPoints.mergeFolder: No folders provided.');
+    }
+    if (folderPaths.length === 0) {
       throw new Error('PowerPoints.mergeFolder: No folders provided.');
     }
 
@@ -293,14 +304,19 @@ export class PowerPoints {
       let latestTime = 0;
 
       for (const file of files) {
-        if (!file.toLowerCase().endsWith('.pptx') || file.startsWith('~$')) {
+        if (!file.toLowerCase().endsWith('.pptx')) {
+          continue;
+        }
+        if (file.startsWith('~$')) {
           continue;
         }
         const filePath = path.join(resolvedFolder, file);
         const stats = fs.statSync(filePath);
-        if (stats.isFile() && stats.mtimeMs > latestTime) {
-          latestTime = stats.mtimeMs;
-          latestFile = filePath;
+        if (stats.isFile()) {
+          if (stats.mtimeMs > latestTime) {
+            latestTime = stats.mtimeMs;
+            latestFile = filePath;
+          }
         }
       }
 

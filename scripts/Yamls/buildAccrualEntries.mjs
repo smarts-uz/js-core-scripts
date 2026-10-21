@@ -22,12 +22,16 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("startDate", { describe: "startDate" })
         .option("futureDate", { describe: "futureDate" })
-        .option("price", { describe: "price" })
+        .option("accrualDays", { describe: "accrualDays" })
+        .option("priceMon", { describe: "priceMon" })
+        .option("priceDay", { describe: "priceDay" })
+        .option("priceEqualsMax", { describe: "priceEqualsMax" })
+        .option("penaltyDays", { describe: "penaltyDays" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.buildAccrualEntries(argv["startDate"], argv["futureDate"], argv["price"]);
+        const result = await Yamls.buildAccrualEntries(argv["startDate"], argv["futureDate"], argv["accrualDays"], argv["priceMon"], argv["priceDay"], argv["priceEqualsMax"], argv["penaltyDays"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

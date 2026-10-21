@@ -122,7 +122,8 @@ export class Dates {
     console.info(`[Dates.monthsBetween] 🟢 Starting...`);
     console.log("monthsBetween startExcel", startExcel, "endExcel", endExcel);
 
-    if (!startExcel || !endExcel) return [];
+    if (!startExcel) return [];
+    if (!endExcel) return [];
 
     const realStart = dayjs(startExcel, 'YYYY-MM-DD');
     const realEnd = dayjs(endExcel, 'YYYY-MM-DD');
@@ -172,7 +173,8 @@ export class Dates {
     console.info(`[Dates.daysBetween] 🟢 Starting...`);
     console.log("daysBetween startExcel", startExcel, "endExcel", endExcel);
 
-    if (!startExcel || !endExcel) return 0;
+    if (!startExcel) return 0;
+    if (!endExcel) return 0;
 
     const start = dayjs(startExcel, 'YYYY-MM-DD');
     const end = dayjs(endExcel, 'YYYY-MM-DD');
@@ -257,40 +259,52 @@ export class Dates {
 
   static normalizeUzAccordingToRule(raw) {
     console.info(`[Dates.normalizeUzAccordingToRule] 🟢 Starting...`);
-    if (!raw || typeof raw !== "string") return raw;
+    if (!raw) return raw;
+    if (typeof raw !== "string") return raw;
     let digits = raw.replace(/\D/g, "");
     if (digits.length < 9) return raw; // juda qisqa -> rad
 
     // ANIQ QOIDALAR:
-    if (digits.length === 9) {
-      // bevosita 9 ta -> 998 + that
-      digits = "998" + digits;
-    } else if (digits.length === 11) {
-      // 11 ta: agar 8 bilan boshlasa 8 ni tashlab qolganidan oxirgi 9 olamiz;
-      // aks holda ham xavfsizlik uchun oxirgi 9 olamiz
-      if (digits.startsWith("8")) {
-        // 8XXXXXXXXXX -> olib tashla 8, oxirgi 9 ol
-        digits = "998" + digits.slice(1).slice(-9);
-      } else {
-        // boshqa 11 -> oxirgi 9 olamiz
+    switch (true) {
+      case digits.length === 9: {
+        // bevosita 9 ta -> 998 + that
+        digits = "998" + digits;
+        break;
+      }
+      case digits.length === 11: {
+        // 11 ta: agar 8 bilan boshlasa 8 ni tashlab qolganidan oxirgi 9 olamiz;
+        // aks holda ham xavfsizlik uchun oxirgi 9 olamiz
+        if (digits.startsWith("8")) {
+          // 8XXXXXXXXXX -> olib tashla 8, oxirgi 9 ol
+          digits = "998" + digits.slice(1).slice(-9);
+        } else {
+          // boshqa 11 -> oxirgi 9 olamiz
+          digits = "998" + digits.slice(-9);
+        }
+        break;
+      }
+      case digits.length === 10: {
+        // 0XXXXXXXXX yoki 9XXXXXXXXX: agar 0 bilan boshlangan bo'lsa 0ni tashlab oldik
+        if (digits.startsWith("0")) digits = "998" + digits.slice(1);
+        else digits = "998" + digits.slice(-9);
+        break;
+      }
+      case digits.length >= 12: {
+        // katta stringlar: agar oxirgi 12 "998..." bilan boshlasa saqlaymiz,
+        // aks holda oxirgi 9 olamiz
+        const last12 = digits.slice(-12);
+        if (last12.startsWith("998")) digits = last12;
+        else digits = "998" + digits.slice(-9);
+        break;
+      }
+      default: {
+        // boshqa hollarda (masalan 9 dan katta lekin yuqorida ko'rsatilmagan) oxirgi 9 olamiz
         digits = "998" + digits.slice(-9);
       }
-    } else if (digits.length === 10) {
-      // 0XXXXXXXXX yoki 9XXXXXXXXX: agar 0 bilan boshlangan bo'lsa 0ni tashlab oldik
-      if (digits.startsWith("0")) digits = "998" + digits.slice(1);
-      else digits = "998" + digits.slice(-9);
-    } else if (digits.length >= 12) {
-      // katta stringlar: agar oxirgi 12 "998..." bilan boshlasa saqlaymiz,
-      // aks holda oxirgi 9 olamiz
-      const last12 = digits.slice(-12);
-      if (last12.startsWith("998")) digits = last12;
-      else digits = "998" + digits.slice(-9);
-    } else {
-      // boshqa hollarda (masalan 9 dan katta lekin yuqorida ko'rsatilmagan) oxirgi 9 olamiz
-      digits = "998" + digits.slice(-9);
     }
 
-    if (digits.length !== 12 || !digits.startsWith("998")) return raw;
+    if (digits.length !== 12) return raw;
+    if (!digits.startsWith("998")) return raw;
 
     const p1 = digits.slice(3, 5);
     const p2 = digits.slice(5, 8);
@@ -314,9 +328,19 @@ export class Dates {
     const d1 = Dates.parseDMY("03.11.2011");
     const d2 = Dates.parseDMY("28.12.2018");
 
-    if (d1 < d2) console.log("d1 is before d2");
-    else if (d1 > d2) console.log("d1 is after d2");
-    else console.log("same date");
+    switch (true) {
+      case d1 < d2: {
+        console.log("d1 is before d2");
+        break;
+      }
+      case d1 > d2: {
+        console.log("d1 is after d2");
+        break;
+      }
+      default: {
+        console.log("same date");
+      }
+    }
 
     console.log(compareDatesDMY("03.11.2011", "28.12.2018")); // → negative (a < b)
 

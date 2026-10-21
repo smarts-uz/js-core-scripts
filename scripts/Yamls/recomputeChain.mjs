@@ -22,14 +22,17 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("startDate", { describe: "startDate" })
         .option("futureDate", { describe: "futureDate" })
-        .option("price", { describe: "price" })
-        .option("priceMax", { describe: "priceMax" })
+        .option("accrualDays", { describe: "accrualDays" })
+        .option("priceMon", { describe: "priceMon" })
+        .option("priceDay", { describe: "priceDay" })
+        .option("priceEqualsMax", { describe: "priceEqualsMax" })
+        .option("penaltyDays", { describe: "penaltyDays" })
         .option("payments", { describe: "payments" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.recomputeChain(argv["startDate"], argv["futureDate"], argv["price"], argv["priceMax"], argv["payments"]);
+        const result = await Yamls.recomputeChain(argv["startDate"], argv["futureDate"], argv["accrualDays"], argv["priceMon"], argv["priceDay"], argv["priceEqualsMax"], argv["penaltyDays"], argv["payments"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

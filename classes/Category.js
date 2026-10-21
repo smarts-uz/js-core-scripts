@@ -127,7 +127,8 @@ export class Category {
     const limit     = limitPath ? path.normalize(limitPath) : null;
 
     while (current && current !== limit) {
-      if (!fs.existsSync(current) || !fs.statSync(current).isDirectory()) break;
+      if (!fs.existsSync(current)) break;
+      if (!fs.statSync(current).isDirectory()) break;
       const entries = fs.readdirSync(current);
       if (entries.length === 0) {
         fs.rmdirSync(current);
@@ -147,11 +148,15 @@ export class Category {
     if (!fs.existsSync(dir)) return null;
     for (const file of fs.readdirSync(dir)) {
       const fullPath = path.join(dir, file);
-      if (fs.statSync(fullPath).isDirectory()) {
-        const result = this.findFileRecursively(fullPath, filename);
-        if (result) return result;
-      } else if (file === filename) {
-        return fullPath;
+      switch (true) {
+        case fs.statSync(fullPath).isDirectory(): {
+          const result = this.findFileRecursively(fullPath, filename);
+          if (result) return result;
+          break;
+        }
+        case file === filename: {
+          return fullPath;
+        }
       }
     }
     return null;
@@ -170,11 +175,16 @@ export class Category {
 
     // Replace all per-entry field placeholders
     for (const [k, v] of Object.entries(fields)) {
-      if (v !== null && v !== undefined) {
-        resolved = resolved.replace(new RegExp(`{${k}}`, 'g'), String(v));
-      } else {
-        resolved = resolved.replace(new RegExp(`/{${k}}/`, 'g'), '/');
-        resolved = resolved.replace(new RegExp(`{${k}}`, 'g'), '');
+      switch (true) {
+        case v === null:
+        case v === undefined: {
+          resolved = resolved.replace(new RegExp(`/{${k}}/`, 'g'), '/');
+          resolved = resolved.replace(new RegExp(`{${k}}`, 'g'), '');
+          break;
+        }
+        default: {
+          resolved = resolved.replace(new RegExp(`{${k}}`, 'g'), String(v));
+        }
       }
     }
 
@@ -199,8 +209,10 @@ export class Category {
    */
   static displayPath(target, fields, SourceFolder, absolutePath) {
     console.info(`[Category.displayPath] 🟢 Starting...`);
-    if (SourceFolder && absolutePath) {
-      return path.relative(SourceFolder, absolutePath).replace(/\\/g, '/');
+    if (SourceFolder) {
+      if (absolutePath) {
+        return path.relative(SourceFolder, absolutePath).replace(/\\/g, '/');
+      }
     }
     if (fields.relative_path) {
       return path.join(fields.relative_path, target).replace(/\\/g, '/');
@@ -239,13 +251,17 @@ export class Category {
 
     for (const [target, fields] of Object.entries(data)) {
       if (reservedKeys.has(target)) continue;
-      if (!fields || typeof fields !== 'object') continue;
+      if (!fields) continue;
+      if (typeof fields !== 'object') continue;
 
       const category = fields.category ?? fields.Category;
 
-      if (!category || category === 'Uncategorized') {
-        console.log(`[${tag}] Skipping Uncategorized or missing category: ${target}`);
-        continue;
+      switch (true) {
+        case !category:
+        case category === 'Uncategorized': {
+          console.log(`[${tag}] Skipping Uncategorized or missing category: ${target}`);
+          continue;
+        }
       }
 
       const sourcePath = fields.source_path ?? (SourceFolder ? path.join(SourceFolder, target) : null);
@@ -257,14 +273,19 @@ export class Category {
       // Extract domain from .mhtml / .html for optional use in TargetPath template
       let domain_name = null;
       const ext = path.extname(target).toLowerCase();
-      if ((ext === '.mhtml' || ext === '.html') && fs.existsSync(sourcePath)) {
-        try {
-          const url = Chromes.getUrlFromFile(sourcePath);
-          if (url) {
-            domain_name = new URL(url).hostname.replace(/^www\./, '');
+      switch (true) {
+        case ext === '.mhtml':
+        case ext === '.html': {
+          if (fs.existsSync(sourcePath)) {
+            try {
+              const url = Chromes.getUrlFromFile(sourcePath);
+              if (url) {
+                domain_name = new URL(url).hostname.replace(/^www\./, '');
+              }
+            } catch {
+              domain_name = null;
+            }
           }
-        } catch {
-          domain_name = null;
         }
       }
 
@@ -341,10 +362,12 @@ export class Category {
 
     for (const [target, fields] of Object.entries(data)) {
       if (reservedKeys.has(target)) continue;
-      if (!fields || typeof fields !== 'object') continue;
+      if (!fields) continue;
+      if (typeof fields !== 'object') continue;
 
       const category = fields.category ?? fields.Category;
-      if (!category || category === 'Uncategorized') continue;
+      if (!category) continue;
+      if (category === 'Uncategorized') continue;
 
       const originalPath = fields.source_path ?? (SourceFolder ? path.join(SourceFolder, target) : null);
       if (!originalPath) {

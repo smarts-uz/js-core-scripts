@@ -47,8 +47,10 @@ export class Files {
         const filePath = path.join(dirPath, file);
         const content = fs.readFileSync(filePath, 'utf-8');
         const urlMatch = content.match(/URL=(.*)/i);
-        if (urlMatch && urlMatch[1]) {
-          urls.push({ url: urlMatch[1].trim(), filePath, fileName: file });
+        if (urlMatch) {
+          if (urlMatch[1]) {
+            urls.push({ url: urlMatch[1].trim(), filePath, fileName: file });
+          }
         }
       }
     }
@@ -138,7 +140,11 @@ export class Files {
       if (!entry.isFile()) continue;
 
       const parsed = path.parse(entry.name);
-      if (wantExt && parsed.ext.toLowerCase() !== wantExt) continue;
+      if (wantExt) {
+        if (parsed.ext.toLowerCase() !== wantExt) {
+          continue;
+        }
+      }
 
       // Match the increment-versioning rule: basename ends with " <number>"
       const match = parsed.name.match(/^(.*?)\s+(\d+)$/);
@@ -196,7 +202,11 @@ export class Files {
     for (const entry of entries) {
       if (!entry.isFile()) continue;
       if (entry.name.startsWith('~$')) continue;
-      if (wantExt && path.extname(entry.name).toLowerCase() !== wantExt) continue;
+      if (wantExt) {
+        if (path.extname(entry.name).toLowerCase() !== wantExt) {
+          continue;
+        }
+      }
 
       const fullPath = path.join(folder, entry.name);
       candidates.push({ path: fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs });
@@ -287,14 +297,22 @@ export class Files {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
 
-      if (entry.isDirectory()) {
-        if (ignoredFolders.includes(entry.name)) {
-          console.log(`⚠️ Ignoring folder: ${entry.name}`);
-          continue;
+      switch (true) {
+        case entry.isDirectory(): {
+          if (ignoredFolders.includes(entry.name)) {
+            console.log(`⚠️ Ignoring folder: ${entry.name}`);
+            continue;
+          }
+          results = results.concat(this.findAllContractFiles(fullPath));
+          break;
         }
-        results = results.concat(this.findAllContractFiles(fullPath));
-      } else if (entry.isFile() && entry.name === "ALL.contract") {
-        results.push(fullPath);
+        case !entry.isFile():
+        case entry.name !== "ALL.contract": {
+          break;
+        }
+        default: {
+          results.push(fullPath);
+        }
       }
     }
 
@@ -305,22 +323,41 @@ export class Files {
   static isEmpty(value) {
     console.info(`[Files.isEmpty] 🟢 Starting...`);
     // Check for null or undefined
-    if (value === null || value === undefined) return true;
+    switch (value) {
+      case null:
+      case undefined: {
+        return true;
+      }
+    }
 
     // Check for string
-    if (typeof value === 'string' && value.trim() === '') return true;
+    if (typeof value === 'string') {
+      if (value.trim() === '') {
+        return true;
+      }
+    }
 
     // Check for array
-    if (Array.isArray(value) && value.length === 0) return true;
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return true;
+      }
+    }
 
     // Check for object (excluding arrays, null)
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      if (Object.keys(value).length === 0) return true;
+    if (typeof value === 'object') {
+      if (!Array.isArray(value)) {
+        if (Object.keys(value).length === 0) return true;
+      }
     }
 
     // Check for Map, Set
-    if (value instanceof Map || value instanceof Set) {
-      if (value.size === 0) return true;
+    switch (true) {
+      case value instanceof Map:
+      case value instanceof Set: {
+        if (value.size === 0) return true;
+        break;
+      }
     }
 
     return false;
@@ -863,10 +900,15 @@ export class Files {
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        results = results.concat(Files.findRecursive(fullPath, condition));
-      } else if (condition(entry.name)) {
-        results.push(entry.name);
+      switch (true) {
+        case entry.isDirectory(): {
+          results = results.concat(Files.findRecursive(fullPath, condition));
+          break;
+        }
+        case Boolean(condition(entry.name)): {
+          results.push(entry.name);
+          break;
+        }
       }
     }
     return results;
@@ -879,14 +921,21 @@ export class Files {
     const list = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of list) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (ignoreFolderCondition && ignoreFolderCondition(entry.name, fullPath)) {
-          // console.log(`Skipping ignored folder: ${entry.name}`);
-          continue;
+      switch (true) {
+        case entry.isDirectory(): {
+          if (ignoreFolderCondition) {
+            if (ignoreFolderCondition(entry.name, fullPath)) {
+              // console.log(`Skipping ignored folder: ${entry.name}`);
+              continue;
+            }
+          }
+          results = results.concat(Files.findRecursiveFull(fullPath, condition, ignoreFolderCondition));
+          break;
         }
-        results = results.concat(Files.findRecursiveFull(fullPath, condition, ignoreFolderCondition));
-      } else if (condition(entry.name)) {
-        results.push(fullPath);
+        case Boolean(condition(entry.name)): {
+          results.push(fullPath);
+          break;
+        }
       }
     }
     return results;
@@ -925,7 +974,8 @@ export class Files {
    */
   static normalizeApostrophe(name) {
     console.info(`[Files.normalizeApostrophe] 🟢 Starting...`);
-    if (typeof name !== 'string' || name.length === 0) return name;
+    if (typeof name !== 'string') return name;
+    if (name.length === 0) return name;
     const normalized = name.replace(/[‘’ʻʼ]/g, "'");
     if (normalized !== name) {
       console.log(`[Files.normalizeApostrophe] '${name}' -> '${normalized}'`);

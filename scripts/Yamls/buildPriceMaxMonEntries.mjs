@@ -20,13 +20,16 @@ async function main() {
     console.log('1️⃣ Yamls buildPriceMaxMonEntries Start');
 
     const argv = yargs(hideBin(process.argv))
-        .option("accrual", { describe: "accrual" })
+        .option("startDate", { describe: "startDate" })
+        .option("futureDate", { describe: "futureDate" })
         .option("priceMax", { describe: "priceMax" })
+        .option("tariffSchedule", { describe: "tariffSchedule (optional)" })
+        .option("tariffCosts", { describe: "tariffCosts (optional)" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.buildPriceMaxMonEntries(argv["accrual"], argv["priceMax"]);
+        const result = await Yamls.buildPriceMaxMonEntries(argv["startDate"], argv["futureDate"], argv["priceMax"], argv["tariffSchedule"], argv["tariffCosts"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

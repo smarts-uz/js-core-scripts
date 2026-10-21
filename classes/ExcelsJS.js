@@ -72,9 +72,25 @@ export class ExcelsJS {
     const toSkip = [];
 
     for (const name of sheetNames) {
-      if (sheetFilter && name !== sheetFilter) toSkip.push(name);
-      else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
-      else toProcess.push(name);
+      switch (true) {
+        case !sheetFilter:
+        case name === sheetFilter: {
+          switch (true) {
+            case Boolean(sheetFilter):
+            case !exclusions.includes(name): {
+              toProcess.push(name);
+              break;
+            }
+            default: {
+              toSkip.push(name);
+            }
+          }
+          break;
+        }
+        default: {
+          toSkip.push(name);
+        }
+      }
     }
 
     console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
@@ -93,12 +109,14 @@ export class ExcelsJS {
         for (const cellAddr in ws) {
             if (cellAddr.startsWith('!')) continue;
             const cell = ws[cellAddr];
-            if (cell && cell.f) {
+            if (cell) {
+              if (cell.f) {
                 const oldFormula = cell.f;
                 cell.f = cell.f.replace(searchStr, replaceStr);
                 if (oldFormula !== cell.f) {
                     sheetUpdated++;
                 }
+              }
             }
         }
         totalUpdated += sheetUpdated;

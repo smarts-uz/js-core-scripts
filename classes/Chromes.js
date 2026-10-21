@@ -93,30 +93,34 @@ export class Chromes {
 
     const cacheFile = path.join(domainPath, `${fileName}.json`);
 
-    if (existsSync(cacheFile) && duration !== this.Duration.noCache) {
+    if (existsSync(cacheFile)) {
+      if (duration !== this.Duration.noCache) {
+        // get file changed date
+        const fileStats = fs.statSync(cacheFile);
+        const fileChangedDate = fileStats.mtime;
+        console.info(fileChangedDate, 'fileChangedDate');
 
-      // get file changed date
-      const fileStats = fs.statSync(cacheFile);
-      const fileChangedDate = fileStats.mtime;
-      console.info(fileChangedDate, 'fileChangedDate');
+        // compare file changed date with current date
+        const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
+        console.info(fileChangedDateInSec, 'fileChangedDateInSec');
 
-      // compare file changed date with current date
-      const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
-      console.info(fileChangedDateInSec, 'fileChangedDateInSec');
+        switch (true) {
+          case fileChangedDateInSec < duration:
+          case duration === this.Duration.Unlimited: {
+            const cacheData = Files.readJson(cacheFile);
 
-      if (fileChangedDateInSec < duration || duration === this.Duration.Unlimited) {
-        const cacheData = Files.readJson(cacheFile);
-
-        // get size of cacheData
-        console.info('Fetching from Cache >> ', cacheFile)
-        const cacheLength = JSON.stringify(cacheData).length;
-        console.info('Request body length from Cache: ', cacheLength);
-        return cacheData;
-      } else {
-        console.info('Fetching from Internet Cache Outdated:');
-        Files.backupFile(cacheFile, true)
+            // get size of cacheData
+            console.info('Fetching from Cache >> ', cacheFile)
+            const cacheLength = JSON.stringify(cacheData).length;
+            console.info('Request body length from Cache: ', cacheLength);
+            return cacheData;
+          }
+          default: {
+            console.info('Fetching from Internet Cache Outdated:');
+            Files.backupFile(cacheFile, true)
+          }
+        }
       }
-
     }
 
 
@@ -209,29 +213,32 @@ export class Chromes {
 
     const cacheFile = path.join(domainPath, `${fileName}.${fileType}`);
 
-    if (existsSync(cacheFile) && duration !== this.Duration.noCache) {
+    if (existsSync(cacheFile)) {
+      if (duration !== this.Duration.noCache) {
+        // get file changed date
+        const fileStats = fs.statSync(cacheFile);
+        const fileChangedDate = fileStats.mtime;
+        console.info(fileChangedDate, 'fileChangedDate');
 
-      // get file changed date
-      const fileStats = fs.statSync(cacheFile);
-      const fileChangedDate = fileStats.mtime;
-      console.info(fileChangedDate, 'fileChangedDate');
+        // compare file changed date with current date
+        const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
+        console.info(fileChangedDateInSec, 'fileChangedDateInSec');
 
-      // compare file changed date with current date
-      const fileChangedDateInSec = (Date.now() - fileChangedDate) / 1000;
-      console.info(fileChangedDateInSec, 'fileChangedDateInSec');
-
-      if (fileChangedDateInSec < duration || duration === this.Duration.Unlimited) {
-
-        // get size of cacheData
-        console.info('Fetching from Cache >> ', cacheFile)
-        const cacheLength = fs.statSync(cacheFile).size;
-        console.info('File size from Cache: ', cacheLength);
-        return cacheFile;
-      } else {
-        console.info('Fetching from Internet Cache Outdated:');
-        Files.backupFile(cacheFile, true)
+        switch (true) {
+          case fileChangedDateInSec < duration:
+          case duration === this.Duration.Unlimited: {
+            // get size of cacheData
+            console.info('Fetching from Cache >> ', cacheFile)
+            const cacheLength = fs.statSync(cacheFile).size;
+            console.info('File size from Cache: ', cacheLength);
+            return cacheFile;
+          }
+          default: {
+            console.info('Fetching from Internet Cache Outdated:');
+            Files.backupFile(cacheFile, true)
+          }
+        }
       }
-
     }
 
 
@@ -361,8 +368,13 @@ export class Chromes {
       globalThis.page = await globalThis.browser.newPage();
       await Chromes.pageSetup();
 
-      if (hideChrome || Yamls.getConfig('hideChrome') === 'true')
-        await Chromes.hideChrome();
+      switch (true) {
+        case Boolean(hideChrome):
+        case Yamls.getConfig('hideChrome') === 'true': {
+          await Chromes.hideChrome();
+          break;
+        }
+      }
     }
 
   }
@@ -393,8 +405,14 @@ export class Chromes {
       await Chromes.runBrowser(globalThis.isCmdGo, hideChrome);
     }
 
-    if (Yamls.getConfig('pageCloseBeforeGo') === "true" && (hideChrome || Yamls.getConfig('hideChrome') === 'true'))
-      await Chromes.hideChrome();
+    if (Yamls.getConfig('pageCloseBeforeGo') === "true") {
+      switch (true) {
+        case Boolean(hideChrome):
+        case Yamls.getConfig('hideChrome') === 'true': {
+          await Chromes.hideChrome();
+        }
+      }
+    }
 
   }
 
@@ -615,16 +633,21 @@ export class Chromes {
       }
 
       const stats = fs.statSync(p);
-      if (stats.isDirectory()) {
-        console.log(`📂 Scanning folder for URLs: ${p}`);
-        const filesInFolder = Files.findRecursiveFull(
-          p, 
-          isMhtmlHtml,
-          (name) => name === '- Theory' || name.startsWith('@')
-        );
-        allFiles = allFiles.concat(filesInFolder);
-      } else if (isMhtmlHtml(p)) {
-        allFiles.push(p);
+      switch (true) {
+        case stats.isDirectory(): {
+          console.log(`📂 Scanning folder for URLs: ${p}`);
+          const filesInFolder = Files.findRecursiveFull(
+            p, 
+            isMhtmlHtml,
+            (name) => name === '- Theory' || name.startsWith('@')
+          );
+          allFiles = allFiles.concat(filesInFolder);
+          break;
+        }
+        case Boolean(isMhtmlHtml(p)): {
+          allFiles.push(p);
+          break;
+        }
       }
     }
 
@@ -670,12 +693,18 @@ export class Chromes {
     }
 
     let htmlPath = mhtPath;
-    if (htmlPath.toLowerCase().endsWith('.mhtml')) {
+    switch (true) {
+      case htmlPath.toLowerCase().endsWith('.mhtml'): {
         htmlPath = htmlPath.slice(0, -6) + '.html';
-    } else if (htmlPath.toLowerCase().endsWith('.mht')) {
+        break;
+      }
+      case htmlPath.toLowerCase().endsWith('.mht'): {
         htmlPath = htmlPath.slice(0, -4) + '.html';
-    } else {
+        break;
+      }
+      default: {
         htmlPath += '.html';
+      }
     }
 
     // Download using fetch (urllib is not available in package.json)
@@ -698,7 +727,9 @@ export class Chromes {
 
     // 1. img src="..." -> prepend hostname (origin)
     htmlText = htmlText.replace(/<img\s[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
-        if (p1.startsWith('data:') || p1.startsWith('http://') || p1.startsWith('https://')) return match;
+        if (p1.startsWith('data:')) return match;
+        if (p1.startsWith('http://')) return match;
+        if (p1.startsWith('https://')) return match;
         try {
             const absUrl = new URL(p1, originBase).href;
             return match.replace(p1, absUrl);
@@ -707,7 +738,9 @@ export class Chromes {
 
     // 2. css url("...") -> prepend hostname (origin)
     htmlText = htmlText.replace(/url\((['"]?)([^'"()]+)\1\)/gi, (match, quote, p2) => {
-        if (p2.startsWith('data:') || p2.startsWith('http://') || p2.startsWith('https://')) return match;
+        if (p2.startsWith('data:')) return match;
+        if (p2.startsWith('http://')) return match;
+        if (p2.startsWith('https://')) return match;
         try {
             const absUrl = new URL(p2, originBase).href;
             return `url(${quote}${absUrl}${quote})`;
@@ -716,7 +749,12 @@ export class Chromes {
 
     // 3. a href="..." -> prepend URL Path (fullBase)
     htmlText = htmlText.replace(/<a\s[^>]*href=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
-        if (p1.startsWith('javascript:') || p1.startsWith('mailto:') || p1.startsWith('tel:') || p1.startsWith('#') || p1.startsWith('http://') || p1.startsWith('https://')) return match;
+        if (p1.startsWith('javascript:')) return match;
+        if (p1.startsWith('mailto:')) return match;
+        if (p1.startsWith('tel:')) return match;
+        if (p1.startsWith('#')) return match;
+        if (p1.startsWith('http://')) return match;
+        if (p1.startsWith('https://')) return match;
         try {
             const absUrl = new URL(p1, fullBase).href;
             return match.replace(p1, absUrl);
@@ -727,9 +765,11 @@ export class Chromes {
     console.log(`✅ HTML saved to ${htmlPath}`);
 
     if (deleteMht) {
-        if (fs.existsSync(htmlPath) && fs.statSync(htmlPath).size > 1024) {
+        if (fs.existsSync(htmlPath)) {
+          if (fs.statSync(htmlPath).size > 1024) {
             fs.unlinkSync(mhtPath);
             console.log(`🗑️ Deleted source MHT: ${mhtPath}`);
+          }
         }
     }
 
@@ -746,12 +786,18 @@ export class Chromes {
     const url = this.getUrlFromFile(mhtPath);
 
     let htmlPath = mhtPath;
-    if (htmlPath.toLowerCase().endsWith('.mhtml')) {
+    switch (true) {
+      case htmlPath.toLowerCase().endsWith('.mhtml'): {
         htmlPath = htmlPath.slice(0, -6) + '.html';
-    } else if (htmlPath.toLowerCase().endsWith('.mht')) {
+        break;
+      }
+      case htmlPath.toLowerCase().endsWith('.mht'): {
         htmlPath = htmlPath.slice(0, -4) + '.html';
-    } else {
+        break;
+      }
+      default: {
         htmlPath += '.html';
+      }
     }
 
     // Read as binary so we can safely decode quoted-printable bytes
@@ -793,15 +839,21 @@ export class Chromes {
     rawHtml = rawHtml.replace(/\s*--\s*$/, '');
 
     let decodedHtml = rawHtml;
-    if (encoding === 'quoted-printable') {
+    switch (encoding) {
+      case 'quoted-printable': {
         // libqp (nodemailer's RFC 2045 codec) decodes soft line breaks and =HH
         // hex escapes, including trailing-byte edge cases the manual loop missed.
         decodedHtml = decodeQP(decodedHtml).toString('utf8');
-    } else if (encoding === 'base64') {
+        break;
+      }
+      case 'base64': {
         decodedHtml = Buffer.from(decodedHtml, 'base64').toString('utf8');
-    } else {
+        break;
+      }
+      default: {
         // utf-8 or 8bit
         decodedHtml = Buffer.from(decodedHtml, 'binary').toString('utf8');
+      }
     }
 
     let htmlText = decodedHtml;
@@ -814,17 +866,29 @@ export class Chromes {
         const fullBase = url;
 
         htmlText = htmlText.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
-            if (p1.startsWith('data:') || p1.startsWith('http://') || p1.startsWith('https://') || p1.startsWith('cid:')) return match;
+            if (p1.startsWith('data:')) return match;
+            if (p1.startsWith('http://')) return match;
+            if (p1.startsWith('https://')) return match;
+            if (p1.startsWith('cid:')) return match;
             try { return match.replace(p1, new URL(p1, originBase).href); } catch (e) { return match; }
         });
 
         htmlText = htmlText.replace(/url\((['"]?)([^'"()]+)\1\)/gi, (match, quote, p2) => {
-            if (p2.startsWith('data:') || p2.startsWith('http://') || p2.startsWith('https://') || p2.startsWith('cid:')) return match;
+            if (p2.startsWith('data:')) return match;
+            if (p2.startsWith('http://')) return match;
+            if (p2.startsWith('https://')) return match;
+            if (p2.startsWith('cid:')) return match;
             try { return `url(${quote}${new URL(p2, originBase).href}${quote})`; } catch (e) { return match; }
         });
 
         htmlText = htmlText.replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>/gi, (match, p1) => {
-            if (p1.startsWith('javascript:') || p1.startsWith('mailto:') || p1.startsWith('tel:') || p1.startsWith('#') || p1.startsWith('http://') || p1.startsWith('https://') || p1.startsWith('cid:')) return match;
+            if (p1.startsWith('javascript:')) return match;
+            if (p1.startsWith('mailto:')) return match;
+            if (p1.startsWith('tel:')) return match;
+            if (p1.startsWith('#')) return match;
+            if (p1.startsWith('http://')) return match;
+            if (p1.startsWith('https://')) return match;
+            if (p1.startsWith('cid:')) return match;
             try { return match.replace(p1, new URL(p1, fullBase).href); } catch (e) { return match; }
         });
     }
@@ -833,9 +897,11 @@ export class Chromes {
     console.log(`✅ Offline HTML saved to ${htmlPath}`);
 
     if (deleteMht) {
-        if (fs.existsSync(htmlPath) && fs.statSync(htmlPath).size > 1024) {
+        if (fs.existsSync(htmlPath)) {
+          if (fs.statSync(htmlPath).size > 1024) {
             fs.unlinkSync(mhtPath);
             console.log(`🗑️ Deleted source MHT: ${mhtPath}`);
+          }
         }
     }
 
@@ -844,9 +910,12 @@ export class Chromes {
 
   static async convertFolderMhtToHtm(folderPath, deleteMht = true) {
     console.info(`[Chromes.convertFolderMhtToHtm] 🟢 Starting...`);
-    if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
-      Dialogs.warningBox(`Folder not found or is not a directory:\n${folderPath}`, 'mhtmls Error');
-      return;
+    switch (true) {
+      case !fs.existsSync(folderPath):
+      case !fs.statSync(folderPath).isDirectory(): {
+        Dialogs.warningBox(`Folder not found or is not a directory:\n${folderPath}`, 'mhtmls Error');
+        return;
+      }
     }
 
     console.log(`📂 Scanning folder for MHTML files: ${folderPath}`);

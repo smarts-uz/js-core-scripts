@@ -47,12 +47,18 @@ export class Word {
 
   static merge(filePaths, pageBreak = true, targetDir = null) {
     console.info(`[Word.merge] 🟢 Starting...`);
-    if (!filePaths || filePaths.length === 0) {
+    if (!filePaths) {
+      throw new Error("No files provided to merge.");
+    }
+    if (filePaths.length === 0) {
       throw new Error("No files provided to merge.");
     }
 
     const templateFolder = Yamls.getConfig("Templates.WordMerge");
-    if (!templateFolder || !fs.existsSync(templateFolder)) {
+    if (!templateFolder) {
+      throw new Error(`Word template folder not found at: ${templateFolder}`);
+    }
+    if (!fs.existsSync(templateFolder)) {
       throw new Error(`Word template folder not found at: ${templateFolder}`);
     }
 
@@ -102,8 +108,10 @@ export class Word {
         selection.EndKey(6); // wdStory
         selection.InsertFile(sourceFile);
 
-        if (pageBreak && i < filePaths.length - 1) {
-          selection.InsertBreak(7); // wdPageBreak
+        if (pageBreak) {
+          if (i < filePaths.length - 1) {
+            selection.InsertBreak(7); // wdPageBreak
+          }
         }
       }
 
@@ -131,7 +139,10 @@ export class Word {
 
   static mergeFolder(folderPaths, pageBreak = true) {
     console.info(`[Word.mergeFolder] 🟢 Starting...`);
-    if (!folderPaths || folderPaths.length === 0) {
+    if (!folderPaths) {
+      throw new Error("No folders provided to mergeFolder.");
+    }
+    if (folderPaths.length === 0) {
       throw new Error("No folders provided to mergeFolder.");
     }
 
@@ -149,15 +160,20 @@ export class Word {
       let latestTime = 0;
 
       for (const file of files) {
-        if (!file.toLowerCase().endsWith(".docx") || file.startsWith("~$")) {
+        if (!file.toLowerCase().endsWith(".docx")) {
+          continue;
+        }
+        if (file.startsWith("~$")) {
           continue;
         }
 
         const filePath = path.join(resolvedFolder, file);
         const stats = fs.statSync(filePath);
-        if (stats.isFile() && stats.mtimeMs > latestTime) {
-          latestTime = stats.mtimeMs;
-          latestFile = filePath;
+        if (stats.isFile()) {
+          if (stats.mtimeMs > latestTime) {
+            latestTime = stats.mtimeMs;
+            latestFile = filePath;
+          }
         }
       }
 
@@ -241,7 +257,8 @@ export class Word {
 
   static getComNameInitials(name) {
     console.info(`[Word.getComNameInitials] 🟢 Starting...`);
-    if (!name || typeof name !== "string") return "";
+    if (!name) return "";
+    if (typeof name !== "string") return "";
     let cleaned = this.cleanCompanyName(name);
     return cleaned
       .split(/\s+/)
@@ -251,7 +268,8 @@ export class Word {
 
   static cleanCompanyName(name) {
     console.info(`[Word.cleanCompanyName] 🟢 Starting...`);
-    if (!name || typeof name !== "string") return "";
+    if (!name) return "";
+    if (typeof name !== "string") return "";
     let cleaned = name.replace(/[«»"']/g, "").trim();
     cleaned = cleaned.replace(/MCHJ|AK|YaTT/g, "").trim();
     console.info(cleaned, "cleanCompanyName");
@@ -287,9 +305,12 @@ export class Word {
     const templatePath = Files.getLatestMatchingFile(templateFolder, ".docx");
     console.log("Using template", templatePath);
 
-    if (!templatePath || !existsSync(templatePath)) {
-      Dialogs.warningBox(`No "Basename N".docx template found in: ${templateFolder}`, "Error");
-      return;
+    switch (true) {
+      case !templatePath:
+      case !existsSync(templatePath): {
+        Dialogs.warningBox(`No "Basename N".docx template found in: ${templateFolder}`, "Error");
+        return;
+      }
     }
 
     let data = Yamls.loadYamlWithDeps(ymlFile);
@@ -324,15 +345,22 @@ export class Word {
 
   static extractDate(date) {
     console.info(`[Word.extractDate] 🟢 Starting...`);
-    if (!date || typeof date !== "string") {
-      Dialogs.warningBox(`Date not found or invalid: ${date}`, "Error");
-      return null;
+    switch (true) {
+      case !date:
+      case typeof date !== "string": {
+        Dialogs.warningBox(`Date not found or invalid: ${date}`, "Error");
+        return null;
+      }
     }
 
     const [day, month, year] = date.split(".");
-    if (!day || !month || !year) {
-      Dialogs.warningBox(`Invalid date format: ${date}`, "Error");
-      return null;
+    switch (true) {
+      case !day:
+      case !month:
+      case !year: {
+        Dialogs.warningBox(`Invalid date format: ${date}`, "Error");
+        return null;
+      }
     }
 
     return { year, month, day };
@@ -555,7 +583,8 @@ export class Word {
 
     // Strip carriage returns/control chars Word injects between runs.
     let s = input.replace(/[\r\n-]/g, "").trim();
-    if (!s || s === "Type equation here.") return null;
+    if (!s) return null;
+    if (s === "Type equation here.") return null;
 
     // 1. Normalize Mathematical-Alphanumeric Unicode letters/digits back to ASCII.
     s = this._normalizeMathAlphanum(s);
@@ -603,28 +632,36 @@ export class Word {
       const cp = ch.codePointAt(0);
       let mapped = ch;
       // Mathematical Alphanumeric Symbols block: U+1D400–U+1D7FF.
-      if (cp >= 0x1d400 && cp <= 0x1d7ff) {
-        const blocks = [
-          [0x1d400, 0x1d419, 0x41], [0x1d41a, 0x1d433, 0x61], // bold A-Z, a-z
-          [0x1d434, 0x1d44d, 0x41], [0x1d44e, 0x1d467, 0x61], // italic
-          [0x1d468, 0x1d481, 0x41], [0x1d482, 0x1d49b, 0x61], // bold italic
-          [0x1d49c, 0x1d4b5, 0x41], [0x1d4b6, 0x1d4cf, 0x61], // script
-          [0x1d4d0, 0x1d4e9, 0x41], [0x1d4ea, 0x1d503, 0x61], // bold script
-          [0x1d504, 0x1d51d, 0x41], [0x1d51e, 0x1d537, 0x61], // fraktur
-          [0x1d538, 0x1d551, 0x41], [0x1d552, 0x1d56b, 0x61], // double-struck
-          [0x1d56c, 0x1d585, 0x41], [0x1d586, 0x1d59f, 0x61], // bold fraktur
-          [0x1d5a0, 0x1d5b9, 0x41], [0x1d5ba, 0x1d5d3, 0x61], // sans-serif
-          [0x1d5d4, 0x1d5ed, 0x41], [0x1d5ee, 0x1d607, 0x61], // sans bold
-          [0x1d608, 0x1d621, 0x41], [0x1d622, 0x1d63b, 0x61], // sans italic
-          [0x1d63c, 0x1d655, 0x41], [0x1d656, 0x1d66f, 0x61], // sans bold italic
-          [0x1d670, 0x1d689, 0x41], [0x1d68a, 0x1d6a3, 0x61], // monospace
-        ];
-        for (const [lo, hi, base] of blocks) {
-          if (cp >= lo && cp <= hi) { mapped = String.fromCharCode(base + (cp - lo)); break; }
-        }
-        // Mathematical digits U+1D7CE–U+1D7FF map to 0-9 in groups of 10.
-        if (cp >= 0x1d7ce && cp <= 0x1d7ff) {
-          mapped = String.fromCharCode(0x30 + ((cp - 0x1d7ce) % 10));
+      if (cp >= 0x1d400) {
+        if (cp <= 0x1d7ff) {
+          const blocks = [
+            [0x1d400, 0x1d419, 0x41], [0x1d41a, 0x1d433, 0x61], // bold A-Z, a-z
+            [0x1d434, 0x1d44d, 0x41], [0x1d44e, 0x1d467, 0x61], // italic
+            [0x1d468, 0x1d481, 0x41], [0x1d482, 0x1d49b, 0x61], // bold italic
+            [0x1d49c, 0x1d4b5, 0x41], [0x1d4b6, 0x1d4cf, 0x61], // script
+            [0x1d4d0, 0x1d4e9, 0x41], [0x1d4ea, 0x1d503, 0x61], // bold script
+            [0x1d504, 0x1d51d, 0x41], [0x1d51e, 0x1d537, 0x61], // fraktur
+            [0x1d538, 0x1d551, 0x41], [0x1d552, 0x1d56b, 0x61], // double-struck
+            [0x1d56c, 0x1d585, 0x41], [0x1d586, 0x1d59f, 0x61], // bold fraktur
+            [0x1d5a0, 0x1d5b9, 0x41], [0x1d5ba, 0x1d5d3, 0x61], // sans-serif
+            [0x1d5d4, 0x1d5ed, 0x41], [0x1d5ee, 0x1d607, 0x61], // sans bold
+            [0x1d608, 0x1d621, 0x41], [0x1d622, 0x1d63b, 0x61], // sans italic
+            [0x1d63c, 0x1d655, 0x41], [0x1d656, 0x1d66f, 0x61], // sans bold italic
+            [0x1d670, 0x1d689, 0x41], [0x1d68a, 0x1d6a3, 0x61], // monospace
+          ];
+          branchExit1: for (const [lo, hi, base] of blocks) {
+            if (cp >= lo) {
+              if (cp <= hi) {
+                mapped = String.fromCharCode(base + (cp - lo)); break branchExit1; 
+              }
+            }
+          }
+          // Mathematical digits U+1D7CE–U+1D7FF map to 0-9 in groups of 10.
+          if (cp >= 0x1d7ce) {
+            if (cp <= 0x1d7ff) {
+              mapped = String.fromCharCode(0x30 + ((cp - 0x1d7ce) % 10));
+            }
+          }
         }
       }
       out += mapped;
@@ -662,7 +699,8 @@ export class Word {
     for (const cell of cells) {
       const cs = parseInt(cell.getAttribute("colspan") || "1", 10);
       const rs = parseInt(cell.getAttribute("rowspan") || "1", 10);
-      if (cs > 1 || rs > 1) return true;
+      if (cs > 1) return true;
+      if (rs > 1) return true;
       // More than one paragraph or a line break inside a cell breaks GFM rows.
       if (toArr(cell.querySelectorAll("p")).length > 1) return true;
       if (cell.querySelector("br")) return true;
@@ -686,9 +724,20 @@ export class Word {
       let out = "";
       const kids = toArr(node.childNodes);
       for (const k of kids) {
-        if (k.nodeType === 3) out += k.nodeValue || ""; // text node
-        else if (k.nodeName === "BR") out += BR;
-        else out += innerText(k);
+        // text node
+        switch (true) {
+          case k.nodeType === 3: {
+            out += k.nodeValue || "";
+            break;
+          }
+          case k.nodeName === "BR": {
+            out += BR;
+            break;
+          }
+          default: {
+            out += innerText(k);
+          }
+        }
       }
       return out;
     };
@@ -857,10 +906,13 @@ export class Word {
     console.info(`[Word.wordToMD] 🟢 Starting word to MD conversion for: ${filename}`);
     this.checkWinax("wordToMD");
 
-    if (!filename || !fs.existsSync(filename)) {
-      console.warn(`[Word.wordToMD] ⚠️ File not found: ${filename}`);
-      Dialogs.warningBox(`File not found: ${filename}`, "Error");
-      return;
+    switch (true) {
+      case !filename:
+      case !fs.existsSync(filename): {
+        console.warn(`[Word.wordToMD] ⚠️ File not found: ${filename}`);
+        Dialogs.warningBox(`File not found: ${filename}`, "Error");
+        return;
+      }
     }
 
     const resolvedFile = path.resolve(filename);
@@ -934,7 +986,11 @@ export class Word {
     } finally {
       // Always remove the temp HTML, even when conversion threw mid-way.
       try {
-        if (htmlPath && fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
+        if (htmlPath) {
+          if (fs.existsSync(htmlPath)) {
+            fs.unlinkSync(htmlPath);
+          }
+        }
       } catch (_) {
         console.warn(`[Word.wordToMD] ⚠️ Error removing temp HTML: ${htmlPath}`);
       }

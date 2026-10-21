@@ -61,8 +61,10 @@ export class Excels {
     const stem = path.basename(absPath, ext);
     const protectSuffix = Yamls.getConfig('Excel.ProtectSuffix') || '';
     
-    if (protectSuffix && stem.includes(protectSuffix)) {
-      return absPath;
+    if (protectSuffix) {
+      if (stem.includes(protectSuffix)) {
+        return absPath;
+      }
     }
     
     let newPath = path.join(path.dirname(absPath), `${stem}${protectSuffix}${ext}`);
@@ -169,7 +171,10 @@ export class Excels {
 
 
     // Check if folder exists and is a directory
-    if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+    if (!fs.existsSync(folderPath)) {
+      return []; // return empty array silently
+    }
+    if (!fs.statSync(folderPath).isDirectory()) {
       return []; // return empty array silently
     }
 
@@ -184,7 +189,10 @@ export class Excels {
 
 
     // Check if folder exists and is a directory
-    if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+    if (!fs.existsSync(folderPath)) {
+      return []; // return empty array silently
+    }
+    if (!fs.statSync(folderPath).isDirectory()) {
       return []; // return empty array silently
     }
 
@@ -943,9 +951,21 @@ export class Excels {
 
     try {
       // ✅ Release COM objects to prevent Excel.exe from staying in memory
-      if (globalThis.excelWorkbook && globalThis.excelWorkbook.ReleaseComObject) globalThis.excelWorkbook.ReleaseComObject();
-      if (globalThis.excelSheet && globalThis.excelSheet.ReleaseComObject) globalThis.excelSheet.ReleaseComObject();
-      if (globalThis.excelApp && globalThis.excelApp.ReleaseComObject) globalThis.excelApp.ReleaseComObject();
+      if (globalThis.excelWorkbook) {
+        if (globalThis.excelWorkbook.ReleaseComObject) {
+          globalThis.excelWorkbook.ReleaseComObject();
+        }
+      }
+      if (globalThis.excelSheet) {
+        if (globalThis.excelSheet.ReleaseComObject) {
+          globalThis.excelSheet.ReleaseComObject();
+        }
+      }
+      if (globalThis.excelApp) {
+        if (globalThis.excelApp.ReleaseComObject) {
+          globalThis.excelApp.ReleaseComObject();
+        }
+      }
 
       // ✅ Or just use `winax.release()` (if you have a lot of COM refs)
       if (globalThis.excelApp) winax.release(globalThis.excelApp);
@@ -995,9 +1015,25 @@ export class Excels {
 
       for (let i = 1; i <= sheetCount; i++) {
         const name = workbook.Sheets(i).Name;
-        if (sheetFilter && name !== sheetFilter) toSkip.push(name);
-        else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
-        else toProcess.push(name);
+        switch (true) {
+          case !sheetFilter:
+          case name === sheetFilter: {
+            switch (true) {
+              case Boolean(sheetFilter):
+              case !exclusions.includes(name): {
+                toProcess.push(name);
+                break;
+              }
+              default: {
+                toSkip.push(name);
+              }
+            }
+            break;
+          }
+          default: {
+            toSkip.push(name);
+          }
+        }
       }
 
       console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
@@ -1010,8 +1046,24 @@ export class Excels {
         const sheet = workbook.Sheets(i);
         const sheetName = sheet.Name;
 
-        if (sheetFilter && sheetName !== sheetFilter) continue;
-        else if (!sheetFilter && exclusions.includes(sheetName)) continue;
+        switch (true) {
+          case !sheetFilter:
+          case sheetName === sheetFilter: {
+            switch (true) {
+              case Boolean(sheetFilter):
+              case !exclusions.includes(sheetName): {
+                break;
+              }
+              default: {
+                continue;
+              }
+            }
+            break;
+          }
+          default: {
+            continue;
+          }
+        }
 
         processedIdx++;
         console.log(`\n🔍 [${processedIdx}/${toProcess.length}] Processing sheet: "${sheetName}" via ${apiName}`);
@@ -1028,8 +1080,12 @@ export class Excels {
         let changedInSheet = 0;
 
         for (let c = 1; c <= count; c++) {
-          if (c % 10 === 0 || c === count) {
-            process.stdout.write(`\r      ⏳ Evaluating cells: ${c}/${count} (${Math.round((c / count) * 100)}%)`);
+          switch (true) {
+            case c % 10 === 0:
+            case c === count: {
+              process.stdout.write(`\r      ⏳ Evaluating cells: ${c}/${count} (${Math.round((c / count) * 100)}%)`);
+              break;
+            }
           }
 
           const cell = formulaCells.Item(c);
@@ -1038,14 +1094,16 @@ export class Excels {
           try { formula = cell[readApi]; }
           catch (_) { try { formula = cell.Formula; } catch (__) {} }
 
-          if (typeof formula === 'string' && formula.includes(searchStr)) {
-            const newFormula = formula.split(searchStr).join(replaceStr);
-            if (newFormula !== formula) {
-              try {
-                cell[apiName] = newFormula;
-                changedInSheet++;
-              } catch (e) {
-                console.warn(`\n⚠️  ${apiName} write failed at ${sheetName}!${cell.Address}: ${e.message}`);
+          if (typeof formula === 'string') {
+            if (formula.includes(searchStr)) {
+              const newFormula = formula.split(searchStr).join(replaceStr);
+              if (newFormula !== formula) {
+                try {
+                  cell[apiName] = newFormula;
+                  changedInSheet++;
+                } catch (e) {
+                  console.warn(`\n⚠️  ${apiName} write failed at ${sheetName}!${cell.Address}: ${e.message}`);
+                }
               }
             }
           }
@@ -1127,9 +1185,25 @@ export class Excels {
 
       for (let i = 1; i <= sheetCount; i++) {
         const name = workbook.Sheets(i).Name;
-        if (sheetFilter && name !== sheetFilter) toSkip.push(name);
-        else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
-        else toProcess.push(name);
+        switch (true) {
+          case !sheetFilter:
+          case name === sheetFilter: {
+            switch (true) {
+              case Boolean(sheetFilter):
+              case !exclusions.includes(name): {
+                toProcess.push(name);
+                break;
+              }
+              default: {
+                toSkip.push(name);
+              }
+            }
+            break;
+          }
+          default: {
+            toSkip.push(name);
+          }
+        }
       }
 
       console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
@@ -1141,10 +1215,23 @@ export class Excels {
         const sheet = workbook.Sheets(i);
         const sheetName = sheet.Name;
 
-        if (sheetFilter && sheetName !== sheetFilter) {
-          continue;
-        } else if (!sheetFilter && exclusions.includes(sheetName)) {
-          continue;
+        switch (true) {
+          case !sheetFilter:
+          case sheetName === sheetFilter: {
+            switch (true) {
+              case Boolean(sheetFilter):
+              case !exclusions.includes(sheetName): {
+                break;
+              }
+              default: {
+                continue;
+              }
+            }
+            break;
+          }
+          default: {
+            continue;
+          }
         }
 
         processedIdx++;
@@ -1210,9 +1297,25 @@ export class Excels {
 
       for (let i = 1; i <= sheetCount; i++) {
         const name = workbook.Sheets(i).Name;
-        if (sheetFilter && name !== sheetFilter) toSkip.push(name);
-        else if (!sheetFilter && exclusions.includes(name)) toSkip.push(name);
-        else toProcess.push(name);
+        switch (true) {
+          case !sheetFilter:
+          case name === sheetFilter: {
+            switch (true) {
+              case Boolean(sheetFilter):
+              case !exclusions.includes(name): {
+                toProcess.push(name);
+                break;
+              }
+              default: {
+                toSkip.push(name);
+              }
+            }
+            break;
+          }
+          default: {
+            toSkip.push(name);
+          }
+        }
       }
 
       console.log(`✅ Will process (${toProcess.length}): ${toProcess.join(', ')}`);
@@ -1225,8 +1328,24 @@ export class Excels {
         const sheet = workbook.Sheets(i);
         const sheetName = sheet.Name;
 
-        if (sheetFilter && sheetName !== sheetFilter) continue;
-        else if (!sheetFilter && exclusions.includes(sheetName)) continue;
+        switch (true) {
+          case !sheetFilter:
+          case sheetName === sheetFilter: {
+            switch (true) {
+              case Boolean(sheetFilter):
+              case !exclusions.includes(sheetName): {
+                break;
+              }
+              default: {
+                continue;
+              }
+            }
+            break;
+          }
+          default: {
+            continue;
+          }
+        }
 
         processedIdx++;
         console.log(`\n🔍 [${processedIdx}/${toProcess.length}] Processing sheet: "${sheetName}"`);
@@ -1249,11 +1368,13 @@ export class Excels {
             for (let ci = 1; ci <= cellCount; ci++) {
               const cell = area.Item(ci);
               const formula = cell.Formula ? String(cell.Formula) : '';
-              if (formula.startsWith('=') && formula.includes(searchStr)) {
-                const newFormula = formula.split(searchStr).join(replaceStr);
-                if (newFormula !== formula) {
-                  cell.Formula = newFormula;
-                  changedInSheet++;
+              if (formula.startsWith('=')) {
+                if (formula.includes(searchStr)) {
+                  const newFormula = formula.split(searchStr).join(replaceStr);
+                  if (newFormula !== formula) {
+                    cell.Formula = newFormula;
+                    changedInSheet++;
+                  }
                 }
               }
             }
@@ -1399,8 +1520,13 @@ export class Excels {
 
     // 1. Read the ordered pricing cell/column names from config.yml (Excel.CellNames).
     const configuredCells = Yamls.getConfig('Excel.CellNames');
-    if (!Array.isArray(configuredCells) || configuredCells.length === 0)
-      Dialogs.warningBox('Excel.CellNames missing/empty in config.yml', 'Error');
+    switch (true) {
+      case !Array.isArray(configuredCells):
+      case configuredCells.length === 0: {
+        Dialogs.warningBox('Excel.CellNames missing/empty in config.yml', 'Error');
+        break;
+      }
+    }
     const cellNames = Array.isArray(configuredCells) ? configuredCells : [];
     console.log('Cell names:', cellNames.join(', '), 'cellNames');
 
@@ -1754,7 +1880,10 @@ export class Excels {
 
   static mergeFiles(files, mergedName) {
     console.info(`[Excels.mergeFiles] 🟢 Starting...`);
-    if (!files || files.length === 0) {
+    if (!files) {
+      throw new Error(`mergeFiles: No input files provided.`);
+    }
+    if (files.length === 0) {
       throw new Error(`mergeFiles: No input files provided.`);
     }
 
@@ -1865,7 +1994,10 @@ export class Excels {
    */
   static mergeFolder(folderPaths, mergedName = '') {
     console.info(`[Excels.mergeFolder] 🟢 Starting...`);
-    if (!folderPaths || folderPaths.length === 0) {
+    if (!folderPaths) {
+      throw new Error('mergeFolder: No folders provided.');
+    }
+    if (folderPaths.length === 0) {
       throw new Error('mergeFolder: No folders provided.');
     }
 
@@ -1883,14 +2015,19 @@ export class Excels {
       let latestTime = 0;
 
       for (const file of files) {
-        if (!file.toLowerCase().endsWith('.xlsx') || file.startsWith('~$')) {
+        if (!file.toLowerCase().endsWith('.xlsx')) {
+          continue;
+        }
+        if (file.startsWith('~$')) {
           continue;
         }
         const filePath = path.join(resolvedFolder, file);
         const stats = fs.statSync(filePath);
-        if (stats.isFile() && stats.mtimeMs > latestTime) {
-          latestTime = stats.mtimeMs;
-          latestFile = filePath;
+        if (stats.isFile()) {
+          if (stats.mtimeMs > latestTime) {
+            latestTime = stats.mtimeMs;
+            latestFile = filePath;
+          }
         }
       }
 
@@ -2054,15 +2191,19 @@ export class Excels {
       workbook.Close(false);
 
       // -1 = xlSheetVisible, 0 = xlSheetHidden, 2 = xlSheetVeryHidden
-      if (visibleValue === -1) {
-        console.log(`👁️  Sheet "${sheetName}" → visible`);
-        return 'visible';
-      } else if (visibleValue === 2) {
-        console.log(`🙈 Sheet "${sheetName}" → veryHidden`);
-        return 'veryHidden';
-      } else {
-        console.log(`🙈 Sheet "${sheetName}" → hidden`);
-        return 'hidden';
+      switch (visibleValue) {
+        case -1: {
+          console.log(`👁️  Sheet "${sheetName}" → visible`);
+          return 'visible';
+        }
+        case 2: {
+          console.log(`🙈 Sheet "${sheetName}" → veryHidden`);
+          return 'veryHidden';
+        }
+        default: {
+          console.log(`🙈 Sheet "${sheetName}" → hidden`);
+          return 'hidden';
+        }
       }
     } catch (error) {
       throw new Error(`isHidden failed: ${error.message}`);

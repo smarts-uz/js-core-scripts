@@ -39,8 +39,10 @@ function collectTests(dir, found = []) {
             }
             continue;
         }
-        if (entry.isFile() && entry.name.endsWith('.test.js')) {
-            found.push(path.join(dir, entry.name));
+        if (entry.isFile()) {
+            if (entry.name.endsWith('.test.js')) {
+                found.push(path.join(dir, entry.name));
+            }
         }
     }
     return found;

@@ -262,9 +262,11 @@ export class Markdown {
     }
 
     // Backward-compatible: a direct file path still works.
-    if (fs.existsSync(configured) && fs.statSync(configured).isFile()) {
-      console.info(`[Markdown._resolveTemplate] Using direct file path: ${configured}`);
-      return configured;
+    if (fs.existsSync(configured)) {
+      if (fs.statSync(configured).isFile()) {
+        console.info(`[Markdown._resolveTemplate] Using direct file path: ${configured}`);
+        return configured;
+      }
     }
 
     // Folder mode: pick the latest "Basename N" .docx from the folder.
@@ -319,15 +321,23 @@ export class Markdown {
 
       // Resolve template: explicit override → else latest file from config folder.
       let resolvedTemplate = templatePath;
-      if (resolvedTemplate && fs.existsSync(resolvedTemplate) && fs.statSync(resolvedTemplate).isDirectory()) {
-        resolvedTemplate = Files.getLatestMatchingFile(resolvedTemplate, '.docx');
+      if (resolvedTemplate) {
+        if (fs.existsSync(resolvedTemplate)) {
+          if (fs.statSync(resolvedTemplate).isDirectory()) {
+            resolvedTemplate = Files.getLatestMatchingFile(resolvedTemplate, '.docx');
+          }
+        }
       }
       if (!resolvedTemplate) {
         resolvedTemplate = Markdown._resolveTemplate(configKey);
       }
       console.log(`[Markdown._convertToWordCore] Resolved template: ${resolvedTemplate}`);
-      if (!resolvedTemplate || !fs.existsSync(resolvedTemplate))
-        return Dialogs.warningBox(`Word template not found (key ${configKey}): ${resolvedTemplate}`, label);
+      switch (true) {
+        case !resolvedTemplate:
+        case !fs.existsSync(resolvedTemplate): {
+          return Dialogs.warningBox(`Word template not found (key ${configKey}): ${resolvedTemplate}`, label);
+        }
+      }
 
       const docDir = path.join(parsed.dir, 'DOC');
       Markdown._ensureDir(docDir);
@@ -530,9 +540,12 @@ ${htmlContent}
   static merge(files, lineBetween = null) {
     console.info(`[Markdown.merge] 🟢 Starting...`);
 
-    if (!Array.isArray(files) || files.length === 0) {
-      console.warn('⚠️ Markdown.merge: No files provided.');
-      return;
+    switch (true) {
+      case !Array.isArray(files):
+      case files.length === 0: {
+        console.warn('⚠️ Markdown.merge: No files provided.');
+        return;
+      }
     }
 
     // Resolve every path up-front and validate existence

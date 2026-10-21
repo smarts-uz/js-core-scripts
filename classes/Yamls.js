@@ -203,18 +203,28 @@ export class Yamls {
         if (/^(true|false|null|~|yes|no|on|off)$/i.test(inner)) return false;
         if (/^[#&*!|>'"%@`]/.test(inner)) return false;
         if (/^[-?:,[\]{}]/.test(inner)) return false;
-        if (inner.includes(': ') || inner.endsWith(':') || inner.includes(' #')) return false;
+        if (inner.includes(': ')) return false;
+        if (inner.endsWith(':')) return false;
+        if (inner.includes(' #')) return false;
         return true;
     }
 
     static #stripUnnecessaryQuotes(dumpedYamlText) {
         return dumpedYamlText.split('\n').map(line => {
             let out = line.replace(/^(\s*(?:-\s+)?)(['"])((?:[^'"\\]|\\.)*)\2(\s*:)/, (m, pre, q, inner, colon) => {
-                if (q === "'" && inner.includes("''")) return m;
+                if (q === "'") {
+                    if (inner.includes("''")) {
+                        return m;
+                    }
+                }
                 return Yamls.#isSafeUnquoted(inner) ? `${pre}${inner}${colon}` : m;
             });
             out = out.replace(/(:\s+)(['"])((?:[^'"\\]|\\.)*)\2(\s*)$/, (m, pre, q, inner, trail) => {
-                if (q === "'" && inner.includes("''")) return m;
+                if (q === "'") {
+                    if (inner.includes("''")) {
+                        return m;
+                    }
+                }
                 return Yamls.#isSafeUnquoted(inner) ? `${pre}${inner}${trail}` : m;
             });
             return out;
@@ -263,9 +273,11 @@ export class Yamls {
         console.info(`[Yamls.writeYamlArraySection] 🟢 Starting... key=${key}`);
 
         if (!Array.isArray(entries)) entries = [];
-        if (entries.length === 0 && !allowEmpty) {
-            console.warn(`writeYamlArraySection: ${key} is empty and allowEmpty=false, nothing to write for ${filePath}.`);
-            return;
+        if (entries.length === 0) {
+            if (!allowEmpty) {
+                console.warn(`writeYamlArraySection: ${key} is empty and allowEmpty=false, nothing to write for ${filePath}.`);
+                return;
+            }
         }
 
         entries = entries.map((entry) => {
@@ -404,7 +416,11 @@ export class Yamls {
         if (idx === -1) return;
 
         lines.splice(idx, 1);
-        if (lines[idx - 1] === '' && lines[idx] === '') lines.splice(idx, 1);
+        if (lines[idx - 1] === '') {
+            if (lines[idx] === '') {
+                lines.splice(idx, 1);
+            }
+        }
 
         fs.writeFileSync(filePath, lines.join('\n'));
         console.log(`File ${filePath} had stale key ${key} removed.`);
@@ -533,22 +549,28 @@ export class Yamls {
 
         const entries = monthRanges.map(({ start, end }) => {
             let mPrice = priceNum;
-            if (schedule && schedule.length > 0 && tariffCosts) {
-                let activeTariff = null;
-                const currentMonth = start.slice(0, 7);
-                for (const entry of schedule) {
-                    const [entryKey, tariffName] = Object.entries(entry)[0];
-                    const entryMonth = String(entryKey).trim().slice(0, 7);
-                    if (entryMonth <= currentMonth) {
-                        activeTariff = tariffName;
+            if (schedule) {
+                if (schedule.length > 0) {
+                    if (tariffCosts) {
+                        let activeTariff = null;
+                        const currentMonth = start.slice(0, 7);
+                        for (const entry of schedule) {
+                            const [entryKey, tariffName] = Object.entries(entry)[0];
+                            const entryMonth = String(entryKey).trim().slice(0, 7);
+                            if (entryMonth <= currentMonth) {
+                                activeTariff = tariffName;
+                            }
+                        }
+                        if (!activeTariff) {
+                            activeTariff = Object.values(schedule[0])[0];
+                        }
+                        const costObj = tariffCosts[activeTariff];
+                        if (costObj) {
+                            if (costObj.Price != null) {
+                                mPrice = Number(String(costObj.Price).replace(/,/g, '')) || 0;
+                            }
+                        }
                     }
-                }
-                if (!activeTariff) {
-                    activeTariff = Object.values(schedule[0])[0];
-                }
-                const costObj = tariffCosts[activeTariff];
-                if (costObj && costObj.Price != null) {
-                    mPrice = Number(String(costObj.Price).replace(/,/g, '')) || 0;
                 }
             }
             return { [start.slice(0, 7)]: Yamls.#fmt(mPrice) };
@@ -579,22 +601,28 @@ export class Yamls {
 
         const entries = monthRanges.map(({ start, end }) => {
             let mPriceMax = priceMaxNum;
-            if (schedule && schedule.length > 0 && tariffCosts) {
-                let activeTariff = null;
-                const currentMonth = start.slice(0, 7);
-                for (const entry of schedule) {
-                    const [entryKey, tariffName] = Object.entries(entry)[0];
-                    const entryMonth = String(entryKey).trim().slice(0, 7);
-                    if (entryMonth <= currentMonth) {
-                        activeTariff = tariffName;
+            if (schedule) {
+                if (schedule.length > 0) {
+                    if (tariffCosts) {
+                        let activeTariff = null;
+                        const currentMonth = start.slice(0, 7);
+                        for (const entry of schedule) {
+                            const [entryKey, tariffName] = Object.entries(entry)[0];
+                            const entryMonth = String(entryKey).trim().slice(0, 7);
+                            if (entryMonth <= currentMonth) {
+                                activeTariff = tariffName;
+                            }
+                        }
+                        if (!activeTariff) {
+                            activeTariff = Object.values(schedule[0])[0];
+                        }
+                        const costObj = tariffCosts[activeTariff];
+                        if (costObj) {
+                            if (costObj.PriceMax != null) {
+                                mPriceMax = Number(String(costObj.PriceMax).replace(/,/g, '')) || 0;
+                            }
+                        }
                     }
-                }
-                if (!activeTariff) {
-                    activeTariff = Object.values(schedule[0])[0];
-                }
-                const costObj = tariffCosts[activeTariff];
-                if (costObj && costObj.PriceMax != null) {
-                    mPriceMax = Number(String(costObj.PriceMax).replace(/,/g, '')) || 0;
                 }
             }
             return { [start.slice(0, 7)]: Yamls.#fmt(mPriceMax) };
@@ -669,9 +697,13 @@ export class Yamls {
         console.info(`[Yamls.buildAccountEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
         const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-        if (!ISO_DATE.test(startDate) || !ISO_DATE.test(futureDate) || startDate > futureDate) {
-            console.warn(`buildAccountEntries: invalid or empty startDate/futureDate (startDate=${startDate}, futureDate=${futureDate}); returning empty Account.`);
-            return [];
+        switch (true) {
+            case !ISO_DATE.test(startDate):
+            case !ISO_DATE.test(futureDate):
+            case startDate > futureDate: {
+                console.warn(`buildAccountEntries: invalid or empty startDate/futureDate (startDate=${startDate}, futureDate=${futureDate}); returning empty Account.`);
+                return [];
+            }
         }
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
@@ -751,12 +783,16 @@ export class Yamls {
 
         const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
         const lastAccountDay = days.length ? Object.entries(days[days.length - 1])[0][0] : null;
-        if (lastAccountDay && ISO_DATE.test(futureDate) && futureDate > lastAccountDay) {
-            let day = Yamls._addOneDayIso(lastAccountDay);
-            while (day <= futureDate) {
-                const rate = priceDayByMonth.get(day.slice(0, 7)) || 0;
-                entries.push({ [day]: Yamls.#fmt(rate) });
-                day = Yamls._addOneDayIso(day);
+        if (lastAccountDay) {
+            if (ISO_DATE.test(futureDate)) {
+                if (futureDate > lastAccountDay) {
+                    let day = Yamls._addOneDayIso(lastAccountDay);
+                    while (day <= futureDate) {
+                        const rate = priceDayByMonth.get(day.slice(0, 7)) || 0;
+                        entries.push({ [day]: Yamls.#fmt(rate) });
+                        day = Yamls._addOneDayIso(day);
+                    }
+                }
             }
         }
 
@@ -791,9 +827,19 @@ export class Yamls {
             const owed = Number(String(amount).replace(/,/g, '')) || 0;
 
             let paid;
-            if (remaining >= owed) { paid = owed; remaining -= owed; }
-            else if (remaining > 0) { paid = remaining; remaining = 0; }
-            else { paid = 0; }
+            switch (true) {
+                case remaining >= owed: {
+                    paid = owed; remaining -= owed; 
+                    break;
+                }
+                case remaining > 0: {
+                    paid = remaining; remaining = 0; 
+                    break;
+                }
+                default: {
+                    paid = 0; 
+                }
+            }
 
             payment.push({ [intervalKey]: Yamls.#fmt(Yamls.#round2(paid)) });
             loaners.push({ [intervalKey]: Yamls.#fmt(Yamls.#round2(owed - paid)) });
@@ -909,9 +955,13 @@ export class Yamls {
         // date, which would otherwise turn the day-stepper loop below into
         // an infinite one. Bail out to an empty ledger instead.
         const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-        if (!ISO_DATE.test(startDate) || !ISO_DATE.test(futureDate) || startDate > futureDate) {
-            console.warn(`computeDailyBalance: invalid or empty startDate/futureDate (startDate=${startDate}, futureDate=${futureDate}); returning empty ledger.`);
-            return [];
+        switch (true) {
+            case !ISO_DATE.test(startDate):
+            case !ISO_DATE.test(futureDate):
+            case startDate > futureDate: {
+                console.warn(`computeDailyBalance: invalid or empty startDate/futureDate (startDate=${startDate}, futureDate=${futureDate}); returning empty ledger.`);
+                return [];
+            }
         }
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
@@ -973,8 +1023,10 @@ export class Yamls {
             if (!countByMonth.has(month)) countByMonth.set(month, 0);
 
             // Only PeriodStart's own day (index 0 of the whole Account array) is the 1-day grace period — every OTHER negative day counts, including the first day of a later deficit streak.
-            if (toAmount(balance) < 0 && index !== 0) {
-                countByMonth.set(month, countByMonth.get(month) + 1);
+            if (toAmount(balance) < 0) {
+                if (index !== 0) {
+                    countByMonth.set(month, countByMonth.get(month) + 1);
+                }
             }
         });
 
@@ -1327,7 +1379,8 @@ export class Yamls {
      * @returns {string}
      */
     static #toExcelDate(val) {
-        if (!val || typeof val !== 'string') return '';
+        if (!val) return '';
+        if (typeof val !== 'string') return '';
         const trimmed = val.trim();
         if (Dates.isExcelDate(trimmed)) return trimmed;
         if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
@@ -1350,7 +1403,8 @@ export class Yamls {
      * @returns {string}
      */
     static #normalizeSeries(series) {
-        if (!series || typeof series !== 'string') return '';
+        if (!series) return '';
+        if (typeof series !== 'string') return '';
         const map = {
             '\u0391': 'A', '\u0392': 'B', '\u0395': 'E',
             '\u0410': 'A', '\u0412': 'B', '\u0421': 'C', '\u0415': 'E',
@@ -1435,7 +1489,8 @@ export class Yamls {
      */
     static adoptLegacyContractData(yamlData, convertTariffToArray = true) {
         console.info(`[Yamls.adoptLegacyContractData] 🟢 Starting...`);
-        if (!yamlData || typeof yamlData !== 'object') return yamlData;
+        if (!yamlData) return yamlData;
+        if (typeof yamlData !== 'object') return yamlData;
 
         // 1. ContractDate
         if (Files.isEmpty(yamlData.ContractDate)) {
@@ -1444,13 +1499,22 @@ export class Yamls {
                 || yamlData.ComDate_
                 || yamlData.StartDateExcel
                 || yamlData.StartDate;
-            if (!Files.isEmpty(legacyDate)) {
-                yamlData.ContractDate = Yamls.#toExcelDate(legacyDate);
-            } else if (!Files.isEmpty(yamlData.Year) && !Files.isEmpty(yamlData.Month) && !Files.isEmpty(yamlData.Day)) {
-                const y = String(yamlData.Year).trim();
-                const m = String(yamlData.Month).trim().padStart(2, '0');
-                const d = String(yamlData.Day).trim().padStart(2, '0');
-                yamlData.ContractDate = `${y}-${m}-${d}`;
+            switch (true) {
+                case !Files.isEmpty(legacyDate): {
+                    yamlData.ContractDate = Yamls.#toExcelDate(legacyDate);
+                    break;
+                }
+                case Boolean(Files.isEmpty(yamlData.Year)):
+                case Boolean(Files.isEmpty(yamlData.Month)):
+                case Boolean(Files.isEmpty(yamlData.Day)): {
+                    break;
+                }
+                default: {
+                    const y = String(yamlData.Year).trim();
+                    const m = String(yamlData.Month).trim().padStart(2, '0');
+                    const d = String(yamlData.Day).trim().padStart(2, '0');
+                    yamlData.ContractDate = `${y}-${m}-${d}`;
+                }
             }
         } else {
             yamlData.ContractDate = Yamls.#toExcelDate(yamlData.ContractDate);
@@ -1496,49 +1560,65 @@ export class Yamls {
         }
 
         // 5. Telegram
-        if (Files.isEmpty(yamlData.TgGroupID) && !Files.isEmpty(yamlData.TelegramGroupID)) {
-            yamlData.TgGroupID = yamlData.TelegramGroupID;
+        if (Files.isEmpty(yamlData.TgGroupID)) {
+            if (!Files.isEmpty(yamlData.TelegramGroupID)) {
+                yamlData.TgGroupID = yamlData.TelegramGroupID;
+            }
         }
-        if (Files.isEmpty(yamlData.TgTopicID) && !Files.isEmpty(yamlData.TelegramTopicID)) {
-            yamlData.TgTopicID = yamlData.TelegramTopicID;
+        if (Files.isEmpty(yamlData.TgTopicID)) {
+            if (!Files.isEmpty(yamlData.TelegramTopicID)) {
+                yamlData.TgTopicID = yamlData.TelegramTopicID;
+            }
         }
 
         // 5b. History -> PayTotal
-        if (yamlData.History !== undefined && yamlData.PayTotal === undefined) {
-            yamlData.PayTotal = yamlData.History;
-            delete yamlData.History;
+        if (yamlData.History !== undefined) {
+            if (yamlData.PayTotal === undefined) {
+                yamlData.PayTotal = yamlData.History;
+                delete yamlData.History;
+            }
         }
 
         // 6. Passport
         if (!Files.isEmpty(yamlData.SurPassportSerial)) {
             yamlData.SurPassportSerial = Yamls.#normalizeSeries(yamlData.SurPassportSerial);
         }
-        if (Files.isEmpty(yamlData.SurPassportSerial) || Files.isEmpty(yamlData.SurPassportNumber)) {
-            const rawPassport = !Files.isEmpty(yamlData.SurPassport)
-                ? String(yamlData.SurPassport)
-                : (!Files.isEmpty(yamlData.DirPassport) ? String(yamlData.DirPassport) : '');
-            if (rawPassport) {
-                const m = rawPassport.trim().match(/^([A-Za-z\u0391-\u0395\u0410-\u042F]{1,3})\s*[- ]?\s*(\d{5,9})$/);
-                if (m) {
-                    if (Files.isEmpty(yamlData.SurPassportSerial)) {
-                        yamlData.SurPassportSerial = Yamls.#normalizeSeries(m[1]);
-                    }
-                    if (Files.isEmpty(yamlData.SurPassportNumber)) {
-                        yamlData.SurPassportNumber = m[2];
+        switch (true) {
+            case Boolean(Files.isEmpty(yamlData.SurPassportSerial)):
+            case Boolean(Files.isEmpty(yamlData.SurPassportNumber)): {
+                const rawPassport = !Files.isEmpty(yamlData.SurPassport)
+                    ? String(yamlData.SurPassport)
+                    : (!Files.isEmpty(yamlData.DirPassport) ? String(yamlData.DirPassport) : '');
+                if (rawPassport) {
+                    const m = rawPassport.trim().match(/^([A-Za-z\u0391-\u0395\u0410-\u042F]{1,3})\s*[- ]?\s*(\d{5,9})$/);
+                    if (m) {
+                        if (Files.isEmpty(yamlData.SurPassportSerial)) {
+                            yamlData.SurPassportSerial = Yamls.#normalizeSeries(m[1]);
+                        }
+                        if (Files.isEmpty(yamlData.SurPassportNumber)) {
+                            yamlData.SurPassportNumber = m[2];
+                        }
                     }
                 }
+                break;
             }
         }
 
         // 7. Surety details fallback to Director
-        if (Files.isEmpty(yamlData.SurPINFL) && !Files.isEmpty(yamlData.DirPINFL)) {
-            yamlData.SurPINFL = yamlData.DirPINFL;
+        if (Files.isEmpty(yamlData.SurPINFL)) {
+            if (!Files.isEmpty(yamlData.DirPINFL)) {
+                yamlData.SurPINFL = yamlData.DirPINFL;
+            }
         }
-        if (Files.isEmpty(yamlData.SurPhone) && !Files.isEmpty(yamlData.DirPhone)) {
-            yamlData.SurPhone = yamlData.DirPhone;
+        if (Files.isEmpty(yamlData.SurPhone)) {
+            if (!Files.isEmpty(yamlData.DirPhone)) {
+                yamlData.SurPhone = yamlData.DirPhone;
+            }
         }
-        if (Files.isEmpty(yamlData.SurNationality) && !Files.isEmpty(yamlData.DirNationality)) {
-            yamlData.SurNationality = yamlData.DirNationality;
+        if (Files.isEmpty(yamlData.SurNationality)) {
+            if (!Files.isEmpty(yamlData.DirNationality)) {
+                yamlData.SurNationality = yamlData.DirNationality;
+            }
         }
         if (Files.isEmpty(yamlData.SurPosition)) {
             yamlData.SurPosition = !Files.isEmpty(yamlData.DirPosition) ? yamlData.DirPosition : 'директором';
@@ -1587,8 +1667,10 @@ export class Yamls {
             }
         }
 
-        if (convertTariffToArray && yamlData.Tariff != null) {
-            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
+        if (convertTariffToArray) {
+            if (yamlData.Tariff != null) {
+                yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
+            }
         }
 
         return yamlData;
@@ -1701,7 +1783,10 @@ export class Yamls {
         console.info(`[Yamls.scanCellFolder] 🟢 Starting... key=${key}`);
 
         const folderPath = path.join(folderALL, key);
-        if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+        if (!fs.existsSync(folderPath)) {
+            return [];
+        }
+        if (!fs.statSync(folderPath).isDirectory()) {
             return [];
         }
 
@@ -1819,8 +1904,12 @@ export class Yamls {
 
         data.TariffCosts = tariffCosts;
 
-        if (Array.isArray(data.Tariff) || Files.isEmpty(data.Tariff)) {
-            data.Tariff = tariffArray;
+        switch (true) {
+            case Array.isArray(data.Tariff):
+            case Boolean(Files.isEmpty(data.Tariff)): {
+                data.Tariff = tariffArray;
+                break;
+            }
         }
 
         const activeTariffName = Object.values(tariffArray[tariffArray.length - 1])[0];
@@ -1855,28 +1944,57 @@ export class Yamls {
             const line = rawLines[i];
             const isTopLevel = /^[^\s]/.test(line);
 
-            if (isTopLevel && line.includes(':') && !line.trim().startsWith('#')) {
-                const idx = line.indexOf(':');
-                const val = line.slice(idx + 1).trim();
-                if (val !== '' && !val.startsWith('#') && !val.startsWith('|') && !val.startsWith('>')) {
-                    let j = i + 1;
-                    while (j < rawLines.length && rawLines[j].trim() === '') j++;
-                    if (j < rawLines.length && /^\s+[-a-zA-Z0-9_]/.test(rawLines[j]) && !rawLines[j].trim().startsWith('#')) {
-                        inOrphanedBlock = true;
-                    } else {
-                        inOrphanedBlock = false;
+            switch (true) {
+                case !isTopLevel:
+                case !line.includes(':'):
+                case line.trim().startsWith('#'): {
+                    switch (true) {
+                        case Boolean(isTopLevel): {
+                            inOrphanedBlock = false;
+                            break;
+                        }
                     }
-                } else {
-                    inOrphanedBlock = false;
+                    break;
                 }
-            } else if (isTopLevel) {
-                inOrphanedBlock = false;
+                default: {
+                    const idx = line.indexOf(':');
+                    const val = line.slice(idx + 1).trim();
+                    switch (true) {
+                        case val === '':
+                        case val.startsWith('#'):
+                        case val.startsWith('|'):
+                        case val.startsWith('>'): {
+                            inOrphanedBlock = false;
+                            break;
+                        }
+                        default: {
+                            let j = i + 1;
+                            while (j < rawLines.length && rawLines[j].trim() === '') j++;
+                            switch (true) {
+                                case !(j < rawLines.length):
+                                case !/^\s+[-a-zA-Z0-9_]/.test(rawLines[j]):
+                                case rawLines[j].trim().startsWith('#'): {
+                                    inOrphanedBlock = false;
+                                    break;
+                                }
+                                default: {
+                                    inOrphanedBlock = true;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            if (inOrphanedBlock && !isTopLevel) {
-                cleanedLines.push(`# [SKIPPED ORPHANED CHILD] ${line}`);
-            } else {
-                cleanedLines.push(line);
+            switch (true) {
+                case !inOrphanedBlock:
+                case Boolean(isTopLevel): {
+                    cleanedLines.push(line);
+                    break;
+                }
+                default: {
+                    cleanedLines.push(`# [SKIPPED ORPHANED CHILD] ${line}`);
+                }
             }
         }
 
@@ -1888,21 +2006,25 @@ export class Yamls {
 
             // Handle duplicate root-level mapping keys within the SAME file
             // When found, enter skipMode to comment out the entire duplicate block
-            if (isTopLevel && line.includes(':') && !line.trim().startsWith('#')) {
-                const idx = line.indexOf(':');
-                let key = line.slice(0, idx);
-                let cleanKey = key.trim();
+            if (isTopLevel) {
+                if (line.includes(':')) {
+                    if (!line.trim().startsWith('#')) {
+                        const idx = line.indexOf(':');
+                        let key = line.slice(0, idx);
+                        let cleanKey = key.trim();
 
-                if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
-                    cleanKey = cleanKey.slice(1, -1);
-                }
+                        if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
+                            cleanKey = cleanKey.slice(1, -1);
+                        }
 
-                if (seenKeys.has(cleanKey)) {
-                    skipMode = true;
-                    return `# [SKIPPED DUPLICATE] ${line}`;
-                } else {
-                    seenKeys.add(cleanKey);
-                    skipMode = false;
+                        if (seenKeys.has(cleanKey)) {
+                            skipMode = true;
+                            return `# [SKIPPED DUPLICATE] ${line}`;
+                        } else {
+                            seenKeys.add(cleanKey);
+                            skipMode = false;
+                        }
+                    }
                 }
             }
 
@@ -1910,7 +2032,8 @@ export class Yamls {
                 return `# [SKIPPED] ${line}`;
             }
 
-            if (!line.includes(':') || line.trim().startsWith('#')) return line;
+            if (!line.includes(':')) return line;
+            if (line.trim().startsWith('#')) return line;
 
             const idx = line.indexOf(':');
             let key = line.slice(0, idx);
@@ -1918,28 +2041,43 @@ export class Yamls {
 
             let finalLine = line;
 
-            if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
-                let inner = value.slice(1, -1);
-                // Clean already escaped to avoid double-escaping
-                inner = inner.replace(/\\"/g, '"');
-                // Escape all inner double quotes
-                inner = inner.replace(/"/g, '\\"');
-                return `${key}: "${inner}"`;
+            if (value.startsWith('"')) {
+                if (value.endsWith('"')) {
+                    if (value.length >= 2) {
+                        let inner = value.slice(1, -1);
+                        // Clean already escaped to avoid double-escaping
+                        inner = inner.replace(/\\"/g, '"');
+                        // Escape all inner double quotes
+                        inner = inner.replace(/"/g, '\\"');
+                        return `${key}: "${inner}"`;
+                    }
+                }
             }
 
-            if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
-                let inner = value.slice(1, -1);
-                // Undo YAML's own doubled-single-quote escaping ('' -> '), then re-apply it.
-                inner = inner.replace(/''/g, "'");
-                inner = inner.replace(/'/g, "''");
-                return `${key}: '${inner}'`;
+            if (value.startsWith("'")) {
+                if (value.endsWith("'")) {
+                    if (value.length >= 2) {
+                        let inner = value.slice(1, -1);
+                        // Undo YAML's own doubled-single-quote escaping ('' -> '), then re-apply it.
+                        inner = inner.replace(/''/g, "'");
+                        inner = inner.replace(/'/g, "''");
+                        return `${key}: '${inner}'`;
+                    }
+                }
             }
 
-            if (value === 'null' || value === 'true' || value === 'false') {
+            switch (value) {
+                case 'null':
+                case 'true':
+                case 'false': {
+                    return finalLine;
+                }
+            }
+
+            if (value === '') {
                 return finalLine;
             }
-
-            if (value === '' || value.startsWith('#')) {
+            if (value.startsWith('#')) {
                 return finalLine;
             }
 
@@ -2042,99 +2180,109 @@ export class Yamls {
 
         let companyInfo;
 
-        if (!rewrite && cacheExists) {
-            // ⚡ Cache rejimi: API chaqiriqlarini o'tkazib yuborish
-            console.info(`[Yamls.fillYamlWithInfo] ⚡ rewrite=false, cache mavjud — API dan o'tkazib JSON cache o'qilmoqda: ${jsonCachePath}`);
-            const raw = fs.readFileSync(jsonCachePath, 'utf8');
-            companyInfo = JSON.parse(raw);
-            console.log(companyInfo, 'companyInfo (from cache)');
+        switch (true) {
+            case Boolean(rewrite):
+            case !cacheExists: {
+                // 🌐 API rejimi: yangi ma'lumot olish va JSON ga yozish
+                if (!rewrite) {
+                    if (!cacheExists) {
+                        console.warn(`[Yamls.fillYamlWithInfo] ⚠️ rewrite=false lekin cache topilmadi — API dan olinmoqda.`);
+                    }
+                }
 
-            if (!companyInfo) {
-                Dialogs.warningBox(`companyInfo cache bo'sh: ${jsonCachePath}`, jsonCachePath);
-                return null;
+                // ComType is a starting-Variables field (filled by smarts-firm-docums from
+                // the company's real registration documents: Statute, IP/YaTT certificate,
+                // registry extract) — the human-confirmed legal form is the source of
+                // truth for whether this company is a sole proprietor, replacing the old
+                // automatic PINFL-vs-TIN-length inference (comTIN.length === 14). It also
+                // decides which marker file comTIN resolves from: a Compan folder can
+                // carry BOTH a 9-digit TIN marker and a 14-digit PINFL marker (the
+                // director's/surety's own personal PINFL happens to live in the same
+                // folder for an ordinary company, or the YaTT owner's ID marker for a
+                // sole proprietor) — only ComType, never "which marker happens to exist",
+                // decides which one IS this company's identity.
+                const isYatt = yamlData.ComType === 'YaTT';
+                console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
+
+                let comTIN = isYatt
+                    ? Files.getPINFLFromTXT(globalThis.folderCompan)
+                    : Files.getTINFromTXT(globalThis.folderCompan);
+                console.info("comTIN (from ComType-selected marker):", comTIN, "isYatt:", isYatt);
+
+                if (!comTIN) {
+                    Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
+                    return null;
+                }
+
+                if (isYatt)
+                    Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
+
+                companyInfo = await Didox.infoByTinPinfl(comTIN);
+                console.log(companyInfo, 'companyInfo');
+
+                if (!companyInfo) {
+                    Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
+                    return null;
+                }
+
+                if (isYatt)
+                    companyInfo.directorPinfl = comTIN;
+
+                let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl, globalThis.folderDirector);
+                console.log(ceo, 'ceo');
+
+                if (ceo) {
+                    const person = path.join(globalThis.folderDirector, ceo.name);
+                    Files.saveInfoToFile(person, '#Director');
+
+                    companyInfo.ceo = ceo
+                }
+
+                const repPinfl = String(yamlData.RepPINFL ?? '').trim();
+                if (repPinfl) {
+                    let reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
+                    console.log(reps, 'surety');
+                    companyInfo.reps = reps
+                }
+
+                if (!isYatt) {
+                    companyInfo.soliq = await MySoliq.companyInfo(comTIN);
+                    console.log(companyInfo.soliq, 'soliq');
+
+                    //     let vatInfo = await MySoliq.vatInfo(comTIN);
+                    //     console.log(vatInfo, 'vatInfo');
+                    //     companyInfo.vat = vatInfo
+
+                } else {
+                    companyInfo.soliqYatt = await MySoliq.entrepreneurInfo(comTIN, yamlData.SurPassportSerial, yamlData.SurPassportNumber);
+                    console.log(companyInfo.soliqYatt, 'soliqYatt');
+                }
+
+                Files.writeJson(jsonCachePath, companyInfo)
+                console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
+                break;
             }
-        } else {
-            // 🌐 API rejimi: yangi ma'lumot olish va JSON ga yozish
-            if (!rewrite && !cacheExists)
-                console.warn(`[Yamls.fillYamlWithInfo] ⚠️ rewrite=false lekin cache topilmadi — API dan olinmoqda.`);
+            default: {
+                // ⚡ Cache rejimi: API chaqiriqlarini o'tkazib yuborish
+                console.info(`[Yamls.fillYamlWithInfo] ⚡ rewrite=false, cache mavjud — API dan o'tkazib JSON cache o'qilmoqda: ${jsonCachePath}`);
+                const raw = fs.readFileSync(jsonCachePath, 'utf8');
+                companyInfo = JSON.parse(raw);
+                console.log(companyInfo, 'companyInfo (from cache)');
 
-            // ComType is a starting-Variables field (filled by smarts-firm-docums from
-            // the company's real registration documents: Statute, IP/YaTT certificate,
-            // registry extract) — the human-confirmed legal form is the source of
-            // truth for whether this company is a sole proprietor, replacing the old
-            // automatic PINFL-vs-TIN-length inference (comTIN.length === 14). It also
-            // decides which marker file comTIN resolves from: a Compan folder can
-            // carry BOTH a 9-digit TIN marker and a 14-digit PINFL marker (the
-            // director's/surety's own personal PINFL happens to live in the same
-            // folder for an ordinary company, or the YaTT owner's ID marker for a
-            // sole proprietor) — only ComType, never "which marker happens to exist",
-            // decides which one IS this company's identity.
-            const isYatt = yamlData.ComType === 'YaTT';
-            console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
-
-            let comTIN = isYatt
-                ? Files.getPINFLFromTXT(globalThis.folderCompan)
-                : Files.getTINFromTXT(globalThis.folderCompan);
-            console.info("comTIN (from ComType-selected marker):", comTIN, "isYatt:", isYatt);
-
-            if (!comTIN) {
-                Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
-                return null;
+                if (!companyInfo) {
+                    Dialogs.warningBox(`companyInfo cache bo'sh: ${jsonCachePath}`, jsonCachePath);
+                    return null;
+                }
             }
-
-            if (isYatt)
-                Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
-
-            companyInfo = await Didox.infoByTinPinfl(comTIN);
-            console.log(companyInfo, 'companyInfo');
-
-            if (!companyInfo) {
-                Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
-                return null;
-            }
-
-            if (isYatt)
-                companyInfo.directorPinfl = comTIN;
-
-            let ceo = await Didox.infoByTinPinfl(companyInfo.directorPinfl, globalThis.folderDirector);
-            console.log(ceo, 'ceo');
-
-            if (ceo) {
-                const person = path.join(globalThis.folderDirector, ceo.name);
-                Files.saveInfoToFile(person, '#Director');
-
-                companyInfo.ceo = ceo
-            }
-
-            const repPinfl = String(yamlData.RepPINFL ?? '').trim();
-            if (repPinfl) {
-                let reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
-                console.log(reps, 'surety');
-                companyInfo.reps = reps
-            }
-
-            if (!isYatt) {
-                companyInfo.soliq = await MySoliq.companyInfo(comTIN);
-                console.log(companyInfo.soliq, 'soliq');
-
-                //     let vatInfo = await MySoliq.vatInfo(comTIN);
-                //     console.log(vatInfo, 'vatInfo');
-                //     companyInfo.vat = vatInfo
-
-            } else {
-                companyInfo.soliqYatt = await MySoliq.entrepreneurInfo(comTIN, yamlData.SurPassportSerial, yamlData.SurPassportNumber);
-                console.log(companyInfo.soliqYatt, 'soliqYatt');
-            }
-
-            Files.writeJson(jsonCachePath, companyInfo)
-            console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
         }
 
         const repPinfl = String(yamlData.RepPINFL ?? '').trim();
-        if (repPinfl && !companyInfo.reps) {
-            companyInfo.reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
-            if (companyInfo.reps)
-                Files.writeJson(jsonCachePath, companyInfo)
+        if (repPinfl) {
+            if (!companyInfo.reps) {
+                companyInfo.reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
+                if (companyInfo.reps)
+                    Files.writeJson(jsonCachePath, companyInfo)
+            }
         }
 
         // SurPINFL/surety derivation must run for BOTH the cache path and the API
@@ -2146,17 +2294,22 @@ export class Yamls {
         // directorPinfl — the empty SurPINFL was then faithfully "confirmed" back
         // into the .contract file by replaceYaml's replaceTextLine pass.
         if (companyInfo.directorPinfl) {
-            if (Files.isEmpty(yamlData.SurPINFL) || yamlData.SurPINFL === companyInfo.directorPinfl) {
-                console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
-                yamlData.SurPINFL = companyInfo.directorPinfl
-                companyInfo.surety = companyInfo.ceo
-            } else {
-                console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
-                let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
-                console.log(surety, 'surety');
+            switch (true) {
+                case Boolean(Files.isEmpty(yamlData.SurPINFL)):
+                case yamlData.SurPINFL === companyInfo.directorPinfl: {
+                    console.log("SurPINFL is empty, using companyInfo.directorPinfl", companyInfo.directorPinfl);
+                    yamlData.SurPINFL = companyInfo.directorPinfl
+                    companyInfo.surety = companyInfo.ceo
+                    break;
+                }
+                default: {
+                    console.log("SurPINFL is not empty, using yamlData.SurPINFL", yamlData.SurPINFL);
+                    let surety = await Didox.infoByTinPinfl(yamlData.SurPINFL, globalThis.folderSureties)
+                    console.log(surety, 'surety');
 
-                if (surety) {
-                    companyInfo.surety = surety
+                    if (surety) {
+                        companyInfo.surety = surety
+                    }
                 }
             }
         } else {
@@ -2178,10 +2331,12 @@ export class Yamls {
         ContractDate is written into Compan/ as a DD.MM.YYYY marker (Didox format), mirroring the pre-existing DD.MM.YYYY marker Files.getDateFromTXT already reads from that folder.
         Written only after replaceYaml resolves ContractDate (auto-fill or manual) — never a stale value from before this run.
         */
-        if (filled && Dates.isExcelDate(yamlData.ContractDate)) {
-            const contractDateDidox = Dates.excelToDidox(yamlData.ContractDate);
-            Files.deleteDateMarkers(globalThis.folderCompan);
-            Files.saveInfoToFile(globalThis.folderCompan, contractDateDidox);
+        if (filled) {
+            if (Dates.isExcelDate(yamlData.ContractDate)) {
+                const contractDateDidox = Dates.excelToDidox(yamlData.ContractDate);
+                Files.deleteDateMarkers(globalThis.folderCompan);
+                Files.saveInfoToFile(globalThis.folderCompan, contractDateDidox);
+            }
         }
 
         return filled;
@@ -2210,9 +2365,12 @@ export class Yamls {
         }
 
         const months = parseInt(prepay, 10);
-        if (!Number.isInteger(months) || months < 0) {
-            console.log(`prepayMonth is not a valid month count: ${prepay}`);
-            return null;
+        switch (true) {
+            case !Number.isInteger(months):
+            case months < 0: {
+                console.log(`prepayMonth is not a valid month count: ${prepay}`);
+                return null;
+            }
         }
 
         return months;
@@ -2223,9 +2381,12 @@ export class Yamls {
         console.info(`[Yamls.replaceYaml] 🟢 Starting...`);
         console.log(ymlFile, 'ymlFile');
 
-        if (!yamlData || !companyInfo) {
-            Dialogs.warningBox('yamlData or companyInfo is not defined!');
-            return false;
+        switch (true) {
+            case !yamlData:
+            case !companyInfo: {
+                Dialogs.warningBox('yamlData or companyInfo is not defined!');
+                return false;
+            }
         }
 
         console.log(yamlData, 'yamlData');
@@ -2294,10 +2455,12 @@ export class Yamls {
      * Comparison is skipped (never a false warning) when either date is missing/unparseable — registrationDate arrives DD.MM.YYYY from the API, ContractDate is YYYY-MM-DD in the yaml.
      */
     static #warnIfContractDateBeforeRegistration(contractDate, registrationDateDMY) {
-        if (Files.isEmpty(contractDate) || Files.isEmpty(registrationDateDMY)) return;
+        if (Files.isEmpty(contractDate)) return;
+        if (Files.isEmpty(registrationDateDMY)) return;
 
         const registrationDateExcel = Dates.didoxToExcel(registrationDateDMY);
-        if (!Dates.isExcelDate(contractDate) || !Dates.isExcelDate(registrationDateExcel)) return;
+        if (!Dates.isExcelDate(contractDate)) return;
+        if (!Dates.isExcelDate(registrationDateExcel)) return;
 
         if (contractDate < registrationDateExcel) {
             Dialogs.warningBox(
@@ -2382,9 +2545,11 @@ export class Yamls {
         A null prepayMonth is fatal ONLY when PeriodEnd actually depends on it.
         With ActDateEnd filled, PeriodEnd comes straight off it and PrepayMonth is never read, so an unset PrepayMonth is legitimate there.
         */
-        if (!yamlData.ActDateEnd && prepayMonth === null) {
-            Dialogs.warningBox(`PrepayMonth is missing or not a whole month count — set it in the .contract yaml, or set Contract.PrepayMonth in config.yml, or fill ActDateEnd. Without it PeriodEnd cannot be computed and the whole Accrual/PenaltyDays/Penalty chain would silently read 0.`);
-            return false;
+        if (!yamlData.ActDateEnd) {
+            if (prepayMonth === null) {
+                Dialogs.warningBox(`PrepayMonth is missing or not a whole month count — set it in the .contract yaml, or set Contract.PrepayMonth in config.yml, or fill ActDateEnd. Without it PeriodEnd cannot be computed and the whole Accrual/PenaltyDays/Penalty chain would silently read 0.`);
+                return false;
+            }
         }
 
         if (!yamlData.ActDateEnd) {
@@ -2507,10 +2672,12 @@ export class Yamls {
         yamlData.DirName = companyInfo.director
         Files.saveInfoToFile(globalThis.folderCompan, `Director  ${yamlData.DirName}`)
 
-        if (!Files.isEmpty(yamlData.DirPINFL) && yamlData.DirPINFL !== companyInfo.directorPinfl) {
-            Files.saveInfoToFile(globalThis.folderALL, `#CEO-Changed`)
-            console.warn(`DirPINFL changed to: ${yamlData.DirPINFL}`)
-            Dialogs.messageBox(`DirPINFL changed to: ${yamlData.DirPINFL}`, yamlData.ComNameShort);
+        if (!Files.isEmpty(yamlData.DirPINFL)) {
+            if (yamlData.DirPINFL !== companyInfo.directorPinfl) {
+                Files.saveInfoToFile(globalThis.folderALL, `#CEO-Changed`)
+                console.warn(`DirPINFL changed to: ${yamlData.DirPINFL}`)
+                Dialogs.messageBox(`DirPINFL changed to: ${yamlData.DirPINFL}`, yamlData.ComNameShort);
+            }
         }
 
         yamlData.DirPINFL = companyInfo.directorPinfl
@@ -2537,18 +2704,23 @@ export class Yamls {
 
         const repPinfl = String(yamlData.RepPINFL ?? '').trim();
         const repEnabled = yamlData.RepEnable === true || String(yamlData.RepEnable).toLowerCase() === 'true';
-        if (repPinfl && repEnabled) {
-            yamlData.RepName = companyInfo.reps?.fullName ?? ''
-            yamlData.RepTIN = companyInfo.reps?.tin ?? ''
-            yamlData.RepAddress = companyInfo.reps?.address ?? ''
-            yamlData.RepNs10Code = companyInfo.reps?.ns10Code ?? ''
-            yamlData.RepNs11Code = companyInfo.reps?.ns11Code ?? ''
-        } else {
-            yamlData.RepName = ''
-            yamlData.RepTIN = ''
-            yamlData.RepAddress = ''
-            yamlData.RepNs10Code = ''
-            yamlData.RepNs11Code = ''
+        switch (true) {
+            case !repPinfl:
+            case !repEnabled: {
+                yamlData.RepName = ''
+                yamlData.RepTIN = ''
+                yamlData.RepAddress = ''
+                yamlData.RepNs10Code = ''
+                yamlData.RepNs11Code = ''
+                break;
+            }
+            default: {
+                yamlData.RepName = companyInfo.reps?.fullName ?? ''
+                yamlData.RepTIN = companyInfo.reps?.tin ?? ''
+                yamlData.RepAddress = companyInfo.reps?.address ?? ''
+                yamlData.RepNs10Code = companyInfo.reps?.ns10Code ?? ''
+                yamlData.RepNs11Code = companyInfo.reps?.ns11Code ?? ''
+            }
         }
 
         yamlData.ComNa1Code = companyInfo.na1Code
@@ -2700,16 +2872,23 @@ export class Yamls {
 
         // if ContractDate is greater than ComVATDateReg
         if (companyInfo.VATRegCode) {
-            if (!comDateOk || !vatDateOk) {
-                console.log('ComVATFromUs left blank — unparseable date', yamlData.ContractDate, yamlData.ComVATDateReg);
-                yamlData.ComVATFromUs = ''
-                Files.deleteInfo(globalThis.folderALL, '#VAT-From-Us')
-            } else if (ContractDate < ComVATDateReg) {
-                yamlData.ComVATFromUs = 'Да'
-                Files.saveInfoToFile(globalThis.folderALL, '#VAT-From-Us')
-            } else {
-                yamlData.ComVATFromUs = 'Нет'
-                Files.deleteInfo(globalThis.folderALL, '#VAT-From-Us')
+            switch (true) {
+                case !comDateOk:
+                case !vatDateOk: {
+                    console.log('ComVATFromUs left blank — unparseable date', yamlData.ContractDate, yamlData.ComVATDateReg);
+                    yamlData.ComVATFromUs = ''
+                    Files.deleteInfo(globalThis.folderALL, '#VAT-From-Us')
+                    break;
+                }
+                case ContractDate < ComVATDateReg: {
+                    yamlData.ComVATFromUs = 'Да'
+                    Files.saveInfoToFile(globalThis.folderALL, '#VAT-From-Us')
+                    break;
+                }
+                default: {
+                    yamlData.ComVATFromUs = 'Нет'
+                    Files.deleteInfo(globalThis.folderALL, '#VAT-From-Us')
+                }
             }
         } else {
             yamlData.ComVATFromUs = ''
@@ -2718,12 +2897,17 @@ export class Yamls {
         yamlData.ComTaxModeVAT = yamlData.ComTaxMode === 1 ? 'Yes' : 'No'
 
 
-        if (yamlData.ComTaxModeVAT === 'Yes' && Files.isEmpty(yamlData.ComVATRegCode)) {
-            yamlData.ComCandidateVAT = 'Yes'
-            Files.saveInfoToFile(globalThis.folderALL, '#VAT-Candidate')
-        } else {
-            yamlData.ComCandidateVAT = 'No'
-            Files.deleteInfo(globalThis.folderALL, '#VAT-Candidate')
+        switch (true) {
+            case yamlData.ComTaxModeVAT !== 'Yes':
+            case !Files.isEmpty(yamlData.ComVATRegCode): {
+                yamlData.ComCandidateVAT = 'No'
+                Files.deleteInfo(globalThis.folderALL, '#VAT-Candidate')
+                break;
+            }
+            default: {
+                yamlData.ComCandidateVAT = 'Yes'
+                Files.saveInfoToFile(globalThis.folderALL, '#VAT-Candidate')
+            }
         }
 
         if (yamlData.ComTaxModeVAT === 'Yes') {
@@ -2749,16 +2933,18 @@ export class Yamls {
             yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
         }
 
-        if (!yamlData.TariffCosts && Array.isArray(yamlData.Tariff)) {
-            const tariffCosts = {};
-            for (const entry of yamlData.Tariff) {
-                const [d, tName] = Object.entries(entry)[0];
-                const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', tName + ".yaml");
-                if (existsSync(priceYaml)) {
-                    tariffCosts[tName] = Yamls.loadAndParseYaml(priceYaml);
+        if (!yamlData.TariffCosts) {
+            if (Array.isArray(yamlData.Tariff)) {
+                const tariffCosts = {};
+                for (const entry of yamlData.Tariff) {
+                    const [d, tName] = Object.entries(entry)[0];
+                    const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', tName + ".yaml");
+                    if (existsSync(priceYaml)) {
+                        tariffCosts[tName] = Yamls.loadAndParseYaml(priceYaml);
+                    }
                 }
+                yamlData.TariffCosts = tariffCosts;
             }
-            yamlData.TariffCosts = tariffCosts;
         }
 
         /*
@@ -2945,13 +3131,16 @@ export class Yamls {
                 // We use path.resolve to compare paths accurately, or just check string equality on fullPath
                 if (path.resolve(fullPath) === path.resolve(appFolder)) return true;
 
-                if (
-                    lowerName === '- theory' ||
-                    lowerName === 'all' ||
-                    lowerName === 'app' ||
-                    lowerName === 'add'
-                ) return true;
-                if (name.startsWith('@') || name.startsWith('_')) return true;
+                switch (lowerName) {
+                    case '- theory':
+                    case 'all':
+                    case 'app':
+                    case 'add': {
+                        return true;
+                    }
+                }
+                if (name.startsWith('@')) return true;
+                if (name.startsWith('_')) return true;
                 return false;
             }
         );
@@ -2967,7 +3156,12 @@ export class Yamls {
             try {
                 const data = Yamls.loadAndParseYaml(file);
 
-                if (data === undefined || data === null) continue;
+                switch (data) {
+                    case undefined:
+                    case null: {
+                        continue;
+                    }
+                }
 
                 if (mergedData === null) {
                     mergedData = Array.isArray(data) ? [] : {};

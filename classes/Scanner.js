@@ -15,7 +15,8 @@ export class Scanner {
     static isExcluded(name, exclusions) {
     console.info(`[Scanner.isExcluded] 🟢 Starting...`);
         if (exclusions.includes(name)) return true;
-        if (name.startsWith("_") || name.startsWith("@")) return true;
+        if (name.startsWith("_")) return true;
+        if (name.startsWith("@")) return true;
         return false;
     }
 

@@ -20,10 +20,16 @@ const DialogsMock = {
 // Minimal real isEmpty (mirrors Files.isEmpty for the values clean() passes).
 const FilesMock = {
   isEmpty: (v) => {
-    if (v === null || v === undefined) return true;
+    switch (v) {
+      case null:
+      case undefined: {
+        return true;
+      }
+    }
     if (typeof v === 'string') return v.trim() === '';
     if (Array.isArray(v)) return v.length === 0;
-    if (v instanceof Map || v instanceof Set) return v.size === 0;
+    if (v instanceof Map) return v.size === 0;
+    if (v instanceof Set) return v.size === 0;
     if (typeof v === 'object') return Object.keys(v).length === 0;
     return false;
   },

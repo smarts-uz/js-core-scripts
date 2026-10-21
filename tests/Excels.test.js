@@ -70,16 +70,23 @@ const FilesMock = {
   // same shape as tests/Word.test.js's mock, so the on-disk template folder drives
   // the pipeline for real.
   getLatestMatchingFile: jest.fn((folder, ext) => {
-    if (!folder || !fs.existsSync(folder)) return null;
+    if (!folder) return null;
+    if (!fs.existsSync(folder)) return null;
     let latest = null;
     let latestTime = -1;
     for (const name of fs.readdirSync(folder)) {
-      if (ext && !name.toLowerCase().endsWith(String(ext).toLowerCase())) continue;
+      if (ext) {
+        if (!name.toLowerCase().endsWith(String(ext).toLowerCase())) {
+          continue;
+        }
+      }
       const full = path.join(folder, name);
       const st = fs.statSync(full);
-      if (st.isFile() && st.mtimeMs > latestTime) {
-        latest = full;
-        latestTime = st.mtimeMs;
+      if (st.isFile()) {
+        if (st.mtimeMs > latestTime) {
+          latest = full;
+          latestTime = st.mtimeMs;
+        }
       }
     }
     return latest;
@@ -174,7 +181,13 @@ beforeEach(() => {
 afterEach(() => {
   cleanupAllTmpDirs();
   for (const k of Object.keys(globalThis)) {
-    if (k.startsWith('excel') || k.startsWith('folder')) delete globalThis[k];
+    switch (true) {
+      case k.startsWith('excel'):
+      case k.startsWith('folder'): {
+        delete globalThis[k];
+        break;
+      }
+    }
   }
   jest.clearAllMocks();
 });
@@ -1396,14 +1409,24 @@ describe('Excels.replaceFormula family', () => {
         const cell = {};
         const proxy = new Proxy(cell, {
           get(t, prop) {
-            if (prop === 'Formula' || prop === 'Formula2') return cell.__val ?? f;
+            switch (prop) {
+              case 'Formula':
+              case 'Formula2': {
+                return cell.__val ?? f;
+              }
+            }
             if (prop === 'Address') return '$A$1';
             return makeComProxy({}, String(prop));
           },
           set(t, prop, value) {
-            if (prop === 'Formula' || prop === 'Formula2' || prop === 'FormulaArray') {
-              cell.__val = value;
-              writes.push({ sheet: nm, api: prop, value });
+            switch (prop) {
+              case 'Formula':
+              case 'Formula2':
+              case 'FormulaArray': {
+                cell.__val = value;
+                writes.push({ sheet: nm, api: prop, value });
+                break;
+              }
             }
             return true;
           },

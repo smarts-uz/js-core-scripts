@@ -55,11 +55,31 @@ export class Registry {
      * Accepts real booleans or the strings 'true' / 'false' (YAML may give either).
      */
     static _resolveBool(value, section, key, defaultValue) {
-        if (value === true || value === 'true') return true;
-        if (value === false || value === 'false') return false;
+        switch (value) {
+            case true:
+            case 'true': {
+                return true;
+            }
+        }
+        switch (value) {
+            case false:
+            case 'false': {
+                return false;
+            }
+        }
         const cfg = this._cfg(section, key);
-        if (cfg === true || cfg === 'true') return true;
-        if (cfg === false || cfg === 'false') return false;
+        switch (cfg) {
+            case true:
+            case 'true': {
+                return true;
+            }
+        }
+        switch (cfg) {
+            case false:
+            case 'false': {
+                return false;
+            }
+        }
         return defaultValue;
     }
 
@@ -128,8 +148,13 @@ export class Registry {
 
             const lines = [];
             lines.push(`Removed ${removedCount} dead entr${removedCount === 1 ? 'y' : 'ies'} from ${changes.length} value(s) [scope: ${scope}].`);
-            if (!data.elevated && (scope === 'System' || scope === 'Both')) {
-                lines.push('Note: not elevated — System (HKLM) values were skipped. Run elevated to clean them.');
+            if (!data.elevated) {
+                switch (true) {
+                    case scope === 'System':
+                    case scope === 'Both': {
+                        lines.push('Note: not elevated — System (HKLM) values were skipped. Run elevated to clean them.');
+                    }
+                }
             }
             for (const c of changes) {
                 lines.push('');
@@ -199,14 +224,20 @@ export class Registry {
             for (const tok of String(value).split(';')) {
                 if (tok === '') continue;
                 const ref = tok.match(/^%([^%]+)%$/);
-                if (ref) {
-                    if (defined.has(ref[1].toLowerCase())) kept.push(tok); else removed.push(tok);
-                } else if (tok.includes('%')) {
-                    kept.push(tok); // partial expansion — leave as-is
-                } else {
-                    let exists = false;
-                    try { exists = fs.existsSync(tok) && fs.statSync(tok).isDirectory(); } catch { exists = false; }
-                    if (exists) kept.push(tok); else removed.push(tok);
+                switch (true) {
+                    case Boolean(ref): {
+                        if (defined.has(ref[1].toLowerCase())) kept.push(tok); else removed.push(tok);
+                        break;
+                    }
+                    case tok.includes('%'): {
+                        kept.push(tok); // partial expansion — leave as-is
+                        break;
+                    }
+                    default: {
+                        let exists = false;
+                        try { exists = fs.existsSync(tok) && fs.statSync(tok).isDirectory(); } catch { exists = false; }
+                        if (exists) kept.push(tok); else removed.push(tok);
+                    }
                 }
             }
             return { kept: kept.join(';'), removed };
@@ -226,26 +257,45 @@ export class Registry {
                     result.changes.push({ scope: scopeName, name: v.name, removed: res.removed });
                 } else {
                     const msg = (w.stderr || '').trim();
-                    if (scopeName === 'HKLM' && /denied|Access is denied|requires elevation/i.test(msg)) {
-                        // not elevated — HKLM skipped; recorded via the elevated=false note upstream
-                    } else {
-                        result.errors.push(`${scopeName} / ${v.name}: ${msg || 'reg add failed'}`);
+                    switch (true) {
+                        case scopeName !== 'HKLM':
+                        case !/denied|Access is denied|requires elevation/i.test(msg): {
+                            result.errors.push(`${scopeName} / ${v.name}: ${msg || 'reg add failed'}`);
+                            break;
+                        }
+                        default: {
+                            // not elevated — HKLM skipped; recorded via the elevated=false note upstream
+                        }
                     }
                 }
             }
         };
 
-        if (scope === 'System' || scope === 'Both') processHive('HKLM', SYS_KEY, sysVals);
-        if (scope === 'User' || scope === 'Both') processHive('HKCU', USR_KEY, usrVals);
+        switch (scope) {
+            case 'System':
+            case 'Both': {
+                processHive('HKLM', SYS_KEY, sysVals);
+                break;
+            }
+        }
+        switch (scope) {
+            case 'User':
+            case 'Both': {
+                processHive('HKCU', USR_KEY, usrVals);
+                break;
+            }
+        }
 
         // Broadcast WM_SETTINGCHANGE so running apps pick up the new environment
         // without a reboot — via rundll32 (native, no PowerShell).
-        if (doBroadcast && result.changes.length > 0) {
-            try {
-                execFileSync('rundll32', ['user32.dll,UpdatePerUserSystemParameters'], { windowsHide: true });
-                result.broadcast = true;
-            } catch (e) {
-                result.errors.push(`broadcast: ${e.message || e}`);
+        if (doBroadcast) {
+            if (result.changes.length > 0) {
+                try {
+                    execFileSync('rundll32', ['user32.dll,UpdatePerUserSystemParameters'], { windowsHide: true });
+                    result.broadcast = true;
+                } catch (e) {
+                    result.errors.push(`broadcast: ${e.message || e}`);
+                }
             }
         }
 

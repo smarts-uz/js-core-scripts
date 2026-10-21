@@ -25,464 +25,9 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 23 classes, 352 runnable methods.
+**Coverage:** 17 classes, 290 runnable methods.
 
 ---
-# Category
-
-Runners: `scripts/Category/` — 10 public static method(s).
-
-## displayPath(target, fields, SourceFolder, absolutePath)
-
-Returns a short display path for logging. Prefers relative_path + target if SourceFolder is absent.
-
-**Run:**
-
-```bash
-node scripts/Category/displayPath.mjs --target <target>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `target` | no | — |
-| `fields` | no | — |
-| `SourceFolder` | no | — |
-| `absolutePath` | no | — |
-
-## ensureDir(dirPath, tag)
-
-Ensures a directory exists, creating it recursively if needed.
-
-**Run:**
-
-```bash
-node scripts/Category/ensureDir.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `dirPath` | no | — |
-| `tag` | no | — |
-
-## findFileRecursively(dir, filename)
-
-Finds a file by name recursively in a directory. Returns full path or null.
-
-**Run:**
-
-```bash
-node scripts/Category/findFileRecursively.mjs --dir <dir>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `dir` | no | — |
-| `filename` | no | — |
-
-## loadYaml(filePath, tag)
-
-Reads and parses a YAML file.
-
-**Run:**
-
-```bash
-node scripts/Category/loadYaml.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-| `tag` | no | — |
-
-## moveFile(src, dest, tag)
-
-Moves a file from src to dest. If dest exists, renames the existing file by appending a timestamp before its extension. Returns true on success, false if src not found.
-
-**Run:**
-
-```bash
-node scripts/Category/moveFile.mjs --src <src>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `src` | no | — |
-| `dest` | no | — |
-| `tag` | no | — |
-
-## removeEmptyDirs(dirPath, limitPath, tag)
-
-Recursively removes empty directories starting from dirPath upwards, stopping at limitPath (exclusive).
-
-**Run:**
-
-```bash
-node scripts/Category/removeEmptyDirs.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `dirPath` | no | — |
-| `limitPath` | no | — |
-| `tag` | no | — |
-
-## resolveTargetPath(template, target, fields, SourceFolder, domain_name)
-
-Resolves a TargetPath template string using top-level YAML values and per-entry fields. Available placeholders: {source_file}, {category_path}, {category}, {relative_path}, {domain_name}, {SourceFolder}, and any entry field key.
-
-**Run:**
-
-```bash
-node scripts/Category/resolveTargetPath.mjs --template <template>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `template` | no | — |
-| `target` | no | — |
-| `fields` | no | — |
-| `SourceFolder` | no | — |
-| `domain_name` | no | — |
-
-## revert(yamlPath)
-
-Revert: moves each file back from its TargetPath-resolved location to its original source_path. Empty directories created during run are removed. Requires TargetPath in YAML — shows Windows error dialog and exits if missing.
-
-**Run:**
-
-```bash
-node scripts/Category/revert.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `yamlPath` | no | — |
-
-## run(yamlPath)
-
-Full pipeline: moves each entry's source file to its TargetPath-resolved destination. Requires TargetPath in YAML — shows Windows error dialog and exits if missing.
-
-**Run:**
-
-```bash
-node scripts/Category/run.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `yamlPath` | no | — |
-
-## timestamp()
-
-Returns a timestamp string in YYYY-MM-DD_HH-MM format.
-
-**Run:**
-
-```bash
-node scripts/Category/timestamp.mjs
-```
-
-
----
-
-# Chromes
-
-Runners: `scripts/Chromes/` — 26 public static method(s).
-
-## cleanCache()
-
-**Run:**
-
-```bash
-node scripts/Chromes/cleanCache.mjs
-```
-
-## closeBrowsers()
-
-**Run:**
-
-```bash
-node scripts/Chromes/closeBrowsers.mjs
-```
-
-## closeChrome()
-
-**Run:**
-
-```bash
-node scripts/Chromes/closeChrome.mjs
-```
-
-## convertFolderMhtToHtm(folderPath, [deleteMht])
-
-**Run:**
-
-```bash
-node scripts/Chromes/convertFolderMhtToHtm.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `folderPath` | no | — |
-| `deleteMht` | yes (default `true`) | — |
-
-## download(url, options, owner, fileType, [duration], [replace])
-
-**Run:**
-
-```bash
-node scripts/Chromes/download.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-| `options` | no | — |
-| `owner` | no | — |
-| `fileType` | no | — |
-| `duration` | yes (default `this.Duration.Hour10`) | — |
-| `replace` | yes (default `[]`) | — |
-
-## fetcher(url, options, owner, [duration], [replace])
-
-**Run:**
-
-```bash
-node scripts/Chromes/fetcher.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-| `options` | no | — |
-| `owner` | no | — |
-| `duration` | yes (default `this.Duration.Hour10`) | — |
-| `replace` | yes (default `[]`) | — |
-
-## finish()
-
-**Run:**
-
-```bash
-node scripts/Chromes/finish.mjs
-```
-
-## getRandomFloat(min, max)
-
-**Run:**
-
-```bash
-node scripts/Chromes/getRandomFloat.mjs --min <min>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `min` | no | — |
-| `max` | no | — |
-
-## getUrlFromFile(filePath)
-
-**Run:**
-
-```bash
-node scripts/Chromes/getUrlFromFile.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-
-## getUrlFromFileClean(filePath)
-
-**Run:**
-
-```bash
-node scripts/Chromes/getUrlFromFileClean.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-
-## hideChrome()
-
-**Run:**
-
-```bash
-node scripts/Chromes/hideChrome.mjs
-```
-
-## initFolders(app)
-
-**Run:**
-
-```bash
-node scripts/Chromes/initFolders.mjs --app <app>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `app` | no | — |
-
-## killChrome()
-
-**Run:**
-
-```bash
-node scripts/Chromes/killChrome.mjs
-```
-
-## mhtToHtmConvert(mhtPath, [deleteMht])
-
-**Run:**
-
-```bash
-node scripts/Chromes/mhtToHtmConvert.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `mhtPath` | no | — |
-| `deleteMht` | yes (default `true`) | — |
-
-## pageGo(url, [params], [hideChrome])
-
-**Run:**
-
-```bash
-node scripts/Chromes/pageGo.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-| `params` | yes (default `{ waitUntil: "networkidle2" }`) | — |
-| `hideChrome` | yes (default `false`) | — |
-
-## pageMetrics()
-
-**Run:**
-
-```bash
-node scripts/Chromes/pageMetrics.mjs
-```
-
-## pageSetup()
-
-**Run:**
-
-```bash
-node scripts/Chromes/pageSetup.mjs
-```
-
-## processPathsToClipboard(paths)
-
-**Run:**
-
-```bash
-node scripts/Chromes/processPathsToClipboard.mjs <item1> <item2> …
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `paths` | no | — |
-
-## randomInt(min, max)
-
-**Run:**
-
-```bash
-node scripts/Chromes/randomInt.mjs --min <min>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `min` | no | — |
-| `max` | no | — |
-
-## runBrowser([isCmdGo], [hideChrome])
-
-**Run:**
-
-```bash
-node scripts/Chromes/runBrowser.mjs --isCmdGo <isCmdGo>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `isCmdGo` | yes (default `false`) | — |
-| `hideChrome` | yes (default `false`) | — |
-
-## runIxbrowser([isCmdGo])
-
-**Run:**
-
-```bash
-node scripts/Chromes/runIxbrowser.mjs --isCmdGo <isCmdGo>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `isCmdGo` | yes (default `false`) | — |
-
-## saveHtmlFromMht(mhtPath, [deleteMht])
-
-**Run:**
-
-```bash
-node scripts/Chromes/saveHtmlFromMht.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `mhtPath` | no | — |
-| `deleteMht` | yes (default `true`) | — |
-
-## saveUrlFile(filePath, url)
-
-**Run:**
-
-```bash
-node scripts/Chromes/saveUrlFile.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-| `url` | no | — |
-
-## saveUrlFileFromMht(mhtPath, filePath)
-
-**Run:**
-
-```bash
-node scripts/Chromes/saveUrlFileFromMht.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `mhtPath` | no | — |
-| `filePath` | no | — |
-
-## showChrome()
-
-**Run:**
-
-```bash
-node scripts/Chromes/showChrome.mjs
-```
-
-## userAgent()
-
-**Run:**
-
-```bash
-node scripts/Chromes/userAgent.mjs
-```
-
-
----
-
 # Com
 
 Runners: `scripts/Com/` — 5 public static method(s).
@@ -1264,7 +809,7 @@ node scripts/ES/findIn.mjs --name <name>
 
 # Excels
 
-Runners: `scripts/Excels/` — 55 public static method(s).
+Runners: `scripts/Excels/` — 56 public static method(s).
 
 ## changeFont(filePath, [fontName], [sheetFilter])
 
@@ -1601,8 +1146,6 @@ node scripts/Excels/processFolders.mjs --entries <entries>
 
 ## processHistory(yamlData)
 
-Reads yamlData.History — a flat, date-keyed array (Yamls.computeHistory: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writeHistory. Writes one row per entry (date, net amount) starting at the {History} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}. No trailing { ALL } entry to skip. Always runs (no ON/OFF flag).
-
 **Run:**
 
 ```bash
@@ -1627,6 +1170,20 @@ node scripts/Excels/processLoaners.mjs --file "<path>"
 |-----------|----------|-------------|
 | `yamlData` | no | — |
 
+## processPayTotal(yamlData)
+
+Reads yamlData.PayTotal (or legacy yamlData.History) — a flat, date-keyed array (Yamls.computePayTotal: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writePayTotal. Writes one row per entry (date, net amount) starting at the {PayTotal} (or legacy {History}) placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}. No trailing { ALL } entry to skip. Always runs (no ON/OFF flag).
+
+**Run:**
+
+```bash
+node scripts/Excels/processPayTotal.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+
 ## processPayment(yamlData)
 
 **Run:**
@@ -1641,7 +1198,7 @@ node scripts/Excels/processPayment.mjs --file "<path>"
 
 ## processPenalty(yamlData)
 
-Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml. Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Сумма), same shape as every other block on this template now that Начало/Конец columns are gone everywhere. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Always runs (no ON/OFF flag) — mirrors processPayment's own unconditional shape. Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
+Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml. Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Sum), same shape as every other block on this template now that Начало/Конец columns are gone everywhere. Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept. Gated by yamlData.PenaltyON — true writes the real Penalty rows; false leaves the {Penalty} placeholder cleared to empty, same as a zero-row write; empty/missing defaults to true. PenaltyDays is unaffected by this flag — it always writes (see processPenaltyDays). Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
 
 **Run:**
 
@@ -2786,154 +2343,6 @@ node scripts/Homoglyph/wordAsk.mjs --file "<path>"
 
 ---
 
-# IjaraSoliq
-
-Runners: `scripts/IjaraSoliq/` — 3 public static method(s).
-
-## contracts([owner], [rentType], [state], [page], [size])
-
-**Run:**
-
-```bash
-node scripts/IjaraSoliq/contracts.mjs --owner <owner>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `owner` | yes (default `Owner.SRental`) | — |
-| `rentType` | yes (default `RentType.Out`) | — |
-| `state` | yes (default `IjaraState.Confirmed`) | — |
-| `page` | yes (default `0`) | — |
-| `size` | yes (default `1000`) | — |
-
-## download([owner], docId, startDate, endDate)
-
-**Run:**
-
-```bash
-node scripts/IjaraSoliq/download.mjs --owner <owner>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `owner` | yes (default `Owner.SRental`) | — |
-| `docId` | no | — |
-| `startDate` | no | — |
-| `endDate` | no | — |
-
-## testing()
-
-**Run:**
-
-```bash
-node scripts/IjaraSoliq/testing.mjs
-```
-
-
----
-
-# KapitalBank
-
-Runners: `scripts/KapitalBank/` — 2 public static method(s).
-
-## payments([owner], [page], [size], [state])
-
-**Run:**
-
-```bash
-node scripts/KapitalBank/payments.mjs --owner <owner>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `owner` | yes (default `IjaraSoliq.Owner.SRental`) | — |
-| `page` | yes (default `1`) | — |
-| `size` | yes (default `1000`) | — |
-| `state` | yes (default `this.KapitalState.Conducted`) | — |
-
-## testing()
-
-**Run:**
-
-```bash
-node scripts/KapitalBank/testing.mjs
-```
-
-
----
-
-# Markdown
-
-Runners: `scripts/Markdown/` — 4 public static method(s).
-
-## convertToHtml(filePath)
-
-**Run:**
-
-```bash
-node scripts/Markdown/convertToHtml.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-
-## convertToWord(filePath, [genPdf], [templatePath])
-
-Converts a Markdown file to Word .docx (plain template, no TOC). The .docx is saved in a `DOC` folder next to the source .md file. If genPdf is true (default) a PDF is also exported to a `PDF` folder. Template config key: Templates.WordMd (a FOLDER — latest file is picked).
-
-**Run:**
-
-```bash
-node scripts/Markdown/convertToWord.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-| `genPdf` | yes (default `true`) | =true]  Also export a PDF alongside the .docx |
-| `templatePath` | yes (default `null`) | Explicit template file/folder override. |
-
-**Returns:** Absolute path of the generated .docx
-
-## convertToWordTOC(filePath, [genPdf], [templatePath])
-
-Converts a Markdown file to a Word .docx using a TOC-enabled template. The template must contain the literal placeholder text "{Content}" where the converted content should be inserted. After insertion the existing Table of Contents field in the document is refreshed automatically. The .docx is saved in a `DOC` folder next to the source .md file. If genPdf is true (default) a PDF is also exported to a `PDF` folder. Template config key: Templates.WordMdTOC (a FOLDER — latest file is picked).
-
-**Run:**
-
-```bash
-node scripts/Markdown/convertToWordTOC.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-| `genPdf` | yes (default `true`) | =true]  Also export a PDF alongside the .docx |
-| `templatePath` | yes (default `null`) | Explicit template file/folder override. |
-
-**Returns:** Absolute path of the generated .docx
-
-## merge(files, [lineBetween])
-
-Merges an array of Markdown files into a single .md file. Output location : the same folder that contains the first file. Output filename  : <thatFolderName> 1.md, auto-incremented if it already exists (e.g. "Diagnose 1.md", "Diagnose 2.md", …). Between each file's content, `lineBetween` empty lines are inserted so the sections are visually separated when the result is opened in an editor or converted to another format. files to merge, in the desired order. each file's content. When null (default) the value is read from config key `Markdown.LineBetween` (fallback: 20). or undefined on error / empty input.
-
-**Run:**
-
-```bash
-node scripts/Markdown/merge.mjs <item1> <item2> …
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `files` | no | Absolute (or resolvable) paths to the .md |
-| `lineBetween` | yes (default `null`) | Number of empty lines to insert between |
-
-**Returns:** Absolute path of the written output file,
-
-
----
-
 # MySoliq
 
 Runners: `scripts/MySoliq/` — 6 public static method(s).
@@ -3363,261 +2772,6 @@ node scripts/PowerPoints/unProtectFileAsk.mjs --file "<path>"
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `filename` | no | Path to the .pptx file. |
-
-
----
-
-# Puppe
-
-Runners: `scripts/Puppe/` — 23 public static method(s).
-
-## appSaveOffers()
-
-**Run:**
-
-```bash
-node scripts/Puppe/appSaveOffers.mjs
-```
-
-## appSavePages()
-
-**Run:**
-
-```bash
-node scripts/Puppe/appSavePages.mjs
-```
-
-## appSavePagination()
-
-**Run:**
-
-```bash
-node scripts/Puppe/appSavePagination.mjs
-```
-
-## appSavePhones()
-
-**Run:**
-
-```bash
-node scripts/Puppe/appSavePhones.mjs
-```
-
-## autoScroll([step], [delay])
-
-**Run:**
-
-```bash
-node scripts/Puppe/autoScroll.mjs --step <step>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `step` | yes (default `400`) | — |
-| `delay` | yes (default `150`) | — |
-
-## extractApp(pattern, page)
-
-**Run:**
-
-```bash
-node scripts/Puppe/extractApp.mjs --pattern <pattern>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `pattern` | no | — |
-| `page` | no | — |
-
-## extractAppPhone(pattern, page)
-
-**Run:**
-
-```bash
-node scripts/Puppe/extractAppPhone.mjs --pattern <pattern>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `pattern` | no | — |
-| `page` | no | — |
-
-## extractContent(page)
-
-**Run:**
-
-```bash
-node scripts/Puppe/extractContent.mjs --page <page>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `page` | no | — |
-
-## extractID(page)
-
-**Run:**
-
-```bash
-node scripts/Puppe/extractID.mjs --page <page>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `page` | no | — |
-
-## extractOffers()
-
-**Run:**
-
-```bash
-node scripts/Puppe/extractOffers.mjs
-```
-
-## extractUserId()
-
-**Run:**
-
-```bash
-node scripts/Puppe/extractUserId.mjs
-```
-
-## humanScroll()
-
-**Run:**
-
-```bash
-node scripts/Puppe/humanScroll.mjs
-```
-
-## itemSavePagination(url)
-
-**Run:**
-
-```bash
-node scripts/Puppe/itemSavePagination.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-
-## offersCount(fullPath)
-
-**Run:**
-
-```bash
-node scripts/Puppe/offersCount.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `fullPath` | no | — |
-
-## pageTitle()
-
-**Run:**
-
-```bash
-node scripts/Puppe/pageTitle.mjs
-```
-
-## saveAsMhtml(filePath)
-
-**Run:**
-
-```bash
-node scripts/Puppe/saveAsMhtml.mjs --file "<path>"
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `filePath` | no | — |
-
-## scrapeOffers(url)
-
-**Run:**
-
-```bash
-node scripts/Puppe/scrapeOffers.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-
-## scrapePages(url)
-
-**Run:**
-
-```bash
-node scripts/Puppe/scrapePages.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-
-## scrapePhone(url, userIdPath)
-
-**Run:**
-
-```bash
-node scripts/Puppe/scrapePhone.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-| `userIdPath` | no | — |
-
-## scrapeUser(url, userIdPath, match)
-
-**Run:**
-
-```bash
-node scripts/Puppe/scrapeUser.mjs --url <url>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `url` | no | — |
-| `userIdPath` | no | — |
-| `match` | no | — |
-
-## scrollAds()
-
-**Run:**
-
-```bash
-node scripts/Puppe/scrollAds.mjs
-```
-
-## scrollUntilSelector(selector, [{
-      step], [delay], [maxScrolls])
-
-**Run:**
-
-```bash
-node scripts/Puppe/scrollUntilSelector.mjs --selector <selector>
-```
-
-| Parameter | Optional | Description |
-|-----------|----------|-------------|
-| `selector` | no | — |
-| `{
-      step` | yes (default `500`) | — |
-| `delay` | yes (default `300`) | — |
-| `maxScrolls` | yes (default `30
-    } = {}`) | — |
-
-## showPhone()
-
-**Run:**
-
-```bash
-node scripts/Puppe/showPhone.mjs
-```
 
 
 ---
@@ -4071,7 +3225,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 52 public static method(s).
+Runners: `scripts/Yamls/` — 57 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -4084,6 +3238,23 @@ node scripts/Yamls/actualPayments.mjs --file "<path>"
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `yamlData` | no | — |
+
+## adoptLegacyContractData(yamlData, [convertTariffToArray])
+
+Adopts and converts legacy .contract data to the current template schema in place. Handles: - ComDate / ComDate_ / ComDateExcel / StartDate / StartDateExcel / Year+Month+Day -> ContractDate - ActDate / ActDate_ / ActDateExcel / ComDateAct -> ActDateStart - ComDateEnd / ComDateEnd_ / ComDateEndExcel / ActDateEnd_ / ActDateEndExcel -> ActDateEnd - ComDateIjara / ComDateIjara_ / ComDateIjaraExcel -> IjaraDateEnd - TelegramGroupID -> TgGroupID, TelegramTopicID -> TgTopicID - SurPassport / DirPassport -> SurPassportSerial, SurPassportNumber (with series lookalike normalization) - SurPhone / SurNationality / SurPosition from Dir* counterparts - SurEnable & RepEnable defaults - Russian / legacy abbreviations and legal forms -> ComType (ООО -> MChJ, etc.) - Tariff derivation from Area + Price / Price1 when missing, and string -> normalized date-keyed array
+
+**Run:**
+
+```bash
+node scripts/Yamls/adoptLegacyContractData.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | Loaded contract data object (mutated in place). |
+| `convertTariffToArray` | yes (default `true`) | — |
+
+**Returns:** The mutated yamlData.
 
 ## appendAllTotal(entries)
 
@@ -4114,9 +3285,9 @@ node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
 | `startDate` | no | — |
 | `priceMaxMon` | no | — |
 
-## buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay)
+## buildAccountEntries(startDate, futureDate, payTotal, priceDay, priceMaxDay)
 
-Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own History entry. The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on. History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split. Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
+Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own PayTotal entry. The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on. PayTotal already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split. Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
 
 **Run:**
 
@@ -4128,7 +3299,7 @@ node scripts/Yamls/buildAccountEntries.mjs --startDate <startDate>
 |-----------|----------|-------------|
 | `startDate` | no | — |
 | `futureDate` | no | — |
-| `history` | no | — |
+| `payTotal` | no | — |
 | `priceDay` | no | — |
 | `priceMaxDay` | no | — |
 
@@ -4181,9 +3352,9 @@ node scripts/Yamls/buildPriceDayEntries.mjs --priceMon <priceMon>
 |-----------|----------|-------------|
 | `priceMon` | no | — |
 
-## buildPriceMaxMonEntries(startDate, futureDate, priceMax)
+## buildPriceMaxMonEntries(startDate, futureDate, priceMax, [tariffSchedule], [tariffCosts])
 
-Builds PriceMaxMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM". Value: the flat yamlData.PriceMax rate for every month — same shape as buildPriceMonEntries, different source scalar.
+Builds PriceMaxMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM". Value: the flat yamlData.PriceMax rate for every month — same shape as buildPriceMonEntries, different source scalar. When tariffSchedule and tariffCosts are provided, each month uses the active tariff's priceMax.
 
 **Run:**
 
@@ -4196,10 +3367,12 @@ node scripts/Yamls/buildPriceMaxMonEntries.mjs --startDate <startDate>
 | `startDate` | no | — |
 | `futureDate` | no | — |
 | `priceMax` | no | — |
+| `tariffSchedule` | yes (default `null`) | — |
+| `tariffCosts` | yes (default `null`) | — |
 
-## buildPriceMonEntries(startDate, futureDate, price)
+## buildPriceMonEntries(startDate, futureDate, price, [tariffSchedule], [tariffCosts])
 
-Builds PriceMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM". Value: the flat yamlData.Price rate for every month — never prorated, never debt-conditioned. PriceMon is now the source Accrual is built FROM, so it cannot itself depend on Accrual/Loaners — a month needing PriceMax instead is a manual edit the user makes before setting PriceOK: true.
+Builds PriceMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM". Value: the flat yamlData.Price rate for every month — never prorated, never debt-conditioned. When tariffSchedule and tariffCosts are provided, each month uses the active tariff's price. PriceMon is now the source Accrual is built FROM, so it cannot itself depend on Accrual/Loaners — a month needing PriceMax instead is a manual edit the user makes before setting PriceOK: true.
 
 **Run:**
 
@@ -4212,6 +3385,8 @@ node scripts/Yamls/buildPriceMonEntries.mjs --startDate <startDate>
 | `startDate` | no | — |
 | `futureDate` | no | — |
 | `price` | no | — |
+| `tariffSchedule` | yes (default `null`) | — |
+| `tariffCosts` | yes (default `null`) | — |
 
 ## computeDailyBalance(startDate, futureDate, accrual, payment, returns)
 
@@ -4261,6 +3436,19 @@ node scripts/Yamls/computeFakturaSend.mjs --accrual <accrual>
 
 ```bash
 node scripts/Yamls/computeHistory.mjs --payment <payment>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `payment` | no | — |
+| `returns` | no | — |
+
+## computePayTotal(payment, returns)
+
+**Run:**
+
+```bash
+node scripts/Yamls/computePayTotal.mjs --payment <payment>
 ```
 
 | Parameter | Optional | Description |
@@ -4480,6 +3668,22 @@ node scripts/Yamls/mergeYamlsInFolder.mjs --file "<path>"
 |-----------|----------|-------------|
 | `folderPath` | no | — |
 
+## normalizeTariff(tariff, actDateStart, contractDate)
+
+Normalizes Tariff into an array of { [month]: tariffName } entries. 1st entry key: month (YYYY-MM) extracted from ActDateStart if valid, else ContractDate (fallback to today's month if neither set). Subsequent entries: key normalized to month (YYYY-MM) as well.
+
+**Run:**
+
+```bash
+node scripts/Yamls/normalizeTariff.mjs --tariff <tariff>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tariff` | no | — |
+| `actDateStart` | no | — |
+| `contractDate` | no | — |
+
 ## recomputeChain(startDate, futureDate, accrualDays, priceMon, priceDay, priceEqualsMax, penaltyDays, payments)
 
 **Run:**
@@ -4677,6 +3881,19 @@ node scripts/Yamls/writeLoaners.mjs --file "<path>"
 | `filePath` | no | — |
 | `loanersTotal` | no | — |
 
+## writePayTotal(filePath, payTotal)
+
+**Run:**
+
+```bash
+node scripts/Yamls/writePayTotal.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `payTotal` | no | — |
+
 ## writePayment(filePath, payment)
 
 **Run:**
@@ -4807,6 +4024,21 @@ node scripts/Yamls/writeScalarSection.mjs --file "<path>"
 | `key` | no | — |
 | `value` | no | — |
 | `afterKey` | no | — |
+
+## writeTariff(filePath, tariff)
+
+Writes/replaces Tariff: block in place, or after WhoAmI: as fallback anchor on first write. Keyed by month (YYYY-MM), one entry per tariff period. Tariff: - 2025-03: 1-450k
+
+**Run:**
+
+```bash
+node scripts/Yamls/writeTariff.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `tariff` | no | — |
 
 ## writeYamlArraySection(filePath, key, entries, afterKey, [legacyKeys], [allowEmpty])
 

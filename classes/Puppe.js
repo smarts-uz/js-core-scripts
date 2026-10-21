@@ -169,9 +169,11 @@ export class Puppe {
       href = `https://olx.uz${href}`
 
 
-    if (match && match.length > 0) {
-      match = decodeURIComponent(match[1]);
-      console.info('match', match);
+    if (match) {
+      if (match.length > 0) {
+        match = decodeURIComponent(match[1]);
+        console.info('match', match);
+      }
     }
 
     const returns = { href, match }
@@ -329,15 +331,17 @@ export class Puppe {
         // More specific error handling for MHTML capture
 
 
-        if (
-          mhtmlErr.message &&
-          mhtmlErr.message.includes("Protocol error (Page.captureSnapshot): Failed  to generate MHTML")
-        ) {
-          console.error(
-            `❌ Failed to capture MHTML for ${globalThis.page.url()}: The page may contain resources or frames that prevent MHTML generation.`
-          );
-        } else {
-          console.error(`â ï¸ Failed to capture MHTML for ${globalThis.page.url()}: ${mhtmlErr.message}`);
+        switch (true) {
+          case !mhtmlErr.message:
+          case !mhtmlErr.message.includes("Protocol error (Page.captureSnapshot): Failed  to generate MHTML"): {
+            console.error(`â ï¸ Failed to capture MHTML for ${globalThis.page.url()}: ${mhtmlErr.message}`);
+            break;
+          }
+          default: {
+            console.error(
+              `❌ Failed to capture MHTML for ${globalThis.page.url()}: The page may contain resources or frames that prevent MHTML generation.`
+            );
+          }
         }
 
 
@@ -681,9 +685,11 @@ export class Puppe {
         const nextButton = Array.from(document.querySelectorAll('ul.pagination-list li a'))
           .find(el => el.textContent.trim().toLowerCase() === 'next' || el.textContent.trim() === '»');
 
-        if (nextButton && !nextButton.parentElement.classList.contains('active')) {
-          nextButton.click();
-          return true;
+        if (nextButton) {
+          if (!nextButton.parentElement.classList.contains('active')) {
+            nextButton.click();
+            return true;
+          }
         }
         return false;
       });
@@ -709,8 +715,10 @@ export class Puppe {
         const testId = el.getAttribute('data-testid');
         if (testId) {
           const pageNumber = parseInt(testId.replace('pagination-link-', ''));
-          if (!isNaN(pageNumber) && pageNumber > maxPage) {
-            maxPage = pageNumber;
+          if (!isNaN(pageNumber)) {
+            if (pageNumber > maxPage) {
+              maxPage = pageNumber;
+            }
           }
         }
       });
@@ -816,9 +824,12 @@ export class Puppe {
         continue
       }
 
-      if (!folderApp || !fs.existsSync(folderApp)) {
-        console.info(`⚠️ folderApp not found: ${folderApp}`);
-        continue;
+      switch (true) {
+        case !folderApp:
+        case !fs.existsSync(folderApp): {
+          console.info(`⚠️ folderApp not found: ${folderApp}`);
+          continue;
+        }
       }
 
       // make full path for 

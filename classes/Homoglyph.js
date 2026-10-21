@@ -117,9 +117,12 @@ export class Homoglyph {
     const absPath = fileName ? path.resolve(fileName) : '';
     console.log(`[Homoglyph._resolveSource] ${label}: absPath = ${absPath}`);
 
-    if (!absPath || !fs.existsSync(absPath)) {
-      Dialogs.warningBox(`File not found: ${absPath}`, 'Error');
-      return null;
+    switch (true) {
+      case !absPath:
+      case !fs.existsSync(absPath): {
+        Dialogs.warningBox(`File not found: ${absPath}`, 'Error');
+        return null;
+      }
     }
     return absPath;
   }
@@ -509,7 +512,8 @@ export class Homoglyph {
             } catch (_) {
               continue;
             }
-            if (typeof val !== 'string' || val.length === 0) continue;
+            if (typeof val !== 'string') continue;
+            if (val.length === 0) continue;
 
             let newVal = val;
             for (const [latin, cyrillic] of entries) {
@@ -587,21 +591,25 @@ export class Homoglyph {
           const shape = slide.Shapes(sh);
 
           // Check if shape has a text frame and it has text
-          if (shape.HasTextFrame && shape.TextFrame.HasText) {
-            const textRange = shape.TextFrame.TextRange;
-            const val = textRange.Text;
+          if (shape.HasTextFrame) {
+            if (shape.TextFrame.HasText) {
+              const textRange = shape.TextFrame.TextRange;
+              const val = textRange.Text;
 
-            if (typeof val === 'string' && val.length > 0) {
-              let newVal = val;
-              for (const [latin, cyrillic] of entries) {
-                if (newVal.includes(latin)) {
-                  newVal = newVal.split(latin).join(cyrillic);
+              if (typeof val === 'string') {
+                if (val.length > 0) {
+                  let newVal = val;
+                  for (const [latin, cyrillic] of entries) {
+                    if (newVal.includes(latin)) {
+                      newVal = newVal.split(latin).join(cyrillic);
+                    }
+                  }
+
+                  if (newVal !== val) {
+                    textRange.Text = newVal;
+                    changedInSlide++;
+                  }
                 }
-              }
-
-              if (newVal !== val) {
-                textRange.Text = newVal;
-                changedInSlide++;
               }
             }
           }

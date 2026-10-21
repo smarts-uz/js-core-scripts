@@ -26,10 +26,16 @@ const state = { projectDir: '' };
 const FilesMock = {
   currentDir: () => state.projectDir,
   isEmpty: (v) => {
-    if (v === null || v === undefined) return true;
+    switch (v) {
+      case null:
+      case undefined: {
+        return true;
+      }
+    }
     if (typeof v === 'string') return v.trim() === '';
     if (Array.isArray(v)) return v.length === 0;
-    if (v instanceof Map || v instanceof Set) return v.size === 0;
+    if (v instanceof Map) return v.size === 0;
+    if (v instanceof Set) return v.size === 0;
     if (typeof v === 'object') return Object.keys(v).length === 0;
     return false;
   },
@@ -54,13 +60,22 @@ const FilesMock = {
     let results = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (ignoreFolderCondition && ignoreFolderCondition(entry.name, fullPath)) continue;
-        results = results.concat(
-          FilesMock.findRecursiveFull(fullPath, condition, ignoreFolderCondition)
-        );
-      } else if (condition(entry.name)) {
-        results.push(fullPath);
+      switch (true) {
+        case entry.isDirectory(): {
+          if (ignoreFolderCondition) {
+            if (ignoreFolderCondition(entry.name, fullPath)) {
+              continue;
+            }
+          }
+          results = results.concat(
+            FilesMock.findRecursiveFull(fullPath, condition, ignoreFolderCondition)
+          );
+          break;
+        }
+        case Boolean(condition(entry.name)): {
+          results.push(fullPath);
+          break;
+        }
       }
     }
     return results;

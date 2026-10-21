@@ -27,8 +27,16 @@ const FilesMock = {
     let results = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) results = results.concat(FilesMock.findRecursive(full, condition));
-      else if (condition(entry.name)) results.push(entry.name);
+      switch (true) {
+        case entry.isDirectory(): {
+          results = results.concat(FilesMock.findRecursive(full, condition));
+          break;
+        }
+        case Boolean(condition(entry.name)): {
+          results.push(entry.name);
+          break;
+        }
+      }
     }
     return results;
   },
@@ -36,12 +44,23 @@ const FilesMock = {
     let results = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (ignoreFolderCondition && ignoreFolderCondition(entry.name, full)) continue;
-        results = results.concat(
-          FilesMock.findRecursiveFull(full, condition, ignoreFolderCondition)
-        );
-      } else if (condition(entry.name)) results.push(full);
+      switch (true) {
+        case entry.isDirectory(): {
+          if (ignoreFolderCondition) {
+            if (ignoreFolderCondition(entry.name, full)) {
+              continue;
+            }
+          }
+          results = results.concat(
+            FilesMock.findRecursiveFull(full, condition, ignoreFolderCondition)
+          );
+          break;
+        }
+        case Boolean(condition(entry.name)): {
+          results.push(full);
+          break;
+        }
+      }
     }
     return results;
   },
@@ -63,7 +82,12 @@ const FilesMock = {
     return filePath;
   }),
   isEmpty(value) {
-    if (value === null || value === undefined) return true;
+    switch (value) {
+      case null:
+      case undefined: {
+        return true;
+      }
+    }
     if (typeof value === 'string') return value.trim() === '';
     if (Array.isArray(value)) return value.length === 0;
     return false;

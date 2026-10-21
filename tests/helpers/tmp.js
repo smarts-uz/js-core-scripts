@@ -31,11 +31,16 @@ export function writeTree(root, spec) {
   fs.mkdirSync(root, { recursive: true });
   for (const [name, value] of Object.entries(spec)) {
     const full = path.join(root, name);
-    if (value && typeof value === 'object') {
-      writeTree(full, value);
-    } else {
-      fs.mkdirSync(path.dirname(full), { recursive: true });
-      fs.writeFileSync(full, value == null ? '' : String(value), 'utf8');
+    switch (true) {
+      case !value:
+      case typeof value !== 'object': {
+        fs.mkdirSync(path.dirname(full), { recursive: true });
+        fs.writeFileSync(full, value == null ? '' : String(value), 'utf8');
+        break;
+      }
+      default: {
+        writeTree(full, value);
+      }
     }
   }
   return root;

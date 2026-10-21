@@ -304,15 +304,18 @@ export class Phone {
 
     const CANDIDATE_RE = /(?:\+?998|998|8|0)?[-.\s()]*\d{2}[-.\s()]*\d{3}[-.\s()]*\d{2}[-.\s()]*\d{2}|\b\d{9}\b/g;
 
-    if (!text || typeof text !== "string") return [];
+    if (!text) return [];
+    if (typeof text !== "string") return [];
     const found = text.match(CANDIDATE_RE) || [];
     const seen = new Set();
     const out = [];
 
     for (const f of found) {
-      if (f && !seen.has(f)) {
-        seen.add(f);
-        out.push(f);
+      if (f) {
+        if (!seen.has(f)) {
+          seen.add(f);
+          out.push(f);
+        }
       }
     }
     console.info('uzbekPhones', out);

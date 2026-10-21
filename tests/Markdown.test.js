@@ -53,7 +53,8 @@ const FilesMock = {
   // exercise the missing-folder path (template tests point the config at a
   // non-existent path), so a not-found returns null like the real helper.
   getLatestMatchingFile: jest.fn((folder, ext = null) => {
-    if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) return null;
+    if (!fs.existsSync(folder)) return null;
+    if (!fs.statSync(folder).isDirectory()) return null;
     const entries = fs
       .readdirSync(folder)
       .filter((f) => (ext ? f.toLowerCase().endsWith(ext.toLowerCase()) : true))
