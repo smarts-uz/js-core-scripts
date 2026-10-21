@@ -939,6 +939,25 @@ describe('Yamls.buildPriceMonEntries', () => {
     const entries = Yamls.buildPriceMonEntries('2026-01-09', '2026-01-31', '390,000');
     expect(entries).toEqual([{ '2026-01': '390,000' }]);
   });
+
+  it('switches price across months based on multi-tariff schedule', () => {
+    const tariffSchedule = [
+      { '2025-03-20': '1-450k' },
+      { '2025-06-01': '2-600k' },
+    ];
+    const tariffCosts = {
+      '1-450k': { Price: '450,000', PriceMax: '450,000' },
+      '2-600k': { Price: '600,000', PriceMax: '600,000' },
+    };
+    const entries = Yamls.buildPriceMonEntries('2025-03-20', '2025-07-31', '450,000', tariffSchedule, tariffCosts);
+    expect(entries).toEqual([
+      { '2025-03': '450,000' },
+      { '2025-04': '450,000' },
+      { '2025-05': '450,000' },
+      { '2025-06': '600,000' },
+      { '2025-07': '600,000' },
+    ]);
+  });
 });
 
 describe('Yamls.buildPriceMaxMonEntries', () => {
@@ -949,6 +968,68 @@ describe('Yamls.buildPriceMaxMonEntries', () => {
       { '2026-02': '450,000' },
       { '2026-03': '450,000' },
     ]);
+  });
+
+  it('switches PriceMax across months based on multi-tariff schedule', () => {
+    const tariffSchedule = [
+      { '2025-03-20': '1-450k' },
+      { '2025-06-01': '2-600k' },
+    ];
+    const tariffCosts = {
+      '1-450k': { Price: '450,000', PriceMax: '500,000' },
+      '2-600k': { Price: '600,000', PriceMax: '700,000' },
+    };
+    const entries = Yamls.buildPriceMaxMonEntries('2025-03-20', '2025-07-31', '500,000', tariffSchedule, tariffCosts);
+    expect(entries).toEqual([
+      { '2025-03': '500,000' },
+      { '2025-04': '500,000' },
+      { '2025-05': '500,000' },
+      { '2025-06': '700,000' },
+      { '2025-07': '700,000' },
+    ]);
+  });
+});
+
+describe('Yamls.normalizeTariff', () => {
+  it('uses ActDateStart as 1st key when available', () => {
+    const normalized = Yamls.normalizeTariff('1-450k', '2025-04-01', '2025-03-20');
+    expect(normalized).toEqual([{ '2025-04-01': '1-450k' }]);
+  });
+
+  it('falls back to ContractDate when ActDateStart is missing or empty', () => {
+    const normalized = Yamls.normalizeTariff('1-450k', '', '2025-03-20');
+    expect(normalized).toEqual([{ '2025-03-20': '1-450k' }]);
+  });
+
+  it('normalizes an existing array, updating 1st key and preserving later entries', () => {
+    const input = [
+      { '2025-01-01': '1-450k' },
+      { '2025-09-01': '2-600k' },
+    ];
+    const normalized = Yamls.normalizeTariff(input, '2025-03-20', '2025-01-01');
+    expect(normalized).toEqual([
+      { '2025-03-20': '1-450k' },
+      { '2025-09-01': '2-600k' },
+    ]);
+  });
+
+  it('falls back to DefaultTariff when tariff is empty', () => {
+    const normalized = Yamls.normalizeTariff('', '', '2025-03-20');
+    expect(normalized).toEqual([{ '2025-03-20': '1-450k' }]);
+  });
+});
+
+describe('Yamls.writeTariff', () => {
+  it('writes Tariff array block in place over existing scalar Tariff line', () => {
+    const filePath = path.join(workDir, 'tariff-test.contract');
+    fs.writeFileSync(filePath, ['WhoAmI: SRental-Kapital', 'Tariff: 1-450k', '', 'PenaltyPerDay: 50'].join('\n'), 'utf8');
+
+    Yamls.writeTariff(filePath, [{ '2025-03-20': '1-450k' }, { '2026-01-01': '2-600k' }]);
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    expect(content).toContain('Tariff:\n  - 2025-03-20: 1-450k\n  - 2026-01-01: 2-600k');
+    expect(content).toContain('WhoAmI: SRental-Kapital');
+    expect(content).toContain('PenaltyPerDay: 50');
   });
 });
 

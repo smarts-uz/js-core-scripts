@@ -489,19 +489,43 @@ export class Yamls {
     /**
      * Builds PriceMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM".
      * Value: the flat yamlData.Price rate for every month — never prorated, never debt-conditioned.
+     * When tariffSchedule and tariffCosts are provided, each month uses the active tariff's price.
      * PriceMon is now the source Accrual is built FROM, so it cannot itself depend on Accrual/Loaners — a month needing PriceMax instead is a manual edit the user makes before setting PriceOK: true.
      * @param {string} startDate
      * @param {string} futureDate
      * @param {string|number} price
+     * @param {Array<Object>} [tariffSchedule]
+     * @param {Object} [tariffCosts]
      * @returns {Array<Object>}
      */
-    static buildPriceMonEntries(startDate, futureDate, price) {
+    static buildPriceMonEntries(startDate, futureDate, price, tariffSchedule = null, tariffCosts = null) {
         console.info(`[Yamls.buildPriceMonEntries] 🟢 Starting...`);
 
         const priceNum = Number(String(price).replace(/,/g, '')) || 0;
         const monthRanges = Dates.monthsBetween(startDate, futureDate);
 
-        const entries = monthRanges.map(({ start }) => ({ [start.slice(0, 7)]: Yamls.#fmt(priceNum) }));
+        const schedule = Array.isArray(tariffSchedule) ? tariffSchedule : null;
+
+        const entries = monthRanges.map(({ start, end }) => {
+            let mPrice = priceNum;
+            if (schedule && schedule.length > 0 && tariffCosts) {
+                let activeTariff = null;
+                for (const entry of schedule) {
+                    const [entryDate, tariffName] = Object.entries(entry)[0];
+                    if (entryDate <= end) {
+                        activeTariff = tariffName;
+                    }
+                }
+                if (!activeTariff) {
+                    activeTariff = Object.values(schedule[0])[0];
+                }
+                const costObj = tariffCosts[activeTariff];
+                if (costObj && costObj.Price != null) {
+                    mPrice = Number(String(costObj.Price).replace(/,/g, '')) || 0;
+                }
+            }
+            return { [start.slice(0, 7)]: Yamls.#fmt(mPrice) };
+        });
 
         console.log(`buildPriceMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
@@ -510,18 +534,42 @@ export class Yamls {
     /**
      * Builds PriceMaxMon entries, one per calendar month across startDate..futureDate, key bare "YYYY-MM".
      * Value: the flat yamlData.PriceMax rate for every month — same shape as buildPriceMonEntries, different source scalar.
+     * When tariffSchedule and tariffCosts are provided, each month uses the active tariff's priceMax.
      * @param {string} startDate
      * @param {string} futureDate
      * @param {string|number} priceMax
+     * @param {Array<Object>} [tariffSchedule]
+     * @param {Object} [tariffCosts]
      * @returns {Array<Object>}
      */
-    static buildPriceMaxMonEntries(startDate, futureDate, priceMax) {
+    static buildPriceMaxMonEntries(startDate, futureDate, priceMax, tariffSchedule = null, tariffCosts = null) {
         console.info(`[Yamls.buildPriceMaxMonEntries] 🟢 Starting...`);
 
         const priceMaxNum = Number(String(priceMax).replace(/,/g, '')) || 0;
         const monthRanges = Dates.monthsBetween(startDate, futureDate);
 
-        const entries = monthRanges.map(({ start }) => ({ [start.slice(0, 7)]: Yamls.#fmt(priceMaxNum) }));
+        const schedule = Array.isArray(tariffSchedule) ? tariffSchedule : null;
+
+        const entries = monthRanges.map(({ start, end }) => {
+            let mPriceMax = priceMaxNum;
+            if (schedule && schedule.length > 0 && tariffCosts) {
+                let activeTariff = null;
+                for (const entry of schedule) {
+                    const [entryDate, tariffName] = Object.entries(entry)[0];
+                    if (entryDate <= end) {
+                        activeTariff = tariffName;
+                    }
+                }
+                if (!activeTariff) {
+                    activeTariff = Object.values(schedule[0])[0];
+                }
+                const costObj = tariffCosts[activeTariff];
+                if (costObj && costObj.PriceMax != null) {
+                    mPriceMax = Number(String(costObj.PriceMax).replace(/,/g, '')) || 0;
+                }
+            }
+            return { [start.slice(0, 7)]: Yamls.#fmt(mPriceMax) };
+        });
 
         console.log(`buildPriceMaxMonEntries: ${entries.length} entr(y/ies)`, entries);
         return entries;
@@ -1158,6 +1206,75 @@ export class Yamls {
     }
 
     /**
+     * Normalizes Tariff into an array of { [date]: tariffName } entries.
+     * 1st entry key: ActDateStart if valid, else ContractDate (fallback to today if neither set).
+     * @param {string|Array<Object>} tariff
+     * @param {string} [actDateStart]
+     * @param {string} [contractDate]
+     * @returns {Array<Object>}
+     */
+    static normalizeTariff(tariff, actDateStart, contractDate) {
+        console.info(`[Yamls.normalizeTariff] 🟢 Starting...`);
+        const firstKey = (Dates.isExcelDate(actDateStart))
+            ? String(actDateStart).trim()
+            : ((Dates.isExcelDate(contractDate))
+                ? String(contractDate).trim()
+                : Dates.today());
+
+        if (Files.isEmpty(tariff)) {
+            let defTariff = '1-450k';
+            try {
+                defTariff = Yamls.getConfig('Contract.DefaultTariff') || '1-450k';
+            } catch {
+                defTariff = '1-450k';
+            }
+            return [{ [firstKey]: defTariff }];
+        }
+
+        if (typeof tariff === 'string') {
+            return [{ [firstKey]: tariff.trim() }];
+        }
+
+        if (Array.isArray(tariff)) {
+            if (tariff.length === 0) {
+                let defTariff = '1-450k';
+                try {
+                    defTariff = Yamls.getConfig('Contract.DefaultTariff') || '1-450k';
+                } catch {
+                    defTariff = '1-450k';
+                }
+                return [{ [firstKey]: defTariff }];
+            }
+            const normalized = tariff.map(entry => {
+                if (typeof entry === 'string') {
+                    return { [firstKey]: entry.trim() };
+                }
+                const [d, t] = Object.entries(entry)[0];
+                return { [String(d).trim()]: String(t).trim() };
+            });
+            const firstEntryVal = Object.values(normalized[0])[0];
+            normalized[0] = { [firstKey]: firstEntryVal };
+            return normalized;
+        }
+
+        return [{ [firstKey]: String(tariff).trim() }];
+    }
+
+    /**
+     * Writes/replaces Tariff: block in place, or after WhoAmI: as fallback anchor on first write.
+     * Keyed by date (YYYY-MM-DD), one entry per tariff period.
+     * @example
+     *   Tariff:
+     *     - 2025-03-20: 1-450k
+     * @param {string} filePath
+     * @param {Array<Object>} tariff
+     */
+    static writeTariff(filePath, tariff) {
+        console.info(`[Yamls.writeTariff] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'Tariff', tariff, 'WhoAmI', [], true);
+    }
+
+    /**
      * Writes/replaces PriceMon: block in place, or after Penalty: as fallback anchor on first write (see buildPriceMonEntries).
      * Keyed by bare "YYYY-MM" (no day), one entry per Accrual period.
      * Strips a legacy PriceApp: block (the old key name, before the PriceApp -> PriceMon rename) — same in-place migration mechanism writeAccrual already uses for Pricings/PriceHistory.
@@ -1355,16 +1472,34 @@ export class Yamls {
             data.Tariff = Yamls.getConfig('Contract.DefaultTariff');
         }
 
-        const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', data.Tariff + ".yaml")
-        console.info("Using priceYaml", priceYaml);
+        const tariffArray = Yamls.normalizeTariff(data.Tariff, data.ActDateStart, data.ContractDate);
+        const tariffCosts = {};
 
-        if (!existsSync(priceYaml)) Dialogs.warningBox(priceYaml, "priceYaml file not found. .");
+        for (const entry of tariffArray) {
+            const [entryDate, entryTariff] = Object.entries(entry)[0];
+            const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', entryTariff + ".yaml");
+            console.info("Using priceYaml", priceYaml);
 
-        let priceYamlData = Yamls.loadAndParseYaml(priceYaml);
-        console.log(priceYamlData, 'priceYamlData Yaml data');
+            if (!existsSync(priceYaml)) {
+                Dialogs.warningBox(priceYaml, "priceYaml file not found. .");
+            } else {
+                const costData = Yamls.loadAndParseYaml(priceYaml);
+                tariffCosts[entryTariff] = costData;
+            }
+        }
 
-        // merge arrays priceYamlData and data
-        data = { ...priceYamlData, ...data };
+        data.TariffCosts = tariffCosts;
+
+        if (Array.isArray(data.Tariff) || Files.isEmpty(data.Tariff)) {
+            data.Tariff = tariffArray;
+        }
+
+        const activeTariffName = Object.values(tariffArray[tariffArray.length - 1])[0];
+        const activeCostData = tariffCosts[activeTariffName] || {};
+        console.log(activeCostData, 'activeCostData Yaml data');
+
+        // merge arrays activeCostData and data
+        data = { ...activeCostData, ...data };
         console.info("Merged data with priceYamlData:", data);
 
 
@@ -2243,6 +2378,22 @@ export class Yamls {
     static #writeChain(ymlFile, yamlData) {
         console.info(`[Yamls.#writeChain] 🟢 Starting...`);
 
+        if (yamlData.Tariff != null) {
+            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
+        }
+
+        if (!yamlData.TariffCosts && Array.isArray(yamlData.Tariff)) {
+            const tariffCosts = {};
+            for (const entry of yamlData.Tariff) {
+                const [d, tName] = Object.entries(entry)[0];
+                const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', tName + ".yaml");
+                if (existsSync(priceYaml)) {
+                    tariffCosts[tName] = Yamls.loadAndParseYaml(priceYaml);
+                }
+            }
+            yamlData.TariffCosts = tariffCosts;
+        }
+
         /*
          * Iterate yamlData and write each SCALAR value via replaceTextLine.
          * Array-valued keys (Accrual, History, Account, and the rest of the chain) are skipped here — each has its own dedicated writeYamlArraySection-based writer below (or, for a key like Account with no writer at all, is left exactly as loaded).
@@ -2251,6 +2402,10 @@ export class Yamls {
         for (const [key, value] of Object.entries(yamlData)) {
             if (Array.isArray(value)) continue;
             this.replaceTextLine(ymlFile, key, value);
+        }
+
+        if (yamlData.Tariff != null) {
+            Yamls.writeTariff(ymlFile, yamlData.Tariff);
         }
 
         /*
@@ -2282,11 +2437,11 @@ export class Yamls {
          * PriceOK: true freezes every existing PriceMon/PriceMaxMon month at its own on-disk value (see freezePriceMonEntries); only months strictly after the existing block's own last month get a fresh entry, computed from yamlData.Price/PriceMax.
          * PriceOK is not true (the default) -> the whole block is rebuilt fresh from yamlData.Price/PriceMax every run, same as before this rule existed.
          */
-        const priceMonFresh = Yamls.buildPriceMonEntries(yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.Price);
+        const priceMonFresh = Yamls.buildPriceMonEntries(yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.Price, yamlData.Tariff, yamlData.TariffCosts);
         const priceMon = Yamls.freezePriceMonEntries(yamlData.PriceMon, priceMonFresh, yamlData.PriceOK);
         Yamls.writePriceMon(ymlFile, Yamls.appendAllTotal(priceMon));
 
-        const priceMaxMonFresh = Yamls.buildPriceMaxMonEntries(yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.PriceMax);
+        const priceMaxMonFresh = Yamls.buildPriceMaxMonEntries(yamlData.PeriodStart, yamlData.PeriodEnd, yamlData.PriceMax, yamlData.Tariff, yamlData.TariffCosts);
         const priceMaxMon = Yamls.freezePriceMonEntries(yamlData.PriceMaxMon, priceMaxMonFresh, yamlData.PriceOK);
         Yamls.writePriceMaxMon(ymlFile, Yamls.appendAllTotal(priceMaxMon));
 

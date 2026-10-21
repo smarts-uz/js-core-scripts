@@ -11,14 +11,9 @@ const { Yamls } = await import('../../classes/Yamls.js');
 const { Dates } = await import('../../classes/Dates.js');
 const { Dialogs } = await import('../../classes/Dialogs.js');
 
-// Per-contract step: fill yaml with info, then the action.
+// Per-contract step: archive, copy fresh template, and re-process.
 async function processOne(ymlFile) {
     console.warn('Processing contract:', ymlFile);
-    const filled = await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
-    if (!filled) {
-        console.warn('Skipping Yamls.update — fillYamlWithInfo did not complete:', ymlFile);
-        return;
-    }
     await Yamls.update(ymlFile);
 }
 
