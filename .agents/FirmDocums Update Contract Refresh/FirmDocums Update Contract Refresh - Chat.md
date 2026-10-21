@@ -111,3 +111,24 @@ bu feature nega kerak: firmalar yangi shartnoma qilganda 1 ta tarifda (masalan 1
 
 
 
+## 👤 User
+
+Yamls.update va Yamls.fillYamlWithInfo da agar Tariff  oddiy string bolsa - uni value sini olib, tariff ni array ga convert qilib yuqoridagi string dan olingan value ni arrayni item value si qilib yozib qoyish kerak!
+
+## 🤖 Assistant
+
+- `Yamls.update` va `Yamls.fillYamlWithInfo` ichida string `Tariff` ni array ga konvertatsiya qilish qo'shildi.
+- String qiymati olinib, array elementi qiymatiga o'tkaziladi (`[ { [sana]: 'string-qiymat' } ]`).
+- Kalit: `ActDateStart` mavjud bo'lsa unga, bo'lmasa `ContractDate` ga teng.
+- `tests/Yamls.test.js` ichiga har ikkala metod uchun testlar qo'shildi, barcha 173 ta test muvaffaqiyatli o'tdi.
+- Git commit yaratildi: [1e4b642f](https://github.com/smarts-config-git/commit/1e4b642f2bd7a629218bfccae56afac948ea5e1a).
+
+
+
+
+
+
+
+
+
+
