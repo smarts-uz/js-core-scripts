@@ -752,13 +752,20 @@ export class Excels {
   static replaceInSheet(search, replace) {
     console.info(`[Excels.replaceInSheet] 🟢 Starting...`);
 
-    if (String(replace).length > 255) {
-      console.warn(`⚠️ "${search}" replacement is ${String(replace).length} chars (>255) — Cells.Replace would throw DISP_E_TYPEMISMATCH; writing via Cells.Find + .Value instead.`);
+    if (Object(replace) === replace) {
+      console.warn(`⚠️ "${search}" replacement is an object/array — skipping COM Cells.Replace to avoid RPC crash`);
+      return false;
+    }
+
+    const safeReplace = replace ?? '';
+
+    if (String(safeReplace).length > 255) {
+      console.warn(`⚠️ "${search}" replacement is ${String(safeReplace).length} chars (>255) — Cells.Replace would throw DISP_E_TYPEMISMATCH; writing via Cells.Find + .Value instead.`);
       const cell = globalThis.excelSheet.Cells.Find(search);
 
       if (cell) {
-        cell.Value = replace;
-        console.log(`✅ Replaced  "${search}" with "${replace}" in Excel sheet "App" (long-value path)`);
+        cell.Value = safeReplace;
+        console.log(`✅ Replaced  "${search}" with "${safeReplace}" in Excel sheet "App" (long-value path)`);
         return true;
       }
 
@@ -768,7 +775,7 @@ export class Excels {
 
     let found = globalThis.excelSheet.Cells.Replace(
       search,          // What to find
-      replace,                   // Replacement text
+      safeReplace,     // Replacement text
       2,                    // LookAt: 1=part, 2=whole
       2,                    // SearchOrder: 1=byRows, 2=byColumns
       false,                // MatchCase
@@ -777,7 +784,7 @@ export class Excels {
     );
 
     if (found) {
-      console.log(`✅ Replaced  "${search}" with "${replace}" in Excel sheet "App"`);
+      console.log(`✅ Replaced  "${search}" with "${safeReplace}" in Excel sheet "App"`);
     } else {
       console.warn(`⚠️ "${search}" not found in Excel sheet "App"`);
     }
@@ -1418,8 +1425,8 @@ export class Excels {
 
 
 
-      // Replace {KEY} placeholders — skip array-valued keys (Accrual, Payment,
-      // Loaners, Penalty, every Excel.CellNames key: Bank-OT, EHF-IN, …).
+      // Replace {KEY} placeholders — skip array-valued and object-valued keys (Accrual, Payment,
+      // Loaners, Penalty, TariffCosts, every Excel.CellNames key: Bank-OT, EHF-IN, …).
       // These are never rendered as a {key} placeholder; they are written
       // cell-by-cell by processAccrual/processPayment/processLoaners/
       // processPenalty/processFolders above. Passing an
@@ -1430,7 +1437,7 @@ export class Excels {
 
         const value = yamlData[key];
 
-        if (Array.isArray(value)) continue;
+        if (Object(value) === value) continue;
 
         const placeholder = `{${key}}`;
 
