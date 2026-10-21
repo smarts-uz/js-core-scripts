@@ -625,14 +625,16 @@ describe('Puppe.scrapeOffers', () => {
       title: jest.fn(async () => 'iPhone 13'),
       createCDPSession: jest.fn(async () => cdp),
       $eval: jest.fn(async (selector) => {
-        if (selector === 'a[data-testid="user-profile-link"]') {
-          return { href: '/list/user/seller1/', match: ['/list/user/seller1/', 'seller1'] };
+        switch (selector) {
+          case 'a[data-testid="user-profile-link"]':
+            return { href: '/list/user/seller1/', match: ['/list/user/seller1/', 'seller1'] };
+          case '[data-cy="ad_description"] > div:last-child':
+            return 'Great phone. Call 998901112233';
+          case '[data-testid="ad-footer-bar-section"]':
+            return '55512345';
+          default:
+            return 'Some Field';
         }
-        if (selector === '[data-cy="ad_description"] > div:last-child') {
-          return 'Great phone. Call 998901112233';
-        }
-        if (selector === '[data-testid="ad-footer-bar-section"]') return '55512345';
-        return 'Some Field';
       }),
     });
 
@@ -662,12 +664,14 @@ describe('Puppe.scrapeOffers', () => {
       title: jest.fn(async () => 'NoUser Offer'),
       createCDPSession: jest.fn(async () => cdp),
       $eval: jest.fn(async (selector) => {
-        if (selector === 'a[data-testid="user-profile-link"]') {
-          return { href: 'https://olx.uz/x', match: null }; // no match → warning then throw
+        switch (selector) {
+          case 'a[data-testid="user-profile-link"]':
+            return { href: 'https://olx.uz/x', match: null }; // no match → warning then throw
+          case '[data-cy="ad_description"] > div:last-child':
+            return '';
+          default:
+            return null;
         }
-        if (selector === '[data-cy="ad_description"] > div:last-child') return '';
-        if (selector === '[data-testid="ad-footer-bar-section"]') return null;
-        return null;
       }),
     });
 
@@ -777,9 +781,14 @@ describe('Puppe.itemSavePagination', () => {
         evalCall++;
         // call order: scrollIntoView, [next-clicker → false], scrollTo top,
         // maxPageNumber → return 3 for the maxPage evaluate.
-        if (evalCall === 2) return false; // next button clicker: stop loop
-        if (evalCall === 4) return 3; // maxPageNumber
-        return undefined;
+        switch (evalCall) {
+          case 2:
+            return false; // next button clicker: stop loop
+          case 4:
+            return 3; // maxPageNumber
+          default:
+            return undefined;
+        }
       }),
     });
 
@@ -942,12 +951,16 @@ describe('Puppe.appSaveOffers', () => {
       title: jest.fn(async () => 'Offer A'),
       createCDPSession: jest.fn(async () => cdp),
       $eval: jest.fn(async (selector) => {
-        if (selector === 'a[data-testid="user-profile-link"]') {
-          return { href: '/list/user/s1/', match: ['/list/user/s1/', 's1'] };
+        switch (selector) {
+          case 'a[data-testid="user-profile-link"]':
+            return { href: '/list/user/s1/', match: ['/list/user/s1/', 's1'] };
+          case '[data-cy="ad_description"] > div:last-child':
+            return 'desc';
+          case '[data-testid="ad-footer-bar-section"]':
+            return '111';
+          default:
+            return 'Field';
         }
-        if (selector === '[data-cy="ad_description"] > div:last-child') return 'desc';
-        if (selector === '[data-testid="ad-footer-bar-section"]') return '111';
-        return 'Field';
       }),
     });
 
