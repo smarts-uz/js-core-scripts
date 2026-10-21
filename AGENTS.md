@@ -2,6 +2,13 @@
 
 This project is a private Node.js ESM command-line toolkit for Windows document and browser automation. It exposes utility classes under `classes/` as generated runners under `scripts/<Class>/<method>.mjs`, with shell launcher definitions in `sheller/` and VS Code launch configs in `.vscode/launch.json`.
 
+<!-- smarts-skill:begin -->
+## Skill
+• Built on `smarts-app-cmd` (base parent chain: `smarts-app-cmd` -> `smarts-app-all`).
+• Before ANY task: Read `~/.agents/skills/smarts-app-all/SKILL.md` in full, then `~/.agents/skills/smarts-app-cmd/SKILL.md` in full; work without that = forbidden.
+• Code rule: ONE condition per decision (no else-if, no `&&`/`||` in an `if`) -> `switch`/`case`, `match`, lookup table (smarts-app-all module/control-flow.md).
+<!-- smarts-skill:end -->
+
 ## Project Shape
 
 - `classes/` contains the authored library classes. Public methods are non-underscore methods and are the source for generated runners.
