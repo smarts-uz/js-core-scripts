@@ -14,6 +14,5 @@ import './matchers.js';
 for (const method of ['log', 'info', 'debug']) {
   // Replace with a jest.fn() so tests can still assert on it if they want;
   // jest.config clearMocks resets the call log between tests but keeps this fn.
-  // eslint-disable-next-line no-console
   console[method] = jest.fn();
 }
