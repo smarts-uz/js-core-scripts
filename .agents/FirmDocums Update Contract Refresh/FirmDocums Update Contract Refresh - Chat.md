@@ -357,3 +357,40 @@ Testlar to'plami bajarilmoqda. Natija chiqishi bilan darhol ma'lumot beriladi.
 
 
 
+## 👤 User
+
+(no prose)
+
+## 🤖 Assistant
+
+Barcha eski formatdagi `ALL.contract` fayllarini qo'llab-quvvatlash va yangilash to'liq yakunlandi.
+
+### Bajarilgan ishlar:
+- [Yamls.js](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Yamls.js) ga `Yamls.adoptLegacyContractData` integratsiya qilindi.
+- `Tariff`: string qiymat `[{ 'YYYY-MM': 'value' }]` massiv formatiga avtomatik o'tkaziladi.
+- `Area` va `Price1` bo'lsa, mavjud bo'lmagan `Tariff` avtomatik hisoblab topiladi.
+- Eski sana kalitlari (`ComDate`, `ComDateEnd`, `ComDateIjara`, `ActDate`, `Year+Month+Day`) yangi `ContractDate`, `ActDateEnd`, `IjaraDateEnd`, `ActDateStart` formatlariga moslashtirildi.
+- `TelegramGroupID`/`TelegramTopicID` mos ravishda `TgGroupID`/`TgTopicID` ga o'tkazildi.
+- `SurPassport` seriya va raqamga ajratildi, grek/kirill o'xshash harflari normallashtirildi, mavjud bo'lmaganda `DirPassport` dan olindi.
+- Ruscha `ComType` shakllari (`ООО` -> `MChJ`, `ИП` -> `YaTT`, `ЧП` -> `XK` va boshqalar) hamda `ComOpf`/nom bo'yicha aniqlash qo'shildi.
+- [Yamls.loadAndParseYaml](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Yamls.js) da skalyar ostidagi yetim ro'yxat qatorlari tozalash mexanizmi kiritildi.
+- [Didox.js](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Didox.js) da `address` bo'sh kelganda xatolik bermaslik tuzatildi.
+- `conf/bank` da ko'rsatilgan bank fayli bo'lmaganda `DefaultBank` ga xavfsiz o'tish ta'minlandi.
+- [c:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract](file:///c:/Users/Administrator/.agents/skills/smarts-firm-docums/templa/ALL.contract) andozasi sinxronlandi.
+
+### Tekshiruv natijalari:
+- Foydalanuvchi ko'rsatgan barcha fayllar (`ELECTROSILK`, `SUVPROM DRILLER`, `CN SRental 20`, `ZHONGYA HONGTAO GLOBAL`, `LOWVOLTAGE`, `Adgent Tech`, `NATURE ECO WOOD`) yangilandi va tekshirildi.
+- `d:\FSystem\ALL\Humans\Rentalls\` papkasidagi barcha 289 ta `ALL.contract` fayllari to'liq yangilandi (289 / 289 muvaffaqiyatli).
+- Barcha testlar yashil: 27/27 test suite, 1133/1133 test o'tdi.
+- Kod lint tekshiruvidan o'tdi (0 xato).
+- O'zgarishlar commit qilindi va push qilindi: [`96666ebf`](https://github.com/smarts-uz/js-core-scripts/commit/96666ebf775300c32bbec36fcc88688d73fafc1d).
+
+
+
+
+
+
+
+
+
+
