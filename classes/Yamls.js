@@ -22,6 +22,9 @@ const RUSSIAN_TYPE_MAP = new Map([
     ['АО', 'OAJ']
 ]);
 
+// Quote characters that may wrap a root-level YAML key.
+const QUOTE_CHARS = new Set(['"', "'"]);
+
 // IsYatt values (lower-cased) that mean "true".
 const YATT_TRUE_VALUES = new Set(['true', 'да', '1', 'yes']);
 
@@ -1586,9 +1589,9 @@ export class Yamls {
         switch (true) {
             case Boolean(Files.isEmpty(yamlData.SurPassportSerial)):
             case Boolean(Files.isEmpty(yamlData.SurPassportNumber)): {
-                const rawPassport = !Files.isEmpty(yamlData.SurPassport)
-                    ? String(yamlData.SurPassport)
-                    : (!Files.isEmpty(yamlData.DirPassport) ? String(yamlData.DirPassport) : '');
+                // SurPassport first, DirPassport as the fallback, else empty.
+                const passportSource = [yamlData.SurPassport, yamlData.DirPassport].find((candidate) => !Files.isEmpty(candidate));
+                const rawPassport = passportSource === undefined ? '' : String(passportSource);
                 if (rawPassport) {
                     const m = rawPassport.trim().match(/^([A-Za-z\u0391-\u0395\u0410-\u042F]{1,3})\s*[- ]?\s*(\d{5,9})$/);
                     if (m) {
@@ -2013,8 +2016,11 @@ export class Yamls {
                         let key = line.slice(0, idx);
                         let cleanKey = key.trim();
 
-                        if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
-                            cleanKey = cleanKey.slice(1, -1);
+                        // Strip one pair of matching surrounding quotes (" or ').
+                        if (QUOTE_CHARS.has(cleanKey.charAt(0))) {
+                            if (cleanKey.endsWith(cleanKey.charAt(0))) {
+                                cleanKey = cleanKey.slice(1, -1);
+                            }
                         }
 
                         if (seenKeys.has(cleanKey)) {
