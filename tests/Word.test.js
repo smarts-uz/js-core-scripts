@@ -43,27 +43,30 @@ const comState = {
 function makeDoc() {
   const handler = {
     get(_t, prop) {
-      if (prop === 'ProtectionType') {
-        if (comState.protectionType !== undefined) {
-          return comState.protectionType;
+      switch (prop) {
+        case 'ProtectionType': {
+          if (comState.protectionType !== undefined) {
+            return comState.protectionType;
+          }
+          break;
         }
-      }
-      if (prop === 'Content') {
-        return new Proxy(function () {}, {
-          get(_t2, p2) {
-            if (p2 === 'Text') {
-              return comState.contentText !== undefined ? comState.contentText : 'Doc.Content.Text';
-            }
-            switch (p2) {
-              case 'then':
-              case 'catch':
-              case 'finally': {
-                return undefined;
+        case 'Content': {
+          return new Proxy(function () {}, {
+            get(_t2, p2) {
+              if (p2 === 'Text') {
+                return comState.contentText !== undefined ? comState.contentText : 'Doc.Content.Text';
               }
-            }
-            return makeComProxy({}, `Doc.Content.${String(p2)}`);
-          },
-        });
+              switch (p2) {
+                case 'then':
+                case 'catch':
+                case 'finally': {
+                  return undefined;
+                }
+              }
+              return makeComProxy({}, `Doc.Content.${String(p2)}`);
+            },
+          });
+        }
       }
       switch (prop) {
         case 'then':
@@ -72,9 +75,12 @@ function makeDoc() {
           return undefined;
         }
       }
-      if (prop === Symbol.toPrimitive) return () => 'Doc';
-      if (prop === 'valueOf') return () => 'Doc';
-      if (prop === 'toString') return () => 'Doc';
+      switch (prop) {
+        case Symbol.toPrimitive:
+        case 'valueOf':
+        case 'toString':
+          return () => 'Doc';
+      }
       return makeComProxy({}, `Doc.${String(prop)}`);
     },
   };
@@ -101,24 +107,22 @@ function freshApp() {
   const rawSets = {};
   const app = new Proxy(function () {}, {
     get(_t, prop) {
-      if (prop === 'Documents') return documents;
       switch (prop) {
+        case 'Documents':
+          return documents;
         case '__sets__':
-        case '__rawSets__': {
+        case '__rawSets__':
           return rawSets;
-        }
-      }
-      if (prop === 'Quit')
-        return () => {
-          comState.quitCount += 1;
-        };
-      if (prop === 'Selection') return comState.selection || makeComProxy({}, 'Selection');
-      switch (prop) {
+        case 'Quit':
+          return () => {
+            comState.quitCount += 1;
+          };
+        case 'Selection':
+          return comState.selection || makeComProxy({}, 'Selection');
         case 'then':
         case 'catch':
-        case 'finally': {
+        case 'finally':
           return undefined;
-        }
       }
       return makeComProxy({}, `App.${String(prop)}`);
     },
@@ -994,22 +998,20 @@ function makeOpenThrowOnce() {
     comState.lastProgId = progId;
     const app = new Proxy(function () {}, {
       get(_t, prop) {
-        if (prop === 'Documents') {
-          return {
-            Open: () => {
-              throw new Error('boom');
-            },
-          };
-        }
-        if (prop === 'Quit')
-          return () => {
-            comState.quitCount += 1;
-          };
         switch (prop) {
+          case 'Documents':
+            return {
+              Open: () => {
+                throw new Error('boom');
+              },
+            };
+          case 'Quit':
+            return () => {
+              comState.quitCount += 1;
+            };
           case '__rawSets__':
-          case '__sets__': {
+          case '__sets__':
             return {};
-          }
         }
         return makeComProxy({}, `App.${String(prop)}`);
       },
