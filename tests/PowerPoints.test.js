@@ -416,6 +416,43 @@ describe('PowerPoints.merge', () => {
     expect(fs.existsSync(out)).toBe(true);
   });
 
+  it('keeps a relative mergedName that already ends with .pptx', () => {
+    state.slideText = [['a'], ['b']];
+    const base = makePptx('a.pptx');
+    const source = makePptx('b.pptx');
+
+    const out = PowerPoints.merge([base, source], 'Combined.pptx');
+
+    expect(path.basename(out)).toBe('Combined.pptx');
+    expect(path.dirname(out)).toBe(workDir);
+  });
+
+  it('writes to an absolute mergedName, appending .pptx when it is missing', () => {
+    state.slideText = [['a'], ['b']];
+    const base = makePptx('a.pptx');
+    const source = makePptx('b.pptx');
+    const outDir = path.join(workDir, 'abs-out');
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const out = PowerPoints.merge([base, source], path.join(outDir, 'Abs'));
+
+    expect(out).toBe(path.join(outDir, 'Abs.pptx'));
+    expect(fs.existsSync(out)).toBe(true);
+  });
+
+  it('uses an absolute mergedName that already ends with .pptx as-is', () => {
+    state.slideText = [['a'], ['b']];
+    const base = makePptx('a.pptx');
+    const source = makePptx('b.pptx');
+    const outDir = path.join(workDir, 'abs-out2');
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const out = PowerPoints.merge([base, source], path.join(outDir, 'Abs2.pptx'));
+
+    expect(out).toBe(path.join(outDir, 'Abs2.pptx'));
+    expect(fs.existsSync(out)).toBe(true);
+  });
+
   it('auto-increments the output name when the target already exists', () => {
     state.slideText = [['a'], ['b']];
     const base = makePptx('a.pptx');
