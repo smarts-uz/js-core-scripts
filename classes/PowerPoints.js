@@ -217,9 +217,8 @@ export class PowerPoints {
     // Resolve the merged output path.
     let finalMergedPath;
     if (mergedName) {
-      finalMergedPath = path.isAbsolute(mergedName)
-        ? (mergedName.endsWith('.pptx') ? mergedName : mergedName + '.pptx')
-        : path.join(firstFileDir, mergedName.endsWith('.pptx') ? mergedName : mergedName + '.pptx');
+      const mergedFileName = mergedName.endsWith('.pptx') ? mergedName : mergedName + '.pptx';
+      finalMergedPath = path.isAbsolute(mergedName) ? mergedFileName : path.join(firstFileDir, mergedFileName);
     } else {
       const parentFolderName = path.basename(firstFileDir);
       finalMergedPath = path.join(firstFileDir, parentFolderName + '.pptx');
