@@ -232,7 +232,7 @@ export class Excels {
    * Reads yamlData.Penalty — a bare-date "start": amount per-month late-payment penalty array (пеня/неустойка, §21.1 — PenaltyDays[i] * Penalty.PerDay, a fixed daily rate, no CapRatio) Yamls.replaceYaml already writes into the .contract yaml.
    * Writes one row per entry (date, penalty amount) starting at the {Penalty} placeholder's cell — a 2-column block (Дата/Sum), same shape as every other block on this template now that Начало/Конец columns are gone everywhere.
    * Trailing { ALL: sum } entry is never written to Excel — ALL is a .contract-yaml-only concept.
-   * Gated by yamlData.PenaltyON — true writes the real Penalty rows; anything else (including missing/default) leaves the {Penalty} placeholder cleared to empty, same as a zero-row write.
+   * Gated by yamlData.PenaltyON — true writes the real Penalty rows; false leaves the {Penalty} placeholder cleared to empty, same as a zero-row write; empty/missing defaults to true.
    * PenaltyDays is unaffected by this flag — it always writes (see processPenaltyDays).
    * Warns and skips (never crashes) when the template has no {Penalty} placeholder cell.
    * @param {object} yamlData
@@ -248,7 +248,26 @@ export class Excels {
 
     let row = found.Row;
 
-    const penalty = yamlData.PenaltyON === true && Array.isArray(yamlData.Penalty) ? yamlData.Penalty : [];
+    const rawPenaltyOn = yamlData?.PenaltyON;
+    let penaltyOn = true;
+    switch (rawPenaltyOn) {
+      case false:
+      case 'false':
+      case 'False':
+      case 'FALSE':
+        penaltyOn = false;
+        break;
+      default:
+        penaltyOn = true;
+        break;
+    }
+
+    let penalty = [];
+    if (penaltyOn) {
+      if (Array.isArray(yamlData?.Penalty)) {
+        penalty = yamlData.Penalty;
+      }
+    }
     console.log(`processPenalty: ${penalty.length} Penalty entr(y/ies)`, penalty);
 
     for (const entry of penalty) {
@@ -336,27 +355,29 @@ export class Excels {
   }
 
   /**
-   * Reads yamlData.History — a flat, date-keyed array (Yamls.computeHistory: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writeHistory.
-   * Writes one row per entry (date, net amount) starting at the {History} placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}.
+   * Reads yamlData.PayTotal (or legacy yamlData.History) — a flat, date-keyed array (Yamls.computePayTotal: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writePayTotal.
+   * Writes one row per entry (date, net amount) starting at the {PayTotal} (or legacy {History}) placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}.
    * No trailing { ALL } entry to skip.
    * Always runs (no ON/OFF flag).
    * @param {object} yamlData
    */
-  static processHistory(yamlData) {
-    console.info(`[Excels.processHistory] 🟢 Starting...`);
+  static processPayTotal(yamlData) {
+    console.info(`[Excels.processPayTotal] 🟢 Starting...`);
 
-    const found = this.findColumn('History');
+    const found = this.findColumn('PayTotal') || this.findColumn('History');
     if (!found) {
-      console.warn('⚠️ processHistory: {History} placeholder not found in Excel template; skipping.');
+      console.warn('⚠️ processPayTotal: {PayTotal} or {History} placeholder not found in Excel template; skipping.');
       return;
     }
 
     let row = found.Row;
 
-    const history = Array.isArray(yamlData.History) ? yamlData.History : [];
-    console.log(`processHistory: ${history.length} History entr(y/ies)`, history);
+    const payTotal = Array.isArray(yamlData.PayTotal)
+      ? yamlData.PayTotal
+      : (Array.isArray(yamlData.History) ? yamlData.History : []);
+    console.log(`processPayTotal: ${payTotal.length} PayTotal entr(y/ies)`, payTotal);
 
-    for (const entry of history) {
+    for (const entry of payTotal) {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
@@ -367,6 +388,10 @@ export class Excels {
     }
 
     this.#clearPlaceholderIfEmpty(found, row);
+  }
+
+  static processHistory(yamlData) {
+    return this.processPayTotal(yamlData);
   }
 
   /**
@@ -1397,7 +1422,7 @@ export class Excels {
       this.processFaktura(yamlData);
       this.processFakturaSend(yamlData);
       this.processReturns(yamlData);
-      this.processHistory(yamlData);
+      this.processPayTotal(yamlData);
       this.processLoaners(yamlData);
       this.processPenaltyDays(yamlData);
       this.processPenalty(yamlData);
