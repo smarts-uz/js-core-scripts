@@ -10,7 +10,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
+import yaml from '#js-yaml';
 import { makeTmpDir, cleanupAllTmpDirs, writeTree, read } from './helpers/tmp.js';
 import { utilsModule } from './helpers/esm.js';
 
