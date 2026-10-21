@@ -20,3 +20,7 @@ History:
   - 2025-10-06: 1,680,000
   - ALL: 20,160,000
 bu nima? umujmiu tolovlarmi
+
+▫️▫️▫️
+
+PenaltyON: nimaga kerak?

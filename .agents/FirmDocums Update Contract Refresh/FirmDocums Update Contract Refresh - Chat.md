@@ -394,3 +394,56 @@ Barcha eski formatdagi `ALL.contract` fayllarini qo'llab-quvvatlash va yangilash
 
 
 
+## 👤 User
+
+History degfan yaml variable ni hamma joyda PayTotal ga renmae qil! hamma rentals ichjidagi file larda va firm-docums templa update qil
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+kodda ham update qil\
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+keyin excel template file incremet qilib Общая оплата debg yuozib qoy excelga shu colium,n title ga
+
+## 🤖 Assistant
+
+Excel andozasi tekshirilmoqda. Natija kutilmoqda.
+
+Andoza fayli tahlil qilinmoqda. Kutilmoqda.
+
+
+
+
+
+
+
+
+
+
