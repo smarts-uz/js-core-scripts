@@ -571,6 +571,57 @@ describe('Excels.processPayment', () => {
   });
 });
 
+describe('Excels.processPayTotal', () => {
+  function installSheet(found = { Row: 4, Column: 6 }) {
+    const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
+    const sheet = makeComProxy({ Cells: CellsFn }, 'Sheet');
+    globalThis.excelSheet = sheet;
+    return sheet;
+  }
+
+  it('writes one row per yamlData.PayTotal entry (date + amount)', () => {
+    const sheet = installSheet();
+
+    Excels.processPayTotal({ PayTotal: [{ '2026-04-21': '100' }, { '2026-05-26': '200' }] });
+
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PayTotal}');
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 7);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 7);
+  });
+
+  it('falls back to the legacy yamlData.History array when PayTotal is not an array', () => {
+    const sheet = installSheet();
+
+    Excels.processPayTotal({ PayTotal: 'not-an-array', History: [{ '2026-04-21': '100' }, { '2026-05-26': '200' }] });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
+  });
+
+  it('prefers PayTotal over History when both are arrays', () => {
+    const sheet = installSheet();
+
+    Excels.processPayTotal({
+      PayTotal: [{ '2026-04-21': '100' }],
+      History: [{ '2026-04-21': '1' }, { '2026-05-26': '2' }],
+    });
+
+    expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 6);
+  });
+
+  it('writes no data rows when neither PayTotal nor History is an array', () => {
+    const sheet = installSheet();
+
+    expect(() => Excels.processPayTotal({ PayTotal: 'x', History: 5 })).not.toThrow();
+    expect(sheet.Cells).not.toHaveBeenCalledWith(5, 6);
+    expect(sheet.Cells).not.toHaveBeenCalledWith(4, 7);
+  });
+});
+
 describe('Excels.processFaktura', () => {
   function installSheet(found = { Row: 4, Column: 43 }) {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
@@ -1757,9 +1808,14 @@ describe('Excels.generate', () => {
     fs.writeFileSync(template, 'tpl', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
-      if (key === 'Templates.Excel') return templateFolder;
-      if (key === 'Excel.CellNames') return ['Region'];
-      return null;
+      switch (key) {
+        case 'Templates.Excel':
+          return templateFolder;
+        case 'Excel.CellNames':
+          return ['Region'];
+        default:
+          return null;
+      }
     });
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
@@ -1863,9 +1919,14 @@ describe('Excels.generate', () => {
     fs.writeFileSync(path.join(templateFolder3, 'Tpl3.xlsx'), 'tpl', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
-      if (key === 'Templates.Excel') return templateFolder3;
-      if (key === 'Excel.CellNames') return ['Bank-OT'];
-      return null;
+      switch (key) {
+        case 'Templates.Excel':
+          return templateFolder3;
+        case 'Excel.CellNames':
+          return ['Bank-OT'];
+        default:
+          return null;
+      }
     });
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
@@ -1931,9 +1992,14 @@ describe('Excels.generate', () => {
     fs.writeFileSync(path.join(templateFolderObj, 'TplObj.xlsx'), 'tpl', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
-      if (key === 'Templates.Excel') return templateFolderObj;
-      if (key === 'Excel.CellNames') return [];
-      return null;
+      switch (key) {
+        case 'Templates.Excel':
+          return templateFolderObj;
+        case 'Excel.CellNames':
+          return [];
+        default:
+          return null;
+      }
     });
     YamlsMock.loadYamlWithDeps.mockReturnValue({
       ComName: 'Acme',
@@ -1985,9 +2051,14 @@ describe('Excels.generate', () => {
     fs.writeFileSync(path.join(templateFolder4, 'Tpl4.xlsx'), 'tpl', 'utf8');
 
     YamlsMock.getConfig.mockImplementation((key) => {
-      if (key === 'Templates.Excel') return templateFolder4;
-      if (key === 'Excel.CellNames') return [];
-      return null;
+      switch (key) {
+        case 'Templates.Excel':
+          return templateFolder4;
+        case 'Excel.CellNames':
+          return [];
+        default:
+          return null;
+      }
     });
     YamlsMock.loadYamlWithDeps.mockReturnValue({ ComName: 'Acme' });
     YamlsMock.getPrepayMonth.mockReturnValue(1);
