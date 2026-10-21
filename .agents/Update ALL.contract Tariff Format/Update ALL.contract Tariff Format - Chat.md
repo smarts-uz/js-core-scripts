@@ -153,3 +153,38 @@ PenaltyON: nimaga kerak?
 
 
 
+## 👤 User
+
+hamma ALL.contract file larda default value true boladi. agar empty bolsa - kodda default true deb hisoblanadi
+
+## 🤖 Assistant
+
+I have launched the commit process via `commitBatch.mjs` and will wait for it to complete.
+
+Barcha `ALL.contract` fayllari va kodda `PenaltyON` uchun default qiymat `true` qilib belgilandi.
+
+### Qilingan ishlar
+
+- [`Excels.processPenalty`](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Excels.js#L240): `PenaltyON` bo'sh (`null`, `undefined`, `''`) bo'lsa yoki ko'rsatilmagan bo'lsa, avtomatik `true` deb olinadi; faqat `false` bo'lgandagina o'chiriladi.
+- [`Yamls.adoptLegacyContractData`](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Yamls.js#L1547): shartnoma yuklanganda `PenaltyON` bo'sh bo'lsa, `true` qiymati beriladi.
+- [templa/ALL.contract](file:///C:/Users/Administrator/.agents/skills/smarts-firm-docums/templa/ALL.contract#L97): shablon faylida `PenaltyON: true` deb yangilandi.
+- [CODENOVA/ALL.contract](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L1425): faylida `PenaltyON: true` holatiga keltirildi.
+- Testlar yangilandi va tekshirildi:
+  - [`tests/Excels.test.js`](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/tests/Excels.test.js): `PenaltyON` bo'sh/yo'q bo'lganda ham penya yozilishi tekshirildi.
+  - [`tests/Yamls.test.js`](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/tests/Yamls.test.js): `adoptLegacyContractData` da `true` default qilinishi test qilindi.
+- Barcha testlar va lint 100% yashil o'tdi.
+- Git commitlar push qilindi:
+  - [`343ca4be`](https://github.com/smarts-uz/js-core-scripts/commit/343ca4be9d4de1e5fe35b2dd4d0492fe34bea43d) — `classes/Excels.js`
+  - [`edff4090`](https://github.com/smarts-uz/js-core-scripts/commit/edff4090ad9cedfa2e436d900cbb8c05bcd853a2) — `classes/Yamls.js`
+  - [`febc893d`](https://github.com/smarts-uz/js-core-scripts/commit/febc893d83c6a31fe6144589d26d0102e5ad0b3e) — `tests/Excels.test.js`
+  - [`a2ed0063`](https://github.com/smarts-uz/js-core-scripts/commit/a2ed00635e9372d2ad7a4c8a31f4e131b694fdee) — `tests/Yamls.test.js`
+
+
+
+
+
+
+
+
+
+
