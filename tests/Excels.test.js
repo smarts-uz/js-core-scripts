@@ -767,11 +767,11 @@ describe('Excels.processAccount', () => {
   function makeFontTrackingCell() {
     const font = { __sets__: {} };
     Object.defineProperty(font, 'Bold', {
-      set: (v) => (font.__sets__.Bold = v),
+      set: (v) => { font.__sets__.Bold = v; },
       get: () => font.__sets__.Bold,
     });
     Object.defineProperty(font, 'Color', {
-      set: (v) => (font.__sets__.Color = v),
+      set: (v) => { font.__sets__.Color = v; },
       get: () => font.__sets__.Color,
     });
     return { Value: undefined, Font: font };
