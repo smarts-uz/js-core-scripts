@@ -11,6 +11,31 @@ import { MySoliq } from "./MySoliq.js";
 import { Dates } from "./Dates.js";
 import { Dialogs } from "./Dialogs.js";
 
+// Russian legal-form abbreviation -> ComType code.
+const RUSSIAN_TYPE_MAP = new Map([
+    ['ООО', 'MChJ'],
+    ['ИП', 'YaTT'],
+    ['ЧП', 'XK'],
+    ['ОАО', 'OAJ'],
+    ['ЗАО', 'YAJ'],
+    ['ГП', 'DK'],
+    ['АО', 'OAJ']
+]);
+
+// IsYatt values (lower-cased) that mean "true".
+const YATT_TRUE_VALUES = new Set(['true', 'да', '1', 'yes']);
+
+// Company-name markers -> ComType code, checked in order. A rule matches when ANY field's regex matches
+// (opf / na1Short are exact values, the name fields are upper-cased substrings).
+const COM_TYPE_RULES = [
+    { type: 'MChJ', tests: { opf: /^152$/, na1Short: /^MCJ$/, nameShort: /MCHJ/, nameLong: /MAS'ULIYATI CHEKLANGAN/, name: /MCHJ/ } },
+    { type: 'XK', tests: { nameShort: /XK|ХК/, name: /XK/ } },
+    { type: 'OAJ', tests: { nameShort: /OAJ|ОАЖ/, name: /OAJ/ } },
+    { type: 'YAJ', tests: { nameShort: /YAJ|ЯАЖ/, name: /YAJ/ } },
+    { type: 'DK', tests: { nameShort: /DK|ДК/, name: /DK/ } },
+    { type: 'FX', tests: { nameShort: /FX|ФХ/, name: /FX/ } }
+];
+
 
 
 export class Yamls {
@@ -1328,6 +1353,63 @@ export class Yamls {
     }
 
     /**
+     * Resolves the ComType code: Russian legal-form abbreviation first, otherwise derived while ComType is still empty.
+     * @param {object} yamlData
+     * @returns {string|undefined} ComType code, undefined when nothing resolves (ComType stays untouched).
+     */
+    static #resolveComType(yamlData) {
+        const rawType = String(yamlData.ComType ?? '').trim();
+        return RUSSIAN_TYPE_MAP.get(rawType) ?? Yamls.#deriveComType(yamlData);
+    }
+
+    /**
+     * Derives ComType from the IsYatt flag, then company-name markers, then the legacy non-empty IsYatt fallback; first hit wins.
+     * @param {object} yamlData
+     * @returns {string|undefined}
+     */
+    static #deriveComType(yamlData) {
+        if (!Files.isEmpty(yamlData.ComType)) return undefined;
+        return Yamls.#comTypeFromYattFlag(yamlData)
+            ?? Yamls.#comTypeFromNames(yamlData)
+            ?? Yamls.#comTypeFromLegacyYattValue(yamlData);
+    }
+
+    /**
+     * @param {object} yamlData
+     * @returns {string|undefined} 'YaTT' when IsYatt reads as true.
+     */
+    static #comTypeFromYattFlag(yamlData) {
+        const flag = String(yamlData.IsYatt ?? '').trim().toLowerCase();
+        return YATT_TRUE_VALUES.has(flag) ? 'YaTT' : undefined;
+    }
+
+    /**
+     * Looks the company-name fields up in COM_TYPE_RULES: one regex per field, first matching rule wins.
+     * @param {object} yamlData
+     * @returns {string|undefined}
+     */
+    static #comTypeFromNames(yamlData) {
+        const upper = (value) => String(value ?? '').trim().toUpperCase();
+        const subjects = {
+            opf: String(yamlData.ComOpf ?? '').trim(),
+            na1Short: upper(yamlData.ComNa1NameShort),
+            nameShort: upper(yamlData.ComNameShort),
+            nameLong: upper(yamlData.ComNameLong),
+            name: upper(yamlData.ComName)
+        };
+        const rule = COM_TYPE_RULES.find((candidate) => Object.entries(candidate.tests).some(([field, pattern]) => pattern.test(subjects[field])));
+        return rule?.type;
+    }
+
+    /**
+     * @param {object} yamlData
+     * @returns {string|undefined} 'MChJ' when IsYatt carries any non-empty value (legacy contracts).
+     */
+    static #comTypeFromLegacyYattValue(yamlData) {
+        return Files.isEmpty(yamlData.IsYatt) ? undefined : 'MChJ';
+    }
+
+    /**
      * Adopts and converts legacy .contract data to the current template schema in place.
      * Handles:
      * - ComDate / ComDate_ / ComDateExcel / StartDate / StartDateExcel / Year+Month+Day -> ContractDate
@@ -1457,45 +1539,9 @@ export class Yamls {
         }
 
         // 9. ComType
-        const rawType = String(yamlData.ComType ?? '').trim();
-        const russianTypeMap = {
-            'ООО': 'MChJ',
-            'ИП': 'YaTT',
-            'ЧП': 'XK',
-            'ОАО': 'OAJ',
-            'ЗАО': 'YAJ',
-            'ГП': 'DK',
-            'АО': 'OAJ'
-        };
-        if (russianTypeMap[rawType]) {
-            yamlData.ComType = russianTypeMap[rawType];
-        } else if (Files.isEmpty(yamlData.ComType)) {
-            const isYattVal = String(yamlData.IsYatt ?? '').trim().toLowerCase();
-            if (isYattVal === 'true' || isYattVal === 'да' || isYattVal === '1' || isYattVal === 'yes') {
-                yamlData.ComType = 'YaTT';
-            } else {
-                const opf = String(yamlData.ComOpf ?? '').trim();
-                const na1Short = String(yamlData.ComNa1NameShort ?? '').trim().toUpperCase();
-                const nameShort = String(yamlData.ComNameShort ?? '').trim().toUpperCase();
-                const nameLong = String(yamlData.ComNameLong ?? '').trim().toUpperCase();
-                const name = String(yamlData.ComName ?? '').trim().toUpperCase();
-
-                if (opf === '152' || na1Short === 'MCJ' || nameShort.includes('MCHJ') || nameLong.includes('MAS\'ULIYATI CHEKLANGAN') || name.includes('MCHJ')) {
-                    yamlData.ComType = 'MChJ';
-                } else if (nameShort.includes('XK') || nameShort.includes('ХК') || name.includes('XK')) {
-                    yamlData.ComType = 'XK';
-                } else if (nameShort.includes('OAJ') || nameShort.includes('ОАЖ') || name.includes('OAJ')) {
-                    yamlData.ComType = 'OAJ';
-                } else if (nameShort.includes('YAJ') || nameShort.includes('ЯАЖ') || name.includes('YAJ')) {
-                    yamlData.ComType = 'YAJ';
-                } else if (nameShort.includes('DK') || nameShort.includes('ДК') || name.includes('DK')) {
-                    yamlData.ComType = 'DK';
-                } else if (nameShort.includes('FX') || nameShort.includes('ФХ') || name.includes('FX')) {
-                    yamlData.ComType = 'FX';
-                } else if (!Files.isEmpty(yamlData.IsYatt)) {
-                    yamlData.ComType = 'MChJ';
-                }
-            }
+        const resolvedType = Yamls.#resolveComType(yamlData);
+        if (resolvedType) {
+            yamlData.ComType = resolvedType;
         }
 
         // 10. Tariff

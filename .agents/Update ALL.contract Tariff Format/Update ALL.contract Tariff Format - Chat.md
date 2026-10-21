@@ -85,3 +85,40 @@ tariff 1- value ga ham - contractdate tyoki actdatestart ni ozi emas, balki ular
 
 
 
+## 👤 User
+
+History:
+  - 2025-03-20: 10,080,000
+  - 2025-07-04: 6,720,000
+  - 2025-08-27: 1,680,000
+  - 2025-10-06: 1,680,000
+  - ALL: 20,160,000
+bu nima? umujmiu tolovlarmi
+
+## 🤖 Assistant
+
+Ha, bu mijoz tomonidan amalga oshirilgan **haqiqiy sof (netto) to'lovlar tarixi**.
+
+### Tafsilotlar
+
+- **Asosiy mantiq:** `History = Payment - Returns` (tushgan to'lovlar minus qaytarilgan summa).
+- **2025-07-04 sanasi misoli:**
+  - [`Payment`](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L1324): `17,520,000` so'm tushgan.
+  - [`Returns`](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L1349): `10,800,000` so'm qaytarilgan (`Card-IN`).
+  - [`History`](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L692): sof tushum `6,720,000` so'm qolgan.
+- **`ALL: 20,160,000`:**
+  - Jami tushgan sof to'lovlar summasi (`30,960,000` to'lov minus `10,800,000` qaytarish).
+- **Qayerda ishlatiladi:**
+  - [`Loaners`](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L699) hisobida: `Accrual.ALL (32,252,903.29) - History.ALL (20,160,000) = 12,092,903.29` so'm (mijozning amaldagi qarzi).
+  - [`Account`](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L701) kunlik balansida: tushum bo'lgan kunlarda balansga qo'shiladi.
+- **Manba funksiyasi:** [`Yamls.computeHistory`](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Yamls.js#L1080).
+
+
+
+
+
+
+
+
+
+

@@ -282,3 +282,35 @@ The code changes, along with the passing tests and linting, suggest a successful
 
 
 
+## 💭 History:
+
+Data presents historical values.
+Values decrease over time.
+"Bu nima? umujmiu tolovlarmi" could mean "What is this? Are these payments?".
+Hypothesis: user asks about payment history.
+IF user question concerns payments, THEN investigate payment data.
+
+The 'History' represents the net cash flow, calculated as payments minus returns. It consolidates payment data from various sources: Bank-OT, Trans-OT, Card-OT, and BaaR-OT folders. Positive values indicate payments, while negative values represent returns, with each row representing a specific date in 'YYYY-MM-' format.
+
+History represents the net cash flow, not raw payments. This is confirmed by the calculation: Payment minus Returns equals History. The value labeled "ALL" represents the total net money received.
+
+
+Ha, bu mijozning sof to'lovlar tarixi.
+
+`History = Tushgan to'lov - Qaytarilgan pullar`.
+
+`ALL: 20,160,000` — jami sof to'lovlar (`30,960,000 - 10,800,000 = 20,160,000`).
+
+`Loaners` ni hisoblashda ishlatiladi: `Accrual - History = Loaners`.
+
+Account balansni hisoblash uchun ham ishlatiladi.
+
+
+
+
+
+
+
+
+
+

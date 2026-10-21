@@ -2879,6 +2879,62 @@ describe('Yamls.adoptLegacyContractData', () => {
       expect(d4.ComType).toBe('MChJ');
     });
 
+    // ComType rule table — one row per rule/field, so a rule edit that drops a marker fails here.
+    it.each([
+      ['ООО', 'MChJ'], ['ИП', 'YaTT'], ['ЧП', 'XK'], ['ОАО', 'OAJ'], ['ЗАО', 'YAJ'], ['ГП', 'DK'], ['АО', 'OAJ'],
+    ])('maps Russian abbreviation %s -> %s', (abbreviation, expected) => {
+      const data = { ComType: abbreviation, ComNameShort: 'x mchj' };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.ComType).toBe(expected);
+    });
+
+    it.each([
+      ['MChJ via ComOpf 152 (trimmed)', { ComOpf: ' 152 ' }, 'MChJ'],
+      ['MChJ via ComNa1NameShort mcj', { ComNa1NameShort: ' mcj ' }, 'MChJ'],
+      ['MChJ via ComNameLong', { ComNameLong: "Mas'uliyati cheklangan jamiyat" }, 'MChJ'],
+      ['MChJ via ComName', { ComName: 'abc mchj' }, 'MChJ'],
+      ['XK via ComNameShort Latin', { ComNameShort: 'x xk' }, 'XK'],
+      ['XK via ComNameShort Cyrillic', { ComNameShort: 'хк' }, 'XK'],
+      ['XK via ComName', { ComName: 'abc xk' }, 'XK'],
+      ['OAJ via ComNameShort Latin', { ComNameShort: 'oaj' }, 'OAJ'],
+      ['OAJ via ComNameShort Cyrillic', { ComNameShort: 'оаж' }, 'OAJ'],
+      ['OAJ via ComName', { ComName: 'abc oaj' }, 'OAJ'],
+      ['YAJ via ComNameShort Latin', { ComNameShort: 'yaj' }, 'YAJ'],
+      ['YAJ via ComNameShort Cyrillic', { ComNameShort: 'яаж' }, 'YAJ'],
+      ['YAJ via ComName', { ComName: 'abc yaj' }, 'YAJ'],
+      ['DK via ComNameShort Latin', { ComNameShort: 'dk' }, 'DK'],
+      ['DK via ComNameShort Cyrillic', { ComNameShort: 'дк' }, 'DK'],
+      ['DK via ComName', { ComName: 'abc dk' }, 'DK'],
+      ['FX via ComNameShort Latin', { ComNameShort: 'fx' }, 'FX'],
+      ['FX via ComNameShort Cyrillic', { ComNameShort: 'фх' }, 'FX'],
+      ['FX via ComName', { ComName: 'abc fx' }, 'FX'],
+      ['first rule wins when two markers match', { ComNameShort: 'mchj xk' }, 'MChJ'],
+      ['IsYatt true -> YaTT before any name marker', { IsYatt: 'YES', ComNameShort: 'x mchj' }, 'YaTT'],
+      ['IsYatt 1 -> YaTT', { IsYatt: 1 }, 'YaTT'],
+      ['IsYatt да -> YaTT', { IsYatt: ' Да ' }, 'YaTT'],
+      ['legacy non-empty IsYatt without a marker -> MChJ', { IsYatt: 'false' }, 'MChJ'],
+    ])('derives ComType while it is empty: %s', (_title, input, expected) => {
+      const data = { ...input };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.ComType).toBe(expected);
+    });
+
+    it('leaves ComType untouched when nothing resolves', () => {
+      const data = { ComNameShort: 'plain name' };
+      Yamls.adoptLegacyContractData(data);
+      expect('ComType' in data).toBe(false);
+    });
+
+    it('keeps an already-set non-Russian ComType, even a prototype-key lookalike', () => {
+      const typed = { ComType: 'XK', ComNameShort: 'x mchj' };
+      Yamls.adoptLegacyContractData(typed);
+      expect(typed.ComType).toBe('XK');
+
+      const lookalike = { ComType: 'constructor' };
+      Yamls.adoptLegacyContractData(lookalike);
+      expect(lookalike.ComType).toBe('constructor');
+    });
+
     it('maps TelegramGroupID and TelegramTopicID', () => {
       const data = {
         TelegramGroupID: '-1002000729186',
