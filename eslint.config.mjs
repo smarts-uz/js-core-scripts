@@ -2,8 +2,8 @@
 // under scripts/, the test suite, and the root tooling — but NOT the classes/
 // tree (kept excluded per its prior symlinked-repo convention) or generated/
 // vendored output.
-import js from '@eslint/js';
-import globals from 'globals';
+import js from '#eslint-js';
+import globals from '#globals';
 
 export default [
   {
