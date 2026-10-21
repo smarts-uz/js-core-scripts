@@ -66,7 +66,7 @@ export class Yamls {
             throw new Error(`YAML file not found: ${filePath}`);
         }
 
-        const doc = yaml.load(fs.readFileSync(filePath, "utf8"), { schema: yaml.JSON_SCHEMA });
+        const doc = yaml.load(fs.readFileSync(filePath, "utf8"));
 
         // dot-prop resolves the nested dot-path (e.g. "Contract.Format"); the
         // ?? keeps the original fallback for both missing and null values.
