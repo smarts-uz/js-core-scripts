@@ -120,6 +120,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanupAllTmpDirs();
   jest.clearAllMocks();
+  FilesMock.exists.mockImplementation((p) => fs.existsSync(p));
 });
 
 /** Write a config.yml into the (mocked) project dir. */
@@ -1680,6 +1681,42 @@ describe('Yamls.update', () => {
     const r = await Yamls.update(path.join(workDir, 'x.yaml'));
     expect(r).toBe(false);
   });
+
+  it('converts a string Tariff to an array with the string value in update', async () => {
+    const template = path.join(workDir, 'tpl.contract');
+    fs.writeFileSync(template, ['WhoAmI:', 'Tariff:', '', 'PenaltyPerDay:'].join('\n'), 'utf8');
+    writeConfig({ Templates: { Yaml: template }, Contract: { DefaultBank: 'AAB', DefaultTariff: '1-450k', AddDays: 30 } });
+    WordMock.initFolders.mockReturnValue(true);
+
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', '1-450k.yaml'), yaml.dump({ Price: '450,000' }), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: '1-450k', ContractDate: '2025-03-20' }), 'utf8');
+
+    FilesMock.backupFile.mockReturnValue(ymlFile);
+    FilesMock.backupFolder.mockReturnValue(path.join(workDir, 'RestAPI-bak'));
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    let capturedData = null;
+    const fillSpy = jest.spyOn(Yamls, 'fillYamlWithInfo').mockImplementation(async (file, data) => {
+      capturedData = data;
+    });
+
+    await Yamls.update(ymlFile);
+
+    expect(capturedData).not.toBeNull();
+    expect(capturedData.Tariff).toEqual([{ '2025-03-20': '1-450k' }]);
+
+    fillSpy.mockRestore();
+  });
 });
 
 describe('Yamls.fillYamlWithInfo', () => {
@@ -1940,6 +1977,40 @@ describe('Yamls.fillYamlWithInfo', () => {
       globalThis.folderCompan,
       expect.stringMatching(/^\d{2}\.\d{2}\.\d{4}$/)
     );
+
+    replaceYamlSpy.mockRestore();
+  });
+
+  it('converts a string Tariff to an array with the string value in fillYamlWithInfo', async () => {
+    WordMock.initFolders.mockReturnValue(true);
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: '1-450k', AddDays: 30 } });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'bank'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'conf', 'cost'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'conf', 'bank', 'AAB.yaml'), yaml.dump({}), 'utf8');
+    fs.writeFileSync(path.join(projectDir, 'conf', 'cost', '1-450k.yaml'), yaml.dump({ Price: '450,000' }), 'utf8');
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, yaml.dump({ WhoAmI: 'AAB', Tariff: '1-450k', ContractDate: '2025-03-20', ComType: 'MChJ' }), 'utf8');
+
+    globalThis.ymlFile = ymlFile;
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    globalThis.folderDirector = path.join(workDir, 'Director');
+    globalThis.folderRestAPI = path.join(workDir, 'RestAPI');
+    globalThis.folderALL = workDir;
+
+    fs.mkdirSync(globalThis.folderRestAPI, { recursive: true });
+    fs.writeFileSync(path.join(globalThis.folderRestAPI, 'ALL.json'), JSON.stringify({ directorPinfl: '123' }), 'utf8');
+
+    let capturedData = null;
+    const replaceYamlSpy = jest.spyOn(Yamls, 'replaceYaml').mockImplementation((file, data) => {
+      capturedData = data;
+      return true;
+    });
+
+    await Yamls.fillYamlWithInfo(ymlFile, null, false, false);
+
+    expect(capturedData).not.toBeNull();
+    expect(capturedData.Tariff).toEqual([{ '2025-03-20': '1-450k' }]);
 
     replaceYamlSpy.mockRestore();
   });

@@ -1644,6 +1644,10 @@ export class Yamls {
         let yamlData = Yamls.loadYamlWithDeps(oldYaml);
         console.log(yamlData, 'yamlData');
 
+        if (yamlData && typeof yamlData.Tariff === 'string') {
+            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
+        }
+
         // copy template file intop ymlFile only file
         await fs.promises.copyFile(template, ymlFile);
 
@@ -1669,6 +1673,10 @@ export class Yamls {
 
         if (!yamlData) yamlData = Yamls.loadYamlWithDeps(ymlFile);
         console.log(yamlData, 'yamlData');
+
+        if (yamlData && typeof yamlData.Tariff === 'string') {
+            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
+        }
 
         const jsonCachePath = path.join(globalThis.folderRestAPI, `ALL.json`);
         const cacheExists = existsSync(jsonCachePath);
