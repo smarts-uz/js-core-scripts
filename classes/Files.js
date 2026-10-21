@@ -158,12 +158,20 @@ export class Files {
       const mtimeMs = fs.statSync(fullPath).mtimeMs;
       console.log(`[Files.getLatestMatchingFile] Candidate: ${entry.name} (num=${num})`);
 
-      if (
-        !best ||
-        num > best.num ||
-        (num === best.num && mtimeMs > best.mtimeMs)
-      ) {
-        best = { path: fullPath, num, mtimeMs };
+      const candidate = { path: fullPath, num, mtimeMs };
+      // A candidate wins when there is no best yet, its number is higher, or the numbers tie and it is newer.
+      switch (true) {
+        case !best:
+        case num > best.num: {
+          best = candidate;
+          break;
+        }
+        case num === best.num: {
+          if (mtimeMs > best.mtimeMs) {
+            best = candidate;
+          }
+          break;
+        }
       }
     }
 
