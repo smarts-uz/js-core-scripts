@@ -149,3 +149,151 @@ Testlar ishga tushirildi. Natijani kutyapman.
 
 
 
+## 👤 User
+
+d:\FSystem\ALL\Humans\Rentalls\ErdunShi\ELECTROSILK\ALL.contract bu eski formatdagi ALL.contract
+
+Yamls.update va Yamls.fillYamlWithInfo qilganda eski format dagi ALL.contract dag i valuelarni moslab, adopt qilib yangi formatga kriitib qoyish kerak. masalan: tariff, ComDate:-> ContractDate:, ComDateEnd: -> ActDateEnd: va h.k.,
+agar eski formatdagi biror value ni convert qilishni bilmasang - AskUserQuestion da  so'ra!
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+d:\FSystem\ALL\Humans\Rentalls\AnvarIkr\SUVPROM DRILLER\ALL.contract
+d:\Develop\Projects\ALL\ALL\- Theory\CN SRental 20.contract
+
+shunaqa formatdagi eski contract file larni ham support qilsin.
+
+Yamls.update va Yamls.fillYamlWithInfo da
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+d:\FSystem\ALL\Humans\Rentalls\Perfects\ZHONGYA HONGTAO GLOBAL\ALL.contract
+d:\FSystem\ALL\Humans\Rentalls\OnOffice\LOWVOLTAGE\ALL.contract
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+@[Quote] hunaqa formatdagi eski contract file larni ham support qilsin.
+
+Yamls.update va Yamls.fillYamlWithInfo da
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+d:\FSystem\ALL\Humans\Rentalls\Otabek\Adgent Tech\ALL.contract
+
+hunaqa formatdagi eski contract file larni ham support qilsin.
+
+Yamls.update va Yamls.fillYamlWithInfo da
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+d:\FSystem\ALL\Humans\Rentalls\Sunnat\NATURE ECO WOOD\ALL.contract bularni ham support qilsin
+
+## 🤖 Assistant
+
+(no text)
+
+
+
+
+
+
+
+
+
+
+## 👤 User
+
+Savollaring bo'lsa ber!
+
+## 🤖 Assistant
+
+Eski formatdagi fayllarni moslashtirish bo'yicha quyidagi savollar mavjud:
+
+1. `CN SRental 20.contract` kabi juda eski fayllarda `Tariff:` qatori yo'q, lekin `Area:` va `Price1:` mavjud. Tariff qanday aniqlansin?
+- (Recommended) Auto-detect from Area and Price1 (masalan: Area: 20 va Price1: 1,800,000 bo'lsa -> 20-1800k)
+- Har doim config.yml dagi DefaultTariff (1-450k) ga tushsin
+
+2. Eski faylda `Sur*` bloki umuman bo'lmasa, lekin `DirPassport` (masalan: AD1542521) mavjud va kafil direktorning o'zi bo'lsa:
+- (Recommended) DirPassport dan oling (seriya va raqamga ajratib SurPassportSerial va SurPassportNumber ga yozilsin)
+- SurPassportSerial va SurPassportNumber bo'sh qoldirilsin
+
+3. `NATURE ECO WOOD/ALL.contract` faylida `Loaners: 266,666.64` qatori ostida birdaniga `- 2026-08-04...` array qatorlari yozilgan (YAML xatosi chiqaradi). Bu holatda nima qilinsin?
+- (Recommended) Skalyar qiymatni (266,666.64) qoldirib, uning ostidagi qolib ketgan array elementlarini avtomatik tozalash/e'tiborsiz qoldirish
+- Loaners ni array sifatida o'qishga harakat qilish
+
+Eski formatdagi 7 ta faylni tekshirish boshlandi. Natijani kutyapman.
+
+
+
+
+
+
+
+
+
+

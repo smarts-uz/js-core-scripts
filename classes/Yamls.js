@@ -1275,6 +1275,241 @@ export class Yamls {
     }
 
     /**
+     * Converts various date string formats (DD.MM.YYYY, YYYY.MM.DD, DD/MM/YYYY) to YYYY-MM-DD.
+     * Leaves already valid YYYY-MM-DD untouched.
+     * @param {*} val
+     * @returns {string}
+     */
+    static #toExcelDate(val) {
+        if (!val || typeof val !== 'string') return '';
+        const trimmed = val.trim();
+        if (Dates.isExcelDate(trimmed)) return trimmed;
+        if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+            return Dates.didoxToExcel(trimmed);
+        }
+        const ymd = trimmed.match(/^(\d{4})\.(\d{2})\.(\d{2})$/);
+        if (ymd) {
+            return `${ymd[1]}-${ymd[2]}-${ymd[3]}`;
+        }
+        const dmy = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (dmy) {
+            return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+        }
+        return trimmed;
+    }
+
+    /**
+     * Normalizes Greek and Cyrillic capital lookalike letters to Latin in passport series.
+     * @param {string} series
+     * @returns {string}
+     */
+    static #normalizeSeries(series) {
+        if (!series || typeof series !== 'string') return '';
+        const map = {
+            '\u0391': 'A', '\u0392': 'B', '\u0395': 'E',
+            '\u0410': 'A', '\u0412': 'B', '\u0421': 'C', '\u0415': 'E',
+            '\u041D': 'H', '\u041A': 'K', '\u041C': 'M', '\u041E': 'O',
+            '\u0420': 'P', '\u0422': 'T', '\u0425': 'X'
+        };
+        return series.trim().split('').map(ch => map[ch] || ch).join('').toUpperCase();
+    }
+
+    /**
+     * Adopts and converts legacy .contract data to the current template schema in place.
+     * Handles:
+     * - ComDate / ComDate_ / ComDateExcel / StartDate / StartDateExcel / Year+Month+Day -> ContractDate
+     * - ActDate / ActDate_ / ActDateExcel / ComDateAct -> ActDateStart
+     * - ComDateEnd / ComDateEnd_ / ComDateEndExcel / ActDateEnd_ / ActDateEndExcel -> ActDateEnd
+     * - ComDateIjara / ComDateIjara_ / ComDateIjaraExcel -> IjaraDateEnd
+     * - TelegramGroupID -> TgGroupID, TelegramTopicID -> TgTopicID
+     * - SurPassport / DirPassport -> SurPassportSerial, SurPassportNumber (with series lookalike normalization)
+     * - SurPhone / SurNationality / SurPosition from Dir* counterparts
+     * - SurEnable & RepEnable defaults
+     * - Russian / legacy abbreviations and legal forms -> ComType (ООО -> MChJ, etc.)
+     * - Tariff derivation from Area + Price / Price1 when missing, and string -> normalized date-keyed array
+     * @param {object} yamlData - Loaded contract data object (mutated in place).
+     * @returns {object} The mutated yamlData.
+     */
+    static adoptLegacyContractData(yamlData) {
+        console.info(`[Yamls.adoptLegacyContractData] 🟢 Starting...`);
+        if (!yamlData || typeof yamlData !== 'object') return yamlData;
+
+        // 1. ContractDate
+        if (Files.isEmpty(yamlData.ContractDate)) {
+            const legacyDate = yamlData.ComDateExcel
+                || yamlData.ComDate
+                || yamlData.ComDate_
+                || yamlData.StartDateExcel
+                || yamlData.StartDate;
+            if (!Files.isEmpty(legacyDate)) {
+                yamlData.ContractDate = Yamls.#toExcelDate(legacyDate);
+            } else if (!Files.isEmpty(yamlData.Year) && !Files.isEmpty(yamlData.Month) && !Files.isEmpty(yamlData.Day)) {
+                const y = String(yamlData.Year).trim();
+                const m = String(yamlData.Month).trim().padStart(2, '0');
+                const d = String(yamlData.Day).trim().padStart(2, '0');
+                yamlData.ContractDate = `${y}-${m}-${d}`;
+            }
+        } else {
+            yamlData.ContractDate = Yamls.#toExcelDate(yamlData.ContractDate);
+        }
+
+        // 2. ActDateStart
+        if (Files.isEmpty(yamlData.ActDateStart)) {
+            const legacyAct = yamlData.ActDateExcel
+                || yamlData.ActDate
+                || yamlData.ActDate_
+                || yamlData.ComDateAct;
+            if (!Files.isEmpty(legacyAct)) {
+                yamlData.ActDateStart = Yamls.#toExcelDate(legacyAct);
+            }
+        } else {
+            yamlData.ActDateStart = Yamls.#toExcelDate(yamlData.ActDateStart);
+        }
+
+        // 3. ActDateEnd
+        if (Files.isEmpty(yamlData.ActDateEnd)) {
+            const legacyEnd = yamlData.ActDateEndExcel
+                || yamlData.ActDateEnd_
+                || yamlData.ComDateEndExcel
+                || yamlData.ComDateEnd
+                || yamlData.ComDateEnd_;
+            if (!Files.isEmpty(legacyEnd)) {
+                yamlData.ActDateEnd = Yamls.#toExcelDate(legacyEnd);
+            }
+        } else {
+            yamlData.ActDateEnd = Yamls.#toExcelDate(yamlData.ActDateEnd);
+        }
+
+        // 4. IjaraDateEnd
+        if (Files.isEmpty(yamlData.IjaraDateEnd)) {
+            const legacyIjara = yamlData.ComDateIjaraExcel
+                || yamlData.ComDateIjara
+                || yamlData.ComDateIjara_;
+            if (!Files.isEmpty(legacyIjara)) {
+                yamlData.IjaraDateEnd = Yamls.#toExcelDate(legacyIjara);
+            }
+        } else {
+            yamlData.IjaraDateEnd = Yamls.#toExcelDate(yamlData.IjaraDateEnd);
+        }
+
+        // 5. Telegram
+        if (Files.isEmpty(yamlData.TgGroupID) && !Files.isEmpty(yamlData.TelegramGroupID)) {
+            yamlData.TgGroupID = yamlData.TelegramGroupID;
+        }
+        if (Files.isEmpty(yamlData.TgTopicID) && !Files.isEmpty(yamlData.TelegramTopicID)) {
+            yamlData.TgTopicID = yamlData.TelegramTopicID;
+        }
+
+        // 6. Passport
+        if (!Files.isEmpty(yamlData.SurPassportSerial)) {
+            yamlData.SurPassportSerial = Yamls.#normalizeSeries(yamlData.SurPassportSerial);
+        }
+        if (Files.isEmpty(yamlData.SurPassportSerial) || Files.isEmpty(yamlData.SurPassportNumber)) {
+            const rawPassport = !Files.isEmpty(yamlData.SurPassport)
+                ? String(yamlData.SurPassport)
+                : (!Files.isEmpty(yamlData.DirPassport) ? String(yamlData.DirPassport) : '');
+            if (rawPassport) {
+                const m = rawPassport.trim().match(/^([A-Za-z\u0391-\u0395\u0410-\u042F]{1,3})\s*[- ]?\s*(\d{5,9})$/);
+                if (m) {
+                    if (Files.isEmpty(yamlData.SurPassportSerial)) {
+                        yamlData.SurPassportSerial = Yamls.#normalizeSeries(m[1]);
+                    }
+                    if (Files.isEmpty(yamlData.SurPassportNumber)) {
+                        yamlData.SurPassportNumber = m[2];
+                    }
+                }
+            }
+        }
+
+        // 7. Surety details fallback to Director
+        if (Files.isEmpty(yamlData.SurPINFL) && !Files.isEmpty(yamlData.DirPINFL)) {
+            yamlData.SurPINFL = yamlData.DirPINFL;
+        }
+        if (Files.isEmpty(yamlData.SurPhone) && !Files.isEmpty(yamlData.DirPhone)) {
+            yamlData.SurPhone = yamlData.DirPhone;
+        }
+        if (Files.isEmpty(yamlData.SurNationality) && !Files.isEmpty(yamlData.DirNationality)) {
+            yamlData.SurNationality = yamlData.DirNationality;
+        }
+        if (Files.isEmpty(yamlData.SurPosition)) {
+            yamlData.SurPosition = !Files.isEmpty(yamlData.DirPosition) ? yamlData.DirPosition : 'директором';
+        }
+
+        // 8. SurEnable / RepEnable defaults
+        if (yamlData.SurEnable === undefined) {
+            yamlData.SurEnable = true;
+        }
+        if (yamlData.RepEnable === undefined) {
+            yamlData.RepEnable = !Files.isEmpty(yamlData.RepPINFL);
+        }
+
+        // 9. ComType
+        const rawType = String(yamlData.ComType ?? '').trim();
+        const russianTypeMap = {
+            'ООО': 'MChJ',
+            'ИП': 'YaTT',
+            'ЧП': 'XK',
+            'ОАО': 'OAJ',
+            'ЗАО': 'YAJ',
+            'ГП': 'DK',
+            'АО': 'OAJ'
+        };
+        if (russianTypeMap[rawType]) {
+            yamlData.ComType = russianTypeMap[rawType];
+        } else if (Files.isEmpty(yamlData.ComType)) {
+            const isYattVal = String(yamlData.IsYatt ?? '').trim().toLowerCase();
+            if (isYattVal === 'true' || isYattVal === 'да' || isYattVal === '1' || isYattVal === 'yes') {
+                yamlData.ComType = 'YaTT';
+            } else {
+                const opf = String(yamlData.ComOpf ?? '').trim();
+                const na1Short = String(yamlData.ComNa1NameShort ?? '').trim().toUpperCase();
+                const nameShort = String(yamlData.ComNameShort ?? '').trim().toUpperCase();
+                const nameLong = String(yamlData.ComNameLong ?? '').trim().toUpperCase();
+                const name = String(yamlData.ComName ?? '').trim().toUpperCase();
+
+                if (opf === '152' || na1Short === 'MCJ' || nameShort.includes('MCHJ') || nameLong.includes('MAS\'ULIYATI CHEKLANGAN') || name.includes('MCHJ')) {
+                    yamlData.ComType = 'MChJ';
+                } else if (nameShort.includes('XK') || nameShort.includes('ХК') || name.includes('XK')) {
+                    yamlData.ComType = 'XK';
+                } else if (nameShort.includes('OAJ') || nameShort.includes('ОАЖ') || name.includes('OAJ')) {
+                    yamlData.ComType = 'OAJ';
+                } else if (nameShort.includes('YAJ') || nameShort.includes('ЯАЖ') || name.includes('YAJ')) {
+                    yamlData.ComType = 'YAJ';
+                } else if (nameShort.includes('DK') || nameShort.includes('ДК') || name.includes('DK')) {
+                    yamlData.ComType = 'DK';
+                } else if (nameShort.includes('FX') || nameShort.includes('ФХ') || name.includes('FX')) {
+                    yamlData.ComType = 'FX';
+                } else if (!Files.isEmpty(yamlData.IsYatt)) {
+                    yamlData.ComType = 'MChJ';
+                }
+            }
+        }
+
+        // 10. Tariff
+        if (Files.isEmpty(yamlData.Tariff)) {
+            if (!Files.isEmpty(yamlData.Area)) {
+                const p = yamlData.Price1 || yamlData.Price;
+                if (p) {
+                    const numP = Number(String(p).replace(/,/g, ''));
+                    if (numP > 0) {
+                        const candidateTariff = `${yamlData.Area}-${Math.round(numP / 1000)}k`;
+                        const costFile = path.join(Files.currentDir(), 'conf', 'cost', candidateTariff + '.yaml');
+                        if (existsSync(costFile)) {
+                            yamlData.Tariff = candidateTariff;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (yamlData.Tariff != null) {
+            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
+        }
+
+        return yamlData;
+    }
+
+    /**
      * Writes/replaces PriceMon: block in place, or after Penalty: as fallback anchor on first write (see buildPriceMonEntries).
      * Keyed by bare "YYYY-MM" (no day), one entry per Accrual period.
      * Strips a legacy PriceApp: block (the old key name, before the PriceApp -> PriceMon rename) — same in-place migration mechanism writeAccrual already uses for Pricings/PriceHistory.
@@ -1450,6 +1685,7 @@ export class Yamls {
         let data = Yamls.loadAndParseYaml(ymlFile);
         console.log(data, 'data Yaml');
 
+        data = Yamls.adoptLegacyContractData(data);
 
         if (Files.isEmpty(data.WhoAmI)) {
             console.warn("Using default bank", data.WhoAmI);
@@ -1517,10 +1753,44 @@ export class Yamls {
 
         const ymlRaw = fs.readFileSync(ymlFile, 'utf8');
 
+        // Sanitize scalar lines that have orphaned child array/mapping items indented below them
+        const rawLines = ymlRaw.split('\n');
+        let inOrphanedBlock = false;
+        const cleanedLines = [];
+
+        for (let i = 0; i < rawLines.length; i++) {
+            const line = rawLines[i];
+            const isTopLevel = /^[^\s]/.test(line);
+
+            if (isTopLevel && line.includes(':') && !line.trim().startsWith('#')) {
+                const idx = line.indexOf(':');
+                const val = line.slice(idx + 1).trim();
+                if (val !== '' && !val.startsWith('#') && !val.startsWith('|') && !val.startsWith('>')) {
+                    let j = i + 1;
+                    while (j < rawLines.length && rawLines[j].trim() === '') j++;
+                    if (j < rawLines.length && /^\s+[-a-zA-Z0-9_]/.test(rawLines[j]) && !rawLines[j].trim().startsWith('#')) {
+                        inOrphanedBlock = true;
+                    } else {
+                        inOrphanedBlock = false;
+                    }
+                } else {
+                    inOrphanedBlock = false;
+                }
+            } else if (isTopLevel) {
+                inOrphanedBlock = false;
+            }
+
+            if (inOrphanedBlock && !isTopLevel) {
+                cleanedLines.push(`# [SKIPPED ORPHANED CHILD] ${line}`);
+            } else {
+                cleanedLines.push(line);
+            }
+        }
+
         const seenKeys = new Set();
         let skipMode = false;
 
-        const ymlPatched = ymlRaw.split('\n').map(line => {
+        const ymlPatched = cleanedLines.map(line => {
             const isTopLevel = /^[^\s]/.test(line);
 
             // Handle duplicate root-level mapping keys within the SAME file
@@ -1644,9 +1914,7 @@ export class Yamls {
         let yamlData = Yamls.loadYamlWithDeps(oldYaml);
         console.log(yamlData, 'yamlData');
 
-        if (yamlData && typeof yamlData.Tariff === 'string') {
-            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
-        }
+        yamlData = Yamls.adoptLegacyContractData(yamlData);
 
         // copy template file intop ymlFile only file
         await fs.promises.copyFile(template, ymlFile);
@@ -1674,9 +1942,7 @@ export class Yamls {
         if (!yamlData) yamlData = Yamls.loadYamlWithDeps(ymlFile);
         console.log(yamlData, 'yamlData');
 
-        if (yamlData && typeof yamlData.Tariff === 'string') {
-            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
-        }
+        yamlData = Yamls.adoptLegacyContractData(yamlData);
 
         const jsonCachePath = path.join(globalThis.folderRestAPI, `ALL.json`);
         const cacheExists = existsSync(jsonCachePath);
@@ -1868,6 +2134,8 @@ export class Yamls {
             Dialogs.warningBox('yamlData or companyInfo is not defined!');
             return false;
         }
+
+        yamlData = Yamls.adoptLegacyContractData(yamlData);
 
         console.log(yamlData, 'yamlData');
         console.log(companyInfo, 'companyInfo');
