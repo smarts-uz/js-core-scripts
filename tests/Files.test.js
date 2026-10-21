@@ -468,6 +468,50 @@ describe('Files.incrementFileName', () => {
   });
 });
 
+describe('Files.getLatestMatchingFile', () => {
+  function touch(name, mtimeSeconds) {
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, 'x', 'utf8');
+    fs.utimesSync(file, mtimeSeconds, mtimeSeconds);
+    return file;
+  }
+
+  it('returns null when the folder does not exist', () => {
+    expect(Files.getLatestMatchingFile(path.join(dir, 'missing'))).toBeNull();
+  });
+
+  it('returns null when no file ends with " <number>"', () => {
+    touch('Report.docx', 1000);
+    touch('Notes final.docx', 1000);
+    expect(Files.getLatestMatchingFile(dir)).toBeNull();
+  });
+
+  it('picks the file with the highest trailing number', () => {
+    touch('Report 1.docx', 3000);
+    const highest = touch('Report 3.docx', 1000);
+    touch('Report 2.docx', 2000);
+    expect(Files.getLatestMatchingFile(dir)).toBe(highest);
+  });
+
+  it('on a number tie picks the later-modified file (newer listed last)', () => {
+    touch('A 2.docx', 1000);
+    const newer = touch('B 2.docx', 2000);
+    expect(Files.getLatestMatchingFile(dir)).toBe(newer);
+  });
+
+  it('on a number tie keeps the later-modified file when it is listed first', () => {
+    const newer = touch('A 2.docx', 2000);
+    touch('B 2.docx', 1000);
+    expect(Files.getLatestMatchingFile(dir)).toBe(newer);
+  });
+
+  it('filters by extension (case-insensitive) when ext is given', () => {
+    touch('Report 9.xlsx', 1000);
+    const docx = touch('Report 2.DOCX', 1000);
+    expect(Files.getLatestMatchingFile(dir, '.docx')).toBe(docx);
+  });
+});
+
 describe('Files.retainLatestFiles', () => {
   // Writes N files with distinct, increasing mtimes (oldest first, index 0).
   function writeAged(names) {
