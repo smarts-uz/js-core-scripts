@@ -654,18 +654,18 @@ export class Yamls {
 
     /**
      * Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive.
-     * Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own History entry.
+     * Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own PayTotal entry.
      * The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on.
-     * History already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split.
+     * PayTotal already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split.
      * Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
      * @param {string} startDate
      * @param {string} futureDate
-     * @param {Array<Object>} history
+     * @param {Array<Object>} payTotal
      * @param {Array<Object>} priceDay
      * @param {Array<Object>} priceMaxDay
      * @returns {Array<Object>}
      */
-    static buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay) {
+    static buildAccountEntries(startDate, futureDate, payTotal, priceDay, priceMaxDay) {
         console.info(`[Yamls.buildAccountEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
         const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -675,8 +675,8 @@ export class Yamls {
         }
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
-        const historyByDate = new Map(
-            (Array.isArray(history) ? history : [])
+        const payTotalByDate = new Map(
+            (Array.isArray(payTotal) ? payTotal : [])
                 .filter(e => !('ALL' in e))
                 .map(e => Object.entries(e)[0])
                 .map(([d, a]) => [d, toAmount(a)])
@@ -702,12 +702,12 @@ export class Yamls {
         const MAX_DAYS = 50000;
 
         while (day <= futureDate && entries.length < MAX_DAYS) {
-            const historyAmount = historyByDate.get(day) || 0;
+            const payTotalAmount = payTotalByDate.get(day) || 0;
             const month = day.slice(0, 7);
             const monthDebit = balance >= 0
                 ? (priceDayByMonth.get(month) || 0)
                 : (priceMaxDayByMonth.get(month) || 0);
-            balance = Yamls.#round2(balance - monthDebit + historyAmount);
+            balance = Yamls.#round2(balance - monthDebit + payTotalAmount);
 
             entries.push({ [day]: Yamls.#fmt(balance) });
             day = Yamls._addOneDayIso(day);
@@ -1072,13 +1072,13 @@ export class Yamls {
 
     // Merges the WRITTEN Payment: and Returns: arrays (both flat,
     // date-keyed, already-merged views — never Accrual/Loaners) into ONE
-    // flat date-keyed History array, one entry per distinct date: a
+    // flat date-keyed PayTotal array, one entry per distinct date: a
     // Payment amount is carried AS-IS (positive), a Returns amount is
     // NEGATED — a date present in both is summed with Returns already
     // negative, so a same-day payment+return nets out. Sorted by date. No
     // "ALL" trailing total.
-    static computeHistory(payment, returns) {
-        console.info(`[Yamls.computeHistory] 🟢 Starting...`);
+    static computePayTotal(payment, returns) {
+        console.info(`[Yamls.computePayTotal] 🟢 Starting...`);
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
         const totals = new Map();
@@ -1093,25 +1093,33 @@ export class Yamls {
             totals.set(date, (totals.get(date) || 0) - toAmount(amount));
         }
 
-        const history = [...totals.entries()]
+        const payTotal = [...totals.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([date, amount]) => ({ [date]: Yamls.#fmt(Yamls.#round2(amount)) }));
 
-        console.log(`computeHistory: ${history.length} distinct date(s)`, history);
-        return history;
+        console.log(`computePayTotal: ${payTotal.length} distinct date(s)`, payTotal);
+        return payTotal;
     }
 
-    // Writes/replaces the History: array block IN PLACE at its existing
+    static computeHistory(payment, returns) {
+        return this.computePayTotal(payment, returns);
+    }
+
+    // Writes/replaces the PayTotal: array block IN PLACE at its existing
     // position, or after Accrual: as a fallback anchor for a brand-new file
-    // — the merged Payment+Returns view from computeHistory (Payment as-is,
+    // — the merged Payment+Returns view from computePayTotal (Payment as-is,
     // Returns negated), one entry per distinct date. Sits directly after
     // Accrual:, before Payment: (see #writeChain/writePayment's own anchor).
-    //   History:
+    //   PayTotal:
     //     - '2026-04-21': '1,600,000'
     //     - '2026-04-25': '-10,000'
+    static writePayTotal(filePath, payTotal) {
+        console.info(`[Yamls.writePayTotal] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'PayTotal', payTotal, 'PriceMaxDay', ['History'], true);
+    }
+
     static writeHistory(filePath, history) {
-        console.info(`[Yamls.writeHistory] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'History', history, 'PriceMaxDay', [], true);
+        return this.writePayTotal(filePath, history);
     }
 
     /**
@@ -1493,6 +1501,12 @@ export class Yamls {
         }
         if (Files.isEmpty(yamlData.TgTopicID) && !Files.isEmpty(yamlData.TelegramTopicID)) {
             yamlData.TgTopicID = yamlData.TelegramTopicID;
+        }
+
+        // 5b. History -> PayTotal
+        if (yamlData.History !== undefined && yamlData.PayTotal === undefined) {
+            yamlData.PayTotal = yamlData.History;
+            delete yamlData.History;
         }
 
         // 6. Passport
@@ -2737,7 +2751,7 @@ export class Yamls {
 
         /*
          * Iterate yamlData and write each SCALAR value via replaceTextLine.
-         * Array-valued keys (Accrual, History, Account, and the rest of the chain) are skipped here — each has its own dedicated writeYamlArraySection-based writer below (or, for a key like Account with no writer at all, is left exactly as loaded).
+         * Array-valued keys (Accrual, PayTotal, Account, and the rest of the chain) are skipped here — each has its own dedicated writeYamlArraySection-based writer below (or, for a key like Account with no writer at all, is left exactly as loaded).
          * Never the generic key + ': ' + value scalar line, which stringifies an array into a broken "[object Object],[object Object]" that js-yaml can't re-parse.
          */
         for (const [key, value] of Object.entries(yamlData)) {

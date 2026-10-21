@@ -24,3 +24,7 @@ bu nima? umujmiu tolovlarmi
 ▫️▫️▫️
 
 PenaltyON: nimaga kerak?
+
+▫️▫️▫️
+
+hamma ALL.contract file larda default value true boladi. agar empty bolsa - kodda default true deb hisoblanadi
