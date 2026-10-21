@@ -216,9 +216,13 @@ export class Files {
     const moved = [];
     for (const { path: filePath } of toMove) {
       const dest = this.incrementFileName(path.join(archiveDir, path.basename(filePath)));
-      fs.renameSync(filePath, dest);
-      console.log(`[Files.retainLatestFiles] Moved to @ Other: ${filePath} → ${dest}`);
-      moved.push(dest);
+      try {
+        fs.renameSync(filePath, dest);
+        console.log(`[Files.retainLatestFiles] Moved to @ Other: ${filePath} → ${dest}`);
+        moved.push(dest);
+      } catch (err) {
+        console.warn(`[Files.retainLatestFiles] ⚠️ Could not move ${filePath} to @ Other: ${err.message}`);
+      }
     }
 
     console.info(`[Files.retainLatestFiles] ✅ Moved ${moved.length} file(s) into: ${archiveDir}`);
