@@ -24,13 +24,20 @@ export function makeComProxy(overrides = {}, label = 'COM') {
   const calls = [];
   const handler = {
     get(_t, prop) {
-      if (prop === '__sets__') return sets;
-      if (prop === '__calls__') return calls;
-      if (prop === '__isComProxy__') return true;
-      if (prop === Symbol.toPrimitive) return () => label;
-      if (prop === 'valueOf') return () => label;
-      if (prop === 'toString') return () => label;
-      if (prop === Symbol.iterator) return undefined;
+      switch (prop) {
+        case '__sets__':
+          return sets;
+        case '__calls__':
+          return calls;
+        case '__isComProxy__':
+          return true;
+        case Symbol.toPrimitive:
+        case 'valueOf':
+        case 'toString':
+          return () => label;
+        case Symbol.iterator:
+          return undefined;
+      }
       if (typeof prop === 'string') {
         if (Object.prototype.hasOwnProperty.call(overrides, prop)) {
           const v = overrides[prop];
