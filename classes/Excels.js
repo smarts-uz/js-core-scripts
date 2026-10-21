@@ -380,9 +380,8 @@ export class Excels {
 
     let row = found.Row;
 
-    const payTotal = Array.isArray(yamlData.PayTotal)
-      ? yamlData.PayTotal
-      : (Array.isArray(yamlData.History) ? yamlData.History : []);
+    // PayTotal first, legacy History as the fallback, else an empty list.
+    const payTotal = [yamlData.PayTotal, yamlData.History].find((candidate) => Array.isArray(candidate)) ?? [];
     console.log(`processPayTotal: ${payTotal.length} PayTotal entr(y/ies)`, payTotal);
 
     for (const entry of payTotal) {
