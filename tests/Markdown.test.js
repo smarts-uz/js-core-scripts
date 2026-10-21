@@ -164,6 +164,31 @@ describe('Markdown.convertToHtml', () => {
   });
 });
 
+describe('Markdown._downloadImage extension', () => {
+  it.each([
+    ['image/png', '.png'],
+    ['image/jpeg', '.jpg'],
+    ['image/jpg', '.jpg'],
+    ['image/gif', '.gif'],
+    ['image/svg+xml', '.svg'],
+    ['', '.png'],
+    ['application/octet-stream', '.png'],
+  ])('content-type %j is saved as %s', async (contentType, ext) => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => contentType },
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    }));
+    const assetsDir = path.join(workDir, 'assets');
+
+    const out = await Markdown._downloadImage('https://example.com/p', assetsDir, 7);
+
+    expect(out).toBe(path.join(assetsDir, `remote_7${ext}`));
+    expect(fs.existsSync(out)).toBe(true);
+  });
+});
+
 describe('Markdown.merge', () => {
   it('merges multiple .md files into <folder> 1.md with N blank lines between', () => {
     const a = writeMd('a.md', 'Alpha');
