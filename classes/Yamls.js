@@ -1182,7 +1182,7 @@ export class Yamls {
     }
 
     // Writes/replaces the Payment: array block IN PLACE at its existing
-    // position, or after History: as a fallback anchor for a brand-new file
+    // position, or after PayTotal: as a fallback anchor for a brand-new file
     // — a flat, date-keyed merge of Bank-OT + Card-OT + BaaR-OT + Trans-OT
     // (money received FROM the tenant), same-date entries summed. NOT
     // chained/allocated against Accrual periods — plain merge, same shape as
@@ -1193,7 +1193,7 @@ export class Yamls {
     //     - '2026-04-21': '1,600,000'
     static writePayment(filePath, payment) {
         console.info(`[Yamls.writePayment] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Payment', payment, 'History', [], true);
+        this.writeYamlArraySection(filePath, 'Payment', payment, 'PayTotal', [], true);
     }
 
     /**
@@ -1544,12 +1544,24 @@ export class Yamls {
             yamlData.SurPosition = !Files.isEmpty(yamlData.DirPosition) ? yamlData.DirPosition : 'директором';
         }
 
-        // 8. SurEnable / RepEnable defaults
+        // 8. SurEnable / RepEnable / PenaltyON defaults
         if (yamlData.SurEnable === undefined) {
             yamlData.SurEnable = true;
         }
         if (yamlData.RepEnable === undefined) {
             yamlData.RepEnable = !Files.isEmpty(yamlData.RepPINFL);
+        }
+        const rawPenaltyOn = yamlData.PenaltyON;
+        switch (rawPenaltyOn) {
+            case false:
+            case 'false':
+            case 'False':
+            case 'FALSE':
+                yamlData.PenaltyON = false;
+                break;
+            default:
+                yamlData.PenaltyON = true;
+                break;
         }
 
         // 9. ComType
@@ -2829,21 +2841,21 @@ export class Yamls {
         const baarIN = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-IN');
         const returnsFlat = Yamls.mergeDateKeyedArrays(bankIN, cardIN, baarIN);
 
-        // History: merges Payment: (as-is) and Returns: (negated) into one
+        // PayTotal: merges Payment: (as-is) and Returns: (negated) into one
         // flat date-keyed array — sits directly after Accrual:, before
         // Payment: (see writePayment's own anchor).
-        const history = Yamls.computeHistory(paymentFlat, returnsFlat);
-        Yamls.writeHistory(ymlFile, Yamls.appendAllTotal(history));
+        const payTotal = Yamls.computePayTotal(paymentFlat, returnsFlat);
+        Yamls.writePayTotal(ymlFile, Yamls.appendAllTotal(payTotal));
 
         Yamls.writePayment(ymlFile, Yamls.appendAllTotal(paymentFlat));
 
         // Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
         // Account exists only to feed AccrualDays/Loaners/PenaltyDays/Penalty — it never projects into days that have not happened yet, which would fabricate a debt/penalty for a future day nobody has missed a payment on.
-        // Every day debits off the previous day's balance, then adds that day's own History entry.
+        // Every day debits off the previous day's balance, then adds that day's own PayTotal entry.
         // Debit rate: PriceDay (the prepay discount) when the previous day's balance was >= 0, PriceMaxDay (the full rate, no discount) when it was already negative.
-        // Written directly after History:, before AccrualDays:.
+        // Written directly after PayTotal:, before AccrualDays:.
         const accountEnd = yamlData.PeriodEnd < Dates.today() ? yamlData.PeriodEnd : Dates.today();
-        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, history, priceDay, priceMaxDay);
+        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, payTotal, priceDay, priceMaxDay);
         Yamls.writeAccount(ymlFile, account);
 
         // AccrualDays: one entry per calendar day from PeriodStart through the REAL PeriodEnd (never capped at today) — Account's own covered days come from Account itself, never re-simulated; every day beyond Account's coverage falls back to the flat PriceDay rate (see buildAccrualDaysEntries).
@@ -2864,12 +2876,12 @@ export class Yamls {
         );
         Yamls.writeAccrual(ymlFile, accrual);
 
-        // Loaners: total charged minus total paid — Accrual's own ALL total minus History's own ALL total, always.
+        // Loaners: total charged minus total paid — Accrual's own ALL total minus PayTotal's own ALL total, always.
         // Replaces the earlier Account-last-entry formula: that one only reflected the CURRENT day's snapshot balance, while this one is the full outstanding-debt figure across everything accrued vs. everything actually paid/returned to date.
         const accrualAllStr = accrual.find(e => 'ALL' in e)?.ALL ?? '0';
-        const historyAllStr = history.length ? Yamls.appendAllTotal(history).find(e => 'ALL' in e)?.ALL ?? '0' : '0';
+        const payTotalAllStr = payTotal.length ? Yamls.appendAllTotal(payTotal).find(e => 'ALL' in e)?.ALL ?? '0' : '0';
         const loanersTotal = Yamls.#fmt(Yamls.#round2(
-            (Number(String(accrualAllStr).replace(/,/g, '')) || 0) - (Number(String(historyAllStr).replace(/,/g, '')) || 0)
+            (Number(String(accrualAllStr).replace(/,/g, '')) || 0) - (Number(String(payTotalAllStr).replace(/,/g, '')) || 0)
         ));
         Yamls.writeLoaners(ymlFile, loanersTotal);
 
