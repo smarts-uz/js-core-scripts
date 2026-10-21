@@ -1089,10 +1089,26 @@ describe('Excels.processPenalty', () => {
     expect(sheet.Cells).not.toHaveBeenCalledWith(6, 15);
   });
 
-  it('clears the {Penalty} placeholder to empty when PenaltyON is missing (default)', () => {
-    const sheet = installSheet();
-    expect(() => Excels.processPenalty({ Penalty: [{ '2026-01-01': '250,000' }] })).not.toThrow();
+  it('writes rows when PenaltyON is missing/empty (default true)', () => {
+    const sheet = installSheet({ Row: 5, Column: 15 });
+    Excels.processPenalty({ Penalty: [{ '2026-01-01': '250,000' }] });
     expect(sheet.Cells.Find).toHaveBeenCalledWith('{Penalty}');
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 15);
+    expect(sheet.Cells).toHaveBeenCalledWith(5, 16);
+  });
+
+  it('writes rows when PenaltyON is empty string or null (default true)', () => {
+    const sheetNull = installSheet({ Row: 5, Column: 15 });
+    Excels.processPenalty({ PenaltyON: null, Penalty: [{ '2026-01-01': '250,000' }] });
+    expect(sheetNull.Cells.Find).toHaveBeenCalledWith('{Penalty}');
+    expect(sheetNull.Cells).toHaveBeenCalledWith(5, 15);
+    expect(sheetNull.Cells).toHaveBeenCalledWith(5, 16);
+
+    const sheetEmpty = installSheet({ Row: 5, Column: 15 });
+    Excels.processPenalty({ PenaltyON: '', Penalty: [{ '2026-01-01': '250,000' }] });
+    expect(sheetEmpty.Cells.Find).toHaveBeenCalledWith('{Penalty}');
+    expect(sheetEmpty.Cells).toHaveBeenCalledWith(5, 15);
+    expect(sheetEmpty.Cells).toHaveBeenCalledWith(5, 16);
   });
 
   it('warns and does not throw when {Penalty} is missing from the template', () => {
