@@ -35,14 +35,20 @@ async function main() {
     console.log('yaml:', ymlFile, '| all:', allFile);
 
     const run = async () => {
-        if (!Files.isEmpty(allFile)) {
-            const ymlFiles = Files.findAllContractFiles(allFile);
-            console.log(`Found ${ymlFiles.length} contracts`);
-            for (const f of ymlFiles) await processOne(f);
-        } else if (!Files.isEmpty(ymlFile)) {
-            await processOne(ymlFile);
-        } else {
-            console.warn('No --yaml or --all provided.');
+        switch (true) {
+            case !Files.isEmpty(allFile): {
+                const ymlFiles = Files.findAllContractFiles(allFile);
+                console.log(`Found ${ymlFiles.length} contracts`);
+                for (const f of ymlFiles) await processOne(f);
+                break;
+            }
+            case !Files.isEmpty(ymlFile): {
+                await processOne(ymlFile);
+                break;
+            }
+            default: {
+                console.warn('No --yaml or --all provided.');
+            }
         }
     };
 
