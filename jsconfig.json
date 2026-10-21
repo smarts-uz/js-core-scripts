@@ -11,7 +11,7 @@
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
         "target": "ES2022",
-        "lib": ["ES2023"],
+        "lib": ["ES2023", "DOM"],
         "checkJs": true,
         "allowJs": true,
         "noEmit": true,
@@ -21,6 +21,12 @@
         "baseUrl": ".",
         "maxNodeModuleJsDepth": 0
     },
-    "include": ["utils/**/*.js", "runs/**/*.mjs", "tests/**/*.js"],
+    "include": [
+        "classes/**/*.js",
+        "scripts/**/*.mjs",
+        "tests/**/*.js",
+        "utils/**/*.js",
+        "runs/**/*.mjs"
+    ],
     "exclude": ["node_modules", "coverage"]
 }
