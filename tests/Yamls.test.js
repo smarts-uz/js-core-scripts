@@ -1558,6 +1558,19 @@ describe('Yamls.loadAndParseYaml', () => {
     expect(data.Other).toBe('keep');
   });
 
+  it.each([
+    ['double-quoted then plain', '"Key": first\nKey: second\n'],
+    ['single-quoted then plain', "'Key': first\nKey: second\n"],
+    ['plain then double-quoted', 'Key: first\n"Key": second\n'],
+    ['plain then single-quoted', "Key: first\n'Key': second\n"],
+    ['double-quoted then single-quoted', "\"Key\": first\n'Key': second\n"],
+  ])('treats a quoted root-level key as the same key for duplicate detection (%s)', (_title, yamlText) => {
+    const f = path.join(workDir, 'quoted-dup.yml');
+    fs.writeFileSync(f, yamlText, 'utf8');
+    const data = Yamls.loadAndParseYaml(f);
+    expect(data.Key).toBe('first');
+  });
+
   it('quotes values containing commas so they stay a single scalar', () => {
     const f = path.join(workDir, 'comma.yml');
     fs.writeFileSync(f, 'Price: 1,000,000\n', 'utf8');
@@ -2901,6 +2914,22 @@ describe('Yamls.adoptLegacyContractData', () => {
       Yamls.adoptLegacyContractData(data);
       expect(data.SurPassportSerial).toBe('AD');
       expect(data.SurPassportNumber).toBe('1542521');
+    });
+
+    it('prefers SurPassport over DirPassport when both are set', () => {
+      const data = {
+        SurPassport: 'AB7650936',
+        DirPassport: 'AD1542521',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.SurPassportSerial).toBe('AB');
+      expect(data.SurPassportNumber).toBe('7650936');
+    });
+
+    it('leaves the passport split empty when neither SurPassport nor DirPassport is set', () => {
+      const data = {};
+      Yamls.adoptLegacyContractData(data);
+      expect(Yamls.adoptLegacyContractData(data).SurPassportSerial).toBeUndefined();
     });
 
     it('maps Russian ComType abbreviations and detects OPF/names', () => {
