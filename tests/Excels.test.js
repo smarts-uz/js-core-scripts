@@ -1197,6 +1197,15 @@ describe('Excels.replaceInSheet', () => {
     expect(result).toBe(false);
     expect(find).toHaveBeenCalledWith('{Missing}');
   });
+
+  it('returns false and warns when replacement is an object or array', () => {
+    const replace = jest.fn();
+    globalThis.excelSheet = makeComProxy({ Cells: { Replace: replace } }, 'Sheet');
+
+    expect(Excels.replaceInSheet('{TariffCosts}', { a: 1 })).toBe(false);
+    expect(Excels.replaceInSheet('{Arr}', [1, 2, 3])).toBe(false);
+    expect(replace).not.toHaveBeenCalled();
+  });
 });
 
 describe('Excels.findColumn', () => {
@@ -1870,6 +1879,53 @@ describe('Excels.generate', () => {
       false,
       false,
       false
+    );
+    killSpy.mockRestore();
+  });
+
+  it('skips object-valued yamlData keys (e.g. TariffCosts) in the {KEY} placeholder loop', () => {
+    globalThis.folderActReco = path.join(workDir, 'ActRecoObj');
+    globalThis.folderALL = path.join(workDir, 'ALLObj');
+    fs.mkdirSync(globalThis.folderALL, { recursive: true });
+    const templateFolderObj = path.join(workDir, 'excel-tpl-folder-obj');
+    fs.mkdirSync(templateFolderObj, { recursive: true });
+    fs.writeFileSync(path.join(templateFolderObj, 'TplObj.xlsx'), 'tpl', 'utf8');
+
+    YamlsMock.getConfig.mockImplementation((key) => {
+      if (key === 'Templates.Excel') return templateFolderObj;
+      if (key === 'Excel.CellNames') return [];
+      return null;
+    });
+    YamlsMock.loadYamlWithDeps.mockReturnValue({
+      ComName: 'Acme',
+      TariffCosts: { '20-1800k': { Area: '20', Price: '1,800,000' } },
+    });
+
+    const cellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
+    cellsFn.Find = jest.fn(() => makeComProxy({ Row: 1, Column: 1 }, 'found'));
+    cellsFn.Replace = jest.fn(() => true);
+    const sheet = makeComProxy({ Cells: cellsFn }, 'AppSheet');
+    const wb = makeComProxy(
+      { Sheets: jest.fn(() => sheet), Save: jest.fn(), Close: jest.fn() },
+      'Workbook'
+    );
+    installApp(wb, {
+      ExecuteExcel4Macro: jest.fn(() => 222),
+      CalculateFull: jest.fn(),
+      Quit: jest.fn(),
+    });
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+    expect(() => Excels.generate(path.join(workDir, 'e.yml'))).not.toThrow();
+
+    expect(sheet.Cells.Replace).not.toHaveBeenCalledWith(
+      '{TariffCosts}',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
     );
     killSpy.mockRestore();
   });
