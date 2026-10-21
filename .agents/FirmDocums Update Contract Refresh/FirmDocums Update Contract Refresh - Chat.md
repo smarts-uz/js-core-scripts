@@ -297,3 +297,22 @@ Eski formatdagi 7 ta faylni tekshirish boshlandi. Natijani kutyapman.
 
 
 
+## 👤 User
+
+eng oxirida d:\FSystem\ALL\Humans\Rentalls\ ichidagi hamma ALL.contract lar ni recursive read qilib yuqoriadi update.mjs scirpt bilan process qil va oxirida ozing yaxshilab tekshir ! xatolar bolsa fix qilib ket!
+
+## 🤖 Assistant
+
+Testlar fon rejimida ishga tushirildi, natija kutilmoqda.
+
+Testlar to'plami bajarilmoqda. Natija chiqqach darhol xabar beriladi.
+
+
+
+
+
+
+
+
+
+

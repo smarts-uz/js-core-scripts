@@ -32,7 +32,23 @@ async function main() {
         if (!Files.isEmpty(allFile)) {
             const ymlFiles = Files.findAllContractFiles(allFile);
             console.log(`Found ${ymlFiles.length} contracts`);
-            for (const f of ymlFiles) await processOne(f);
+            const failed = [];
+            let index = 0;
+            for (const f of ymlFiles) {
+                index++;
+                console.log(`\n================== [${index}/${ymlFiles.length}] ==================`);
+                try {
+                    await processOne(f);
+                } catch (err) {
+                    console.error(`❌ Error processing ${f}:`, err);
+                    failed.push({ file: f, error: err.message || String(err) });
+                }
+            }
+            if (failed.length > 0) {
+                console.error(`\n⚠️ Finished with ${failed.length} failures out of ${ymlFiles.length}:`, failed);
+            } else {
+                console.log(`\n✅ All ${ymlFiles.length} contracts processed successfully!`);
+            }
         } else if (!Files.isEmpty(ymlFile)) {
             await processOne(ymlFile);
         } else {

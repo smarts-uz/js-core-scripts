@@ -510,9 +510,11 @@ export class Yamls {
             let mPrice = priceNum;
             if (schedule && schedule.length > 0 && tariffCosts) {
                 let activeTariff = null;
+                const currentMonth = start.slice(0, 7);
                 for (const entry of schedule) {
-                    const [entryDate, tariffName] = Object.entries(entry)[0];
-                    if (entryDate <= end) {
+                    const [entryKey, tariffName] = Object.entries(entry)[0];
+                    const entryMonth = String(entryKey).trim().slice(0, 7);
+                    if (entryMonth <= currentMonth) {
                         activeTariff = tariffName;
                     }
                 }
@@ -554,9 +556,11 @@ export class Yamls {
             let mPriceMax = priceMaxNum;
             if (schedule && schedule.length > 0 && tariffCosts) {
                 let activeTariff = null;
+                const currentMonth = start.slice(0, 7);
                 for (const entry of schedule) {
-                    const [entryDate, tariffName] = Object.entries(entry)[0];
-                    if (entryDate <= end) {
+                    const [entryKey, tariffName] = Object.entries(entry)[0];
+                    const entryMonth = String(entryKey).trim().slice(0, 7);
+                    if (entryMonth <= currentMonth) {
                         activeTariff = tariffName;
                     }
                 }
@@ -1206,8 +1210,9 @@ export class Yamls {
     }
 
     /**
-     * Normalizes Tariff into an array of { [date]: tariffName } entries.
-     * 1st entry key: ActDateStart if valid, else ContractDate (fallback to today if neither set).
+     * Normalizes Tariff into an array of { [month]: tariffName } entries.
+     * 1st entry key: month (YYYY-MM) extracted from ActDateStart if valid, else ContractDate (fallback to today's month if neither set).
+     * Subsequent entries: key normalized to month (YYYY-MM) as well.
      * @param {string|Array<Object>} tariff
      * @param {string} [actDateStart]
      * @param {string} [contractDate]
@@ -1215,11 +1220,18 @@ export class Yamls {
      */
     static normalizeTariff(tariff, actDateStart, contractDate) {
         console.info(`[Yamls.normalizeTariff] 🟢 Starting...`);
-        const firstKey = (Dates.isExcelDate(actDateStart))
-            ? String(actDateStart).trim()
-            : ((Dates.isExcelDate(contractDate))
-                ? String(contractDate).trim()
-                : Dates.today());
+        const resolveMonth = (d) => {
+            if (!d) return null;
+            const s = String(d).trim();
+            if (Dates.isExcelDate(s)) return s.slice(0, 7);
+            if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) return Dates.didoxToExcel(s).slice(0, 7);
+            if (/^\d{4}-\d{2}$/.test(s)) return s;
+            return null;
+        };
+
+        const firstKey = resolveMonth(actDateStart)
+            || resolveMonth(contractDate)
+            || Dates.today().slice(0, 7);
 
         if (Files.isEmpty(tariff)) {
             let defTariff = '1-450k';
@@ -1250,7 +1262,8 @@ export class Yamls {
                     return { [firstKey]: entry.trim() };
                 }
                 const [d, t] = Object.entries(entry)[0];
-                return { [String(d).trim()]: String(t).trim() };
+                const monthKey = resolveMonth(d) || String(d).trim().slice(0, 7);
+                return { [monthKey]: String(t).trim() };
             });
             const firstEntryVal = Object.values(normalized[0])[0];
             normalized[0] = { [firstKey]: firstEntryVal };
@@ -1262,10 +1275,10 @@ export class Yamls {
 
     /**
      * Writes/replaces Tariff: block in place, or after WhoAmI: as fallback anchor on first write.
-     * Keyed by date (YYYY-MM-DD), one entry per tariff period.
+     * Keyed by month (YYYY-MM), one entry per tariff period.
      * @example
      *   Tariff:
-     *     - 2025-03-20: 1-450k
+     *     - 2025-03: 1-450k
      * @param {string} filePath
      * @param {Array<Object>} tariff
      */
@@ -1330,7 +1343,7 @@ export class Yamls {
      * @param {object} yamlData - Loaded contract data object (mutated in place).
      * @returns {object} The mutated yamlData.
      */
-    static adoptLegacyContractData(yamlData) {
+    static adoptLegacyContractData(yamlData, convertTariffToArray = true) {
         console.info(`[Yamls.adoptLegacyContractData] 🟢 Starting...`);
         if (!yamlData || typeof yamlData !== 'object') return yamlData;
 
@@ -1502,7 +1515,7 @@ export class Yamls {
             }
         }
 
-        if (yamlData.Tariff != null) {
+        if (convertTariffToArray && yamlData.Tariff != null) {
             yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
         }
 
@@ -1685,7 +1698,7 @@ export class Yamls {
         let data = Yamls.loadAndParseYaml(ymlFile);
         console.log(data, 'data Yaml');
 
-        data = Yamls.adoptLegacyContractData(data);
+        data = Yamls.adoptLegacyContractData(data, false);
 
         if (Files.isEmpty(data.WhoAmI)) {
             console.warn("Using default bank", data.WhoAmI);
@@ -2134,8 +2147,6 @@ export class Yamls {
             Dialogs.warningBox('yamlData or companyInfo is not defined!');
             return false;
         }
-
-        yamlData = Yamls.adoptLegacyContractData(yamlData);
 
         console.log(yamlData, 'yamlData');
         console.log(companyInfo, 'companyInfo');

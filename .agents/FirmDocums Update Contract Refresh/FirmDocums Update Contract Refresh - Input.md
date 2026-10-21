@@ -20,3 +20,7 @@ Yamls.update va Yamls.fillYamlWithInfo da agar Tariff  oddiy string bolsa - uni 
 ▫️▫️▫️
 
 c:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract ni firm-docums templa update qilvor.
+
+▫️▫️▫️
+
+eng oxirida d:\FSystem\ALL\Humans\Rentalls\ ichidagi hamma ALL.contract lar ni recursive read qilib yuqoriadi update.mjs scirpt bilan process qil va oxirida ozing yaxshilab tekshir ! xatolar bolsa fix qilib ket!

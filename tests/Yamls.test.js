@@ -959,6 +959,29 @@ describe('Yamls.buildPriceMonEntries', () => {
       { '2025-07': '600,000' },
     ]);
   });
+
+  it('switches price across months based on month-keyed multi-tariff schedule', () => {
+    const tariffSchedule = [
+      { '2025-03': '20-1800k' },
+      { '2025-10': '20-1680k' },
+    ];
+    const tariffCosts = {
+      '20-1800k': { Price: '1,800,000', PriceMax: '1,800,000' },
+      '20-1680k': { Price: '1,680,000', PriceMax: '1,680,000' },
+    };
+    const entries = Yamls.buildPriceMonEntries('2025-03-20', '2025-11-30', '1,800,000', tariffSchedule, tariffCosts);
+    expect(entries).toEqual([
+      { '2025-03': '1,800,000' },
+      { '2025-04': '1,800,000' },
+      { '2025-05': '1,800,000' },
+      { '2025-06': '1,800,000' },
+      { '2025-07': '1,800,000' },
+      { '2025-08': '1,800,000' },
+      { '2025-09': '1,800,000' },
+      { '2025-10': '1,680,000' },
+      { '2025-11': '1,680,000' },
+    ]);
+  });
 });
 
 describe('Yamls.buildPriceMaxMonEntries', () => {
@@ -989,17 +1012,40 @@ describe('Yamls.buildPriceMaxMonEntries', () => {
       { '2025-07': '700,000' },
     ]);
   });
+
+  it('switches PriceMax across months based on month-keyed multi-tariff schedule', () => {
+    const tariffSchedule = [
+      { '2025-03': '20-1800k' },
+      { '2025-10': '20-1680k' },
+    ];
+    const tariffCosts = {
+      '20-1800k': { Price: '1,800,000', PriceMax: '1,800,000' },
+      '20-1680k': { Price: '1,680,000', PriceMax: '1,680,000' },
+    };
+    const entries = Yamls.buildPriceMaxMonEntries('2025-03-20', '2025-11-30', '1,800,000', tariffSchedule, tariffCosts);
+    expect(entries).toEqual([
+      { '2025-03': '1,800,000' },
+      { '2025-04': '1,800,000' },
+      { '2025-05': '1,800,000' },
+      { '2025-06': '1,800,000' },
+      { '2025-07': '1,800,000' },
+      { '2025-08': '1,800,000' },
+      { '2025-09': '1,800,000' },
+      { '2025-10': '1,680,000' },
+      { '2025-11': '1,680,000' },
+    ]);
+  });
 });
 
 describe('Yamls.normalizeTariff', () => {
   it('uses ActDateStart as 1st key when available', () => {
     const normalized = Yamls.normalizeTariff('1-450k', '2025-04-01', '2025-03-20');
-    expect(normalized).toEqual([{ '2025-04-01': '1-450k' }]);
+    expect(normalized).toEqual([{ '2025-04': '1-450k' }]);
   });
 
   it('falls back to ContractDate when ActDateStart is missing or empty', () => {
     const normalized = Yamls.normalizeTariff('1-450k', '', '2025-03-20');
-    expect(normalized).toEqual([{ '2025-03-20': '1-450k' }]);
+    expect(normalized).toEqual([{ '2025-03': '1-450k' }]);
   });
 
   it('normalizes an existing array, updating 1st key and preserving later entries', () => {
@@ -1009,14 +1055,14 @@ describe('Yamls.normalizeTariff', () => {
     ];
     const normalized = Yamls.normalizeTariff(input, '2025-03-20', '2025-01-01');
     expect(normalized).toEqual([
-      { '2025-03-20': '1-450k' },
-      { '2025-09-01': '2-600k' },
+      { '2025-03': '1-450k' },
+      { '2025-09': '2-600k' },
     ]);
   });
 
   it('falls back to DefaultTariff when tariff is empty', () => {
     const normalized = Yamls.normalizeTariff('', '', '2025-03-20');
-    expect(normalized).toEqual([{ '2025-03-20': '1-450k' }]);
+    expect(normalized).toEqual([{ '2025-03': '1-450k' }]);
   });
 });
 
@@ -1025,10 +1071,10 @@ describe('Yamls.writeTariff', () => {
     const filePath = path.join(workDir, 'tariff-test.contract');
     fs.writeFileSync(filePath, ['WhoAmI: SRental-Kapital', 'Tariff: 1-450k', '', 'PenaltyPerDay: 50'].join('\n'), 'utf8');
 
-    Yamls.writeTariff(filePath, [{ '2025-03-20': '1-450k' }, { '2026-01-01': '2-600k' }]);
+    Yamls.writeTariff(filePath, [{ '2025-03': '1-450k' }, { '2026-01': '2-600k' }]);
 
     const content = fs.readFileSync(filePath, 'utf8');
-    expect(content).toContain('Tariff:\n  - 2025-03-20: 1-450k\n  - 2026-01-01: 2-600k');
+    expect(content).toContain('Tariff:\n  - 2025-03: 1-450k\n  - 2026-01: 2-600k');
     expect(content).toContain('WhoAmI: SRental-Kapital');
     expect(content).toContain('PenaltyPerDay: 50');
   });
@@ -1713,7 +1759,7 @@ describe('Yamls.update', () => {
     await Yamls.update(ymlFile);
 
     expect(capturedData).not.toBeNull();
-    expect(capturedData.Tariff).toEqual([{ '2025-03-20': '1-450k' }]);
+    expect(capturedData.Tariff).toEqual([{ '2025-03': '1-450k' }]);
 
     fillSpy.mockRestore();
   });
@@ -2010,7 +2056,7 @@ describe('Yamls.fillYamlWithInfo', () => {
     await Yamls.fillYamlWithInfo(ymlFile, null, false, false);
 
     expect(capturedData).not.toBeNull();
-    expect(capturedData.Tariff).toEqual([{ '2025-03-20': '1-450k' }]);
+    expect(capturedData.Tariff).toEqual([{ '2025-03': '1-450k' }]);
 
     replaceYamlSpy.mockRestore();
   });
@@ -2761,3 +2807,123 @@ describe('Yamls.replaceYaml', () => {
     expect(penaltyBlock).not.toContain(`2026-01: ${expected50.toLocaleString('en-US')}`);
   });
 });
+
+describe('Yamls.adoptLegacyContractData', () => {
+    it('adopts legacy dates (ComDate, ComDateEnd, ComDateIjara) into Excel format', () => {
+      const data = {
+        ComDate: '22.04.2025',
+        ComDateEnd: '04.10.2026',
+        ComDateIjara: '31.12.2029',
+        Tariff: '5-450k',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.ContractDate).toBe('2025-04-22');
+      expect(data.ActDateEnd).toBe('2026-10-04');
+      expect(data.IjaraDateEnd).toBe('2029-12-31');
+      expect(data.Tariff).toEqual([{ '2025-04': '5-450k' }]);
+    });
+
+    it('reconstructs ContractDate from Year, Month, Day when ComDate is missing', () => {
+      const data = {
+        Year: '2025',
+        Month: '4',
+        Day: '22',
+        Tariff: '1-450k',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.ContractDate).toBe('2025-04-22');
+      expect(data.Tariff).toEqual([{ '2025-04': '1-450k' }]);
+    });
+
+    it('splits SurPassport and normalizes Greek/Cyrillic lookalikes in series', () => {
+      const data = {
+        SurPassport: 'AB7650936',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.SurPassportSerial).toBe('AB');
+      expect(data.SurPassportNumber).toBe('7650936');
+
+      // Greek Alpha + Epsilon (ΑΕ)
+      const greekData = {
+        SurPassport: '\u0391\u0395 1915623',
+      };
+      Yamls.adoptLegacyContractData(greekData);
+      expect(greekData.SurPassportSerial).toBe('AE');
+      expect(greekData.SurPassportNumber).toBe('1915623');
+    });
+
+    it('falls back to DirPassport when SurPassport is absent', () => {
+      const data = {
+        DirPassport: 'AD1542521',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.SurPassportSerial).toBe('AD');
+      expect(data.SurPassportNumber).toBe('1542521');
+    });
+
+    it('maps Russian ComType abbreviations and detects OPF/names', () => {
+      const d1 = { ComType: 'ООО' };
+      Yamls.adoptLegacyContractData(d1);
+      expect(d1.ComType).toBe('MChJ');
+
+      const d2 = { ComType: 'ИП' };
+      Yamls.adoptLegacyContractData(d2);
+      expect(d2.ComType).toBe('YaTT');
+
+      const d3 = { IsYatt: 'Да' };
+      Yamls.adoptLegacyContractData(d3);
+      expect(d3.ComType).toBe('YaTT');
+
+      const d4 = { ComNameShort: '"ELECTROSILK" MCHJ', ComOpf: '152' };
+      Yamls.adoptLegacyContractData(d4);
+      expect(d4.ComType).toBe('MChJ');
+    });
+
+    it('maps TelegramGroupID and TelegramTopicID', () => {
+      const data = {
+        TelegramGroupID: '-1002000729186',
+        TelegramTopicID: '94',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.TgGroupID).toBe('-1002000729186');
+      expect(data.TgTopicID).toBe('94');
+    });
+
+    it('auto-derives Tariff from Area and Price1 when Tariff is missing', () => {
+      writeTree(projectDir, {
+        conf: {
+          cost: { '20-1800k.yaml': yaml.dump({ Area: 20, Price: 1800000 }) },
+        },
+      });
+      const data = {
+        Area: '20',
+        Price1: '1800000',
+        ContractDate: '2025-04-22',
+      };
+      Yamls.adoptLegacyContractData(data);
+      expect(data.Tariff).toEqual([{ '2025-04': '20-1800k' }]);
+    });
+  });
+
+  describe('Yamls.loadAndParseYaml orphaned child lines', () => {
+    it('parses files with scalar lines that have orphaned child array items underneath', () => {
+      const testYaml = path.join(workDir, 'orphaned.contract');
+      fs.writeFileSync(
+        testYaml,
+        [
+          'ComName: TEST',
+          'Loaners: 266,666.64',
+          '  - 2026-08-04#2026-08-31: 1,464,000',
+          '  - 2026-09-01#2026-09-30: 1,620,000',
+          '  - ALL: 3,084,000',
+          'Price: 450,000',
+        ].join('\n'),
+        'utf8'
+      );
+
+      const parsed = Yamls.loadAndParseYaml(testYaml);
+      expect(parsed.ComName).toBe('TEST');
+      expect(parsed.Loaners).toBe('266,666.64');
+      expect(parsed.Price).toBe('450,000');
+    });
+  });

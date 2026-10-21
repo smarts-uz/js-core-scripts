@@ -112,6 +112,10 @@ export class Dialogs {
   static messageBox(message, title = 'Message', icon = this.Icons.Information) {
     console.info(`[Dialogs.messageBox] 🟢 Starting...`);
     console.info(`[Dialogs.messageBox] 💬 Opening native message box: [${title}]`);
+    if (process.env.DIALOGS_SILENT === '1') {
+      console.warn(`[Dialogs.messageBox] 🔇 Suppressed in silent mode: [${title}] ${message}`);
+      return;
+    }
     try {
       // winax COM WScript.Shell.Popup — a native message box with NO PowerShell.
       // The old PowerShell path piped UTF-16 stdout into the terminal, which the

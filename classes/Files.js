@@ -275,7 +275,7 @@ export class Files {
     }
 
     // Folders to ignore
-    const ignoredFolders = ["@ Bads", "ALL", "@ Dead", "App"];
+    const ignoredFolders = ["@ Bads", "ALL", "@ Dead", "App", "- Theory", "- Backups"];
 
     let results = [];
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -698,7 +698,7 @@ export class Files {
     // Get parent path for current file
     const currentFilePath = process.argv[1];
 
-    const currentDir = path.dirname(currentFilePath);
+    const currentDir = currentFilePath ? path.dirname(path.resolve(currentFilePath)) : process.cwd();
     console.log(currentDir, 'currentDir');
 
     return currentDir;
