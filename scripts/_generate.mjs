@@ -229,6 +229,12 @@ main();
 `;
 }
 
+/** True when the runner file already exists with exactly this source (regeneration skips it). */
+function isUnchanged(file, next) {
+    if (!existsSync(file)) return false;
+    return readFileSync(file, 'utf8') === next;
+}
+
 /** Generate every runner for one class; returns the method count. */
 async function generateClass(className) {
     const cls = await importClass(className);
@@ -247,7 +253,7 @@ async function generateClass(className) {
     for (const method of methods) {
         const file = path.join(classDir, `${method}.mjs`);
         const next = runnerSource(className, method, reflectParams(cls[method]));
-        if (existsSync(file) && readFileSync(file, 'utf8') === next) continue; // unchanged
+        if (isUnchanged(file, next)) continue; // unchanged
         writeFileSync(file, next, 'utf8');
     }
     console.log(`✅ scripts/${className}/ — ${methods.length} runner(s): ${methods.join(', ')}`);

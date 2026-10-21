@@ -48,9 +48,15 @@ function reflectParams(fn) {
     });
 }
 
+/** True when the reflected parameter list is one destructured-object parameter. */
+function isSingleObjectParam(params) {
+    if (params.length !== 1) return false;
+    return Boolean(params[0].isObject);
+}
+
 /** Renders a reflected signature like `word(fileName, [chars])`. */
 function signature(name, params) {
-    if (params.length === 1 && params[0].isObject) {
+    if (isSingleObjectParam(params)) {
         return `${name}({ ${params[0].keys.join(', ')} })`;
     }
     return `${name}(${params.map((p) => (p.hasDefault ? `[${p.name}]` : p.name)).join(', ')})`;
@@ -88,12 +94,18 @@ function parseJsDoc(source, methodName) {
     for (const line of lines) {
         const pm = line.match(/^@param\s+\{[^}]*\}\s+(\[?[\w.]+\]?)\s*-?\s*(.*)$/);
         const rm = line.match(/^@returns?\s+\{[^}]*\}\s*(.*)$/);
-        if (pm) {
-            params[pm[1].replace(/[[\]]/g, '')] = pm[2];
-        } else if (rm) {
-            returns = rm[1];
-        } else if (!line.startsWith('@') && line) {
-            summary.push(line);
+        switch (true) {
+            case Boolean(pm):
+                params[pm[1].replace(/[[\]]/g, '')] = pm[2];
+                break;
+            case Boolean(rm):
+                returns = rm[1];
+                break;
+            case line.startsWith('@'):
+            case line === '':
+                break;
+            default:
+                summary.push(line);
         }
     }
     return { summary: summary.join(' ').trim(), params, returns };
@@ -160,23 +172,26 @@ async function main() {
 
             lines.push('**Run:**', '', '```bash', runCommand(className, method, params), '```', '');
 
-            if (params.length === 1 && params[0].isObject) {
-                lines.push('**Object parameter** — pass each key as `--key value`:', '');
-                lines.push('| Key | Description |', '|-----|-------------|');
-                for (const k of params[0].keys)
-                    lines.push(`| \`--${k}\` | ${doc.params[k] || '—'} |`);
-                lines.push('');
-            } else if (params.length) {
-                lines.push(
-                    '| Parameter | Optional | Description |',
-                    '|-----------|----------|-------------|'
-                );
-                for (const p of params) {
+            switch (true) {
+                case isSingleObjectParam(params):
+                    lines.push('**Object parameter** — pass each key as `--key value`:', '');
+                    lines.push('| Key | Description |', '|-----|-------------|');
+                    for (const k of params[0].keys)
+                        lines.push(`| \`--${k}\` | ${doc.params[k] || '—'} |`);
+                    lines.push('');
+                    break;
+                case params.length > 0:
                     lines.push(
-                        `| \`${p.name}\` | ${p.hasDefault ? `yes (default \`${p.default}\`)` : 'no'} | ${doc.params[p.name] || '—'} |`
+                        '| Parameter | Optional | Description |',
+                        '|-----------|----------|-------------|'
                     );
-                }
-                lines.push('');
+                    for (const p of params) {
+                        lines.push(
+                            `| \`${p.name}\` | ${p.hasDefault ? `yes (default \`${p.default}\`)` : 'no'} | ${doc.params[p.name] || '—'} |`
+                        );
+                    }
+                    lines.push('');
+                    break;
             }
             if (doc.returns) lines.push(`**Returns:** ${doc.returns}`, '');
         }
