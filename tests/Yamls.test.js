@@ -13,7 +13,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
+import yaml from '#js-yaml';
 import { makeTmpDir, cleanupAllTmpDirs, writeTree, read } from './helpers/tmp.js';
 import { utilsModule } from './helpers/esm.js';
 import { Dates } from '../classes/Dates.js';
@@ -2257,8 +2257,8 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toMatch(/AccrualDays:\n(?:.*\n)*?\s+-\s+ALL: 4,199,999\.97/);
     // Account: day 1 (PeriodStart) already debits January's own 135,483.87 rate (no History in this fixture); day 2 debits the same rate again off day 1's balance (PriceDay === PriceMaxDay here, since Price === PriceMax in this fixture).
     expect(content).toContain('Account:');
-    expect(content).toContain("2026-01-01: '-135,483.87'");
-    expect(content).toContain("2026-01-02: '-270,967.74'");
+    expect(content).toMatch(/2026-01-01: '?-135,483\.87'?/);
+    expect(content).toMatch(/2026-01-02: '?-270,967\.74'?/);
     // Loaners: a plain scalar now — the absolute value of Account's own last (2026-01-31) entry, never an array.
     expect(content).toMatch(/^Loaners: '?[\d,]+'?$/m);
     expect(content).not.toMatch(/Loaners:\n\s+-/);
