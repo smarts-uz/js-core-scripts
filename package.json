@@ -58,6 +58,8 @@
     "#ofetch": "./import/ofetch.mjs",
     "#yargs": "./import/yargs.mjs",
     "#yargs-helpers": "./import/yargs-helpers.mjs",
-    "#winax": "./import/winax.mjs"
+    "#winax": "./import/winax.mjs",
+    "#eslint-js": "./import/eslint-js.mjs",
+    "#globals": "./import/globals.mjs"
   }
 }
