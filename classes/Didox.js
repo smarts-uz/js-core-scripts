@@ -357,13 +357,12 @@ export class Didox {
             //    await this.carInfoByPinfl(tin)
 
         } else {
-
-
+            const addr = String(returns.address ?? '');
             switch (true) {
-                case returns.address.includes('Anorzor'):
+                case addr.includes('Anorzor'):
                     returns.AddressType = 'Anorzor';
                     break;
-                case returns.address.includes('Adolat MFY'):
+                case addr.includes('Adolat MFY'):
                     returns.AddressType = 'Adolat';
                     break;
 

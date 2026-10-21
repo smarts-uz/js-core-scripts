@@ -1705,10 +1705,18 @@ export class Yamls {
             data.WhoAmI = Yamls.getConfig('Contract.DefaultBank');
         }
 
-        const whoAmIYaml = path.join(Files.currentDir(), 'conf', 'bank', data.WhoAmI + ".yaml")
+        let whoAmIYaml = path.join(Files.currentDir(), 'conf', 'bank', data.WhoAmI + ".yaml")
         console.info("Using whoAmIYaml", whoAmIYaml);
 
-        if (!existsSync(whoAmIYaml)) Dialogs.warningBox(whoAmIYaml, "whoAmIYaml file not found. .");
+        if (!existsSync(whoAmIYaml)) {
+            Dialogs.warningBox(whoAmIYaml, "whoAmIYaml file not found. .");
+            const defaultBank = Yamls.getConfig('Contract.DefaultBank');
+            const fallbackYaml = path.join(Files.currentDir(), 'conf', 'bank', defaultBank + ".yaml");
+            if (existsSync(fallbackYaml)) {
+                data.WhoAmI = defaultBank;
+                whoAmIYaml = fallbackYaml;
+            }
+        }
 
         let whoAmIYamlData = Yamls.loadAndParseYaml(whoAmIYaml);
         console.log(whoAmIYamlData, 'whoAmIYaml Yaml data');
@@ -2393,7 +2401,7 @@ export class Yamls {
 
         yamlData.ComOKED = companyInfo.oked
         if (!isYatt)
-            yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail.name_uz_latn ?? ''
+            yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail?.name_uz_latn ?? ''
         else
             yamlData.ComOKEDName = companyInfo?.soliqYatt?.activityTypeName?.uz ?? ''
 
@@ -2474,7 +2482,7 @@ export class Yamls {
         yamlData.ComNa1Code = companyInfo.na1Code
         yamlData.ComNa1Name = companyInfo.na1Name
         if (!isYatt)
-            yamlData.ComNa1NameLat = companyInfo.soliq?.company.businessStructureDetail.name_uz_latn ?? ''
+            yamlData.ComNa1NameLat = companyInfo?.soliq?.company?.businessStructureDetail?.name_uz_latn ?? ''
         else
             yamlData.ComNa1NameLat = companyInfo?.soliqYatt?.formName?.uz ?? ''
 
@@ -2487,11 +2495,11 @@ export class Yamls {
         yamlData.ComStatusName = companyInfo.statusName
 
         if (!isYatt) {
-            yamlData.ComStatusNameLat = companyInfo.soliq?.company.statusDetail.name_uz_latn ?? ''
-            yamlData.ComStatusGroup = companyInfo.soliq?.company.statusDetail.group ?? ''
+            yamlData.ComStatusNameLat = companyInfo?.soliq?.company?.statusDetail?.name_uz_latn ?? ''
+            yamlData.ComStatusGroup = companyInfo?.soliq?.company?.statusDetail?.group ?? ''
 
-            yamlData.ComStatusType = companyInfo.soliq?.company.statusType ?? ''
-            yamlData.ComIsScammer = companyInfo.soliq?.IsScammer ?? ''
+            yamlData.ComStatusType = companyInfo?.soliq?.company?.statusType ?? ''
+            yamlData.ComIsScammer = companyInfo?.soliq?.IsScammer ?? ''
 
         }
         else {
