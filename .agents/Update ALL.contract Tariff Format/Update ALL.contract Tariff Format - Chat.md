@@ -122,3 +122,34 @@ Ha, bu mijoz tomonidan amalga oshirilgan **haqiqiy sof (netto) to'lovlar tarixi*
 
 
 
+## 👤 User
+
+PenaltyON: nimaga kerak?
+
+## 🤖 Assistant
+
+`PenaltyON:` — Excel hisobotiga (sverka aktiga) penya summasini **chiqarish yoki yashirish** uchun kalit (flag).
+
+### Qanday ishlaydi
+
+- **`PenaltyON: true` bo'lsa:**
+  - Hisoblangan [`Penalty`](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L1450) summalari Exceldagi `{Penalty}` ustuniga to'liq yoziladi.
+  - Mijozga rasmiy aktda kechiktirilgan to'lovlar uchun penya hisoblab taqdim etiladi.
+- **`PenaltyON: false` yoki bo'sh bo'lsa (default):**
+  - Exceldagi `{Penalty}` katagi tozalanadi (bo'sh qoladi).
+  - Mijozga beriladigan Excel hisobotida penya talab qilinmaydi.
+- **Muhim jihatlari:**
+  - [ALL.contract](file:///d:/FSystem/ALL/Humans/Rentalls/Mamurjon/CODENOVA/ALL.contract#L1427-L1471) ichida `PenaltyDays` va `Penalty` baribir har doim avtomatik hisoblanib turadi.
+  - `PenaltyDays` (kechikkan kunlar soni) bu bayroqchaga qaramasdan Excelga chiqadi.
+  - `PenaltyON` faqat pul summasining Excelga tushishini boshqaradi.
+- **Manba kodi:** [`Excels.processPenalty`](file:///d:/Develop/Projects/DevApp/Execute/JS/Sources/classes/Excels.js#L240).
+
+
+
+
+
+
+
+
+
+

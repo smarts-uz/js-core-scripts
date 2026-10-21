@@ -314,3 +314,23 @@ Account balansni hisoblash uchun ham ishlatiladi.
 
 
 
+## 💭 PenaltyON: nimaga kerak?
+
+Initial assessment: User's request requires determining if a task management tool is needed, triggered by standing rules. Examining the capability map and standing rules within the relevant operational context to identify the proper tool or function. The function for background tasks (`manage_task`) may be applicable depending on how it's used.
+
+The code reads the `Penalty` data from a YAML file, specifically the `PenaltyON` flag, which represents a bare-date array defining late-payment penalties. It's used to calculate the daily penalty rate based on the number of penalty days and the `Penalty.PerDay` value, without any cap ratio. This flag is written into the `.contract` YAML file.
+
+Penalty calculations are derived from a daily running balance simulation, resulting in `PenaltyDays`. This penalty is then calculated by multiplying `PenaltyDays` by a daily rate from configuration, capped at half the monthly price maximum, and consistently written into the contract YAML. The `PenaltyON` flag solely controls the inclusion of the pre-calculated penalty data in the Excel output.
+
+
+`PenaltyON` bayrog'i Excel hisobotida penyani ko'rsatish/ko'rsatmaslikni boshqaradi.  Agar bayroq `true` bo'lsa, hisoblangan penya qiymati Excelning mos katagiga yoziladi. Aks holda, penya katagi bo'sh qoldiriladi. `PenaltyDays` qiymati esa Excelga har doim yoziladi.
+
+
+
+
+
+
+
+
+
+
