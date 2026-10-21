@@ -24,3 +24,7 @@ c:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract ni 
 ▫️▫️▫️
 
 eng oxirida d:\FSystem\ALL\Humans\Rentalls\ ichidagi hamma ALL.contract lar ni recursive read qilib yuqoriadi update.mjs scirpt bilan process qil va oxirida ozing yaxshilab tekshir ! xatolar bolsa fix qilib ket!
+
+▫️▫️▫️
+
+History degfan yaml variable ni hamma joyda PayTotal ga renmae qil! hamma rentals ichjidagi file larda va firm-docums templa update qil
