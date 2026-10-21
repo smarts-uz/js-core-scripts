@@ -18,6 +18,15 @@ try {
   // winax not available
 }
 
+// content-type marker -> file extension, first match wins (png is also the default).
+const IMAGE_EXTENSIONS = [
+  ['png', '.png'],
+  ['jpeg', '.jpg'],
+  ['jpg', '.jpg'],
+  ['gif', '.gif'],
+  ['svg', '.svg'],
+];
+
 export class Markdown {
   constructor() {}
 
@@ -80,11 +89,7 @@ export class Markdown {
         return null;
       }
       const contentType = res.headers.get('content-type') || '';
-      const ext = contentType.includes('png') ? '.png'
-        : contentType.includes('jpeg') || contentType.includes('jpg') ? '.jpg'
-        : contentType.includes('gif') ? '.gif'
-        : contentType.includes('svg') ? '.svg'
-        : '.png';
+      const ext = IMAGE_EXTENSIONS.find(([marker]) => contentType.includes(marker))?.[1] ?? '.png';
       Markdown._ensureDir(assetsDir);
       const buf = Buffer.from(await res.arrayBuffer());
       const outPath = path.join(assetsDir, `remote_${index}${ext}`);
