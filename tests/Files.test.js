@@ -528,6 +528,19 @@ describe('Files.retainLatestFiles', () => {
     const moved = Files.retainLatestFiles(path.join(dir, 'missing'), 5, '.xlsx');
     expect(moved).toEqual([]);
   });
+
+  it('warns and continues when a candidate file rename throws EBUSY', () => {
+    writeAged(['a.xlsx', 'b.xlsx']);
+    const renameSpy = jest.spyOn(fs, 'renameSync').mockImplementationOnce(() => {
+      const err = new Error('EBUSY');
+      err.code = 'EBUSY';
+      throw err;
+    });
+
+    const moved = Files.retainLatestFiles(dir, 1, '.xlsx');
+    expect(moved).toEqual([]);
+    renameSpy.mockRestore();
+  });
 });
 
 // =============================================================================
