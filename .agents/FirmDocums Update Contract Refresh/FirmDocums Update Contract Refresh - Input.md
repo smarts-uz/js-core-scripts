@@ -16,3 +16,7 @@ bu feature nega kerak: firmalar yangi shartnoma qilganda 1 ta tarifda (masalan 1
 ▫️▫️▫️
 
 Yamls.update va Yamls.fillYamlWithInfo da agar Tariff  oddiy string bolsa - uni value sini olib, tariff ni array ga convert qilib yuqoridagi string dan olingan value ni arrayni item value si qilib yozib qoyish kerak!
+
+▫️▫️▫️
+
+c:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract ni firm-docums templa update qilvor.

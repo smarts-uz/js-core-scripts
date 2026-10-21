@@ -132,3 +132,20 @@ Yamls.update va Yamls.fillYamlWithInfo da agar Tariff  oddiy string bolsa - uni 
 
 
 
+## 👤 User
+
+c:\Users\Administrator\.agents\skills\smarts-firm-docums\templa\ALL.contract ni firm-docums templa update qilvor.
+
+## 🤖 Assistant
+
+Testlar ishga tushirildi. Natijani kutyapman.
+
+
+
+
+
+
+
+
+
+
