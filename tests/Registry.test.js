@@ -74,20 +74,23 @@ function wireReg({ userRows = [], sysRows = [], addStatus = 0, addStderr = '' } 
     if (bin === 'reg') {
       const sub = args[0];
       const keyPath = args[1] || '';
-      if (sub === 'query') {
-        const rows = keyPath.startsWith('HKLM') ? sysRows : userRows;
-        return regQueryOutput(rows);
-      }
-      if (sub === 'add') {
-        if (addStatus !== 0) {
-          const e = new Error('reg add failed');
-          e.status = addStatus;
-          e.stderr = addStderr;
-          throw e;
+      switch (sub) {
+        case 'query': {
+          const rows = keyPath.startsWith('HKLM') ? sysRows : userRows;
+          return regQueryOutput(rows);
         }
-        return '';
+        case 'add': {
+          if (addStatus !== 0) {
+            const e = new Error('reg add failed');
+            e.status = addStatus;
+            e.stderr = addStderr;
+            throw e;
+          }
+          return '';
+        }
+        case 'export':
+          return '';
       }
-      if (sub === 'export') return '';
     }
     if (bin === 'rundll32') return '';
     return '';
