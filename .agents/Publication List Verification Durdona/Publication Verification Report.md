@@ -57,3 +57,14 @@
 | 9 | Maqola / Tezis | МАКТАБ ЁШИДАГИ БОЛАЛАРДА ТУРЛИ ХИЛ ДАВОМИЙЛИКДАГИ ЖАРРОҲЛИК АМАЛИЁТЛАРИДА ЎТКАЗИЛГАН УМУМИЙ АНЕСТЕЗИЯДАН КЕЙИНГИ КЛИНИК НЕВРОЛОГИК ҲОЛАТ | Закирова Д.А., Маджидова Я.Н. | Педиатрический съезд (Октябрь 2024) | `Where\Pediatrical syezd october2024\Закирова Д.А.docx` |
 | 10 | Qo'lyozma | Токсическое воздействие кетамина на головной мозг при длительной анестезии у детей | Маджидова Ё.Н., Закирова Д.А. | Ilmiy maqola qo'lyozmasi | `Where\Токсическое воздействие кетамина на головной мозг при длительной анестезии у детей\` |
 | 11 | Maqola qo'lyozmasi | ЦИФРОВАЯ ПЛАТФОРМА «NEYROCOG.UZ» КАК ИНСТРУМЕНТ РАННЕЙ ДИАГНОСТИКИ И НЕЙРОКОГНИТИВНОЙ КОРРЕКЦИИ ПЕРИОПЕРАТИВНЫХ НАРУШЕНИЙ У ДЕТЕЙ ШКОЛЬНОГО ВОЗРАСТА ПОСЛЕ ОБЩЕЙ АНЕСТЕЗИИ | Закирова Д.А., Маджидова Ё.Н. | Xorijiy jurnal maqolasi qo'lyozmasi (`ijmp.ru` va `vskmjournal.org` uchun tayyorlangan) | `Foreign\ijmp.ru\` va `Foreign\vskmjournal.org\` |
+
+
+---
+
+## 4. Yangi Versiya: `3.4-shakl Zakirova D.A. 3.docx`
+
+- Yaratilgan yangi fayl: `d:\Humans\Medicine\Disserta\Projects\Publication List, Ilmiy ishlar royxati, 3.4-shakl\Durdona\3.4-shakl Zakirova D.A. 3.docx`.
+- Oldingi versiyalar (`3.4-shakl Zakirova D.A. 1.docx` va `3.4-shakl Zakirova D.A. 2.docx`) o'zgartirilmasdan saqlab qolindi.
+- Jami ilmiy ishlar soni: 32 ta (16 ta maqola, 14 ta tezis, 2 ta uslubiy tavsiyanoma).
+- Raqamlanishi: 1 dan 32 gacha uzluksiz ketma-ketlikda (№1 dan №32 gacha to'liq to'ldirildi).
+- Barcha shriftlar ("Times New Roman", 12pt), jadval ustun kengliklari, katak tekislashlari (chap, markaz, kenglik bo'yicha) va hujjat oxiridagi imzolar to'liq saqlandi.
