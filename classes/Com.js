@@ -22,7 +22,63 @@ import { execSync } from 'child_process';
 export class Com {
   static getPidConfigPath() {
     const root = process.env.PROJECT_ROOT || process.cwd();
-    return path.join(root, 'config.json');
+    return path.join(root, 'pid.json');
+  }
+
+  static isProcessAlive(pid) {
+    if (!pid) return false;
+    if (isNaN(Number(pid))) return false;
+    try {
+      process.kill(Number(pid), 0);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static getProcessDetails(pid) {
+    if (!pid) return null;
+    if (isNaN(Number(pid))) return null;
+    try {
+      const script = `Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}' | Select-Object ProcessId, Name, CommandLine | ConvertTo-Json`;
+      const out = execSync(`powershell -NoProfile -Command "${script}"`, { encoding: 'utf8', windowsHide: true }).trim();
+      if (!out) return null;
+      const parsed = JSON.parse(out);
+      return {
+        pid: Number(parsed.ProcessId),
+        name: String(parsed.Name || ''),
+        cmdline: String(parsed.CommandLine || '')
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static getRunningOfficeNodes(excludePid = null) {
+    try {
+      const script = "Get-CimInstance Win32_Process -Filter 'Name = ''node.exe''' | Select-Object ProcessId, CommandLine | ConvertTo-Json";
+      const out = execSync(`powershell -NoProfile -Command "${script}"`, { encoding: 'utf8', windowsHide: true }).trim();
+      if (!out) return [];
+      const parsed = JSON.parse(out);
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      const officePattern = /(?:excels?|words?|powerpoints?|pptx|xlsx|docx|winax)/i;
+      const results = [];
+      for (const p of list) {
+        const pid = Number(p.ProcessId);
+        if (excludePid !== null) {
+          if (pid === Number(excludePid)) {
+            continue;
+          }
+        }
+        const cmdline = String(p.CommandLine || '');
+        if (officePattern.test(cmdline)) {
+          results.push({ pid, cmdline });
+        }
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
   }
 
   static readPidConfig() {
@@ -32,9 +88,35 @@ export class Com {
     }
     try {
       const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      const word = Array.isArray(parsed?.word) ? parsed.word.map(Number).filter(Boolean) : [];
-      const excel = Array.isArray(parsed?.excel) ? parsed.excel.map(Number).filter(Boolean) : [];
-      return { word, excel };
+      const normalize = (arr) => {
+        if (!Array.isArray(arr)) return [];
+        return arr
+          .map((item) => {
+            switch (typeof item) {
+              case 'number': {
+                return { pid: Number(item), ownerPid: null };
+              }
+              case 'object': {
+                if (!item) return null;
+                const pid = Number(item.pid);
+                if (!pid) return null;
+                if (isNaN(pid)) return null;
+                const ownerPid = item.ownerPid ? Number(item.ownerPid) : null;
+                return { pid, ownerPid };
+              }
+              default: {
+                const num = Number(item);
+                const isValid = !isNaN(num) && num > 0;
+                return isValid ? { pid: num, ownerPid: null } : null;
+              }
+            }
+          })
+          .filter(Boolean);
+      };
+      return {
+        word: normalize(parsed?.word),
+        excel: normalize(parsed?.excel)
+      };
     } catch (_) {
       return { word: [], excel: [] };
     }
@@ -42,14 +124,29 @@ export class Com {
 
   static writePidConfig(data) {
     const configPath = this.getPidConfigPath();
+    const cleanList = (arr) => {
+      if (!Array.isArray(arr)) return [];
+      const seen = new Set();
+      const result = [];
+      for (const item of arr) {
+        const pid = typeof item === 'object' && item !== null ? Number(item.pid) : Number(item);
+        if (!pid) continue;
+        if (isNaN(pid)) continue;
+        if (seen.has(pid)) continue;
+        seen.add(pid);
+        const ownerPid = typeof item === 'object' && item !== null && item.ownerPid ? Number(item.ownerPid) : null;
+        result.push(ownerPid ? { pid, ownerPid } : { pid });
+      }
+      return result;
+    };
     const payload = {
-      word: Array.isArray(data?.word) ? [...new Set(data.word.map(Number).filter(Boolean))] : [],
-      excel: Array.isArray(data?.excel) ? [...new Set(data.excel.map(Number).filter(Boolean))] : []
+      word: cleanList(data?.word),
+      excel: cleanList(data?.excel)
     };
     try {
       fs.writeFileSync(configPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
     } catch (err) {
-      console.warn(`[Com.writePidConfig] ⚠️ Could not write config.json: ${err.message}`);
+      console.warn(`[Com.writePidConfig] ⚠️ Could not write pid.json: ${err.message}`);
     }
   }
 
@@ -59,35 +156,52 @@ export class Com {
     const imageName = isExcel ? 'EXCEL.EXE' : 'WINWORD.EXE';
 
     const config = this.readPidConfig();
-    const recordedPids = config[key] || [];
-    if (recordedPids.length === 0) return;
+    const recordedEntries = config[key] || [];
+    if (recordedEntries.length === 0) return;
 
     const runningPids = this.pidsOf(imageName);
-    for (const pid of recordedPids) {
-      const numPid = Number(pid);
-      switch (runningPids.has(numPid)) {
+    const activeOfficeNodes = this.getRunningOfficeNodes(process.pid);
+    const activeNodePids = new Set(activeOfficeNodes.map((n) => n.pid));
+
+    const remaining = [];
+
+    for (const entry of recordedEntries) {
+      const pid = entry.pid;
+      const nodePid = entry.nodePid || entry.ownerPid;
+
+      // If another active node process is currently running an Office script, preserve its PID
+      if (nodePid) {
+        if (activeNodePids.has(nodePid)) {
+          remaining.push(entry);
+          console.info(`[Com.cleanupPidsBefore] 🛡️ Preserved active sibling ${imageName} PID ${pid} (owner Node PID ${nodePid})`);
+          continue;
+        }
+      }
+
+      // If no other node.exe is running Office scripts (or this entry's owner is dead), kill it if process name matches
+      switch (runningPids.has(pid)) {
         case true: {
           try {
-            process.kill(numPid);
-            console.warn(`[Com.cleanupPidsBefore] 🪓 Force-closed prior ${imageName} PID ${numPid}`);
+            process.kill(pid);
+            console.warn(`[Com.cleanupPidsBefore] 🪓 Force-closed orphaned ${imageName} PID ${pid}`);
           } catch (_) {
             try {
-              execSync(`taskkill /PID ${numPid} /F /T`, { windowsHide: true });
-              console.warn(`[Com.cleanupPidsBefore] 🪓 taskkill forced ${imageName} PID ${numPid}`);
+              execSync(`taskkill /PID ${pid} /F /T`, { windowsHide: true });
+              console.warn(`[Com.cleanupPidsBefore] 🪓 taskkill forced ${imageName} PID ${pid}`);
             } catch (e) {
-              console.warn(`[Com.cleanupPidsBefore] ⚠️ Could not kill PID ${numPid}: ${e.message}`);
+              console.warn(`[Com.cleanupPidsBefore] ⚠️ Could not kill PID ${pid}: ${e.message}`);
             }
           }
           break;
         }
         default: {
-          console.log(`[Com.cleanupPidsBefore] PID ${numPid} is not running ${imageName}, removing from config.json.`);
+          console.log(`[Com.cleanupPidsBefore] PID ${pid} is not running ${imageName}, removing from pid.json.`);
           break;
         }
       }
     }
 
-    config[key] = [];
+    config[key] = remaining;
     this.writePidConfig(config);
   }
 
@@ -97,10 +211,21 @@ export class Com {
     const key = String(appType).toLowerCase() === 'excel' ? 'excel' : 'word';
     const numPid = Number(pid);
     const config = this.readPidConfig();
-    if (!config[key].includes(numPid)) {
-      config[key].push(numPid);
+    const exists = config[key].some((e) => e.pid === numPid);
+    if (!exists) {
+      const details = this.getProcessDetails(numPid);
+      const name = details?.name || (key === 'excel' ? 'EXCEL.EXE' : 'WINWORD.EXE');
+      const cmdline = details?.cmdline || '';
+      const nodeCmdline = process.argv.join(' ');
+      config[key].push({
+        pid: numPid,
+        name,
+        cmdline,
+        nodePid: process.pid,
+        nodeCmdline
+      });
       this.writePidConfig(config);
-      console.info(`[Com.recordPid] 📝 Recorded ${key} PID ${numPid} to config.json`);
+      console.info(`[Com.recordPid] 📝 Recorded ${key} PID ${numPid} (${name}) to pid.json with full cmdline`);
     }
   }
 
@@ -110,8 +235,9 @@ export class Com {
     const key = String(appType).toLowerCase() === 'excel' ? 'excel' : 'word';
     const numPid = Number(pid);
     const config = this.readPidConfig();
-    config[key] = config[key].filter((p) => Number(p) !== numPid);
+    config[key] = config[key].filter((e) => e.pid !== numPid);
     this.writePidConfig(config);
+    console.info(`[Com.unrecordPid] 🗑️ Removed ${key} PID ${numPid} from pid.json`);
   }
 
   static trackPid(appType, beforeSet, appInstance = null) {
