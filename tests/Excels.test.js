@@ -571,7 +571,7 @@ describe('Excels.processPayment', () => {
   });
 });
 
-describe('Excels.processPayTotal', () => {
+describe('Excels.processHistory (and Excels.processPayTotal alias)', () => {
   function installSheet(found = { Row: 4, Column: 6 }) {
     const CellsFn = jest.fn(() => makeComProxy({}, 'Cell'));
     CellsFn.Find = jest.fn(() => makeComProxy(found, 'found'));
@@ -580,43 +580,43 @@ describe('Excels.processPayTotal', () => {
     return sheet;
   }
 
-  it('writes one row per yamlData.PayTotal entry (date + amount)', () => {
+  it('writes one row per yamlData.History entry (date + amount)', () => {
     const sheet = installSheet();
 
-    Excels.processPayTotal({ PayTotal: [{ '2026-04-21': '100' }, { '2026-05-26': '200' }] });
+    Excels.processHistory({ History: [{ '2026-04-21': '100' }, { '2026-05-26': '200' }] });
 
-    expect(sheet.Cells.Find).toHaveBeenCalledWith('{PayTotal}');
+    expect(sheet.Cells.Find).toHaveBeenCalledWith('{History}');
     expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
     expect(sheet.Cells).toHaveBeenCalledWith(4, 7);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 7);
   });
 
-  it('falls back to the legacy yamlData.History array when PayTotal is not an array', () => {
+  it('falls back to the legacy yamlData.PayTotal array when History is not an array', () => {
     const sheet = installSheet();
 
-    Excels.processPayTotal({ PayTotal: 'not-an-array', History: [{ '2026-04-21': '100' }, { '2026-05-26': '200' }] });
+    Excels.processHistory({ History: 'not-an-array', PayTotal: [{ '2026-04-21': '100' }, { '2026-05-26': '200' }] });
 
     expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
     expect(sheet.Cells).toHaveBeenCalledWith(5, 6);
   });
 
-  it('prefers PayTotal over History when both are arrays', () => {
+  it('prefers History over PayTotal when both are arrays', () => {
     const sheet = installSheet();
 
-    Excels.processPayTotal({
-      PayTotal: [{ '2026-04-21': '100' }],
-      History: [{ '2026-04-21': '1' }, { '2026-05-26': '2' }],
+    Excels.processHistory({
+      History: [{ '2026-04-21': '100' }],
+      PayTotal: [{ '2026-04-21': '1' }, { '2026-05-26': '2' }],
     });
 
     expect(sheet.Cells).toHaveBeenCalledWith(4, 6);
     expect(sheet.Cells).not.toHaveBeenCalledWith(5, 6);
   });
 
-  it('writes no data rows when neither PayTotal nor History is an array', () => {
+  it('writes no data rows when neither History nor PayTotal is an array', () => {
     const sheet = installSheet();
 
-    expect(() => Excels.processPayTotal({ PayTotal: 'x', History: 5 })).not.toThrow();
+    expect(() => Excels.processHistory({ History: 'x', PayTotal: 5 })).not.toThrow();
     expect(sheet.Cells).not.toHaveBeenCalledWith(5, 6);
     expect(sheet.Cells).not.toHaveBeenCalledWith(4, 7);
   });

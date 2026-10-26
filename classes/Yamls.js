@@ -696,7 +696,7 @@ export class Yamls {
      * @param {Array<Object>} priceMaxDay
      * @returns {Array<Object>}
      */
-    static buildAccountEntries(startDate, futureDate, payTotal, priceDay, priceMaxDay) {
+    static buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay) {
         console.info(`[Yamls.buildAccountEntries] 🟢 Starting... startDate=${startDate} futureDate=${futureDate}`);
 
         const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -710,8 +710,8 @@ export class Yamls {
         }
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
-        const payTotalByDate = new Map(
-            (Array.isArray(payTotal) ? payTotal : [])
+        const historyByDate = new Map(
+            (Array.isArray(history) ? history : [])
                 .filter(e => !('ALL' in e))
                 .map(e => Object.entries(e)[0])
                 .map(([d, a]) => [d, toAmount(a)])
@@ -737,12 +737,12 @@ export class Yamls {
         const MAX_DAYS = 50000;
 
         while (day <= futureDate && entries.length < MAX_DAYS) {
-            const payTotalAmount = payTotalByDate.get(day) || 0;
+            const historyAmount = historyByDate.get(day) || 0;
             const month = day.slice(0, 7);
             const monthDebit = balance >= 0
                 ? (priceDayByMonth.get(month) || 0)
                 : (priceMaxDayByMonth.get(month) || 0);
-            balance = Yamls.#round2(balance - monthDebit + payTotalAmount);
+            balance = Yamls.#round2(balance - monthDebit + historyAmount);
 
             entries.push({ [day]: Yamls.#fmt(balance) });
             day = Yamls._addOneDayIso(day);
@@ -1127,13 +1127,13 @@ export class Yamls {
 
     // Merges the WRITTEN Payment: and Returns: arrays (both flat,
     // date-keyed, already-merged views — never Accrual/Loaners) into ONE
-    // flat date-keyed PayTotal array, one entry per distinct date: a
+    // flat date-keyed History array, one entry per distinct date: a
     // Payment amount is carried AS-IS (positive), a Returns amount is
     // NEGATED — a date present in both is summed with Returns already
     // negative, so a same-day payment+return nets out. Sorted by date. No
     // "ALL" trailing total.
-    static computePayTotal(payment, returns) {
-        console.info(`[Yamls.computePayTotal] 🟢 Starting...`);
+    static computeHistory(payment, returns) {
+        console.info(`[Yamls.computeHistory] 🟢 Starting...`);
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
         const totals = new Map();
@@ -1148,33 +1148,71 @@ export class Yamls {
             totals.set(date, (totals.get(date) || 0) - toAmount(amount));
         }
 
-        const payTotal = [...totals.entries()]
+        const history = [...totals.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([date, amount]) => ({ [date]: Yamls.#fmt(Yamls.#round2(amount)) }));
 
-        console.log(`computePayTotal: ${payTotal.length} distinct date(s)`, payTotal);
-        return payTotal;
+        console.log(`computeHistory: ${history.length} distinct date(s)`, history);
+        return history;
     }
 
-    static computeHistory(payment, returns) {
-        return this.computePayTotal(payment, returns);
+    static computePayTotal(payment, returns) {
+        return this.computeHistory(payment, returns);
     }
 
-    // Writes/replaces the PayTotal: array block IN PLACE at its existing
+    /**
+     * Validates that the sum of History entries (positive payments + negative returns)
+     * matches the total of Payment minus the total of Returns.
+     * If they do not match, displays a detailed warning box via Dialogs.warningBox.
+     * @param {Array<Object>} history
+     * @param {Array<Object>} payment
+     * @param {Array<Object>} returns
+     * @param {string} [title]
+     * @returns {boolean} true if balanced, false if mismatch
+     */
+    static validateHistoryBalance(history, payment, returns, title = "History / Payment Mismatch") {
+        console.info(`[Yamls.validateHistoryBalance] 🟢 Starting...`);
+        const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+
+        const sumArray = (arr) => (Array.isArray(arr) ? arr : [])
+            .filter((e) => !('ALL' in e))
+            .reduce((sum, e) => {
+                const val = Object.values(e)[0];
+                return sum + toAmount(val);
+            }, 0);
+
+        const historySum = Yamls.#round2(sumArray(history));
+        const paymentSum = Yamls.#round2(sumArray(payment));
+        const returnsSum = Yamls.#round2(sumArray(returns));
+        const expectedNet = Yamls.#round2(paymentSum - returnsSum);
+
+        const diff = Yamls.#round2(historySum - expectedNet);
+        if (Math.abs(diff) >= 0.01) {
+            const msg = `History summasi (${Yamls.#fmt(historySum)}) Payment (${Yamls.#fmt(paymentSum)}) minus Returns (${Yamls.#fmt(returnsSum)}) = ${Yamls.#fmt(expectedNet)} ga mos kelmadi!\nFarq: ${Yamls.#fmt(diff)}`;
+            console.warn(`[Yamls.validateHistoryBalance] ⚠️ ${msg}`);
+            Dialogs.warningBox(msg, String(title));
+            return false;
+        }
+
+        console.info(`[Yamls.validateHistoryBalance] ✅ History (${Yamls.#fmt(historySum)}) matches Payment (${Yamls.#fmt(paymentSum)}) - Returns (${Yamls.#fmt(returnsSum)}).`);
+        return true;
+    }
+
+    // Writes/replaces the History: array block IN PLACE at its existing
     // position, or after Accrual: as a fallback anchor for a brand-new file
-    // — the merged Payment+Returns view from computePayTotal (Payment as-is,
+    // — the merged Payment+Returns view from computeHistory (Payment as-is,
     // Returns negated), one entry per distinct date. Sits directly after
     // Accrual:, before Payment: (see #writeChain/writePayment's own anchor).
-    //   PayTotal:
+    //   History:
     //     - '2026-04-21': '1,600,000'
     //     - '2026-04-25': '-10,000'
-    static writePayTotal(filePath, payTotal) {
-        console.info(`[Yamls.writePayTotal] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'PayTotal', payTotal, 'PriceMaxDay', ['History'], true);
+    static writeHistory(filePath, history) {
+        console.info(`[Yamls.writeHistory] 🟢 Starting...`);
+        this.writeYamlArraySection(filePath, 'History', history, 'PriceMaxDay', ['PayTotal'], true);
     }
 
-    static writeHistory(filePath, history) {
-        return this.writePayTotal(filePath, history);
+    static writePayTotal(filePath, payTotal) {
+        return this.writeHistory(filePath, payTotal);
     }
 
     /**
@@ -1237,7 +1275,7 @@ export class Yamls {
     }
 
     // Writes/replaces the Payment: array block IN PLACE at its existing
-    // position, or after PayTotal: as a fallback anchor for a brand-new file
+    // position, or after History: as a fallback anchor for a brand-new file
     // — a flat, date-keyed merge of Bank-OT + Card-OT + BaaR-OT + Trans-OT
     // (money received FROM the tenant), same-date entries summed. NOT
     // chained/allocated against Accrual periods — plain merge, same shape as
@@ -1248,7 +1286,7 @@ export class Yamls {
     //     - '2026-04-21': '1,600,000'
     static writePayment(filePath, payment) {
         console.info(`[Yamls.writePayment] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'Payment', payment, 'PayTotal', [], true);
+        this.writeYamlArraySection(filePath, 'Payment', payment, 'History', ['PayTotal'], true);
     }
 
     /**
@@ -1574,11 +1612,11 @@ export class Yamls {
             }
         }
 
-        // 5b. History -> PayTotal
-        if (yamlData.History !== undefined) {
-            if (yamlData.PayTotal === undefined) {
-                yamlData.PayTotal = yamlData.History;
-                delete yamlData.History;
+        // 5b. PayTotal -> History
+        if (yamlData.PayTotal !== undefined) {
+            if (yamlData.History === undefined) {
+                yamlData.History = yamlData.PayTotal;
+                delete yamlData.PayTotal;
             }
         }
 
@@ -2955,7 +2993,7 @@ export class Yamls {
 
         /*
          * Iterate yamlData and write each SCALAR value via replaceTextLine.
-         * Array-valued keys (Accrual, PayTotal, Account, and the rest of the chain) are skipped here — each has its own dedicated writeYamlArraySection-based writer below (or, for a key like Account with no writer at all, is left exactly as loaded).
+         * Array-valued keys (Accrual, History, Account, and the rest of the chain) are skipped here — each has its own dedicated writeYamlArraySection-based writer below (or, for a key like Account with no writer at all, is left exactly as loaded).
          * Never the generic key + ': ' + value scalar line, which stringifies an array into a broken "[object Object],[object Object]" that js-yaml can't re-parse.
          */
         for (const [key, value] of Object.entries(yamlData)) {
@@ -3033,21 +3071,22 @@ export class Yamls {
         const baarIN = Yamls.scanCellFolder(globalThis.folderALL, 'BaaR-IN');
         const returnsFlat = Yamls.mergeDateKeyedArrays(bankIN, cardIN, baarIN);
 
-        // PayTotal: merges Payment: (as-is) and Returns: (negated) into one
+        // History: merges Payment: (as-is) and Returns: (negated) into one
         // flat date-keyed array — sits directly after Accrual:, before
         // Payment: (see writePayment's own anchor).
-        const payTotal = Yamls.computePayTotal(paymentFlat, returnsFlat);
-        Yamls.writePayTotal(ymlFile, Yamls.appendAllTotal(payTotal));
+        const history = Yamls.computeHistory(paymentFlat, returnsFlat);
+        Yamls.writeHistory(ymlFile, Yamls.appendAllTotal(history));
+        Yamls.validateHistoryBalance(history, paymentFlat, returnsFlat, yamlData.ComNameShort || ymlFile);
 
         Yamls.writePayment(ymlFile, Yamls.appendAllTotal(paymentFlat));
 
         // Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
         // Account exists only to feed AccrualDays/Loaners/PenaltyDays/Penalty — it never projects into days that have not happened yet, which would fabricate a debt/penalty for a future day nobody has missed a payment on.
-        // Every day debits off the previous day's balance, then adds that day's own PayTotal entry.
+        // Every day debits off the previous day's balance, then adds that day's own History entry.
         // Debit rate: PriceDay (the prepay discount) when the previous day's balance was >= 0, PriceMaxDay (the full rate, no discount) when it was already negative.
-        // Written directly after PayTotal:, before AccrualDays:.
+        // Written directly after History:, before AccrualDays:.
         const accountEnd = yamlData.PeriodEnd < Dates.today() ? yamlData.PeriodEnd : Dates.today();
-        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, payTotal, priceDay, priceMaxDay);
+        const account = Yamls.buildAccountEntries(yamlData.PeriodStart, accountEnd, history, priceDay, priceMaxDay);
         Yamls.writeAccount(ymlFile, account);
 
         // AccrualDays: one entry per calendar day from PeriodStart through the REAL PeriodEnd (never capped at today) — Account's own covered days come from Account itself, never re-simulated; every day beyond Account's coverage falls back to the flat PriceDay rate (see buildAccrualDaysEntries).
@@ -3068,12 +3107,12 @@ export class Yamls {
         );
         Yamls.writeAccrual(ymlFile, accrual);
 
-        // Loaners: total charged minus total paid — Accrual's own ALL total minus PayTotal's own ALL total, always.
+        // Loaners: total charged minus total paid — Accrual's own ALL total minus History's own ALL total, always.
         // Replaces the earlier Account-last-entry formula: that one only reflected the CURRENT day's snapshot balance, while this one is the full outstanding-debt figure across everything accrued vs. everything actually paid/returned to date.
         const accrualAllStr = accrual.find(e => 'ALL' in e)?.ALL ?? '0';
-        const payTotalAllStr = payTotal.length ? Yamls.appendAllTotal(payTotal).find(e => 'ALL' in e)?.ALL ?? '0' : '0';
+        const historyAllStr = history.length ? Yamls.appendAllTotal(history).find(e => 'ALL' in e)?.ALL ?? '0' : '0';
         const loanersTotal = Yamls.#fmt(Yamls.#round2(
-            (Number(String(accrualAllStr).replace(/,/g, '')) || 0) - (Number(String(payTotalAllStr).replace(/,/g, '')) || 0)
+            (Number(String(accrualAllStr).replace(/,/g, '')) || 0) - (Number(String(historyAllStr).replace(/,/g, '')) || 0)
         ));
         Yamls.writeLoaners(ymlFile, loanersTotal);
 

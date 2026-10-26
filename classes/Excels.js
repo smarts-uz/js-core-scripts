@@ -363,28 +363,28 @@ export class Excels {
   }
 
   /**
-   * Reads yamlData.PayTotal (or legacy yamlData.History) — a flat, date-keyed array (Yamls.computePayTotal: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writePayTotal.
-   * Writes one row per entry (date, net amount) starting at the {PayTotal} (or legacy {History}) placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}.
+   * Reads yamlData.History (or legacy yamlData.PayTotal) — a flat, date-keyed array (Yamls.computeHistory: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writeHistory.
+   * Writes one row per entry (date, net amount) starting at the {History} (or legacy {PayTotal}) placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}.
    * No trailing { ALL } entry to skip.
    * Always runs (no ON/OFF flag).
    * @param {object} yamlData
    */
-  static processPayTotal(yamlData) {
-    console.info(`[Excels.processPayTotal] 🟢 Starting...`);
+  static processHistory(yamlData) {
+    console.info(`[Excels.processHistory] 🟢 Starting...`);
 
-    const found = this.findColumn('PayTotal') || this.findColumn('History');
+    const found = this.findColumn('History') || this.findColumn('PayTotal');
     if (!found) {
-      console.warn('⚠️ processPayTotal: {PayTotal} or {History} placeholder not found in Excel template; skipping.');
+      console.warn('⚠️ processHistory: {History} or {PayTotal} placeholder not found in Excel template; skipping.');
       return;
     }
 
     let row = found.Row;
 
-    // PayTotal first, legacy History as the fallback, else an empty list.
-    const payTotal = [yamlData.PayTotal, yamlData.History].find((candidate) => Array.isArray(candidate)) ?? [];
-    console.log(`processPayTotal: ${payTotal.length} PayTotal entr(y/ies)`, payTotal);
+    // History first, legacy PayTotal as the fallback, else an empty list.
+    const history = [yamlData.History, yamlData.PayTotal].find((candidate) => Array.isArray(candidate)) ?? [];
+    console.log(`processHistory: ${history.length} History entr(y/ies)`, history);
 
-    for (const entry of payTotal) {
+    for (const entry of history) {
       const [date, amount] = Object.entries(entry)[0];
       if (date === 'ALL') continue;
 
@@ -397,8 +397,8 @@ export class Excels {
     this.#clearPlaceholderIfEmpty(found, row);
   }
 
-  static processHistory(yamlData) {
-    return this.processPayTotal(yamlData);
+  static processPayTotal(yamlData) {
+    return this.processHistory(yamlData);
   }
 
   /**
@@ -1547,7 +1547,7 @@ export class Excels {
       this.processFaktura(yamlData);
       this.processFakturaSend(yamlData);
       this.processReturns(yamlData);
-      this.processPayTotal(yamlData);
+      this.processHistory(yamlData);
       this.processLoaners(yamlData);
       this.processPenaltyDays(yamlData);
       this.processPenalty(yamlData);

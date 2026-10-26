@@ -497,7 +497,7 @@ describe('Yamls.writeAccrual', () => {
     Yamls.writePriceMaxMon(f, [{ '2026-01': '450,000' }]);
     Yamls.writePriceDay(f, [{ '2026-01': '14,516' }]);
     Yamls.writePriceMaxDay(f, [{ '2026-01': '14,516' }]);
-    Yamls.writePayTotal(f, [{ '2026-01-01': '450,000' }]);
+    Yamls.writeHistory(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writePayment(f, [{ '2026-01-01': '450,000' }]);
     Yamls.writeAccount(f, [{ '2026-01-01': '0' }]);
     Yamls.writeAccrualDays(f, [{ '2026-01-01': '14,516' }]);
@@ -527,7 +527,7 @@ describe('Yamls.writeAccrual', () => {
         'PriceMaxDay:',
         '  - 2026-01: 14,516',
         '',
-        'PayTotal:',
+        'History:',
         '  - 2026-01-01: 450,000',
         '',
         'Payment:',
@@ -660,7 +660,7 @@ describe('Yamls.mergeDateKeyedArrays', () => {
   });
 });
 
-describe('Yamls.computePayTotal (and Yamls.computeHistory alias)', () => {
+describe('Yamls.computeHistory (and Yamls.computePayTotal alias)', () => {
   it('carries a Payment amount as-is', () => {
     const payment = [{ '2026-04-21': '1,600,000' }];
     expect(Yamls.computePayTotal(payment, [])).toEqual([{ '2026-04-21': '1,600,000' }]);
@@ -696,26 +696,62 @@ describe('Yamls.computePayTotal (and Yamls.computeHistory alias)', () => {
   });
 });
 
-describe('Yamls.writePayTotal (and Yamls.writeHistory alias)', () => {
-  it('replaces existing History: block in-place with PayTotal:', () => {
+describe('Yamls.validateHistoryBalance', () => {
+  it('returns true when History sum matches Payment - Returns', () => {
+    const history = [
+      { '2025-03-20': '10,080,000' },
+      { '2025-07-04': '6,720,000' },
+      { '2025-08-27': '1,680,000' },
+      { '2025-10-06': '1,680,000' },
+    ];
+    const payment = [
+      { '2025-03-20': '10,080,000' },
+      { '2025-07-04': '17,520,000' },
+      { '2025-08-27': '1,680,000' },
+      { '2025-10-06': '1,680,000' },
+    ];
+    const returns = [{ '2025-07-04': '10,800,000' }];
+    expect(Yamls.validateHistoryBalance(history, payment, returns)).toBe(true);
+  });
+
+  it('returns false and triggers warningBox when History sum mismatches', () => {
+    const history = [
+      { '2025-03-20': '10,080,000' },
+      { '2025-07-04': '-6,720,000' },
+      { '2025-08-27': '1,680,000' },
+      { '2025-10-06': '-1,680,000' },
+    ];
+    const payment = [
+      { '2025-03-20': '10,080,000' },
+      { '2025-07-04': '17,520,000' },
+      { '2025-08-27': '1,680,000' },
+      { '2025-10-06': '1,680,000' },
+    ];
+    const returns = [{ '2025-07-04': '10,800,000' }];
+    expect(Yamls.validateHistoryBalance(history, payment, returns)).toBe(false);
+  });
+});
+
+describe('Yamls.writeHistory (and Yamls.writePayTotal alias)', () => {
+  it('replaces existing PayTotal: block in-place with History:', () => {
     const f = path.join(workDir, 'history-migrate.contract');
     fs.writeFileSync(
       f,
-      'PriceMaxDay:\n  - 2026-01: 14,516\n\nHistory:\n  - 2026-01-01: 100,000\n\nPayment:\n  - 2026-01-01: 100,000\n',
+      'PriceMaxDay:\n  - 2026-01: 14,516\n\nPayTotal:\n  - 2026-01-01: 100,000\n\nPayment:\n  - 2026-01-01: 100,000\n',
       'utf8'
     );
-    Yamls.writePayTotal(f, [{ '2026-01-01': '200,000' }]);
+    Yamls.writeHistory(f, [{ '2026-01-01': '200,000' }]);
     const content = read(workDir, 'history-migrate.contract');
-    expect(content).not.toContain('History:');
-    expect(content).toContain('PayTotal:\n  - 2026-01-01: 200,000');
+    expect(content).not.toContain('PayTotal:');
+    expect(content).toContain('History:\n  - 2026-01-01: 200,000');
   });
 
-  it('writeHistory writes PayTotal', () => {
+  it('writePayTotal writes History', () => {
     const f = path.join(workDir, 'history-alias.contract');
     fs.writeFileSync(f, 'PriceMaxDay:\n  - 2026-01: 14,516\n\nPayment:\n  - 2026-01-01: 100,000\n', 'utf8');
-    Yamls.writeHistory(f, [{ '2026-01-01': '300,000' }]);
+    Yamls.writePayTotal(f, [{ '2026-01-01': '300,000' }]);
     const content = read(workDir, 'history-alias.contract');
-    expect(content).toContain('PayTotal:\n  - 2026-01-01: 300,000');
+    expect(content).toContain('History:\n  - 2026-01-01: 300,000');
   });
 });
 
@@ -2517,8 +2553,8 @@ describe('Yamls.replaceYaml', () => {
     expect(content).not.toMatch(/Loaners:\n\s+-/);
     // PrepayMon: the resolved PrepayMonth value the code actually used — blank here, since ActDateEnd was filled so PrepayMonth was never read.
     expect(content).toContain('PrepayMon:');
-    // Every array-shaped block carries an ALL: subkey, even Payment/Returns/PayTotal which are flat, never-had-one before this fix.
-    expect(content).toMatch(/PayTotal:\n(?:.*\n)*?\s+-\s+ALL:/);
+    // Every array-shaped block carries an ALL: subkey, even Payment/Returns/History which are flat, never-had-one before this fix.
+    expect(content).toMatch(/History:\n(?:.*\n)*?\s+-\s+ALL:/);
     expect(content).toMatch(/Payment:\n(?:.*\n)*?\s+-\s+ALL:/);
     expect(content).toMatch(/Returns:\n(?:.*\n)*?\s+-\s+ALL:/);
     expect(content).toMatch(/PriceMon:\n(?:.*\n)*?\s+-\s+ALL:/);

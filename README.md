@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 17 classes, 290 runnable methods.
+**Coverage:** 17 classes, 291 runnable methods.
 
 ---
 # Com
@@ -1146,6 +1146,8 @@ node scripts/Excels/processFolders.mjs --entries <entries>
 
 ## processHistory(yamlData)
 
+Reads yamlData.History (or legacy yamlData.PayTotal) — a flat, date-keyed array (Yamls.computeHistory: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writeHistory. Writes one row per entry (date, net amount) starting at the {History} (or legacy {PayTotal}) placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}. No trailing { ALL } entry to skip. Always runs (no ON/OFF flag).
+
 **Run:**
 
 ```bash
@@ -1171,8 +1173,6 @@ node scripts/Excels/processLoaners.mjs --file "<path>"
 | `yamlData` | no | — |
 
 ## processPayTotal(yamlData)
-
-Reads yamlData.PayTotal (or legacy yamlData.History) — a flat, date-keyed array (Yamls.computePayTotal: Payment as-is, Returns negated, same-date entries summed), written into the .contract yaml by Yamls.writePayTotal. Writes one row per entry (date, net amount) starting at the {PayTotal} (or legacy {History}) placeholder's cell — a 2-column block (Дата/Сумма), same shape as {Returns}/{Account}. No trailing { ALL } entry to skip. Always runs (no ON/OFF flag).
 
 **Run:**
 
@@ -3225,7 +3225,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 57 public static method(s).
+Runners: `scripts/Yamls/` — 58 public static method(s).
 
 ## actualPayments(yamlData)
 
@@ -3285,7 +3285,7 @@ node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
 | `startDate` | no | — |
 | `priceMaxMon` | no | — |
 
-## buildAccountEntries(startDate, futureDate, payTotal, priceDay, priceMaxDay)
+## buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay)
 
 Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own PayTotal entry. The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on. PayTotal already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split. Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
 
@@ -3299,7 +3299,7 @@ node scripts/Yamls/buildAccountEntries.mjs --startDate <startDate>
 |-----------|----------|-------------|
 | `startDate` | no | — |
 | `futureDate` | no | — |
-| `payTotal` | no | — |
+| `history` | no | — |
 | `priceDay` | no | — |
 | `priceMaxDay` | no | — |
 
@@ -3770,6 +3770,25 @@ node scripts/Yamls/update.mjs --file "<path>"
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `ymlFile` | no | — |
+
+## validateHistoryBalance(history, payment, returns, [title])
+
+Validates that the sum of History entries (positive payments + negative returns) matches the total of Payment minus the total of Returns. If they do not match, displays a detailed warning box via Dialogs.warningBox.
+
+**Run:**
+
+```bash
+node scripts/Yamls/validateHistoryBalance.mjs --history <history>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `history` | no | — |
+| `payment` | no | — |
+| `returns` | no | — |
+| `title` | yes (default `"History / Payment Mismatch"`) | — |
+
+**Returns:** true if balanced, false if mismatch
 
 ## writeAccount(filePath, account)
 
