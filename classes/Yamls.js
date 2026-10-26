@@ -710,12 +710,12 @@ export class Yamls {
         }
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
-        const historyByDate = new Map(
-            (Array.isArray(history) ? history : [])
-                .filter(e => !('ALL' in e))
-                .map(e => Object.entries(e)[0])
-                .map(([d, a]) => [d, toAmount(a)])
-        );
+        const historyByDate = new Map();
+        for (const entry of Array.isArray(history) ? history : []) {
+            const [d, a] = Object.entries(entry)[0];
+            if (d === 'ALL') continue;
+            historyByDate.set(d, (historyByDate.get(d) || 0) + toAmount(a));
+        }
         const priceDayByMonth = new Map(
             (Array.isArray(priceDay) ? priceDay : [])
                 .filter(e => !('ALL' in e))
@@ -1127,32 +1127,45 @@ export class Yamls {
 
     // Merges the WRITTEN Payment: and Returns: arrays (both flat,
     // date-keyed, already-merged views — never Accrual/Loaners) into ONE
-    // flat date-keyed History array, one entry per distinct date: a
-    // Payment amount is carried AS-IS (positive), a Returns amount is
-    // NEGATED — a date present in both is summed with Returns already
-    // negative, so a same-day payment+return nets out. Sorted by date. No
-    // "ALL" trailing total.
+    // flat date-keyed History array: Payment amounts are carried AS-IS (positive),
+    // Returns amounts are NEGATED with - without squashing them into the
+    // same day's payment so returns stay visible with a minus sign.
+    // Sorted by date. No "ALL" trailing total.
     static computeHistory(payment, returns) {
         console.info(`[Yamls.computeHistory] 🟢 Starting...`);
 
         const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
-        const totals = new Map();
+        const items = [];
 
         for (const entry of Array.isArray(payment) ? payment : []) {
             const [date, amount] = Object.entries(entry)[0];
-            totals.set(date, (totals.get(date) || 0) + toAmount(amount));
+            if (date === 'ALL') continue;
+            const num = toAmount(amount);
+            if (num !== 0) {
+                items.push({ date, amount: num });
+            }
         }
 
         for (const entry of Array.isArray(returns) ? returns : []) {
             const [date, amount] = Object.entries(entry)[0];
-            totals.set(date, (totals.get(date) || 0) - toAmount(amount));
+            if (date === 'ALL') continue;
+            const num = toAmount(amount);
+            if (num !== 0) {
+                items.push({ date, amount: -Math.abs(num) });
+            }
         }
 
-        const history = [...totals.entries()]
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, amount]) => ({ [date]: Yamls.#fmt(Yamls.#round2(amount)) }));
+        items.sort((a, b) => {
+            const cmp = a.date.localeCompare(b.date);
+            if (cmp !== 0) return cmp;
+            return b.amount - a.amount;
+        });
 
-        console.log(`computeHistory: ${history.length} distinct date(s)`, history);
+        const history = items.map((item) => ({
+            [item.date]: Yamls.#fmt(Yamls.#round2(item.amount))
+        }));
+
+        console.log(`computeHistory: ${history.length} item(s)`, history);
         return history;
     }
 
@@ -1208,7 +1221,27 @@ export class Yamls {
     //     - '2026-04-25': '-10,000'
     static writeHistory(filePath, history) {
         console.info(`[Yamls.writeHistory] 🟢 Starting...`);
-        this.writeYamlArraySection(filePath, 'History', history, 'PriceMaxDay', ['PayTotal'], true);
+        let sorted = history;
+        if (Array.isArray(history)) {
+            const allEntry = history.find((e) => 'ALL' in e);
+            const items = history
+                .filter((e) => !('ALL' in e))
+                .map((e) => {
+                    const [date, amount] = Object.entries(e)[0];
+                    const num = Number(String(amount).replace(/,/g, '')) || 0;
+                    return { date, amountStr: amount, num };
+                });
+            items.sort((a, b) => {
+                const cmp = a.date.localeCompare(b.date);
+                if (cmp !== 0) return cmp;
+                return b.num - a.num;
+            });
+            sorted = items.map((i) => ({ [i.date]: i.amountStr }));
+            if (allEntry) {
+                sorted.push(allEntry);
+            }
+        }
+        this.writeYamlArraySection(filePath, 'History', sorted, 'PriceMaxDay', ['PayTotal'], true);
     }
 
     static writePayTotal(filePath, payTotal) {

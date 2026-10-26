@@ -673,11 +673,17 @@ describe('Yamls.computeHistory (and Yamls.computePayTotal alias)', () => {
     expect(Yamls.computeHistory([], returns)).toEqual([{ '2026-04-25': '-10,000' }]);
   });
 
-  it('sums Payment and Returns on the same date, Returns already negative', () => {
+  it('keeps Payment and Returns on the same date separate so negative returns stay visible', () => {
     const payment = [{ '2026-04-21': '1,600,000' }];
     const returns = [{ '2026-04-21': '600,000' }];
-    expect(Yamls.computePayTotal(payment, returns)).toEqual([{ '2026-04-21': '1,000,000' }]);
-    expect(Yamls.computeHistory(payment, returns)).toEqual([{ '2026-04-21': '1,000,000' }]);
+    expect(Yamls.computePayTotal(payment, returns)).toEqual([
+      { '2026-04-21': '1,600,000' },
+      { '2026-04-21': '-600,000' },
+    ]);
+    expect(Yamls.computeHistory(payment, returns)).toEqual([
+      { '2026-04-21': '1,600,000' },
+      { '2026-04-21': '-600,000' },
+    ]);
   });
 
   it('sorts the merged result by date', () => {

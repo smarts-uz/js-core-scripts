@@ -21,7 +21,7 @@ import { execSync } from 'child_process';
  */
 export class Com {
   static getPidConfigPath() {
-    const root = process.env.PROJECT_ROOT || process.cwd();
+    const root = process.env.PROJECT_ROOT || path.resolve(import.meta.dirname, '..');
     return path.join(root, 'pid.json');
   }
 

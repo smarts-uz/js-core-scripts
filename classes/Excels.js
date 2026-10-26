@@ -384,15 +384,25 @@ export class Excels {
     let row = found.Row;
 
     // History first, legacy PayTotal as the fallback, else an empty list.
-    const history = [yamlData.History, yamlData.PayTotal].find((candidate) => Array.isArray(candidate)) ?? [];
-    console.log(`processHistory: ${history.length} History entr(y/ies)`, history);
+    const rawHistory = [yamlData.History, yamlData.PayTotal].find((candidate) => Array.isArray(candidate)) ?? [];
+    console.log(`processHistory: ${rawHistory.length} History entr(y/ies)`, rawHistory);
+
+    const history = rawHistory
+      .filter((e) => !('ALL' in e))
+      .map((e) => {
+        const [date, amount] = Object.entries(e)[0];
+        const num = Number(String(amount).replace(/,/g, '')) || 0;
+        return { date, amount, num };
+      })
+      .sort((a, b) => {
+        const cmp = a.date.localeCompare(b.date);
+        if (cmp !== 0) return cmp;
+        return b.num - a.num;
+      });
 
     for (const entry of history) {
-      const [date, amount] = Object.entries(entry)[0];
-      if (date === 'ALL') continue;
-
-      this.#writeDateCell(row, found.Column, date);
-      globalThis.excelSheet.Cells(row, found.Column + 1).Value = amount;
+      this.#writeDateCell(row, found.Column, entry.date);
+      globalThis.excelSheet.Cells(row, found.Column + 1).Value = entry.amount;
 
       row++;
     }
@@ -898,6 +908,7 @@ export class Excels {
     globalThis.excelApp = new winax.Object('Excel.Application');
     globalThis.excelApp.Visible = false;
     globalThis.excelApp.DisplayAlerts = false;
+    globalThis.excelApp.ScreenUpdating = false;
 
     globalThis.excelPid = Com.trackPid('excel', globalThis.excelPidsBefore, globalThis.excelApp);
     console.log('Excel PID:', globalThis.excelPid);
@@ -917,6 +928,7 @@ export class Excels {
   static fileSave() {
     console.info(`[Excels.fileSave] 🟢 Starting...`);
 
+    if (globalThis.excelApp) globalThis.excelApp.ScreenUpdating = true;
     globalThis.excelApp.CalculateFull();
 
     // Save and close
