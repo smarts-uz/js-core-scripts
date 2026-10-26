@@ -29,13 +29,16 @@ export class Excels {
   // === START EXCEL ===
   static openExcel(filePath) {
     console.info(`[Excels.openExcel] 🟢 Starting...`);
+    Com.cleanupPidsBefore('excel');
+    const before = Com.pidsOf('EXCEL.EXE');
     try {
       const excel = new winax.Object('Excel.Application');
       excel.Visible = false;
       excel.DisplayAlerts = false;
       excel.AutomationSecurity = 1;
+      const pid = Com.trackPid('excel', before, excel);
       const workbook = this.openWorkbookSafely(excel, filePath);
-      return { excel, workbook };
+      return { excel, workbook, pid };
     } catch (error) {
       throw new Error(`Failed to open Excel file: ${error.message}`);
     }
@@ -883,6 +886,8 @@ export class Excels {
       Dialogs.warningBox(`File "${fileName}" not found.`, 'File Error');
     }
 
+    Com.cleanupPidsBefore('excel');
+
     // Snapshot EXCEL.EXE PIDs before spawning — the finally-block backstop in
     // fileClose() (called from generate()'s own try/finally, see below) uses
     // this to kill ONLY the instance this run orphaned, never a PID that was
@@ -894,7 +899,7 @@ export class Excels {
     globalThis.excelApp.Visible = false;
     globalThis.excelApp.DisplayAlerts = false;
 
-    globalThis.excelPid = globalThis.excelApp.ExecuteExcel4Macro('CALL("kernel32","GetCurrentProcessId","J")');
+    globalThis.excelPid = Com.trackPid('excel', globalThis.excelPidsBefore, globalThis.excelApp);
     console.log('Excel PID:', globalThis.excelPid);
 
     try {
@@ -970,6 +975,11 @@ export class Excels {
       if (globalThis.excelApp) winax.release(globalThis.excelApp);
     } catch (err) { console.warn('⚠️ fileClose: COM release failed:', err.message); }
 
+    if (globalThis.excelPid) {
+      Com.killRecordedPid('excel', globalThis.excelPid);
+      globalThis.excelPid = null;
+    }
+
     // kill any orphaned EXCEL.EXE this run spawned, by PID diff — the hard
     // backstop for when Quit()/release() above silently failed to close it.
     const killed = Com.killOrphans('EXCEL.EXE', globalThis.excelPidsBefore || new Set());
@@ -992,8 +1002,10 @@ export class Excels {
     console.log(`🚫 Excluded sheets: ${exclusions.join(', ')}`);
 
     this.checkWinax(label);
+    Com.cleanupPidsBefore('excel');
     const before = Com.pidsOf('EXCEL.EXE');
     const excelApp = new winax.Object('Excel.Application');
+    const pid = Com.trackPid('excel', before, excelApp);
     excelApp.Visible = false;
     excelApp.DisplayAlerts = false;
     excelApp.ScreenUpdating = false;

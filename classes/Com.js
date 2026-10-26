@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
@@ -19,6 +20,143 @@ import { execSync } from 'child_process';
  * this module stays trivially unit-testable with a fake app object.
  */
 export class Com {
+  static getPidConfigPath() {
+    const root = process.env.PROJECT_ROOT || process.cwd();
+    return path.join(root, 'config.json');
+  }
+
+  static readPidConfig() {
+    const configPath = this.getPidConfigPath();
+    if (!fs.existsSync(configPath)) {
+      return { word: [], excel: [] };
+    }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const word = Array.isArray(parsed?.word) ? parsed.word.map(Number).filter(Boolean) : [];
+      const excel = Array.isArray(parsed?.excel) ? parsed.excel.map(Number).filter(Boolean) : [];
+      return { word, excel };
+    } catch (_) {
+      return { word: [], excel: [] };
+    }
+  }
+
+  static writePidConfig(data) {
+    const configPath = this.getPidConfigPath();
+    const payload = {
+      word: Array.isArray(data?.word) ? [...new Set(data.word.map(Number).filter(Boolean))] : [],
+      excel: Array.isArray(data?.excel) ? [...new Set(data.excel.map(Number).filter(Boolean))] : []
+    };
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+    } catch (err) {
+      console.warn(`[Com.writePidConfig] ⚠️ Could not write config.json: ${err.message}`);
+    }
+  }
+
+  static cleanupPidsBefore(appType) {
+    const isExcel = String(appType).toLowerCase() === 'excel';
+    const key = isExcel ? 'excel' : 'word';
+    const imageName = isExcel ? 'EXCEL.EXE' : 'WINWORD.EXE';
+
+    const config = this.readPidConfig();
+    const recordedPids = config[key] || [];
+    if (recordedPids.length === 0) return;
+
+    const runningPids = this.pidsOf(imageName);
+    for (const pid of recordedPids) {
+      const numPid = Number(pid);
+      switch (runningPids.has(numPid)) {
+        case true: {
+          try {
+            process.kill(numPid);
+            console.warn(`[Com.cleanupPidsBefore] 🪓 Force-closed prior ${imageName} PID ${numPid}`);
+          } catch (_) {
+            try {
+              execSync(`taskkill /PID ${numPid} /F /T`, { windowsHide: true });
+              console.warn(`[Com.cleanupPidsBefore] 🪓 taskkill forced ${imageName} PID ${numPid}`);
+            } catch (e) {
+              console.warn(`[Com.cleanupPidsBefore] ⚠️ Could not kill PID ${numPid}: ${e.message}`);
+            }
+          }
+          break;
+        }
+        default: {
+          console.log(`[Com.cleanupPidsBefore] PID ${numPid} is not running ${imageName}, removing from config.json.`);
+          break;
+        }
+      }
+    }
+
+    config[key] = [];
+    this.writePidConfig(config);
+  }
+
+  static recordPid(appType, pid) {
+    if (!pid) return;
+    if (isNaN(Number(pid))) return;
+    const key = String(appType).toLowerCase() === 'excel' ? 'excel' : 'word';
+    const numPid = Number(pid);
+    const config = this.readPidConfig();
+    if (!config[key].includes(numPid)) {
+      config[key].push(numPid);
+      this.writePidConfig(config);
+      console.info(`[Com.recordPid] 📝 Recorded ${key} PID ${numPid} to config.json`);
+    }
+  }
+
+  static unrecordPid(appType, pid) {
+    if (!pid) return;
+    if (isNaN(Number(pid))) return;
+    const key = String(appType).toLowerCase() === 'excel' ? 'excel' : 'word';
+    const numPid = Number(pid);
+    const config = this.readPidConfig();
+    config[key] = config[key].filter((p) => Number(p) !== numPid);
+    this.writePidConfig(config);
+  }
+
+  static trackPid(appType, beforeSet, appInstance = null) {
+    let pid = null;
+    const isExcel = String(appType).toLowerCase() === 'excel';
+    if (isExcel) {
+      if (appInstance) {
+        try {
+          pid = appInstance.ExecuteExcel4Macro('CALL("kernel32","GetCurrentProcessId","J")');
+        } catch (_) {}
+      }
+    }
+    if (!pid) {
+      if (beforeSet) {
+        const imageName = isExcel ? 'EXCEL.EXE' : 'WINWORD.EXE';
+        const after = this.pidsOf(imageName);
+        pid = [...after].find((p) => !beforeSet.has(p));
+      }
+    }
+    if (pid) {
+      this.recordPid(appType, pid);
+    }
+    return pid;
+  }
+
+  static killRecordedPid(appType, pid) {
+    if (!pid) return;
+    if (isNaN(Number(pid))) return;
+    const numPid = Number(pid);
+    const isExcel = String(appType).toLowerCase() === 'excel';
+    const imageName = isExcel ? 'EXCEL.EXE' : 'WINWORD.EXE';
+    const runningPids = this.pidsOf(imageName);
+
+    if (runningPids.has(numPid)) {
+      try {
+        process.kill(numPid);
+        console.warn(`[Com.killRecordedPid] 🪓 Killed ${imageName} PID ${numPid}`);
+      } catch (_) {
+        try {
+          execSync(`taskkill /PID ${numPid} /F /T`, { windowsHide: true });
+        } catch (_) {}
+      }
+    }
+    this.unrecordPid(appType, numPid);
+  }
   /**
    * Returns the set of currently-running PIDs for a given image name
    * (e.g. "WINWORD.EXE"). Reads `tasklist` CSV — empty set when none run or on
@@ -56,6 +194,7 @@ export class Com {
    */
   static killOrphans(imageName, before) {
     const after = this.pidsOf(imageName);
+    const appType = imageName.toUpperCase().includes('EXCEL') ? 'excel' : 'word';
     let killed = 0;
     for (const pid of after) {
       if (before.has(pid)) continue;
@@ -64,8 +203,14 @@ export class Com {
         killed++;
         console.warn(`[Com.killOrphans] 🪓 Killed orphaned ${imageName} PID ${pid}`);
       } catch (err) {
-        console.warn(`[Com.killOrphans] ⚠️ Could not kill PID ${pid}: ${err.message}`);
+        try {
+          execSync(`taskkill /PID ${pid} /F /T`, { windowsHide: true });
+          killed++;
+        } catch (_) {
+          console.warn(`[Com.killOrphans] ⚠️ Could not kill PID ${pid}: ${err.message}`);
+        }
       }
+      this.unrecordPid(appType, pid);
     }
     return killed;
   }

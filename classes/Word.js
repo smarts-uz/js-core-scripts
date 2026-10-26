@@ -85,10 +85,12 @@ export class Word {
 
     console.log("Word Application starting...");
     this.checkWinax("merge");
+    Com.cleanupPidsBefore("word");
     const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object("Word.Application");
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0; // wdAlertsNone
+    const wordPid = Com.trackPid("word", before);
 
     try {
       console.log(`📂 Opening target document: ${targetPath}`);
@@ -133,6 +135,7 @@ export class Word {
       try {
         winax.release(wordApp);
       } catch (_) {}
+      if (wordPid) Com.killRecordedPid("word", wordPid);
       this._killOrphans(before);
     }
   }
@@ -371,10 +374,12 @@ export class Word {
     this.checkWinax("wordReplace");
 
     console.log(`[Word.wordReplace] ⚙️ Creating Word.Application COM object...`);
+    Com.cleanupPidsBefore("word");
     const before = this._pidsOf("WINWORD.EXE");
     const word = new winax.Object("Word.Application");
     word.Visible = false;
     word.DisplayAlerts = 0; // wdAlertsNone — suppress all dialogs to prevent hangs
+    const wordPid = Com.trackPid("word", before);
 
     // Copy the template to a scratch file first and open THAT copy — never the
     // template itself. Editing (Find/Replace, SaveAs) requires an exclusive lock,
@@ -479,6 +484,7 @@ export class Word {
       console.log(`[Word.wordReplace] 🧹 Quitting Word and releasing COM object...`);
       try { word.Quit(); } catch (_) {}
       try { winax.release(word); } catch (_) {}
+      if (wordPid) Com.killRecordedPid("word", wordPid);
       this._killOrphans(before);
       try {
         if (existsSync(scratchTemplatePath)) fs.unlinkSync(scratchTemplatePath);
@@ -929,10 +935,12 @@ export class Word {
     console.info(`[Word.wordToMD] 📄 Target MD file path determined: ${targetPath}`);
 
     console.log(`[Word.wordToMD] ⚙️ Initializing Word.Application via COM...`);
+    Com.cleanupPidsBefore("word");
     const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object("Word.Application");
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
+    const wordPid = Com.trackPid("word", before);
 
     // Hoisted so the finally block can always remove the temp HTML, even on error.
     let htmlPath = null;
@@ -1005,6 +1013,7 @@ export class Word {
       } catch (_) {
         console.warn(`[Word.wordToMD] ⚠️ Error releasing winax object.`);
       }
+      if (wordPid) Com.killRecordedPid("word", wordPid);
       this._killOrphans(before);
       console.info(`[Word.wordToMD] 🔴 Finished wordToMD execution.`);
     }
@@ -1055,10 +1064,12 @@ export class Word {
     }
 
     this.checkWinax('protectFile');
+    Com.cleanupPidsBefore("word");
     const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object('Word.Application');
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
+    const wordPid = Com.trackPid("word", before);
 
     try {
       console.log(`📂 Opening document for protection: ${absPath}`);
@@ -1086,6 +1097,7 @@ export class Word {
     } finally {
       try { wordApp.Quit(); } catch (_) {}
       try { winax.release(wordApp); } catch (_) {}
+      if (wordPid) Com.killRecordedPid("word", wordPid);
       this._killOrphans(before);
     }
   }
@@ -1105,10 +1117,12 @@ export class Word {
     }
 
     this.checkWinax('unProtectFile');
+    Com.cleanupPidsBefore("word");
     const before = this._pidsOf("WINWORD.EXE");
     const wordApp = new winax.Object('Word.Application');
     wordApp.Visible = false;
     wordApp.DisplayAlerts = 0;
+    const wordPid = Com.trackPid("word", before);
 
     try {
       console.log(`📂 Opening protected document: ${absPath}`);
@@ -1132,6 +1146,7 @@ export class Word {
     } finally {
       try { wordApp.Quit(); } catch (_) {}
       try { winax.release(wordApp); } catch (_) {}
+      if (wordPid) Com.killRecordedPid("word", wordPid);
       this._killOrphans(before);
     }
   }

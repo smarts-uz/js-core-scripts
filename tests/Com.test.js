@@ -223,3 +223,47 @@ describe('Com.openWorkbook', () => {
     expect(() => Com.openWorkbook(app, 'b.xlsx')).toThrow(/Com\.openWorkbook: Unable to open/);
   });
 });
+
+describe('Com PID tracking in config.json', () => {
+  it('reads empty config when config.json does not exist', () => {
+    jest.spyOn(Com, 'getPidConfigPath').mockReturnValue('non_existent_config.json');
+    const cfg = Com.readPidConfig();
+    expect(cfg).toEqual({ word: [], excel: [] });
+  });
+
+  it('records, unrecords, and reads PIDs in config.json', () => {
+    const memData = { word: [], excel: [] };
+    jest.spyOn(Com, 'readPidConfig').mockImplementation(() => memData);
+    jest.spyOn(Com, 'writePidConfig').mockImplementation((d) => {
+      memData.word = d.word;
+      memData.excel = d.excel;
+    });
+
+    Com.recordPid('excel', 12345);
+    expect(memData.excel).toContain(12345);
+
+    Com.recordPid('word', 54321);
+    expect(memData.word).toContain(54321);
+
+    Com.unrecordPid('excel', 12345);
+    expect(memData.excel).not.toContain(12345);
+  });
+
+  it('cleanupPidsBefore kills only PIDs matching imageName and clears list', () => {
+    const memData = { word: [], excel: [100, 200] };
+    jest.spyOn(Com, 'readPidConfig').mockImplementation(() => memData);
+    jest.spyOn(Com, 'writePidConfig').mockImplementation((d) => {
+      memData.word = d.word;
+      memData.excel = d.excel;
+    });
+    // Pretend PID 100 is running EXCEL.EXE, PID 200 is already dead (not in running set)
+    jest.spyOn(Com, 'pidsOf').mockReturnValue(new Set([100]));
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+    Com.cleanupPidsBefore('excel');
+
+    expect(killSpy).toHaveBeenCalledWith(100);
+    expect(killSpy).not.toHaveBeenCalledWith(200);
+    expect(memData.excel).toEqual([]);
+  });
+});

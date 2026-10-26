@@ -2183,7 +2183,7 @@ export class Yamls {
         let oldYaml = Files.backupFile(ymlFile, true);
         if (!oldYaml) return;
 
-        let oldRest = Files.backupFolder(globalThis.folderRestAPI, true);
+        let oldRest = Files.backupFolder(globalThis.folderRestAPI, false);
         if (!oldRest) return;
 
         let yamlData = Yamls.loadYamlWithDeps(oldYaml);
@@ -2195,7 +2195,7 @@ export class Yamls {
         await fs.promises.copyFile(template, ymlFile);
 
         if (existsSync(ymlFile))
-            await this.fillYamlWithInfo(ymlFile, yamlData, false, true); // rewrite=true: backupFolder RestAPI ni o'chirdi, cache yo'q
+            await this.fillYamlWithInfo(ymlFile, yamlData, false, false); // rewrite=true: backupFolder RestAPI ni o'chirdi, cache yo'q
         else
             Dialogs.warningBox(`ymlFile file not found: ${ymlFile}`, "Error");
 
