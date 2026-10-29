@@ -1148,6 +1148,48 @@ describe('Yamls.normalizeTariff', () => {
     const normalized = Yamls.normalizeTariff('', '', '2025-03-20');
     expect(normalized).toEqual([{ '2025-03': '1-450k' }]);
   });
+
+  it('sorts an out-of-order array chronologically, oldest first', () => {
+    const input = [
+      { '2026-10': '5-390k-6M' },
+      { '2024-04': '18-400k' },
+    ];
+    const normalized = Yamls.normalizeTariff(input, '2024-04-18', '2024-10-01');
+    expect(normalized).toEqual([
+      { '2024-04': '18-400k' },
+      { '2026-10': '5-390k-6M' },
+    ]);
+  });
+});
+
+describe('Yamls.getLatestTariffName', () => {
+  it('returns the tariff with the newest month whatever the array order', () => {
+    expect(Yamls.getLatestTariffName([{ '2026-10': '5-390k-6M' }, { '2024-04': '18-400k' }])).toBe('5-390k-6M');
+    expect(Yamls.getLatestTariffName([{ '2024-04': '18-400k' }, { '2026-10': '5-390k-6M' }])).toBe('5-390k-6M');
+  });
+
+  it('returns null for an empty schedule', () => {
+    expect(Yamls.getLatestTariffName([])).toBeNull();
+    expect(Yamls.getLatestTariffName(null)).toBeNull();
+  });
+});
+
+describe('Yamls.activeTariffForMonth', () => {
+  const schedule = [{ '2026-10': '5-390k-6M' }, { '2024-04': '18-400k' }];
+
+  it('picks the newest entry that is not after the month', () => {
+    expect(Yamls.activeTariffForMonth(schedule, '2025-01')).toBe('18-400k');
+    expect(Yamls.activeTariffForMonth(schedule, '2026-10')).toBe('5-390k-6M');
+    expect(Yamls.activeTariffForMonth(schedule, '2027-05')).toBe('5-390k-6M');
+  });
+
+  it('picks the earliest entry for a month before every entry', () => {
+    expect(Yamls.activeTariffForMonth(schedule, '2020-01')).toBe('18-400k');
+  });
+
+  it('returns null for an empty schedule', () => {
+    expect(Yamls.activeTariffForMonth([], '2025-01')).toBeNull();
+  });
 });
 
 describe('Yamls.writeTariff', () => {
@@ -1705,6 +1747,31 @@ describe('Yamls.loadYamlWithDeps', () => {
     // missing bank/cost dirs → readFileSync inside loadAndParseYaml throws ENOENT
     expect(() => Yamls.loadYamlWithDeps(main)).toThrow();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
+  });
+
+  it('takes the newest tariff cost whatever order Tariff lists entries in', () => {
+    writeConfig({ Contract: { DefaultBank: 'AAB', DefaultTariff: 'T1' } });
+    writeTree(projectDir, {
+      conf: {
+        bank: { 'AAB.yaml': yaml.dump({ BankName: 'Asia Alliance' }) },
+        cost: {
+          'old-tariff.yaml': yaml.dump({ Area: '18', Price: '400,000', Period: '1' }),
+          'new-tariff.yaml': yaml.dump({ Area: '5', Price: '390,000', Period: '6' }),
+        },
+      },
+    });
+    const main = path.join(workDir, 'main.yaml');
+    fs.writeFileSync(main, yaml.dump({
+      WhoAmI: 'AAB',
+      ActDateStart: '2024-04-18',
+      Tariff: [{ '2026-10': 'new-tariff' }, { '2024-04': 'old-tariff' }],
+    }), 'utf8');
+
+    const data = Yamls.loadYamlWithDeps(main);
+
+    expect(data.Price).toBe('390,000');
+    expect(data.Area).toBe('5');
+    expect(data.Period).toBe('6');
   });
 });
 

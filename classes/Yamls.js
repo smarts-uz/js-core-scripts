@@ -555,18 +555,7 @@ export class Yamls {
             if (schedule) {
                 if (schedule.length > 0) {
                     if (tariffCosts) {
-                        let activeTariff = null;
-                        const currentMonth = start.slice(0, 7);
-                        for (const entry of schedule) {
-                            const [entryKey, tariffName] = Object.entries(entry)[0];
-                            const entryMonth = String(entryKey).trim().slice(0, 7);
-                            if (entryMonth <= currentMonth) {
-                                activeTariff = tariffName;
-                            }
-                        }
-                        if (!activeTariff) {
-                            activeTariff = Object.values(schedule[0])[0];
-                        }
+                        const activeTariff = Yamls.activeTariffForMonth(schedule, start.slice(0, 7));
                         const costObj = tariffCosts[activeTariff];
                         if (costObj) {
                             if (costObj.Price != null) {
@@ -607,18 +596,7 @@ export class Yamls {
             if (schedule) {
                 if (schedule.length > 0) {
                     if (tariffCosts) {
-                        let activeTariff = null;
-                        const currentMonth = start.slice(0, 7);
-                        for (const entry of schedule) {
-                            const [entryKey, tariffName] = Object.entries(entry)[0];
-                            const entryMonth = String(entryKey).trim().slice(0, 7);
-                            if (entryMonth <= currentMonth) {
-                                activeTariff = tariffName;
-                            }
-                        }
-                        if (!activeTariff) {
-                            activeTariff = Object.values(schedule[0])[0];
-                        }
+                        const activeTariff = Yamls.activeTariffForMonth(schedule, start.slice(0, 7));
                         const costObj = tariffCosts[activeTariff];
                         if (costObj) {
                             if (costObj.PriceMax != null) {
@@ -1424,12 +1402,98 @@ export class Yamls {
                 const monthKey = resolveMonth(d) || String(d).trim().slice(0, 7);
                 return { [monthKey]: String(t).trim() };
             });
+            // Chronological (oldest first) whatever order the file lists, so the last entry is always the newest tariff.
+            normalized.sort((a, b) => Yamls.#tariffMonth(a).localeCompare(Yamls.#tariffMonth(b)));
             const firstEntryVal = Object.values(normalized[0])[0];
             normalized[0] = { [firstKey]: firstEntryVal };
             return normalized;
         }
 
         return [{ [firstKey]: String(tariff).trim() }];
+    }
+
+    /**
+     * Month key (YYYY-MM) of one normalized tariff entry.
+     * @param {Object} entry
+     * @returns {string}
+     */
+    static #tariffMonth(entry) {
+        const [key] = Object.keys(entry ?? {});
+        return String(key ?? '').trim().slice(0, 7);
+    }
+
+    /**
+     * Entry with the greatest month key (YYYY-MM), independent of array order.
+     * @param {Array<Object>} entries
+     * @returns {{month: string, name: *}}
+     */
+    static #latestEntry(entries) {
+        let latest = { month: Yamls.#tariffMonth(entries[0]), name: Object.values(entries[0])[0] };
+        for (const entry of entries) {
+            const month = Yamls.#tariffMonth(entry);
+            if (month > latest.month) {
+                latest = { month, name: Object.values(entry)[0] };
+            }
+        }
+        return latest;
+    }
+
+    /**
+     * Entry with the smallest month key (YYYY-MM), independent of array order.
+     * @param {Array<Object>} entries
+     * @returns {{month: string, name: *}}
+     */
+    static #earliestEntry(entries) {
+        let earliest = { month: Yamls.#tariffMonth(entries[0]), name: Object.values(entries[0])[0] };
+        for (const entry of entries) {
+            const month = Yamls.#tariffMonth(entry);
+            if (month < earliest.month) {
+                earliest = { month, name: Object.values(entry)[0] };
+            }
+        }
+        return earliest;
+    }
+
+    /**
+     * Tariff in force for one month: the entry with the greatest month key (YYYY-MM) not after it,
+     * else the earliest entry.
+     * @param {Array<Object>} schedule
+     * @param {string} month - YYYY-MM
+     * @returns {string|null}
+     */
+    static activeTariffForMonth(schedule, month) {
+        console.info(`[Yamls.activeTariffForMonth] 🟢 Starting...`);
+        const entries = Array.isArray(schedule) ? schedule : [];
+        switch (entries.length) {
+            case 0: {
+                return null;
+            }
+        }
+        const target = String(month).trim().slice(0, 7);
+        const matching = entries.filter(entry => Yamls.#tariffMonth(entry) <= target);
+        switch (matching.length) {
+            case 0: {
+                return Yamls.#earliestEntry(entries).name;
+            }
+        }
+        return Yamls.#latestEntry(matching).name;
+    }
+
+    /**
+     * Tariff in force last: the entry with the greatest month key (YYYY-MM),
+     * whatever order the file lists entries in.
+     * @param {Array<Object>} schedule
+     * @returns {string|null}
+     */
+    static getLatestTariffName(schedule) {
+        console.info(`[Yamls.getLatestTariffName] 🟢 Starting...`);
+        const entries = Array.isArray(schedule) ? schedule : [];
+        switch (entries.length) {
+            case 0: {
+                return null;
+            }
+        }
+        return Yamls.#latestEntry(entries).name;
     }
 
     /**
@@ -1986,7 +2050,7 @@ export class Yamls {
             }
         }
 
-        const activeTariffName = Object.values(tariffArray[tariffArray.length - 1])[0];
+        const activeTariffName = Yamls.getLatestTariffName(tariffArray);
         const activeCostData = tariffCosts[activeTariffName] || {};
         console.log(activeCostData, 'activeCostData Yaml data');
 

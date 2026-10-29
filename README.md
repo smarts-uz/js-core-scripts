@@ -25,12 +25,68 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 17 classes, 291 runnable methods.
+**Coverage:** 17 classes, 304 runnable methods.
 
 ---
 # Com
 
-Runners: `scripts/Com/` — 5 public static method(s).
+Runners: `scripts/Com/` — 16 public static method(s).
+
+## cleanupPidsBefore(appType)
+
+**Run:**
+
+```bash
+node scripts/Com/cleanupPidsBefore.mjs --appType <appType>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `appType` | no | — |
+
+## getPidConfigPath()
+
+**Run:**
+
+```bash
+node scripts/Com/getPidConfigPath.mjs
+```
+
+## getProcessDetails(pid)
+
+**Run:**
+
+```bash
+node scripts/Com/getProcessDetails.mjs --pid <pid>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `pid` | no | — |
+
+## getRunningOfficeNodes([excludePid])
+
+**Run:**
+
+```bash
+node scripts/Com/getRunningOfficeNodes.mjs --excludePid <excludePid>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `excludePid` | yes (default `null`) | — |
+
+## isProcessAlive(pid)
+
+**Run:**
+
+```bash
+node scripts/Com/isProcessAlive.mjs --pid <pid>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `pid` | no | — |
 
 ## killOrphans(imageName, before)
 
@@ -48,6 +104,19 @@ node scripts/Com/killOrphans.mjs --imageName <imageName>
 | `before` | no | PIDs captured before the COM object was created. |
 
 **Returns:** How many orphaned processes were killed.
+
+## killRecordedPid(appType, pid)
+
+**Run:**
+
+```bash
+node scripts/Com/killRecordedPid.mjs --appType <appType>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `appType` | no | — |
+| `pid` | no | — |
 
 ## openPresentation(pptApp, filePath, [{ readOnly])
 
@@ -119,6 +188,66 @@ node scripts/Com/pidsOf.mjs --imageName <imageName>
 | `imageName` | no | Process image name, e.g. "WINWORD.EXE". |
 
 **Returns:** The PIDs currently running that image.
+
+## readPidConfig()
+
+**Run:**
+
+```bash
+node scripts/Com/readPidConfig.mjs
+```
+
+## recordPid(appType, pid)
+
+**Run:**
+
+```bash
+node scripts/Com/recordPid.mjs --appType <appType>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `appType` | no | — |
+| `pid` | no | — |
+
+## trackPid(appType, beforeSet, [appInstance])
+
+**Run:**
+
+```bash
+node scripts/Com/trackPid.mjs --appType <appType>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `appType` | no | — |
+| `beforeSet` | no | — |
+| `appInstance` | yes (default `null`) | — |
+
+## unrecordPid(appType, pid)
+
+**Run:**
+
+```bash
+node scripts/Com/unrecordPid.mjs --appType <appType>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `appType` | no | — |
+| `pid` | no | — |
+
+## writePidConfig(data)
+
+**Run:**
+
+```bash
+node scripts/Com/writePidConfig.mjs --data <data>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `data` | no | — |
 
 
 ---
@@ -3225,7 +3354,22 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 58 public static method(s).
+Runners: `scripts/Yamls/` — 60 public static method(s).
+
+## activeTariffForMonth(schedule, month)
+
+Tariff in force for one month: the entry with the greatest month key (YYYY-MM) not after it, else the earliest entry.
+
+**Run:**
+
+```bash
+node scripts/Yamls/activeTariffForMonth.mjs --schedule <schedule>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `schedule` | no | — |
+| `month` | no | YYYY-MM |
 
 ## actualPayments(yamlData)
 
@@ -3587,6 +3731,20 @@ node scripts/Yamls/getConfig.mjs --file "<path>"
 | `keyPath` | no | — |
 | `type` | yes (default `null`) | — |
 | `defaultValue` | yes (default `null`) | — |
+
+## getLatestTariffName(schedule)
+
+Tariff in force last: the entry with the greatest month key (YYYY-MM), whatever order the file lists entries in.
+
+**Run:**
+
+```bash
+node scripts/Yamls/getLatestTariffName.mjs --schedule <schedule>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `schedule` | no | — |
 
 ## getPrepayMonth(yamlData)
 
