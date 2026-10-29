@@ -784,6 +784,27 @@ describe('Yamls.computeDailyBalance', () => {
     expect(ledger).toHaveLength(1);
     expect(ledger[0].balance).toBe(0);
   });
+
+  it('credits a payment made before startDate into the opening balance', () => {
+    const payment = [{ '2026-01-05': '100,000' }];
+    const accrual = [{ '2026-01-19#2026-01-20': '310,000' }];
+
+    const ledger = Yamls.computeDailyBalance('2026-01-19', '2026-01-20', accrual, payment, []);
+
+    const dailyAccrual = 310000 / 31;
+    expect(ledger[0].balance).toBeCloseTo(100000 - dailyAccrual);
+    expect(ledger[1].balance).toBeCloseTo(100000 - dailyAccrual * 2);
+  });
+
+  it('subtracts a return made before startDate from the opening balance', () => {
+    const payment = [{ '2026-01-05': '100,000' }];
+    const returns = [{ '2026-01-06': '30,000' }];
+    const accrual = [{ '2026-01-19#2026-01-19': '310,000' }];
+
+    const ledger = Yamls.computeDailyBalance('2026-01-19', '2026-01-19', accrual, payment, returns);
+
+    expect(ledger[0].balance).toBeCloseTo(70000 - 310000 / 31);
+  });
 });
 
 describe('Yamls.computePenaltyDays', () => {
@@ -1385,6 +1406,38 @@ describe('Yamls.buildAccountEntries', () => {
     expect(Yamls.buildAccountEntries('', '2026-01-01', [], [], [])).toEqual([]);
     expect(Yamls.buildAccountEntries('2026-01-05', '2026-01-01', [], [], [])).toEqual([]);
     expect(Yamls.buildAccountEntries('Invalid Date', '2026-01-01', [], [], [])).toEqual([]);
+  });
+
+  it('starts from an advance paid BEFORE PeriodStart (company opened later than the payment)', () => {
+    // 1,600,000 arrived on 2026-01-10, the period starts 2026-01-19:
+    // day 1 = 1,600,000 - 50,000 = 1,550,000 instead of -50,000.
+    const history = [{ '2026-01-10': '1,600,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', history, priceDay, priceMaxDay);
+    expect(entries).toEqual([{ '2026-01-19': '1,550,000' }]);
+  });
+
+  it('counts a pre-start advance and a start-day payment without double counting either', () => {
+    // 1,600,000 before the start + 100,000 on the start day itself - 50,000 debit = 1,650,000.
+    const history = [{ '2026-01-10': '1,600,000' }, { '2026-01-19': '100,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-19', history, priceDay, priceMaxDay);
+    expect(entries).toEqual([{ '2026-01-19': '1,650,000' }]);
+  });
+
+  it('keeps an advance carried over from before PeriodStart across several days', () => {
+    // Opening 100,000; 50,000/day: day 1 50,000, day 2 0, day 3 -50,000.
+    const history = [{ '2026-01-05': '100,000' }];
+    const priceDay = [{ '2026-01': '50,000' }];
+    const priceMaxDay = [{ '2026-01': '80,000' }];
+    const entries = Yamls.buildAccountEntries('2026-01-19', '2026-01-21', history, priceDay, priceMaxDay);
+    expect(entries).toEqual([
+      { '2026-01-19': '50,000' },
+      { '2026-01-20': '0' },
+      { '2026-01-21': '-50,000' },
+    ]);
   });
 });
 

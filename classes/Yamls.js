@@ -662,8 +662,29 @@ export class Yamls {
     }
 
     /**
+     * Balance already sitting on the account BEFORE startDate: every date-keyed
+     * credit (History entry, or a Payment / Returns map) dated strictly earlier
+     * than startDate, summed.
+     * An advance paid before the contract period starts — e.g. before the company
+     * was registered — still funds the very first day instead of being dropped.
+     * Non-ISO keys are ignored, so an "ALL" total or any stray label never counts.
+     * @param {Map<string, number>} byDate
+     * @param {string} startDate - YYYY-MM-DD
+     * @returns {number}
+     */
+    static #openingBalance(byDate, startDate) {
+        const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+        const opening = [...byDate.entries()]
+            .filter(([date]) => ISO_DATE.test(date))
+            .filter(([date]) => date < startDate)
+            .reduce((sum, [, amount]) => sum + amount, 0);
+        return Yamls.#round2(opening);
+    }
+
+    /**
      * Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive.
-     * Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own PayTotal entry.
+     * Day 1 starts from the opening balance already paid before startDate (see #openingBalance), so an advance paid earlier is not lost.
+     * Every day debits that day's own month's rate off the PREVIOUS day's balance, then adds that day's own PayTotal entry.
      * The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on.
      * PayTotal already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split.
      * Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
@@ -693,8 +714,7 @@ export class Yamls {
             const [d, a] = Object.entries(entry)[0];
             if (d === 'ALL') continue;
             historyByDate.set(d, (historyByDate.get(d) || 0) + toAmount(a));
-        }
-        const priceDayByMonth = new Map(
+        }        const priceDayByMonth = new Map(
             (Array.isArray(priceDay) ? priceDay : [])
                 .filter(e => !('ALL' in e))
                 .map(e => Object.entries(e)[0])
@@ -708,7 +728,7 @@ export class Yamls {
         );
 
         const entries = [];
-        let balance = 0;
+        let balance = Yamls.#openingBalance(historyByDate, startDate);
         let day = startDate;
 
         // Hard backstop against any unforeseen non-terminating case — ~137 years of daily entries, far beyond any real contract term.
@@ -959,7 +979,9 @@ export class Yamls {
         const returnByDate = new Map((returns || []).map(e => Object.entries(e)[0]).map(([d, a]) => [d, toAmount(a)]));
 
         const ledger = [];
-        let balance = 0;
+        let balance = Yamls.#round2(
+            Yamls.#openingBalance(paymentByDate, startDate) - Yamls.#openingBalance(returnByDate, startDate)
+        );
         let day = startDate;
 
         // Hard backstop against any other unforeseen non-terminating case —
