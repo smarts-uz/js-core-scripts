@@ -3050,6 +3050,155 @@ describe('Yamls.replaceYaml', () => {
     expect(penaltyBlock).toContain(`2026-01: ${expected75.toLocaleString('en-US')}`);
     expect(penaltyBlock).not.toContain(`2026-01: ${expected50.toLocaleString('en-US')}`);
   });
+
+  // --- Partner (Rep) gate -----------------------------------------------------
+  // A partner may only stay enabled when BOTH an ID document (passport or PINFL)
+  // and a real 16-digit card number exist. Otherwise RepEnable is forced false
+  // and every Rep* value is wiped — even values the user typed by hand.
+  const repCompanyInfo = {
+    soliq: {
+      company: {
+        okedDetail: { name_uz_latn: '' },
+        businessStructureDetail: { name_uz_latn: '' },
+        statusDetail: { name_uz_latn: '', group: '' },
+      },
+      companyBillingAddress: {},
+    },
+  };
+
+  const repYamlData = (overrides = {}) => ({
+    ComType: 'MChJ',
+    ContractDate: '2026-01-01',
+    ActDateStart: '2026-01-01',
+    ActDateEnd: '2026-01-31',
+    Price: '4,200,000',
+    PriceMax: '4,200,000',
+    SurEnable: false,
+    ...overrides,
+  });
+
+  const repTemplate = [
+    'ContractDateEnd: ',
+    'ComDate: ',
+    'ActDate: ',
+    'ActDateEnd: ',
+    'RepEnable: true',
+    'RepPINFL: ',
+    'RepPassport: ',
+    'RepNationality: ',
+    'RepPhone: +998-99-892-67-60',
+    'RepCard: ',
+    '',
+  ].join('\n');
+
+  const prepareRepCase = () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    globalThis.folderPartners = path.join(workDir, 'Partners');
+    writeConfig({
+      Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 },
+      Penalty: { PerDay: 50000 },
+      Excel: { CellNames: [] },
+    });
+
+    const ymlFile = path.join(workDir, 'ALL.contract');
+    fs.writeFileSync(ymlFile, repTemplate, 'utf8');
+
+    FilesMock.getDateFromTXT.mockReturnValue('01.01.2026');
+    WordMock.extractDate.mockReturnValue({ day: '01', month: '01', year: '2026' });
+    DidoxMock.bankByCode.mockReturnValue({ name: 'Bank' });
+    DidoxMock.regionsByCode.mockReturnValue({ name: 'Region' });
+    DidoxMock.districtsByCode.mockReturnValue({ name: 'District' });
+
+    return ymlFile;
+  };
+
+  it('forces RepEnable false and wipes every Rep* value when no ID document and no card exist', () => {
+    const ymlFile = prepareRepCase();
+
+    Yamls.replaceYaml(
+      ymlFile,
+      repYamlData({ RepEnable: true, RepPINFL: '', RepPassport: '', RepPhone: '+998-99-892-67-60', RepCard: '' }),
+      repCompanyInfo
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('RepEnable: false');
+    expect(content).not.toContain('+998-99-892-67-60');
+    for (const line of ['RepPINFL: ', 'RepPassport: ', 'RepNationality: ', 'RepPhone: ', 'RepCard: ']) {
+      expect(content).toContain(line);
+    }
+  });
+
+  it('keeps the partner disabled when a card number exists but no ID document does', () => {
+    const ymlFile = prepareRepCase();
+
+    Yamls.replaceYaml(
+      ymlFile,
+      repYamlData({ RepEnable: true, RepCard: '9860 1901 0294 3098' }),
+      repCompanyInfo
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('RepEnable: false');
+    expect(content).not.toContain('9860 1901 0294 3098');
+  });
+
+  it('keeps the partner disabled when an ID document exists but no card number does', () => {
+    const ymlFile = prepareRepCase();
+
+    Yamls.replaceYaml(
+      ymlFile,
+      repYamlData({ RepEnable: true, RepPINFL: '31002996610111', RepPassport: 'AB 7811393' }),
+      repCompanyInfo
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('RepEnable: false');
+    expect(content).not.toContain('31002996610111');
+  });
+
+  it('enables the partner and reads the card number from a 16-digit .app marker in Partners/', () => {
+    const ymlFile = prepareRepCase();
+    const markerDir = path.join(globalThis.folderPartners, 'Partner One');
+    fs.mkdirSync(markerDir, { recursive: true });
+    fs.writeFileSync(path.join(markerDir, '9860190102943098.app'), '', 'utf8');
+
+    Yamls.replaceYaml(
+      ymlFile,
+      repYamlData({
+        RepEnable: true,
+        RepPINFL: '31002996610111',
+        RepPassport: 'AB 7811393',
+        RepCard: '',
+      }),
+      { ...repCompanyInfo, reps: { fullName: 'Partner One', tin: '31002996610111' } }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('RepEnable: true');
+    expect(content).toContain('RepCard: 9860190102943098');
+    expect(content).toContain('RepPINFL: 31002996610111');
+  });
+
+  it('normalizes an explicitly typed card number and enables the partner', () => {
+    const ymlFile = prepareRepCase();
+
+    Yamls.replaceYaml(
+      ymlFile,
+      repYamlData({
+        RepEnable: true,
+        RepPINFL: '31002996610111',
+        RepCard: '9860 1901 0294 3098',
+      }),
+      { ...repCompanyInfo, reps: { fullName: 'Partner One' } }
+    );
+
+    const content = fs.readFileSync(ymlFile, 'utf8');
+    expect(content).toContain('RepEnable: true');
+    expect(content).toContain('RepCard: 9860190102943098');
+  });
 });
 
 describe('Yamls.adoptLegacyContractData', () => {

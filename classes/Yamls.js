@@ -2590,6 +2590,52 @@ export class Yamls {
 
     }
 
+    /**
+     * Partner card number in its canonical 16-digit form — spaces and dashes dropped.
+     * Anything that is not exactly 16 digits reads as '' (no usable card).
+     * @param {*} value
+     * @returns {string}
+     */
+    static #normalizeRepCard(value) {
+        const digits = String(value ?? '').replace(/\D/g, '');
+        switch (true) {
+            case digits.length !== 16: {
+                return '';
+            }
+        }
+        return digits;
+    }
+
+    /**
+     * Partner card number: the explicit RepCard value, else a 16-digit
+     * .app/.txt marker file anywhere under the Partners folder
+     * (e.g. Partners/<Name>/9860190102943098.app).
+     * @param {*} explicitCard
+     * @returns {string}
+     */
+    static #resolveRepCard(explicitCard) {
+        const explicit = Yamls.#normalizeRepCard(explicitCard);
+        switch (true) {
+            case Boolean(explicit): {
+                return explicit;
+            }
+        }
+        const folder = globalThis.folderPartners;
+        switch (true) {
+            case !folder:
+            case !existsSync(folder): {
+                return '';
+            }
+        }
+        const markers = Files.findRecursiveFull(folder, (name) => /^\d{16}\.(app|txt)$/i.test(name));
+        switch (markers.length) {
+            case 0: {
+                return '';
+            }
+        }
+        return Yamls.#normalizeRepCard(path.basename(markers[0]));
+    }
+
     static replaceYaml(ymlFile, yamlData, companyInfo) {
         console.info(`[Yamls.replaceYaml] 🟢 Starting...`);
         console.log(ymlFile, 'ymlFile');
@@ -2915,11 +2961,24 @@ export class Yamls {
         }
 
 
+        // Partner (Rep) gate: a partner is only ever enabled when BOTH an ID document
+        // (passport or PINFL) and a real 16-digit card number exist — the card may be
+        // the explicit RepCard value or a 16-digit .app/.txt marker in Partners/.
+        // Without both, RepEnable is forced false and EVERY Rep* value is cleared.
         const repPinfl = String(yamlData.RepPINFL ?? '').trim();
-        const repEnabled = yamlData.RepEnable === true || String(yamlData.RepEnable).toLowerCase() === 'true';
+        const repPassport = String(yamlData.RepPassport ?? '').trim();
+        const repCard = Yamls.#resolveRepCard(yamlData.RepCard);
+        const repRequested = yamlData.RepEnable === true || String(yamlData.RepEnable).toLowerCase() === 'true';
+        const repHasId = Boolean(repPassport) || Boolean(repPinfl);
+        const repEnabled = repRequested && repHasId && Boolean(repCard);
         switch (true) {
-            case !repPinfl:
             case !repEnabled: {
+                yamlData.RepEnable = false;
+                yamlData.RepPINFL = '';
+                yamlData.RepPassport = '';
+                yamlData.RepNationality = '';
+                yamlData.RepPhone = '';
+                yamlData.RepCard = '';
                 yamlData.RepName = ''
                 yamlData.RepTIN = ''
                 yamlData.RepAddress = ''
@@ -2928,6 +2987,8 @@ export class Yamls {
                 break;
             }
             default: {
+                yamlData.RepEnable = true;
+                yamlData.RepCard = repCard;
                 yamlData.RepName = companyInfo.reps?.fullName ?? ''
                 yamlData.RepTIN = companyInfo.reps?.tin ?? ''
                 yamlData.RepAddress = companyInfo.reps?.address ?? ''
