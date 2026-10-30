@@ -91,6 +91,27 @@ const FilesMock = {
   readJson: jest.fn((p) => JSON.parse(fs.readFileSync(p, 'utf8'))),
   writeJson: jest.fn((p, data) => fs.writeFileSync(p, JSON.stringify(data), 'utf8')),
   backupFile: jest.fn(),
+  isMeaningfulJson: (value) => {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value !== 'object') return false;
+    return Object.keys(value).some((k) => value[k] !== null && value[k] !== undefined && value[k] !== '');
+  },
+  readJsonCache: (p) => {
+    if (!fs.existsSync(p)) return null;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+      return FilesMock.isMeaningfulJson(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  },
+  saveJsonCache: jest.fn((p, data) => {
+    if (!FilesMock.isMeaningfulJson(data)) return false;
+    if (fs.existsSync(p)) FilesMock.backupFile(p, false);
+    FilesMock.writeJson(p, data);
+    return true;
+  }),
   // NOTE: the real Files class has NO cleanUrl method — getUrlFromFileClean would
   // throw against the real sibling. We supply a pass-through so the genuine
   // stripping logic in Chromes.getUrlFromFileClean can be asserted.
@@ -943,6 +964,75 @@ describe('Chromes.fetcher', () => {
     expect(out).toBeNull();
     expect(DialogsMock.errorBox).toHaveBeenCalled();
   });
+
+  it('keeps the stale cache on disk and serves it when the API answers 503', async () => {
+    undiciFetch.mockResolvedValue(jsonResponse({ n: 1 }));
+    await Chromes.fetcher('https://api.example.com/stale', { method: 'GET' }, 'own', Chromes.Duration.Hour1);
+    const [cacheFile] = FilesMock.writeJson.mock.calls.at(-1);
+    const old = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    fs.utimesSync(cacheFile, old, old);
+    const before = fs.readFileSync(cacheFile, 'utf8');
+
+    undiciFetch.mockClear();
+    undiciFetch.mockResolvedValue(jsonResponse({}, { ok: false, status: 503, statusText: 'Down' }));
+
+    const out = await Chromes.fetcher(
+      'https://api.example.com/stale',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.Hour1
+    );
+
+    expect(out).toEqual({ n: 1 });
+    expect(fs.readFileSync(cacheFile, 'utf8')).toBe(before);
+    expect(FilesMock.backupFile).not.toHaveBeenCalled();
+    expect(DialogsMock.warningBox).toHaveBeenCalled();
+  });
+
+  it('keeps the stale cache when the API returns an empty JSON object', async () => {
+    undiciFetch.mockResolvedValue(jsonResponse({ n: 7 }));
+    await Chromes.fetcher('https://api.example.com/empty', { method: 'GET' }, 'own', Chromes.Duration.Hour1);
+    const [cacheFile] = FilesMock.writeJson.mock.calls.at(-1);
+    const old = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    fs.utimesSync(cacheFile, old, old);
+    const before = fs.readFileSync(cacheFile, 'utf8');
+
+    undiciFetch.mockClear();
+    undiciFetch.mockResolvedValue(jsonResponse({}));
+
+    const out = await Chromes.fetcher(
+      'https://api.example.com/empty',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.Hour1
+    );
+
+    expect(out).toEqual({ n: 7 });
+    expect(fs.readFileSync(cacheFile, 'utf8')).toBe(before);
+    expect(DialogsMock.warningBox).toHaveBeenCalled();
+  });
+
+  it('archives the previous cache file and replaces it on a real answer', async () => {
+    undiciFetch.mockResolvedValue(jsonResponse({ n: 1 }));
+    await Chromes.fetcher('https://api.example.com/replace', { method: 'GET' }, 'own', Chromes.Duration.Hour1);
+    const [cacheFile] = FilesMock.writeJson.mock.calls.at(-1);
+    const old = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    fs.utimesSync(cacheFile, old, old);
+
+    undiciFetch.mockClear();
+    undiciFetch.mockResolvedValue(jsonResponse({ n: 2 }));
+
+    const out = await Chromes.fetcher(
+      'https://api.example.com/replace',
+      { method: 'GET' },
+      'own',
+      Chromes.Duration.Hour1
+    );
+
+    expect(out).toEqual({ n: 2 });
+    expect(FilesMock.backupFile).toHaveBeenCalledWith(cacheFile, false);
+    expect(JSON.parse(fs.readFileSync(cacheFile, 'utf8'))).toEqual({ n: 2 });
+  });
 });
 
 // =============================================================================
@@ -1029,5 +1119,61 @@ describe('Chromes.download', () => {
     );
     expect(out).toBeNull();
     expect(DialogsMock.errorBox).toHaveBeenCalled();
+  });
+
+  it('returns the stale cached file when the download answers 404', async () => {
+    undiciFetch.mockResolvedValue(bufferResponse(Buffer.from('OLD')));
+    const first = await Chromes.download(
+      'https://files.example.com/s/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.Hour1
+    );
+    const old = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    fs.utimesSync(first, old, old);
+
+    undiciFetch.mockClear();
+    undiciFetch.mockResolvedValue(bufferResponse(Buffer.from(''), { ok: false, status: 404, statusText: 'NF' }));
+
+    const out = await Chromes.download(
+      'https://files.example.com/s/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.Hour1
+    );
+
+    expect(out).toBe(first);
+    expect(fs.readFileSync(first, 'utf8')).toBe('OLD');
+    expect(DialogsMock.warningBox).toHaveBeenCalled();
+  });
+
+  it('archives the previous file and replaces it on a real download', async () => {
+    undiciFetch.mockResolvedValue(bufferResponse(Buffer.from('OLD')));
+    const first = await Chromes.download(
+      'https://files.example.com/r/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.Hour1
+    );
+    const old = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    fs.utimesSync(first, old, old);
+
+    undiciFetch.mockClear();
+    undiciFetch.mockResolvedValue(bufferResponse(Buffer.from('NEW')));
+
+    const out = await Chromes.download(
+      'https://files.example.com/r/doc',
+      { method: 'GET' },
+      'own',
+      'pdf',
+      Chromes.Duration.Hour1
+    );
+
+    expect(out).toBe(first);
+    expect(fs.readFileSync(first, 'utf8')).toBe('NEW');
+    expect(FilesMock.backupFile).toHaveBeenCalledWith(first, false);
   });
 });

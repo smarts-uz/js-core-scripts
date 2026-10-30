@@ -107,7 +107,7 @@ export class Chromes {
         switch (true) {
           case fileChangedDateInSec < duration:
           case duration === this.Duration.Unlimited: {
-            const cacheData = Files.readJson(cacheFile);
+            const cacheData = Files.readJsonCache(cacheFile);
 
             // get size of cacheData
             console.info('Fetching from Cache >> ', cacheFile)
@@ -116,8 +116,9 @@ export class Chromes {
             return cacheData;
           }
           default: {
+            // Cache outdated — keep it on disk until a fresh answer actually
+            // arrives; a failed fetch must never destroy the last good copy.
             console.info('Fetching from Internet Cache Outdated:');
-            Files.backupFile(cacheFile, true)
           }
         }
       }
@@ -141,8 +142,15 @@ export class Chromes {
 
       const response = await fetch(url, options);
 
-      if (!response.ok)
-        return Dialogs.warningBox(`Response error! status: ${response.status}. statusText: ${response.statusText}`, 'Warning fetch !response.ok');
+      if (!response.ok) {
+        const cached = Files.readJsonCache(cacheFile);
+        console.error(`fetcher: ${url} -> ${response.status} ${response.statusText}`);
+        Dialogs.warningBox(
+          `Response error! status: ${response.status}. statusText: ${response.statusText}${cached ? '\nEski kesh ishlatilmoqda.' : ''}`,
+          'Warning fetch !response.ok'
+        );
+        return cached;
+      }
 
       const body = await response.json();
 
@@ -151,15 +159,29 @@ export class Chromes {
       console.info('Request body length from Internet: ', bodyLength);
 
       if (duration !== this.Duration.noCache) {
-        console.info('Writing to Cache: ', cacheFile)
-        Files.writeJson(cacheFile, body);
+        switch (true) {
+          case Files.saveJsonCache(cacheFile, body): {
+            console.info('Writing to Cache: ', cacheFile)
+            break;
+          }
+          default: {
+            // Empty/invalid answer — keep the previous cache file and reuse it.
+            const cached = Files.readJsonCache(cacheFile);
+            console.error(`fetcher: ${url} -> bo'sh javob, eski kesh saqlanib qoldi`);
+            Dialogs.warningBox(`Bo'sh javob keldi, eski kesh ishlatilmoqda.\n${url}`, 'Warning fetch empty body');
+            return cached;
+          }
+        }
 
       }
 
       return body;
 
     } catch (error) {
-      return Dialogs.errorBox(error, 'Error catch (error)');
+      const cached = Files.readJsonCache(cacheFile);
+      console.error(`fetcher: ${url} -> ${error.message}`);
+      Dialogs.errorBox(error, 'Error catch (error)');
+      return cached;
     }
 
 
@@ -234,8 +256,9 @@ export class Chromes {
             return cacheFile;
           }
           default: {
+            // Cache outdated — keep it on disk until a fresh file actually
+            // arrives; a failed download must never destroy the last good copy.
             console.info('Fetching from Internet Cache Outdated:');
-            Files.backupFile(cacheFile, true)
           }
         }
       }
@@ -260,16 +283,36 @@ export class Chromes {
 
       const response = await fetch(url, options);
 
-      if (!response.ok)
-        return Dialogs.warningBox(response.statusText, 'Failed to download file', 'Warning');
+      if (!response.ok) {
+        console.error(`download: ${url} -> ${response.status} ${response.statusText}`);
+        Dialogs.warningBox(
+          `${response.statusText}${existsSync(cacheFile) ? '\nEski kesh ishlatilmoqda.' : ''}`,
+          'Failed to download file',
+          'Warning'
+        );
+        return existsSync(cacheFile) ? cacheFile : null;
+      }
 
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      if (buffer.length === 0)
-        return Dialogs.warningBox('Downloaded file is empty', 'Warning');
+      if (buffer.length === 0) {
+        console.error(`download: ${url} -> bo'sh fayl, eski kesh saqlanib qoldi`);
+        Dialogs.warningBox(
+          `Downloaded file is empty${existsSync(cacheFile) ? '\nEski kesh ishlatilmoqda.' : ''}`,
+          'Warning'
+        );
+        return existsSync(cacheFile) ? cacheFile : null;
+      }
 
       console.info('Request body length from Internet: ', buffer.length);
+
+      switch (true) {
+        case existsSync(cacheFile): {
+          Files.backupFile(cacheFile, false);
+          break;
+        }
+      }
 
       console.info('Writing to Cache: ', cacheFile)
       fs.writeFileSync(cacheFile, buffer);
@@ -277,7 +320,9 @@ export class Chromes {
       return cacheFile;
 
     } catch (error) {
-      return Dialogs.errorBox(error, 'Error catch (error)');
+      console.error(`download: ${url} -> ${error.message}`);
+      Dialogs.errorBox(error, 'Error catch (error)');
+      return existsSync(cacheFile) ? cacheFile : null;
     }
 
 
