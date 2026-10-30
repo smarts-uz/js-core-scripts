@@ -44,7 +44,10 @@ const DialogsMock = {
   messageBox: jest.fn(),
 };
 const state = { config: {} };
-const YamlsMock = { getConfig: jest.fn((key) => state.config[key]) };
+const YamlsMock = {
+  getConfig: jest.fn((key) => state.config[key]),
+  getCacheMaxAgeDays: jest.fn(() => 30),
+};
 
 // real-fs-backed Files stub so save/read behavior is observable on a temp dir.
 const FilesMock = {
@@ -56,6 +59,40 @@ const FilesMock = {
   mkdirIfNotExists: (d) => fs.mkdirSync(d, { recursive: true }),
   saveInfoToFile: jest.fn(),
   normalizeApostrophe: (name) => (typeof name === 'string' ? name.replace(/[‘’ʻʼ]/g, "'") : name),
+  isCacheFresh: (p, maxAgeDays) => {
+    if (!fs.existsSync(p)) return false;
+    const days = Number(maxAgeDays);
+    if (!Number.isFinite(days) || days <= 0) return true;
+    return Date.now() - fs.statSync(p).mtimeMs <= days * 24 * 60 * 60 * 1000;
+  },
+  isMeaningfulJson: (value) => {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value !== 'object') return false;
+    return Object.keys(value).some((k) => value[k] !== null && value[k] !== undefined && value[k] !== '');
+  },
+  readJsonCache: (p) => {
+    if (!fs.existsSync(p)) return null;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+      return FilesMock.isMeaningfulJson(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  },
+  backupFile: jest.fn((p) => {
+    const dir = path.join(path.dirname(p), '- Theory');
+    fs.mkdirSync(dir, { recursive: true });
+    const target = path.join(dir, `${path.basename(p, '.json')} backup.json`);
+    fs.copyFileSync(p, target);
+    return target;
+  }),
+  saveJsonCache: (p, data) => {
+    if (!FilesMock.isMeaningfulJson(data)) return false;
+    if (fs.existsSync(p)) FilesMock.backupFile(p, false);
+    FilesMock.writeJson(p, data);
+    return true;
+  },
 };
 
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
@@ -355,6 +392,64 @@ describe('Didox.infoByTinPinfl', () => {
     });
     const out = await Didox.infoByTinPinfl('700700701');
     expect(out).toBeNull();
+    expect(DialogsMock.messageBox).toHaveBeenCalled();
+  });
+
+  it('re-fetches an expired cache, archives the old file to "- Theory" and replaces it', async () => {
+    state.config['Didox.BaseURL'] = 'api.example.uz';
+    const cachedFile = path.join(restApiDir, 'INN Didox 800800800.json');
+    fs.writeFileSync(cachedFile, JSON.stringify({ name: 'Old', address: 'Old place', tin: '800800800' }));
+    const old = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    fs.utimesSync(cachedFile, old, old);
+
+    const fresh = { name: 'New', address: 'Adolat MFY', tin: '800800800' };
+    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ ...fresh }) }));
+
+    const out = await Didox.infoByTinPinfl('800800800');
+
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(out.name).toBe('New');
+    expect(JSON.parse(fs.readFileSync(cachedFile, 'utf8')).name).toBe('New');
+    // the previous file is archived into the sibling "- Theory" folder, never deleted with the folder
+    const theoryDir = path.join(restApiDir, '- Theory');
+    expect(fs.existsSync(theoryDir)).toBe(true);
+    expect(fs.readdirSync(theoryDir).length).toBe(1);
+  });
+
+  it('keeps a stale cache untouched and continues with it when the API answers 401', async () => {
+    state.config['Didox.BaseURL'] = 'api.example.uz';
+    const cachedFile = path.join(restApiDir, 'INN Didox 801801801.json');
+    const cached = { name: 'Cached', address: 'Others place', tin: '801801801' };
+    fs.writeFileSync(cachedFile, JSON.stringify(cached));
+    const old = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    fs.utimesSync(cachedFile, old, old);
+    const before = fs.readFileSync(cachedFile, 'utf8');
+
+    stubFetch(async () => ({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({}) }));
+
+    const out = await Didox.infoByTinPinfl('801801801');
+
+    expect(out).toMatchObject({ name: 'Cached' });
+    expect(fs.readFileSync(cachedFile, 'utf8')).toBe(before);
+    expect(fs.existsSync(path.join(restApiDir, '- Theory'))).toBe(false);
+    expect(DialogsMock.messageBox).toHaveBeenCalled();
+  });
+
+  it('keeps a stale cache when the API returns an empty JSON object', async () => {
+    state.config['Didox.BaseURL'] = 'api.example.uz';
+    const cachedFile = path.join(restApiDir, 'INN Didox 802802802.json');
+    const cached = { name: 'Cached', address: 'Others place', tin: '802802802' };
+    fs.writeFileSync(cachedFile, JSON.stringify(cached));
+    const old = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    fs.utimesSync(cachedFile, old, old);
+    const before = fs.readFileSync(cachedFile, 'utf8');
+
+    stubFetch(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+
+    const out = await Didox.infoByTinPinfl('802802802');
+
+    expect(out).toMatchObject({ name: 'Cached' });
+    expect(fs.readFileSync(cachedFile, 'utf8')).toBe(before);
     expect(DialogsMock.messageBox).toHaveBeenCalled();
   });
 });

@@ -855,6 +855,103 @@ export class Files {
     return JSON.parse(jsonData);
   }
 
+  /**
+   * True when filePath exists and is younger than maxAgeDays days.
+   * maxAgeDays 0, negative or not a finite number means "never expires".
+   * @param {string} filePath
+   * @param {number} maxAgeDays
+   * @returns {boolean}
+   */
+  static isCacheFresh(filePath, maxAgeDays) {
+    if (!fs.existsSync(filePath)) return false;
+    const days = Number(maxAgeDays);
+    switch (true) {
+      case !Number.isFinite(days):
+      case days <= 0: {
+        return true;
+      }
+    }
+    const ageMs = Date.now() - fs.statSync(filePath).mtimeMs;
+    return ageMs <= days * 24 * 60 * 60 * 1000;
+  }
+
+  /**
+   * True when a fetched value actually carries data — a non-empty array, or an
+   * object with at least one non-blank value. Empty {}, [], null, undefined and
+   * a bare string are NOT meaningful and must never replace a cached file.
+   * @param {*} value
+   * @returns {boolean}
+   */
+  static isMeaningfulJson(value) {
+    switch (true) {
+      case value === null:
+      case value === undefined: {
+        return false;
+      }
+    }
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value !== 'object') return false;
+    return Object.keys(value).some((key) => {
+      const v = value[key];
+      switch (true) {
+        case v === null:
+        case v === undefined:
+        case v === '': {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Reads a cached JSON file without throwing — a missing, unreadable, corrupt
+   * or empty file reads as null.
+   * @param {string} filePath
+   * @returns {*}
+   */
+  static readJsonCache(filePath) {
+    try {
+      switch (true) {
+        case !fs.existsSync(filePath): {
+          return null;
+        }
+      }
+      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      return Files.isMeaningfulJson(parsed) ? parsed : null;
+    } catch (error) {
+      console.warn(`readJsonCache: cannot read ${filePath}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Writes a freshly fetched JSON into its own cache file — ONLY when the value
+   * is meaningful. The one existing file is archived first (copied into its own
+   * sibling "- Theory" folder), then overwritten; the RestAPI folder itself and
+   * every other cache file are never touched.
+   * @param {string} filePath
+   * @param {*} data
+   * @returns {boolean} true when the cache file was written
+   */
+  static saveJsonCache(filePath, data) {
+    switch (true) {
+      case !Files.isMeaningfulJson(data): {
+        console.warn(`saveJsonCache: skipped ${filePath} — fetched JSON carries no data`);
+        return false;
+      }
+    }
+    switch (true) {
+      case fs.existsSync(filePath): {
+        Files.backupFile(filePath, false);
+        break;
+      }
+    }
+    Files.writeJson(filePath, data);
+    console.info(`[Files.saveJsonCache] 💾 ${filePath}`);
+    return true;
+  }
+
 
 
   static readTextFile(filePath) {

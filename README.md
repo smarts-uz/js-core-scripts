@@ -25,7 +25,7 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 17 classes, 304 runnable methods.
+**Coverage:** 17 classes, 309 runnable methods.
 
 ---
 # Com
@@ -1763,7 +1763,7 @@ node scripts/ExcelsJS/replaceFormula.mjs --file "<path>"
 
 # Files
 
-Runners: `scripts/Files/` — 43 public static method(s).
+Runners: `scripts/Files/` — 47 public static method(s).
 
 ## archiveFolder(folder, fileName)
 
@@ -2082,12 +2082,41 @@ node scripts/Files/incrementFileName.mjs --file "<path>"
 
 **Returns:** - Available file path
 
+## isCacheFresh(filePath, maxAgeDays)
+
+True when filePath exists and is younger than maxAgeDays days. maxAgeDays 0, negative or not a finite number means "never expires".
+
+**Run:**
+
+```bash
+node scripts/Files/isCacheFresh.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `maxAgeDays` | no | — |
+
 ## isEmpty(value)
 
 **Run:**
 
 ```bash
 node scripts/Files/isEmpty.mjs --value <value>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `value` | no | — |
+
+## isMeaningfulJson(value)
+
+True when a fetched value actually carries data — a non-empty array, or an object with at least one non-blank value. Empty {}, [], null, undefined and a bare string are NOT meaningful and must never replace a cached file.
+
+**Run:**
+
+```bash
+node scripts/Files/isMeaningfulJson.mjs --value <value>
 ```
 
 | Parameter | Optional | Description |
@@ -2177,6 +2206,20 @@ node scripts/Files/pickRandomFile.mjs --file "<path>"
 
 ```bash
 node scripts/Files/readJson.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+
+## readJsonCache(filePath)
+
+Reads a cached JSON file without throwing — a missing, unreadable, corrupt or empty file reads as null.
+
+**Run:**
+
+```bash
+node scripts/Files/readJsonCache.mjs --file "<path>"
 ```
 
 | Parameter | Optional | Description |
@@ -2307,6 +2350,23 @@ node scripts/Files/saveInfoToFile.mjs --file "<path>"
 |-----------|----------|-------------|
 | `folder` | no | — |
 | `filename` | no | — |
+
+## saveJsonCache(filePath, data)
+
+Writes a freshly fetched JSON into its own cache file — ONLY when the value is meaningful. The one existing file is archived first (copied into its own sibling "- Theory" folder), then overwritten; the RestAPI folder itself and every other cache file are never touched.
+
+**Run:**
+
+```bash
+node scripts/Files/saveJsonCache.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `data` | no | — |
+
+**Returns:** true when the cache file was written
 
 ## urlExistsInDirectories(url, currentSaveDir)
 
@@ -3354,7 +3414,7 @@ node scripts/Word/wordToMD.mjs --file "<path>"
 
 # Yamls
 
-Runners: `scripts/Yamls/` — 60 public static method(s).
+Runners: `scripts/Yamls/` — 61 public static method(s).
 
 ## activeTariffForMonth(schedule, month)
 
@@ -3431,7 +3491,7 @@ node scripts/Yamls/applyPriceMaxToDebtMonths.mjs --accrual <accrual>
 
 ## buildAccountEntries(startDate, futureDate, history, priceDay, priceMaxDay)
 
-Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Every day debits that day's own month's rate off the PREVIOUS day's balance (day 1's own "previous balance" is 0), then adds that day's own PayTotal entry. The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on. PayTotal already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split. Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
+Builds Account: entries — the client's own running balance, one entry per calendar day from startDate (PeriodStart) through futureDate (PeriodEnd) inclusive. Day 1 starts from the opening balance already paid before startDate (see #openingBalance), so an advance paid earlier is not lost. Every day debits that day's own month's rate off the PREVIOUS day's balance, then adds that day's own PayTotal entry. The debit rate depends on the PREVIOUS day's own balance sign: PriceDay (the prepay discount) when the previous balance was >= 0, PriceMaxDay (the full rate) when it was negative — Price is a prepayment discount, so a client already in debt never gets it, even for the day they're catching up on. PayTotal already carries a payment as a positive amount and a return as a negative one, so this is a plain add, never a separate credit/debit split. Returns [{ "YYYY-MM-DD": balance }, ...], one entry per calendar day, no trailing ALL entry (a running balance has no meaningful sum).
 
 **Run:**
 
@@ -3717,6 +3777,16 @@ node scripts/Yamls/freezePriceMonEntries.mjs --existing <existing>
 | `existing` | no | yamlData.PriceMon/PriceMaxMon as loaded from disk, before this run's rewrite |
 | `freshlyBuilt` | no | buildPriceMonEntries/buildPriceMaxMonEntries's own freshly-computed output |
 | `priceOK` | no | yamlData.PriceOK |
+
+## getCacheMaxAgeDays()
+
+RestAPI/*.json cache lifetime in days — config.yml `Cache.MaxAgeDays`. A cached file older than this is re-fetched; 0 or a negative value means it never expires. Missing/invalid config falls back to 30.
+
+**Run:**
+
+```bash
+node scripts/Yamls/getCacheMaxAgeDays.mjs
+```
 
 ## getConfig(keyPath, [type], [defaultValue])
 

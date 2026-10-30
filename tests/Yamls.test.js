@@ -91,6 +91,33 @@ const FilesMock = {
   getTINFromTXT: jest.fn(),
   getPINFLFromTXT: jest.fn(),
   getDateFromTXT: jest.fn(),
+  isCacheFresh: (p, maxAgeDays) => {
+    if (!fs.existsSync(p)) return false;
+    const days = Number(maxAgeDays);
+    if (!Number.isFinite(days) || days <= 0) return true;
+    return Date.now() - fs.statSync(p).mtimeMs <= days * 24 * 60 * 60 * 1000;
+  },
+  isMeaningfulJson: (value) => {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value !== 'object') return false;
+    return Object.keys(value).some((k) => value[k] !== null && value[k] !== undefined && value[k] !== '');
+  },
+  readJsonCache: (p) => {
+    if (!fs.existsSync(p)) return null;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+      return FilesMock.isMeaningfulJson(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  },
+  saveJsonCache: (p, data) => {
+    if (!FilesMock.isMeaningfulJson(data)) return false;
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(data, null, 2));
+    return true;
+  },
 };
 
 const DialogsMock = {

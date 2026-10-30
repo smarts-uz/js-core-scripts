@@ -83,6 +83,31 @@ export class Yamls {
     }
 
     /**
+     * RestAPI/*.json cache lifetime in days — config.yml `Cache.MaxAgeDays`.
+     * A cached file older than this is re-fetched; 0 or a negative value means it never expires.
+     * Missing/invalid config falls back to 30.
+     * @returns {number}
+     */
+    static getCacheMaxAgeDays() {
+        console.info(`[Yamls.getCacheMaxAgeDays] 🟢 Starting...`);
+        let raw = null;
+        try {
+            raw = Yamls.getConfig('Cache.MaxAgeDays');
+        } catch {
+            raw = null;
+        }
+        switch (true) {
+            case raw === null:
+            case raw === undefined:
+            case raw === '': {
+                return 30;
+            }
+        }
+        const days = Number(raw);
+        return Number.isFinite(days) ? days : 30;
+    }
+
+    /**
      * Load YAML and return value by dot-notated path
      * @param {string} filePath - path to yaml file
      * @param {string} keyPath - e.g. "Contract.Format"
@@ -2340,16 +2365,24 @@ export class Yamls {
 
         const jsonCachePath = path.join(globalThis.folderRestAPI, `ALL.json`);
         const cacheExists = existsSync(jsonCachePath);
+        const cacheMaxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cacheFresh = Files.isCacheFresh(jsonCachePath, cacheMaxAgeDays);
 
         let companyInfo;
 
         switch (true) {
             case Boolean(rewrite):
-            case !cacheExists: {
+            case !cacheExists:
+            case !cacheFresh: {
                 // 🌐 API rejimi: yangi ma'lumot olish va JSON ga yozish
-                if (!rewrite) {
-                    if (!cacheExists) {
+                switch (true) {
+                    case !cacheExists: {
                         console.warn(`[Yamls.fillYamlWithInfo] ⚠️ rewrite=false lekin cache topilmadi — API dan olinmoqda.`);
+                        break;
+                    }
+                    case !cacheFresh: {
+                        console.warn(`[Yamls.fillYamlWithInfo] ⚠️ cache ${cacheMaxAgeDays} kundan eski — API dan qayta olinmoqda: ${jsonCachePath}`);
+                        break;
                     }
                 }
 
@@ -2384,8 +2417,16 @@ export class Yamls {
                 console.log(companyInfo, 'companyInfo');
 
                 if (!companyInfo) {
-                    Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
-                    return null;
+                    // API failed (401/404/empty) — the existing ALL.json is untouched and reused.
+                    companyInfo = Files.readJsonCache(jsonCachePath);
+                    switch (true) {
+                        case !companyInfo: {
+                            Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
+                            return null;
+                        }
+                    }
+                    console.warn(`[Yamls.fillYamlWithInfo] ⚠️ API xatosi — eski ALL.json keshidan davom etilmoqda: ${jsonCachePath}`);
+                    break;
                 }
 
                 if (isYatt)
@@ -2421,15 +2462,24 @@ export class Yamls {
                     console.log(companyInfo.soliqYatt, 'soliqYatt');
                 }
 
-                Files.writeJson(jsonCachePath, companyInfo)
-                console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
+                switch (true) {
+                    case Files.saveJsonCache(jsonCachePath, companyInfo): {
+                        console.info(`[Yamls.fillYamlWithInfo] 💾 JSON cache yozildi: ${jsonCachePath}`);
+                        break;
+                    }
+                    default: {
+                        // Nothing usable came back — never overwrite the existing cache.
+                        console.error(`[Yamls.fillYamlWithInfo] ⚠️ companyInfo bo'sh — eski ALL.json keshiga tegilmadi: ${jsonCachePath}`);
+                        Dialogs.messageBox(`companyInfo bo'sh keldi — eski kesh saqlanib qoldi: ${jsonCachePath}`, 'Warning');
+                        break;
+                    }
+                }
                 break;
             }
             default: {
                 // ⚡ Cache rejimi: API chaqiriqlarini o'tkazib yuborish
                 console.info(`[Yamls.fillYamlWithInfo] ⚡ rewrite=false, cache mavjud — API dan o'tkazib JSON cache o'qilmoqda: ${jsonCachePath}`);
-                const raw = fs.readFileSync(jsonCachePath, 'utf8');
-                companyInfo = JSON.parse(raw);
+                companyInfo = Files.readJsonCache(jsonCachePath);
                 console.log(companyInfo, 'companyInfo (from cache)');
 
                 if (!companyInfo) {
@@ -2444,7 +2494,7 @@ export class Yamls {
             if (!companyInfo.reps) {
                 companyInfo.reps = await Didox.infoByTinPinfl(repPinfl, globalThis.folderPartners)
                 if (companyInfo.reps)
-                    Files.writeJson(jsonCachePath, companyInfo)
+                    Files.saveJsonCache(jsonCachePath, companyInfo)
             }
         }
 

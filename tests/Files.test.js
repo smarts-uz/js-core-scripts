@@ -236,6 +236,105 @@ describe('Files.readJson / Files.writeJson', () => {
   });
 });
 
+describe('Files cache helpers', () => {
+  const ageFile = (filePath, days) => {
+    const when = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    fs.utimesSync(filePath, when, when);
+  };
+
+  it('isCacheFresh: false for a missing file, true for a young one', () => {
+    const f = path.join(dir, 'cache.json');
+    expect(Files.isCacheFresh(f, 30)).toBe(false);
+    Files.writeJson(f, { a: 1 });
+    expect(Files.isCacheFresh(f, 30)).toBe(true);
+  });
+
+  it('isCacheFresh: false once the file is older than maxAgeDays', () => {
+    const f = path.join(dir, 'old.json');
+    Files.writeJson(f, { a: 1 });
+    ageFile(f, 45);
+    expect(Files.isCacheFresh(f, 30)).toBe(false);
+  });
+
+  it('isCacheFresh: 0 or a non-numeric limit means the cache never expires', () => {
+    const f = path.join(dir, 'keep.json');
+    Files.writeJson(f, { a: 1 });
+    ageFile(f, 500);
+    expect(Files.isCacheFresh(f, 0)).toBe(true);
+    expect(Files.isCacheFresh(f, -5)).toBe(true);
+    expect(Files.isCacheFresh(f, null)).toBe(true);
+  });
+
+  it('isMeaningfulJson: rejects null, undefined, empty objects/arrays and bare strings', () => {
+    expect(Files.isMeaningfulJson(null)).toBe(false);
+    expect(Files.isMeaningfulJson(undefined)).toBe(false);
+    expect(Files.isMeaningfulJson({})).toBe(false);
+    expect(Files.isMeaningfulJson([])).toBe(false);
+    expect(Files.isMeaningfulJson('text')).toBe(false);
+  });
+
+  it('isMeaningfulJson: accepts an object with at least one real value, or a non-empty array', () => {
+    expect(Files.isMeaningfulJson({ name: 'Acme' })).toBe(true);
+    expect(Files.isMeaningfulJson({ name: '', address: 'Tashkent' })).toBe(true);
+    expect(Files.isMeaningfulJson([{ id: 1 }])).toBe(true);
+  });
+
+  it('isMeaningfulJson: an object whose every value is blank carries no data', () => {
+    expect(Files.isMeaningfulJson({ a: null, b: '', c: undefined })).toBe(false);
+  });
+
+  it('readJsonCache: null for a missing file, the parsed value for a real one', () => {
+    const f = path.join(dir, 'read.json');
+    expect(Files.readJsonCache(f)).toBeNull();
+    Files.writeJson(f, { a: 1 });
+    expect(Files.readJsonCache(f)).toEqual({ a: 1 });
+  });
+
+  it('readJsonCache: null for corrupt JSON and for an empty payload instead of throwing', () => {
+    const bad = path.join(dir, 'bad.json');
+    fs.writeFileSync(bad, '{not json', 'utf8');
+    expect(Files.readJsonCache(bad)).toBeNull();
+
+    const empty = path.join(dir, 'empty.json');
+    Files.writeJson(empty, {});
+    expect(Files.readJsonCache(empty)).toBeNull();
+  });
+
+  it('saveJsonCache: writes a meaningful payload', () => {
+    const f = path.join(dir, 'save.json');
+    expect(Files.saveJsonCache(f, { name: 'Acme' })).toBe(true);
+    expect(Files.readJsonCache(f)).toEqual({ name: 'Acme' });
+  });
+
+  it('saveJsonCache: refuses an empty payload and leaves the existing file untouched', () => {
+    const f = path.join(dir, 'keep-old.json');
+    Files.writeJson(f, { name: 'Old' });
+    const before = fs.readFileSync(f, 'utf8');
+
+    expect(Files.saveJsonCache(f, {})).toBe(false);
+    expect(Files.saveJsonCache(f, null)).toBe(false);
+    expect(fs.readFileSync(f, 'utf8')).toBe(before);
+    expect(fs.existsSync(path.join(dir, '- Theory'))).toBe(false);
+  });
+
+  it('saveJsonCache: archives only that one file into the sibling "- Theory" folder before overwriting', () => {
+    const f = path.join(dir, 'INN Didox 123456789.json');
+    const other = path.join(dir, 'INN Didox 987654321.json');
+    Files.writeJson(f, { name: 'Old' });
+    Files.writeJson(other, { name: 'Untouched' });
+
+    expect(Files.saveJsonCache(f, { name: 'New' })).toBe(true);
+
+    const theoryDir = path.join(dir, '- Theory');
+    const archived = fs.readdirSync(theoryDir);
+    expect(archived).toBeArrayOfSize(1);
+    expect(archived[0]).toContain('INN Didox 123456789');
+    // the other cache file and the RestAPI folder itself are never touched
+    expect(Files.readJson(other)).toEqual({ name: 'Untouched' });
+    expect(Files.readJson(f)).toEqual({ name: 'New' });
+  });
+});
+
 describe('Files.readUrlsFromDirectory', () => {
   it('parses .url files into {url, filePath, fileName}', () => {
     writeTree(dir, {

@@ -15,6 +15,10 @@ CmdLine:
 Cache:
     Directory: c:\Cache
     FetchTimeout: 100
+    # RestAPI/*.json cache lifetime in days. Older than this -> re-fetch; the
+    # matching file is archived to RestAPI/- Theory first, and only a real
+    # (non-empty) answer ever replaces it. 0 = never expires.
+    MaxAgeDays: 30
 # Secrets (My3Api, My3, Kapital, KapitalId, Didox, Ijara) moved to .env — read
 # via process.env (dotenv). See INTEGRATIONS.md for the variable names.
 # The non-secret Didox partner-API base URL stays here.

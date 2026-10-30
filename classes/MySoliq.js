@@ -85,19 +85,36 @@ export class MySoliq {
             return Dialogs.warningBox('No passportNumber', 'Warning');
 
         const file = path.join(globalThis.folderRestAPI, 'PINFL Soliq ' + pinfl + '.json');
+        const maxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cached = Files.readJsonCache(file);
 
         let returns;
 
-        if (fs.existsSync(file)) {
-            console.log(`entrepreneurInfo already exists in ${file}`);
-            returns = Files.readJson(file);
+        if (Files.isCacheFresh(file, maxAgeDays)) {
+            console.log(`entrepreneurInfo cache is fresh, using ${file}`);
+            returns = cached;
         } else {
+            console.log(`entrepreneurInfo cache missing or expired (${maxAgeDays} day(s)), fetching ${pinfl}`);
 
             returns = await MySoliq.entrepreneurInfoAPI(pinfl, passportSeries, passportNumber);
 
-            if (returns) {
-                Files.writeJson(file, returns);
-                console.log(`Info saved to ${file}`);
+            switch (true) {
+                case Files.saveJsonCache(file, returns): {
+                    console.log(`Info saved to ${file}`);
+                    break;
+                }
+                default: {
+                    // No usable answer — the existing cache file is left untouched and reused.
+                    returns = cached;
+                    switch (true) {
+                        case Boolean(cached): {
+                            console.warn(`entrepreneurInfo for ${pinfl}: API returned no data — old cache kept`);
+                            Dialogs.messageBox(`entrepreneurInfo for ${pinfl}: ma'lumot kelmadi, eski kesh ishlatilmoqda`, 'Warning');
+                            break;
+                        }
+                    }
+                    break;
+                }
             }
 
         }
@@ -280,19 +297,36 @@ export class MySoliq {
     console.info(`[MySoliq.vatInfo] 🟢 Starting...`);
 
         const file = path.join(globalThis.folderRestAPI, 'INN VAT ' + tin + '.json');
+        const maxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cached = Files.readJsonCache(file);
 
         let returns;
 
-        if (fs.existsSync(file)) {
-            console.log(`vatInfo already exists in ${file}`);
-            returns = Files.readJson(file);
+        if (Files.isCacheFresh(file, maxAgeDays)) {
+            console.log(`vatInfo cache is fresh, using ${file}`);
+            returns = cached;
         } else {
+            console.log(`vatInfo cache missing or expired (${maxAgeDays} day(s)), fetching ${tin}`);
 
             returns = await MySoliq.vatInfoAPI(tin);
 
-            if (returns) {
-                Files.writeJson(file, returns);
-                console.log(`Info saved to ${file}`);
+            switch (true) {
+                case Files.saveJsonCache(file, returns): {
+                    console.log(`Info saved to ${file}`);
+                    break;
+                }
+                default: {
+                    // No usable answer — the existing cache file is left untouched and reused.
+                    returns = cached;
+                    switch (true) {
+                        case Boolean(cached): {
+                            console.warn(`vatInfo for ${tin}: API returned no data — old cache kept`);
+                            Dialogs.messageBox(`vatInfo for ${tin}: ma'lumot kelmadi, eski kesh ishlatilmoqda`, 'Warning');
+                            break;
+                        }
+                    }
+                    break;
+                }
             }
 
         }
@@ -326,19 +360,36 @@ export class MySoliq {
     console.info(`[MySoliq.companyInfo] 🟢 Starting...`);
 
         const file = path.join(globalThis.folderRestAPI, 'INN Soliq ' + tin + '.json');
+        const maxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cached = Files.readJsonCache(file);
 
         let returns;
 
-        if (fs.existsSync(file)) {
-            console.log(`companyInfo already exists in ${file}`);
-            returns = Files.readJson(file);
+        if (Files.isCacheFresh(file, maxAgeDays)) {
+            console.log(`companyInfo cache is fresh, using ${file}`);
+            returns = cached;
         } else {
+            console.log(`companyInfo cache missing or expired (${maxAgeDays} day(s)), fetching ${tin}`);
 
             returns = await MySoliq.companyInfoAPI(tin);
 
-            if (returns) {
-                Files.writeJson(file, returns);
-                console.log(`Info saved to ${file}`);
+            switch (true) {
+                case Files.saveJsonCache(file, returns): {
+                    console.log(`Info saved to ${file}`);
+                    break;
+                }
+                default: {
+                    // No usable answer — the existing cache file is left untouched and reused.
+                    returns = cached;
+                    switch (true) {
+                        case Boolean(cached): {
+                            console.warn(`companyInfo for ${tin}: API returned no data — old cache kept`);
+                            Dialogs.messageBox(`companyInfo for ${tin}: ma'lumot kelmadi, eski kesh ishlatilmoqda`, 'Warning');
+                            break;
+                        }
+                    }
+                    break;
+                }
             }
 
         }
@@ -394,19 +445,36 @@ export class MySoliq {
         }
 
         const file = path.join(globalThis.folderRestAPI, 'PINFL Soliq ' + pinfl + '.json');
+        const maxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cached = Files.readJsonCache(file);
 
         let returns;
 
-        if (fs.existsSync(file)) {
-            console.log(`entrepreneurInfo already exists in ${file}`);
-            returns = Files.readJson(file);
+        if (Files.isCacheFresh(file, maxAgeDays)) {
+            console.log(`entrepreneurInfo cache is fresh, using ${file}`);
+            returns = cached;
         } else {
+            console.log(`entrepreneurInfo cache missing or expired (${maxAgeDays} day(s)), fetching ${pinfl}`);
 
             returns = await MySoliq.entrepreneurInfoAPI(pinfl, passportSeries, passportNumber);
 
-            if (returns) {
-                Files.writeJson(file, returns);
-                console.log(`Info saved to ${file}`);
+            switch (true) {
+                case Files.saveJsonCache(file, returns): {
+                    console.log(`Info saved to ${file}`);
+                    break;
+                }
+                default: {
+                    // No usable answer — the existing cache file is left untouched and reused.
+                    returns = cached;
+                    switch (true) {
+                        case Boolean(cached): {
+                            console.warn(`entrepreneurInfo for ${pinfl}: API returned no data — old cache kept`);
+                            Dialogs.messageBox(`entrepreneurInfo for ${pinfl}: ma'lumot kelmadi, eski kesh ishlatilmoqda`, 'Warning');
+                            break;
+                        }
+                    }
+                    break;
+                }
             }
 
         }

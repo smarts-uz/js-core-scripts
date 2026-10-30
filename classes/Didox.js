@@ -297,13 +297,15 @@ export class Didox {
 
         const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
         const baseURL = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
+        const maxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cached = Files.readJsonCache(file);
         let returns;
 
-        if (fs.existsSync(file)) {
-            console.log(`infoByTinPinfl already exists in ${file}`);
-            returns = Files.readJson(file);
+        if (Files.isCacheFresh(file, maxAgeDays)) {
+            console.log(`infoByTinPinfl cache is fresh, using ${file}`);
+            returns = cached;
         } else {
-            console.log(`infoByTinPinfl not exists in ${file}`);
+            console.log(`infoByTinPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tin}`);
 
             const myHeaders = new Headers();
             myHeaders.append("user-key", Secrets.env("DIDOX_USER_KEY") ?? "");
@@ -323,20 +325,31 @@ export class Didox {
                 if (response.ok) {
                     const result = await response.json();
 
-                    Files.writeJson(file, result);
-                    console.log(`infoByTinPinfl saved to ${file}`);
-                    returns = result;
+                    switch (true) {
+                        case Files.saveJsonCache(file, result): {
+                            console.log(`infoByTinPinfl saved to ${file}`);
+                            returns = result;
+                            break;
+                        }
+                        default: {
+                            // Empty/invalid answer — the existing cache file is left untouched.
+                            returns = cached;
+                            console.error(`infoByTinPinfl for ${tin}: fetched JSON carries no data, old cache kept`);
+                            Dialogs.messageBox(`infoByTinPinfl for ${tin}: bo'sh javob keldi, eski kesh ishlatilmoqda`, 'Warning');
+                            break;
+                        }
+                    }
                 } else {
-                    returns = null
+                    returns = cached;
                     console.error(`Error infoByTinPinfl for ${tin}: ${response.status}, ${response.statusText}`);
-                    Dialogs.messageBox(`Error infoByTinPinfl for ${tin}`, 'Error');
+                    Dialogs.messageBox(`Error infoByTinPinfl for ${tin}: ${response.status} ${response.statusText}`, 'Error');
                 }
 
 
             } catch (error) {
                 console.error(`Error infoByTinPinfl for ${tin}`, error);
-                Dialogs.messageBox(`Error infoByTinPinfl for ${tin}`, 'Error', 16);
-                returns = null
+                Dialogs.messageBox(`Error infoByTinPinfl for ${tin}: ${error.message}`, 'Error', 16);
+                returns = cached;
             }
 
         }
@@ -390,14 +403,16 @@ export class Didox {
 
         const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
         const baseURL = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
+        const maxAgeDays = Yamls.getCacheMaxAgeDays();
+        const cached = Files.readJsonCache(file);
 
         let returns;
 
-        if (fs.existsSync(file)) {
-            console.log(`infoByTinPinfl already exists in ${file}`);
-            returns = Files.readJson(file);
+        if (Files.isCacheFresh(file, maxAgeDays)) {
+            console.log(`carInfoByPinfl cache is fresh, using ${file}`);
+            returns = cached;
         } else {
-            console.log(`infoByTinPinfl not exists in ${file}`);
+            console.log(`carInfoByPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tin}`);
 
             const myHeaders = new Headers();
 
@@ -418,23 +433,32 @@ export class Didox {
                 if (response.ok) {
                     const result = await response.json();
 
-                    // if result json is not empty
-                    fs.writeFileSync(file, JSON.stringify(result, null, 2));
-                    console.log(`infoByTinPinfl saved to ${file}`);
-
-                    returns = result;
+                    switch (true) {
+                        case Files.saveJsonCache(file, result): {
+                            console.log(`carInfoByPinfl saved to ${file}`);
+                            returns = result;
+                            break;
+                        }
+                        default: {
+                            // Empty/invalid answer — the existing cache file is left untouched.
+                            returns = cached;
+                            console.error(`carInfoByPinfl for ${tin}: fetched JSON carries no data, old cache kept`);
+                            Dialogs.messageBox(`carInfoByPinfl for ${tin}: bo'sh javob keldi, eski kesh ishlatilmoqda`, 'Warning');
+                            break;
+                        }
+                    }
                 } else {
-                    returns = null
+                    returns = cached;
                     console.error(`Error carInfoByPinfl for ${tin}: ${response.status}, ${response.statusText}`);
-                    Dialogs.messageBox(`Error carInfoByPinfl for ${tin}`, 'Error');
+                    Dialogs.messageBox(`Error carInfoByPinfl for ${tin}: ${response.status} ${response.statusText}`, 'Error');
 
                 }
 
 
             } catch (error) {
                 console.error(`Error carInfoByPinfl for ${tin}`, error);
-                returns = null
-                Dialogs.messageBox(`Error carInfoByPinfl for ${tin}`, 'Error', 16);
+                Dialogs.messageBox(`Error carInfoByPinfl for ${tin}: ${error.message}`, 'Error', 16);
+                returns = cached;
             }
 
         }

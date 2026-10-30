@@ -23,7 +23,10 @@ const DialogsMock = {
   messageBox: jest.fn(),
 };
 const state = { config: {} };
-const YamlsMock = { getConfig: jest.fn((key) => state.config[key]) };
+const YamlsMock = {
+  getConfig: jest.fn((key) => state.config[key]),
+  getCacheMaxAgeDays: jest.fn(() => 30),
+};
 const WordMock = { cleanCompanyName: jest.fn((n) => `clean:${n}`) };
 
 const FilesMock = {
@@ -33,6 +36,38 @@ const FilesMock = {
     fs.writeFileSync(p, JSON.stringify(data, null, 2));
   },
   saveInfoToFile: jest.fn(),
+  isCacheFresh: (p, maxAgeDays) => {
+    if (!fs.existsSync(p)) return false;
+    const days = Number(maxAgeDays);
+    if (!Number.isFinite(days) || days <= 0) return true;
+    return Date.now() - fs.statSync(p).mtimeMs <= days * 24 * 60 * 60 * 1000;
+  },
+  isMeaningfulJson: (value) => {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value !== 'object') return false;
+    return Object.keys(value).some((k) => value[k] !== null && value[k] !== undefined && value[k] !== '');
+  },
+  readJsonCache: (p) => {
+    if (!fs.existsSync(p)) return null;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+      return FilesMock.isMeaningfulJson(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  },
+  backupFile: jest.fn((p) => {
+    const dir = path.join(path.dirname(p), '- Theory');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(p, path.join(dir, `${path.basename(p, '.json')} backup.json`));
+  }),
+  saveJsonCache: (p, data) => {
+    if (!FilesMock.isMeaningfulJson(data)) return false;
+    if (fs.existsSync(p)) FilesMock.backupFile(p, false);
+    FilesMock.writeJson(p, data);
+    return true;
+  },
 };
 
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
