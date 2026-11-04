@@ -21,7 +21,7 @@ async function main() {
     console.log('1️⃣ Chromes runIxbrowser Start');
 
     const argv = yargs(hideBin(process.argv))
-        .option("isCmdGo", { describe: "isCmdGo (optional)" })
+        .option("isCmdGo", { describe: "isCmdGo (optional)", type: 'boolean' })
         .help()
         .parse();
 

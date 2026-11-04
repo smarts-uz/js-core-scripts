@@ -23,7 +23,7 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("file", { alias: "f", describe: "filename" })
         .option("sheetName", { describe: "sheetName (optional)" })
-        .option("veryHidden", { describe: "veryHidden (optional)" })
+        .option("veryHidden", { describe: "veryHidden (optional)", type: 'boolean' })
         .help()
         .parse();
 

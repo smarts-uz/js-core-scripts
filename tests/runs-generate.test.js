@@ -26,8 +26,18 @@ describe('reflectParams', () => {
     const r = reflectParams(function word(fileName, chars = null) {});
     expect(r.object).toBe(false);
     expect(r.params).toEqual([
-      { name: 'fileName', hasDefault: false, rest: false },
-      { name: 'chars', hasDefault: true, rest: false },
+      { name: 'fileName', hasDefault: false, rest: false, isBool: false },
+      { name: 'chars', hasDefault: true, rest: false, isBool: false },
+    ]);
+  });
+
+  it('reflects boolean default parameters', () => {
+    const r = reflectParams(function f(filePath, genPdf = true, auto = false) {});
+    expect(r.object).toBe(false);
+    expect(r.params).toEqual([
+      { name: 'filePath', hasDefault: false, rest: false, isBool: false },
+      { name: 'genPdf', hasDefault: true, rest: false, isBool: true },
+      { name: 'auto', hasDefault: true, rest: false, isBool: true },
     ]);
   });
 

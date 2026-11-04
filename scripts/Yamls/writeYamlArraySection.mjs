@@ -25,7 +25,7 @@ async function main() {
         .option("entries", { describe: "entries" })
         .option("afterKey", { describe: "afterKey" })
         .option("legacyKeys", { describe: "legacyKeys (optional)" })
-        .option("allowEmpty", { describe: "allowEmpty (optional)" })
+        .option("allowEmpty", { describe: "allowEmpty (optional)", type: 'boolean' })
         .help()
         .parse();
 

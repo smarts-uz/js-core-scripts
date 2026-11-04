@@ -22,7 +22,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .command('$0 [filePaths..]', false, (y) => y.positional("filePaths", { array: true, type: 'string' }))
-        .option("pageBreak", { alias: "pb", describe: "pageBreak (optional)" })
+        .option("pageBreak", { alias: "pb", describe: "pageBreak (optional)", type: 'boolean' })
         .option("targetDir", { describe: "targetDir (optional)" })
         .help()
         .parse();

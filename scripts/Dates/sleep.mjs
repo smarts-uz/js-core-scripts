@@ -21,7 +21,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("ms", { describe: "ms" })
-        .option("random", { describe: "random (optional)" })
+        .option("random", { describe: "random (optional)", type: 'boolean' })
         .help()
         .parse();
 

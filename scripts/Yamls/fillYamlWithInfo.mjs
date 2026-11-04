@@ -22,8 +22,8 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("yaml", { describe: "ymlFile" })
         .option("yamlData", { describe: "yamlData (optional)" })
-        .option("backup", { describe: "backup (optional)" })
-        .option("rewrite", { describe: "rewrite (optional)" })
+        .option("backup", { describe: "backup (optional)", type: 'boolean' })
+        .option("rewrite", { describe: "rewrite (optional)", type: 'boolean' })
         .help()
         .parse();
 

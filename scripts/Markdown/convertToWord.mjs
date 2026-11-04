@@ -22,7 +22,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("file", { alias: "f", describe: "filePath" })
-        .option("gen-pdf", { describe: "genPdf (optional)" })
+        .option("gen-pdf", { describe: "genPdf (optional)", type: 'boolean' })
         .option("template", { describe: "templatePath (optional)" })
         .help()
         .parse();

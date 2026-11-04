@@ -24,7 +24,7 @@ async function main() {
         .option("title", { describe: "title (optional)" })
         .option("icon", { describe: "icon (optional)" })
         .option("buttons", { describe: "buttons (optional)" })
-        .option("stop", { describe: "stop (optional)" })
+        .option("stop", { describe: "stop (optional)", type: 'boolean' })
         .help()
         .parse();
 

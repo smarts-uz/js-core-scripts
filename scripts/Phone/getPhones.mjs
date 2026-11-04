@@ -22,7 +22,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("userDir", { describe: "userDir" })
-        .option("fullPath", { describe: "fullPath (optional)" })
+        .option("fullPath", { describe: "fullPath (optional)", type: 'boolean' })
         .help()
         .parse();
 

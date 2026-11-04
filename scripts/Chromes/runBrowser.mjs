@@ -21,8 +21,8 @@ async function main() {
     console.log('1️⃣ Chromes runBrowser Start');
 
     const argv = yargs(hideBin(process.argv))
-        .option("isCmdGo", { describe: "isCmdGo (optional)" })
-        .option("hideChrome", { describe: "hideChrome (optional)" })
+        .option("isCmdGo", { describe: "isCmdGo (optional)", type: 'boolean' })
+        .option("hideChrome", { describe: "hideChrome (optional)", type: 'boolean' })
         .help()
         .parse();
 

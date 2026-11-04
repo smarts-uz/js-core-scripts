@@ -23,7 +23,7 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("src", { describe: "src" })
         .option("dest", { describe: "dest" })
-        .option("rename", { describe: "rename (optional)" })
+        .option("rename", { describe: "rename (optional)", type: 'boolean' })
         .help()
         .parse();
 

@@ -21,7 +21,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("yamlData", { describe: "yamlData" })
-        .option("convertTariffToArray", { describe: "convertTariffToArray (optional)" })
+        .option("convertTariffToArray", { describe: "convertTariffToArray (optional)", type: 'boolean' })
         .help()
         .parse();
 

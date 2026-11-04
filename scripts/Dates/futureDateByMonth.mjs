@@ -21,7 +21,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("months", { describe: "months" })
-        .option("prevMonthLastDate", { describe: "prevMonthLastDate (optional)" })
+        .option("prevMonthLastDate", { describe: "prevMonthLastDate (optional)", type: 'boolean' })
         .help()
         .parse();
 

@@ -22,7 +22,7 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("file", { alias: "f", describe: "filePath" })
-        .option("deletes", { describe: "deletes (optional)" })
+        .option("deletes", { describe: "deletes (optional)", type: 'boolean' })
         .option("backupDir", { describe: "backupDir (optional)" })
         .help()
         .parse();

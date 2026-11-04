@@ -24,7 +24,7 @@ async function main() {
         .option("file", { alias: "f", describe: "filePath" })
         .option("search", { alias: "s", describe: "searchStr (optional)" })
         .option("replace", { alias: "r", describe: "replaceStr (optional)" })
-        .option("recalc", { describe: "recalc (optional)" })
+        .option("recalc", { describe: "recalc (optional)", type: 'boolean' })
         .option("sheet", { describe: "sheetFilter (optional)" })
         .help()
         .parse();

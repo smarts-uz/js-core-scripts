@@ -23,7 +23,7 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("url", { describe: "url" })
         .option("params", { describe: "params (optional)" })
-        .option("hideChrome", { describe: "hideChrome (optional)" })
+        .option("hideChrome", { describe: "hideChrome (optional)", type: 'boolean' })
         .help()
         .parse();
 

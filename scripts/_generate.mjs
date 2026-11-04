@@ -106,7 +106,9 @@ function reflectParams(fn) {
     const params = raw.split(',').map((p) => {
         const rest = p.trim().startsWith('...');
         const [namePart, ...def] = p.split('=');
-        return { name: namePart.trim().replace(/^\.\.\./, ''), hasDefault: def.length > 0, rest };
+        const defaultVal = def.join('=').trim();
+        const isBool = defaultVal === 'true' || defaultVal === 'false';
+        return { name: namePart.trim().replace(/^\.\.\./, ''), hasDefault: def.length > 0, rest, isBool };
     });
     return { object: false, params };
 }
@@ -142,6 +144,7 @@ function buildArgsCode(reflected) {
         const props = [];
         if (f.alias) props.push(`alias: ${JSON.stringify(f.alias)}`);
         props.push(`describe: ${JSON.stringify(`${p.name}${p.hasDefault ? ' (optional)' : ''}`)}`);
+        if (p.isBool) props.push("type: 'boolean'");
         optionLines.push(`        .option(${JSON.stringify(f.flag)}, { ${props.join(', ')} })`);
         callParts.push(`argv[${JSON.stringify(f.flag)}]`);
     });

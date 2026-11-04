@@ -24,7 +24,7 @@ async function main() {
         .option("file", { alias: "f", describe: "filename" })
         .option("password", { alias: "p", describe: "password" })
         .option("sheetName", { describe: "sheetName (optional)" })
-        .option("veryHidden", { describe: "veryHidden (optional)" })
+        .option("veryHidden", { describe: "veryHidden (optional)", type: 'boolean' })
         .help()
         .parse();
 
