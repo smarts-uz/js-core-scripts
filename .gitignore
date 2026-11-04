@@ -4,6 +4,7 @@
 
 # Dependencies (symlinked into a shared tree)
 node_modules/
+runs
 
 # OS / editor cruft
 Thumbs.db

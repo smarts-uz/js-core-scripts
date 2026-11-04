@@ -374,8 +374,15 @@ export class Markdown {
         console.log(`\n💾 Word docx saved: ${newPath}`);
         doc.Save();
 
-        if (genPdf) {
-          Markdown._exportDocToPdf(newPath, doc, parsed.dir);
+        switch (genPdf) {
+          case false:
+          case 'false':
+          case 0:
+          case '0':
+            break;
+          default:
+            Markdown._exportDocToPdf(newPath, doc, parsed.dir);
+            break;
         }
 
         doc.Close(false);

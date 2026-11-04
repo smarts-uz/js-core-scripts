@@ -263,6 +263,13 @@ describe('Markdown.convertToWord', () => {
     expect(fs.existsSync(path.join(workDir, 'PDF'))).toBe(true);
   });
 
+  it('skips PDF export when genPdf is false or string "false"', async () => {
+    const md = writeMd('nopdf.md', '# H\n');
+    const out = await Markdown.convertToWord(md, 'false');
+    expect(out).toBe(path.join(workDir, 'DOC', 'nopdf.docx'));
+    expect(fs.existsSync(path.join(workDir, 'PDF', 'nopdf.pdf'))).toBe(false);
+  });
+
   it('warns and returns null when the source markdown is missing', async () => {
     const out = await Markdown.convertToWord(path.join(workDir, 'nope.md'));
     expect(out).toBeNull();
