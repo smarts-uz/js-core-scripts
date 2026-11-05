@@ -24,6 +24,7 @@ This project is a private Node.js ESM command-line toolkit for Windows document 
 - Do not kill processes by image name. If a run launches a process that may need cleanup, snapshot PIDs before launch and terminate only PIDs created by that run.
 - Do not add PowerShell scripts or PowerShell-based runtime instructions. Use Node `.mjs` scripts for automation.
 - When changing a public utility method, keep `classes/`, `scripts/`, `sheller/`, `.vscode/launch.json`, `README.md`, and the matching `tests/<Class>.test.js` in sync.
+- In all launcher definitions, shell context menus, and CLI actions, commands (`node`, `bun`, `cmd`) must run through `NoClose` (`NoClose.exe` with its resolved absolute path, never bare `cmd /c`). All path arguments must be strictly double-quoted (`"%1"`, `"$files"`) to preserve paths with spaces.
 - For browser-facing behavior, reproduce through the real UI flow with Playwright or the existing browser automation entry point, then rerun the same flow after each code change.
 
 ## Verification
