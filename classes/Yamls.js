@@ -2730,7 +2730,7 @@ export class Yamls {
 
     /**
      * Resolve every date field on yamlData, in place.
-     * Fills IjaraDateEnd/ContractDateEnd when blank, splits Day/Month/Year (+ End/Ijara twins), then derives PeriodStart/PeriodEnd.
+     * Fills ContractDateEnd when blank, always derives IjaraDateEnd (31 Dec of ContractDateEnd year + Contract.IjaraYears), splits Day/Month/Year (+ End/Ijara twins), then derives PeriodStart/PeriodEnd.
      * Warns via Dialogs and returns false on the first unresolvable date, so the caller aborts before writing anything.
      * @param {object} yamlData - Loaded .contract data, mutated in place.
      * @returns {boolean} TRUE when every date resolved, FALSE when the caller must abort.
@@ -2742,20 +2742,19 @@ export class Yamls {
         Every contract date = bare-named YYYY-MM-DD key: ContractDate, ContractDateEnd, IjaraDateEnd, ActDateStart, ActDateEnd.
         All filled MANUALLY in ALL.contract.
         ContractDateEnd computed only when blank — ContractDate + Contract.AddDays.
-        IjaraDateEnd falls back to config.yml Contract.IjaraDateEnd when blank.
+        IjaraDateEnd ALWAYS derived, a typed value never wins — 31 Dec of (ContractDateEnd year + Contract.IjaraYears).
         Day/Month/Year (+ End/Ijara twins) split off those values via Dates.splitExcelDate, never Word.extractDate (DD.MM.YYYY-only parser).
         */
-        if (Files.isEmpty(yamlData.IjaraDateEnd)) {
-            yamlData.IjaraDateEnd = Dates.didoxToExcel(Yamls.getConfig('Contract.IjaraDateEnd'));
-            console.info('yamlData.IjaraDateEnd', yamlData.IjaraDateEnd);
-        }
-
         if (Files.isEmpty(yamlData.ContractDateEnd)) {
             const addDays = Yamls.getConfig('Contract.AddDays');
             console.log(`addDays from Yaml: ${addDays}`);
             yamlData.ContractDateEnd = Dates.addDays(yamlData.ContractDate, addDays)
             console.info('yamlData.ContractDateEnd', yamlData.ContractDateEnd);
         }
+
+        const ijaraYears = Number.parseInt(Yamls.getConfig('Contract.IjaraYears'), 10);
+        yamlData.IjaraDateEnd = Dates.addYearsGetLastDate(yamlData.ContractDateEnd, ijaraYears);
+        console.info('yamlData.IjaraDateEnd', yamlData.IjaraDateEnd);
 
 
         const comDate = Dates.splitExcelDate(yamlData.ContractDate);
@@ -2778,7 +2777,7 @@ export class Yamls {
 
         const comDateIjara = Dates.splitExcelDate(yamlData.IjaraDateEnd);
         if (!comDateIjara) {
-            Dialogs.warningBox(`IjaraDateEnd is missing or invalid ("${yamlData.IjaraDateEnd}") — cannot fill DayIjara/MonthIjara/YearIjara. Check Contract.IjaraDateEnd in config.yml.`);
+            Dialogs.warningBox(`IjaraDateEnd is missing or invalid ("${yamlData.IjaraDateEnd}") — cannot fill DayIjara/MonthIjara/YearIjara. Check ContractDateEnd and Contract.IjaraYears in config.yml.`);
             return false;
         }
         yamlData.DayIjara = comDateIjara.day;
