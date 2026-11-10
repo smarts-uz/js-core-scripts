@@ -667,7 +667,7 @@ describe('Word.makeContract', () => {
     const contractNumDir = path.join(workDir, 'Contract', 'DG-001');
     expect(fs.existsSync(contractNumDir)).toBe(true);
 
-    const core = 'DG-001, 120-kv, MyCo, Dogovor';
+    const core = 'DG-001, 120-kv, Dogovor, MyCo';
     expect(result).toEqual({
       outputDocxPath: path.join(contractNumDir, `${core}.docx`),
       outputPdfPath: path.join(contractNumDir, `${core}.pdf`),
@@ -679,6 +679,46 @@ describe('Word.makeContract', () => {
       result.outputPdfPath
     );
     spy.mockRestore();
+  });
+
+  it.each(['docx', 'pdf', 'both'])('increments matching DOCX/PDF names when %s exists', (existing) => {
+    const templateFolder = path.join(workDir, 'rental-template');
+    fs.mkdirSync(templateFolder, { recursive: true });
+    const template = path.join(templateFolder, 'Rentals 679.docx');
+    fs.writeFileSync(template, 'TPL', 'utf8');
+    configStore['Templates.Word'] = templateFolder;
+    YamlsMock.loadYamlWithDeps.mockReturnValue({
+      ContractNum: 'RC-DX-2026-11-10', Area: '18', MyCompany: 'SRental',
+    });
+    const dir = path.join(workDir, 'Contract', 'RC-DX-2026-11-10');
+    fs.mkdirSync(dir, { recursive: true });
+    const core = 'RC-DX-2026-11-10, 18-kv, Rentals 679, SRental';
+    const extensions = existing === 'both' ? ['docx', 'pdf'] : [existing];
+    for (const ext of extensions) {
+      fs.writeFileSync(path.join(dir, `${core}.${ext}`), 'existing', 'utf8');
+    }
+    fs.writeFileSync(path.join(dir, `${core} 1.pdf`), 'previous PDF', 'utf8');
+    const spy = jest.spyOn(Word, 'wordReplace').mockImplementation((_data, _template, docx, pdf) => {
+      fs.writeFileSync(docx, 'new DOCX', 'utf8');
+      fs.writeFileSync(pdf, 'new PDF', 'utf8');
+    });
+    try {
+      const yml = path.join(workDir, 'ALL.contract');
+      expect(Word.makeContract(yml)).toEqual({
+        outputDocxPath: path.join(dir, `${core} 2.docx`),
+        outputPdfPath: path.join(dir, `${core} 2.pdf`),
+      });
+      expect(Word.makeContract(yml)).toEqual({
+        outputDocxPath: path.join(dir, `${core} 3.docx`),
+        outputPdfPath: path.join(dir, `${core} 3.pdf`),
+      });
+      for (const ext of extensions) {
+        expect(fs.readFileSync(path.join(dir, `${core}.${ext}`), 'utf8')).toBe('existing');
+      }
+      expect(fs.readFileSync(path.join(dir, `${core} 1.pdf`), 'utf8')).toBe('previous PDF');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('warns about a missing ContractNum and returns without calling wordReplace', () => {
