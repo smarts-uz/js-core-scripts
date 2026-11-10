@@ -1,6 +1,7 @@
 # Secrets — never commit
 .env
 .env.*
+keys.yml
 
 # Dependencies (symlinked into a shared tree)
 node_modules/
