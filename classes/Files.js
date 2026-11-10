@@ -73,29 +73,37 @@ export class Files {
 
 
   /**
-   * Increments a file name if it already exists (e.g., file.yml -> file 1.yml)
+   * Increment existing filename; unnumbered original counts as version 1 (file.yml -> file 2.yml).
+   * Naming rule: smarts-file-increment/module/filename.md.
    * @param {string} filePath - Path to the desired file
    * @returns {string} - Available file path
    */
   static incrementFileName(filePath) {
       console.info(`[Files.incrementFileName] 🟢 Starting...`);
-    if (!fs.existsSync(filePath)) {
-      console.info(`[Files.incrementFileName] File path is available: ${filePath}`);
-      return filePath;
-    }
-    
-    console.log(`[Files.incrementFileName] File exists, incrementing name: ${filePath}`);
     const parsed = path.parse(filePath);
     let baseName = parsed.name;
-    let counter = 1;
+    let counter = 2;
     
     const match = baseName.match(/^(.*?)\s+(\d+)$/);
     if (match) {
       baseName = match[1];
-      counter = parseInt(match[2], 10);
+      counter = Math.max(2, parseInt(match[2], 10) + 1);
     }
-    
-    let newPath = filePath;
+    const family = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: (\\d+))?$`);
+    let highest = 0;
+    if (fs.existsSync(parsed.dir)) {
+      for (const name of fs.readdirSync(parsed.dir)) {
+        const sibling = path.parse(name);
+        if (sibling.ext !== parsed.ext) continue;
+        const version = family.exec(sibling.name);
+        if (!version) continue;
+        if (!fs.statSync(path.join(parsed.dir, name)).isFile()) continue;
+        highest = Math.max(highest, Number(version[1] ?? 1));
+      }
+    }
+    if (highest === 0) return filePath;
+    counter = Math.max(counter, highest + 1);
+    let newPath = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
     
     while (fs.existsSync(newPath)) {
       newPath = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
