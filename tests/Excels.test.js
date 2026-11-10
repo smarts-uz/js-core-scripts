@@ -48,7 +48,7 @@ const FilesMock = {
     if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
     let baseName = parsed.name;
-    let counter = 1;
+    let counter = 2;
     const match = baseName.match(/^(.*?)\s+(\d+)$/);
     if (match) {
       baseName = match[1];
@@ -360,7 +360,7 @@ describe('Excels.getProtectedPath', () => {
     YamlsMock.getConfig.mockReturnValue(' P');
     fs.writeFileSync(path.join(workDir, 'Doc P.xlsx'), 'x');
     const out = Excels.getProtectedPath(path.join(workDir, 'Doc.xlsx'));
-    expect(out).toBe(path.join(workDir, 'Doc P 1.xlsx'));
+    expect(out).toBe(path.join(workDir, 'Doc P 2.xlsx'));
   });
 });
 
@@ -1518,8 +1518,8 @@ describe('Excels.replaceFormula family', () => {
     expect(wb.SaveAs).toHaveBeenCalled();
     const [savedPath, fmt] = wb.SaveAs.mock.calls[0];
     expect(fmt).toBe(51);
-    // The source file exists on disk, so incrementFileName bumps it to "f 1.xlsx".
-    expect(savedPath).toBe(path.join(workDir, 'f 1.xlsx'));
+    // Existing unnumbered source counts as version 1.
+    expect(savedPath).toBe(path.join(workDir, 'f 2.xlsx'));
     expect(wb.Close).toHaveBeenCalledWith(false);
     expect(app.Workbooks.Open).toHaveBeenCalled();
   });
@@ -1604,7 +1604,7 @@ describe('Excels.replaceStandart', () => {
     expect(replace).toHaveBeenCalledWith('a', 'b', 1, 1, false, false, false);
     expect(replace).toHaveBeenCalledTimes(2);
     // Source exists → SaveAs target is incremented.
-    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'std 1.xlsx'), 51);
+    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'std 2.xlsx'), 51);
   });
 
   it('honors sheetFilter and the default recalc=true', () => {
@@ -1665,7 +1665,7 @@ describe('Excels.replaceFormulaAll', () => {
     // Only the first cell (starts with "=" AND contains "@") is rewritten.
     expect(writes).toEqual(['=A1/']);
     // Source exists → SaveAs target is incremented.
-    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'all 1.xlsx'), 51);
+    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'all 2.xlsx'), 51);
   });
 
   it('throws for a missing file', () => {
@@ -1686,7 +1686,7 @@ describe('Excels.recalculate', () => {
 
     expect(app.CalculateFull).toHaveBeenCalled();
     // Source exists → SaveAs target is incremented.
-    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'r 1.xlsx'), 51);
+    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'r 2.xlsx'), 51);
     expect(wb.Close).toHaveBeenCalledWith(false);
   });
 
@@ -1749,7 +1749,7 @@ describe('Excels.changeFont', () => {
       { name: 'B', v: 'Calibri' },
     ]);
     // Source exists → SaveAs target is incremented.
-    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'font 1.xlsx'), 51);
+    expect(wb.SaveAs).toHaveBeenCalledWith(path.join(workDir, 'font 2.xlsx'), 51);
   });
 
   it('targets only the filtered sheet', () => {
