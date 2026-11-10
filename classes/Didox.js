@@ -15,10 +15,49 @@ import { Secrets } from "./Secrets.js";
 // Non-secret Didox base URL lives in config.yml (Didox.BaseURL), stored bare
 // (e.g. "api-partners.didox.uz"); normalize to a full https:// origin.
 function didoxBaseURL() {
-    const raw = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
+    const raw = String(Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz').trim().replace(/\/+$/, '');
     const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
     console.debug(`[Didox.didoxBaseURL] ${raw} -> ${url}`);
     return url;
+}
+
+function firstNonEmpty(values) {
+    for (const raw of values) {
+        const trimmed = String(raw ?? '').trim();
+        if (trimmed) {
+            return trimmed;
+        }
+    }
+    return '';
+}
+
+function resolveDidoxHeaders(callerName) {
+    const userKey = firstNonEmpty([Secrets.env('DIDOX_USER_KEY')]);
+    const partnerAuth = firstNonEmpty([
+        Secrets.get('Didox', 'SRental'),
+        Secrets.env('DIDOX_PARTNER_AUTHORIZATION'),
+    ]);
+
+    switch (true) {
+        case !userKey: {
+            const msg = `[Didox.${callerName}] Missing DIDOX_USER_KEY in .env (user-key header is required)`;
+            console.error(msg);
+            Dialogs.messageBox(msg, 'Error');
+            return null;
+        }
+        case !partnerAuth: {
+            const msg = `[Didox.${callerName}] Missing DIDOX_SRENTAL / DIDOX_PARTNER_AUTHORIZATION in .env (Partner-Authorization header is required)`;
+            console.error(msg);
+            Dialogs.messageBox(msg, 'Error');
+            return null;
+        }
+        default: {
+            const headers = new Headers();
+            headers.append('user-key', userKey);
+            headers.append('Partner-Authorization', partnerAuth);
+            return headers;
+        }
+    }
 }
 
 // Shared client for the Didox Partner API: one place for the base URL and the
@@ -36,8 +75,26 @@ function didoxApi(...args) {
         _didoxClient = ofetch.create({
             baseURL: didoxBaseURL(),
             headers: {
-                "user-key": Secrets.env("DIDOX_USER_KEY") ?? "",
-                "Partner-Authorization": Secrets.env("DIDOX_PARTNER_AUTHORIZATION") ?? "",
+                "user-key": firstNonEmpty([Secrets.env("DIDOX_USER_KEY")]),
+                "Partner-Authorization": firstNonEmpty([
+                    Secrets.env("DIDOX_PARTNER_AUTHORIZATION"),
+                    Secrets.get("Didox", "SRental"),
+                ]),
+            },
+            onRequest({ options }) {
+                const reqHeaders = new Headers(options.headers);
+                const liveUserKey = firstNonEmpty([Secrets.env("DIDOX_USER_KEY")]);
+                const livePartnerAuth = firstNonEmpty([
+                    Secrets.env("DIDOX_PARTNER_AUTHORIZATION"),
+                    Secrets.get("Didox", "SRental"),
+                ]);
+                if (liveUserKey) {
+                    reqHeaders.set("user-key", liveUserKey);
+                }
+                if (livePartnerAuth) {
+                    reqHeaders.set("Partner-Authorization", livePartnerAuth);
+                }
+                options.headers = reqHeaders;
             },
         });
     }
@@ -284,19 +341,20 @@ export class Didox {
     static async infoByTinPinfl(tin, personFolder = globalThis.folderDirector) {
     console.info(`[Didox.infoByTinPinfl] 🟢 Starting...`);
 
-        if (!tin) return null;
+        const tinStr = String(tin ?? '').trim();
+        if (!tinStr) return null;
 
         let prefix;
 
         // if string len of tin more than 9
-        if (tin.length > 9) {
+        if (tinStr.length > 9) {
             prefix = 'PINFL Didox ';
         } else {
             prefix = 'INN Didox ';
         }
 
-        const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
-        const baseURL = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
+        const file = path.join(globalThis.folderRestAPI, prefix + tinStr + '.json');
+        const baseURL = didoxBaseURL();
         const maxAgeDays = Yamls.getCacheMaxAgeDays();
         const cached = Files.readJsonCache(file);
         let returns;
@@ -305,51 +363,63 @@ export class Didox {
             console.log(`infoByTinPinfl cache is fresh, using ${file}`);
             returns = cached;
         } else {
-            console.log(`infoByTinPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tin}`);
+            console.log(`infoByTinPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tinStr}`);
 
-            const myHeaders = new Headers();
-            myHeaders.append("user-key", Secrets.env("DIDOX_USER_KEY") ?? "");
-            myHeaders.append("Partner-Authorization", Secrets.get('Didox', 'SRental'));
+            const myHeaders = resolveDidoxHeaders('infoByTinPinfl');
 
-            const requestOptions = {
-                method: "GET",
-                headers: myHeaders,
-                redirect: "follow"
-            };
+            if (!myHeaders) {
+                returns = cached;
+            } else {
+                const requestOptions = {
+                    method: "GET",
+                    headers: myHeaders,
+                    redirect: "follow"
+                };
 
-            try {
-                console.warn(`Fetching infoByTinPinfl for ${tin}`);
+                try {
+                    console.warn(`Fetching infoByTinPinfl for ${tinStr}`);
 
-                const response = await fetch(`https://${baseURL}/v1/utils/info/${tin}`, requestOptions);
+                    const response = await fetch(`${baseURL}/v1/utils/info/${encodeURIComponent(tinStr)}`, requestOptions);
 
-                if (response.ok) {
-                    const result = await response.json();
+                    if (response.ok) {
+                        const result = await response.json();
 
-                    switch (true) {
-                        case Files.saveJsonCache(file, result): {
-                            console.log(`infoByTinPinfl saved to ${file}`);
-                            returns = result;
-                            break;
+                        switch (true) {
+                            case Files.saveJsonCache(file, result): {
+                                console.log(`infoByTinPinfl saved to ${file}`);
+                                returns = result;
+                                break;
+                            }
+                            default: {
+                                // Empty/invalid answer — the existing cache file is left untouched.
+                                returns = cached;
+                                console.error(`infoByTinPinfl for ${tinStr}: fetched JSON carries no data, old cache kept`);
+                                Dialogs.messageBox(`infoByTinPinfl for ${tinStr}: bo'sh javob keldi, eski kesh ishlatilmoqda`, 'Warning');
+                                break;
+                            }
                         }
-                        default: {
-                            // Empty/invalid answer — the existing cache file is left untouched.
-                            returns = cached;
-                            console.error(`infoByTinPinfl for ${tin}: fetched JSON carries no data, old cache kept`);
-                            Dialogs.messageBox(`infoByTinPinfl for ${tin}: bo'sh javob keldi, eski kesh ishlatilmoqda`, 'Warning');
-                            break;
+                    } else {
+                        returns = cached;
+                        switch (response.status) {
+                            case 401: {
+                                console.error(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired DIDOX_USER_KEY / Partner-Authorization in .env)`);
+                                Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} — DIDOX_USER_KEY eskirgan yoki noto'g'ri (.env ni yangilang)`, 'Error');
+                                break;
+                            }
+                            default: {
+                                console.error(`Error infoByTinPinfl for ${tinStr}: ${response.status}, ${response.statusText}`);
+                                Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: ${response.status} ${response.statusText}`, 'Error');
+                                break;
+                            }
                         }
                     }
-                } else {
+
+
+                } catch (error) {
+                    console.error(`Error infoByTinPinfl for ${tinStr}`, error);
+                    Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: ${error.message}`, 'Error', 16);
                     returns = cached;
-                    console.error(`Error infoByTinPinfl for ${tin}: ${response.status}, ${response.statusText}`);
-                    Dialogs.messageBox(`Error infoByTinPinfl for ${tin}: ${response.status} ${response.statusText}`, 'Error');
                 }
-
-
-            } catch (error) {
-                console.error(`Error infoByTinPinfl for ${tin}`, error);
-                Dialogs.messageBox(`Error infoByTinPinfl for ${tin}: ${error.message}`, 'Error', 16);
-                returns = cached;
             }
 
         }
@@ -394,15 +464,16 @@ export class Didox {
     static async carInfoByPinfl(tin) {
     console.info(`[Didox.carInfoByPinfl] 🟢 Starting...`);
 
-        if (!tin) return null;
+        const tinStr = String(tin ?? '').trim();
+        if (!tinStr) return null;
 
         let prefix;
 
         // if string len of tin more than 9
         prefix = 'CAR Didox ';
 
-        const file = path.join(globalThis.folderRestAPI, prefix + tin + '.json');
-        const baseURL = Yamls.getConfig('Didox.BaseURL') ?? 'api-partners.didox.uz';
+        const file = path.join(globalThis.folderRestAPI, prefix + tinStr + '.json');
+        const baseURL = didoxBaseURL();
         const maxAgeDays = Yamls.getCacheMaxAgeDays();
         const cached = Files.readJsonCache(file);
 
@@ -412,53 +483,64 @@ export class Didox {
             console.log(`carInfoByPinfl cache is fresh, using ${file}`);
             returns = cached;
         } else {
-            console.log(`carInfoByPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tin}`);
+            console.log(`carInfoByPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tinStr}`);
 
-            const myHeaders = new Headers();
+            const myHeaders = resolveDidoxHeaders('carInfoByPinfl');
 
-            myHeaders.append("user-key", Secrets.env("DIDOX_USER_KEY"));
-            myHeaders.append("Partner-Authorization", Secrets.env("DIDOX_PARTNER_AUTHORIZATION"));
-
-            const requestOptions = {
-                method: "GET",
-                headers: myHeaders,
-                redirect: "follow"
-            };
-
-            try {
-                console.warn(`Fetching carInfoByPinfl for ${tin}`);
-
-                const response = await fetch(`https://${baseURL}/v1/utils/waybills/transport?tinOrPinfl=${tin}`, requestOptions);
-
-                if (response.ok) {
-                    const result = await response.json();
-
-                    switch (true) {
-                        case Files.saveJsonCache(file, result): {
-                            console.log(`carInfoByPinfl saved to ${file}`);
-                            returns = result;
-                            break;
-                        }
-                        default: {
-                            // Empty/invalid answer — the existing cache file is left untouched.
-                            returns = cached;
-                            console.error(`carInfoByPinfl for ${tin}: fetched JSON carries no data, old cache kept`);
-                            Dialogs.messageBox(`carInfoByPinfl for ${tin}: bo'sh javob keldi, eski kesh ishlatilmoqda`, 'Warning');
-                            break;
-                        }
-                    }
-                } else {
-                    returns = cached;
-                    console.error(`Error carInfoByPinfl for ${tin}: ${response.status}, ${response.statusText}`);
-                    Dialogs.messageBox(`Error carInfoByPinfl for ${tin}: ${response.status} ${response.statusText}`, 'Error');
-
-                }
-
-
-            } catch (error) {
-                console.error(`Error carInfoByPinfl for ${tin}`, error);
-                Dialogs.messageBox(`Error carInfoByPinfl for ${tin}: ${error.message}`, 'Error', 16);
+            if (!myHeaders) {
                 returns = cached;
+            } else {
+                const requestOptions = {
+                    method: "GET",
+                    headers: myHeaders,
+                    redirect: "follow"
+                };
+
+                try {
+                    console.warn(`Fetching carInfoByPinfl for ${tinStr}`);
+
+                    const response = await fetch(`${baseURL}/v1/utils/waybills/transport?tinOrPinfl=${encodeURIComponent(tinStr)}`, requestOptions);
+
+                    if (response.ok) {
+                        const result = await response.json();
+
+                        switch (true) {
+                            case Files.saveJsonCache(file, result): {
+                                console.log(`carInfoByPinfl saved to ${file}`);
+                                returns = result;
+                                break;
+                            }
+                            default: {
+                                // Empty/invalid answer — the existing cache file is left untouched.
+                                returns = cached;
+                                console.error(`carInfoByPinfl for ${tinStr}: fetched JSON carries no data, old cache kept`);
+                                Dialogs.messageBox(`carInfoByPinfl for ${tinStr}: bo'sh javob keldi, eski kesh ishlatilmoqda`, 'Warning');
+                                break;
+                            }
+                        }
+                    } else {
+                        returns = cached;
+                        switch (response.status) {
+                            case 401: {
+                                console.error(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired DIDOX_USER_KEY / Partner-Authorization in .env)`);
+                                Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} — DIDOX_USER_KEY eskirgan yoki noto'g'ri (.env ni yangilang)`, 'Error');
+                                break;
+                            }
+                            default: {
+                                console.error(`Error carInfoByPinfl for ${tinStr}: ${response.status}, ${response.statusText}`);
+                                Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: ${response.status} ${response.statusText}`, 'Error');
+                                break;
+                            }
+                        }
+
+                    }
+
+
+                } catch (error) {
+                    console.error(`Error carInfoByPinfl for ${tinStr}`, error);
+                    Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: ${error.message}`, 'Error', 16);
+                    returns = cached;
+                }
             }
 
         }
