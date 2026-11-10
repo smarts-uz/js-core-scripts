@@ -337,9 +337,17 @@ export class Word {
     Files.mkdirIfNotExists(contractNumFolder);
 
     const area = data.Area;
-    const outputCore = `${data.ContractNum}, ${area}-kv, ${data.MyCompany}, ${docBaseName}`;
-    const outputDocxPath = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.docx`));
-    const outputPdfPath = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.pdf`));
+    const outputCore = `${data.ContractNum}, ${area}-kv, ${docBaseName}, ${data.MyCompany}`;
+    let outputDocxPath;
+    let outputPdfPath;
+    let increment = 0;
+    // Reserve one available basename for both formats; preserve template version.
+    do {
+      const suffix = increment === 0 ? "" : ` ${increment}`;
+      outputDocxPath = path.join(contractNumFolder, `${outputCore}${suffix}.docx`);
+      outputPdfPath = path.join(contractNumFolder, `${outputCore}${suffix}.pdf`);
+      increment++;
+    } while ([outputDocxPath, outputPdfPath].some((filePath) => existsSync(filePath)));
 
     this.wordReplace(data, templatePath, outputDocxPath, outputPdfPath);
 
