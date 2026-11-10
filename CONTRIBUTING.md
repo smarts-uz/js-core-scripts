@@ -21,7 +21,7 @@ Node.js (ESM) toolkit for processing Office and Markdown documents.
 | `shell/`                    | Windows right-click context-menu launchers (point at runners).                                      |
 | `.vscode/launch.json`       | VS Code debug configs (point at runners).                                                           |
 | `tests/`                    | Jest suite — one spec per class (`tests/<Class>.test.js`).                                          |
-| `config.yml`                | Non-secret runtime config. Secrets live only in a gitignored `.env`.                                |
+| `config.yml`                | Non-secret runtime config. Secrets live only in a gitignored `keys.yml`.                            |
 
 ## Adding or changing a `utils/` method
 
@@ -55,4 +55,4 @@ derived from this history.
 ## Secrets
 
 Never put a credential in `config.yml`, source, or any tracked file — only in a
-gitignored `.env` (see `INTEGRATIONS.md` for the variable names), read via `utils/Secrets.js`.
+gitignored `keys.yml` (template `keys.example.yml`; see `INTEGRATIONS.md` for the key layout), read via `classes/Secrets.js`.
