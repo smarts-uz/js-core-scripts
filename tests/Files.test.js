@@ -554,16 +554,24 @@ describe('Files.incrementFileName', () => {
     expect(Files.incrementFileName(f)).toBe(f);
   });
 
-  it('appends " 1" before the extension on the first collision', () => {
+  it('counts the unnumbered original as version 1 and appends " 2" on collision', () => {
     const f = path.join(dir, 'file.yml');
     fs.writeFileSync(f, 'x', 'utf8');
-    expect(Files.incrementFileName(f)).toBe(path.join(dir, 'file 1.yml'));
+    expect(Files.incrementFileName(f)).toBe(path.join(dir, 'file 2.yml'));
   });
 
   it('continues counting from an existing numeric suffix', () => {
     fs.writeFileSync(path.join(dir, 'doc.txt'), 'x', 'utf8');
     fs.writeFileSync(path.join(dir, 'doc 1.txt'), 'x', 'utf8');
     expect(Files.incrementFileName(path.join(dir, 'doc 1.txt'))).toBe(path.join(dir, 'doc 2.txt'));
+  });
+
+  it('advances past the highest version without reusing gaps or an absent original', () => {
+    fs.writeFileSync(path.join(dir, 'Report 5.md'), 'fifth', 'utf8');
+    fs.writeFileSync(path.join(dir, 'Report details 8.md'), 'other family', 'utf8');
+    expect(Files.incrementFileName(path.join(dir, 'Report.md'))).toBe(path.join(dir, 'Report 6.md'));
+    expect(Files.incrementFileName(path.join(dir, 'Report 2.md'))).toBe(path.join(dir, 'Report 6.md'));
+    expect(Files.incrementFileName(path.join(dir, 'Report.xlsx'))).toBe(path.join(dir, 'Report.xlsx'));
   });
 });
 
@@ -662,9 +670,9 @@ describe('Files.retainLatestFiles', () => {
 
     const moved = Files.retainLatestFiles(dir, 1, '.xlsx');
 
-    expect(moved).toEqual([path.join(dir, '@ Other', 'a 1.xlsx')]);
+    expect(moved).toEqual([path.join(dir, '@ Other', 'a 2.xlsx')]);
     expect(read(path.join(dir, '@ Other', 'a.xlsx'))).toBe('old');
-    expect(read(path.join(dir, '@ Other', 'a 1.xlsx'))).toBe('x');
+    expect(read(path.join(dir, '@ Other', 'a 2.xlsx'))).toBe('x');
   });
 
   it('returns an empty array when the folder does not exist', () => {
