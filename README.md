@@ -25,9 +25,464 @@ The Windows right-click menus ([`shell/`](shell/)) and VS Code debug
 configs ([`.vscode/launch.json`](.vscode/launch.json)) each point at these
 per-method runners.
 
-**Coverage:** 17 classes, 309 runnable methods.
+**Coverage:** 24 classes, 440 runnable methods.
 
 ---
+# Category
+
+Runners: `scripts/Category/` — 10 public static method(s).
+
+## displayPath(target, fields, SourceFolder, absolutePath)
+
+Returns a short display path for logging. Prefers relative_path + target if SourceFolder is absent.
+
+**Run:**
+
+```bash
+node scripts/Category/displayPath.mjs --target <target>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `target` | no | — |
+| `fields` | no | — |
+| `SourceFolder` | no | — |
+| `absolutePath` | no | — |
+
+## ensureDir(dirPath, tag)
+
+Ensures a directory exists, creating it recursively if needed.
+
+**Run:**
+
+```bash
+node scripts/Category/ensureDir.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dirPath` | no | — |
+| `tag` | no | — |
+
+## findFileRecursively(dir, filename)
+
+Finds a file by name recursively in a directory. Returns full path or null.
+
+**Run:**
+
+```bash
+node scripts/Category/findFileRecursively.mjs --dir <dir>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dir` | no | — |
+| `filename` | no | — |
+
+## loadYaml(filePath, tag)
+
+Reads and parses a YAML file.
+
+**Run:**
+
+```bash
+node scripts/Category/loadYaml.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `tag` | no | — |
+
+## moveFile(src, dest, tag)
+
+Moves a file from src to dest. If dest exists, renames the existing file by appending a timestamp before its extension. Returns true on success, false if src not found.
+
+**Run:**
+
+```bash
+node scripts/Category/moveFile.mjs --src <src>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `src` | no | — |
+| `dest` | no | — |
+| `tag` | no | — |
+
+## removeEmptyDirs(dirPath, limitPath, tag)
+
+Recursively removes empty directories starting from dirPath upwards, stopping at limitPath (exclusive).
+
+**Run:**
+
+```bash
+node scripts/Category/removeEmptyDirs.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dirPath` | no | — |
+| `limitPath` | no | — |
+| `tag` | no | — |
+
+## resolveTargetPath(template, target, fields, SourceFolder, domain_name)
+
+Resolves a TargetPath template string using top-level YAML values and per-entry fields. Available placeholders: {source_file}, {category_path}, {category}, {relative_path}, {domain_name}, {SourceFolder}, and any entry field key.
+
+**Run:**
+
+```bash
+node scripts/Category/resolveTargetPath.mjs --template <template>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `template` | no | — |
+| `target` | no | — |
+| `fields` | no | — |
+| `SourceFolder` | no | — |
+| `domain_name` | no | — |
+
+## revert(yamlPath)
+
+Revert: moves each file back from its TargetPath-resolved location to its original source_path. Empty directories created during run are removed. Requires TargetPath in YAML — shows Windows error dialog and exits if missing.
+
+**Run:**
+
+```bash
+node scripts/Category/revert.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlPath` | no | — |
+
+## run(yamlPath)
+
+Full pipeline: moves each entry's source file to its TargetPath-resolved destination. Requires TargetPath in YAML — shows Windows error dialog and exits if missing.
+
+**Run:**
+
+```bash
+node scripts/Category/run.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlPath` | no | — |
+
+## timestamp()
+
+Returns a timestamp string in YYYY-MM-DD_HH-MM format.
+
+**Run:**
+
+```bash
+node scripts/Category/timestamp.mjs
+```
+
+
+---
+
+# Chromes
+
+Runners: `scripts/Chromes/` — 26 public static method(s).
+
+## cleanCache()
+
+**Run:**
+
+```bash
+node scripts/Chromes/cleanCache.mjs
+```
+
+## closeBrowsers()
+
+**Run:**
+
+```bash
+node scripts/Chromes/closeBrowsers.mjs
+```
+
+## closeChrome()
+
+**Run:**
+
+```bash
+node scripts/Chromes/closeChrome.mjs
+```
+
+## convertFolderMhtToHtm(folderPath, [deleteMht])
+
+**Run:**
+
+```bash
+node scripts/Chromes/convertFolderMhtToHtm.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `folderPath` | no | — |
+| `deleteMht` | yes (default `true`) | — |
+
+## download(url, options, owner, fileType, [duration], [replace])
+
+**Run:**
+
+```bash
+node scripts/Chromes/download.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+| `options` | no | — |
+| `owner` | no | — |
+| `fileType` | no | — |
+| `duration` | yes (default `this.Duration.Hour10`) | — |
+| `replace` | yes (default `[]`) | — |
+
+## fetcher(url, options, owner, [duration], [replace])
+
+**Run:**
+
+```bash
+node scripts/Chromes/fetcher.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+| `options` | no | — |
+| `owner` | no | — |
+| `duration` | yes (default `this.Duration.Hour10`) | — |
+| `replace` | yes (default `[]`) | — |
+
+## finish()
+
+**Run:**
+
+```bash
+node scripts/Chromes/finish.mjs
+```
+
+## getRandomFloat(min, max)
+
+**Run:**
+
+```bash
+node scripts/Chromes/getRandomFloat.mjs --min <min>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `min` | no | — |
+| `max` | no | — |
+
+## getUrlFromFile(filePath)
+
+**Run:**
+
+```bash
+node scripts/Chromes/getUrlFromFile.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+
+## getUrlFromFileClean(filePath)
+
+**Run:**
+
+```bash
+node scripts/Chromes/getUrlFromFileClean.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+
+## hideChrome()
+
+**Run:**
+
+```bash
+node scripts/Chromes/hideChrome.mjs
+```
+
+## initFolders(app)
+
+**Run:**
+
+```bash
+node scripts/Chromes/initFolders.mjs --app <app>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `app` | no | — |
+
+## killChrome()
+
+**Run:**
+
+```bash
+node scripts/Chromes/killChrome.mjs
+```
+
+## mhtToHtmConvert(mhtPath, [deleteMht])
+
+**Run:**
+
+```bash
+node scripts/Chromes/mhtToHtmConvert.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `mhtPath` | no | — |
+| `deleteMht` | yes (default `true`) | — |
+
+## pageGo(url, [params], [hideChrome])
+
+**Run:**
+
+```bash
+node scripts/Chromes/pageGo.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+| `params` | yes (default `{ waitUntil: "networkidle2" }`) | — |
+| `hideChrome` | yes (default `false`) | — |
+
+## pageMetrics()
+
+**Run:**
+
+```bash
+node scripts/Chromes/pageMetrics.mjs
+```
+
+## pageSetup()
+
+**Run:**
+
+```bash
+node scripts/Chromes/pageSetup.mjs
+```
+
+## processPathsToClipboard(paths)
+
+**Run:**
+
+```bash
+node scripts/Chromes/processPathsToClipboard.mjs <item1> <item2> …
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `paths` | no | — |
+
+## randomInt(min, max)
+
+**Run:**
+
+```bash
+node scripts/Chromes/randomInt.mjs --min <min>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `min` | no | — |
+| `max` | no | — |
+
+## runBrowser([isCmdGo], [hideChrome])
+
+**Run:**
+
+```bash
+node scripts/Chromes/runBrowser.mjs --isCmdGo <isCmdGo>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `isCmdGo` | yes (default `false`) | — |
+| `hideChrome` | yes (default `false`) | — |
+
+## runIxbrowser([isCmdGo])
+
+**Run:**
+
+```bash
+node scripts/Chromes/runIxbrowser.mjs --isCmdGo <isCmdGo>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `isCmdGo` | yes (default `false`) | — |
+
+## saveHtmlFromMht(mhtPath, [deleteMht])
+
+**Run:**
+
+```bash
+node scripts/Chromes/saveHtmlFromMht.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `mhtPath` | no | — |
+| `deleteMht` | yes (default `true`) | — |
+
+## saveUrlFile(filePath, url)
+
+**Run:**
+
+```bash
+node scripts/Chromes/saveUrlFile.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `url` | no | — |
+
+## saveUrlFileFromMht(mhtPath, filePath)
+
+**Run:**
+
+```bash
+node scripts/Chromes/saveUrlFileFromMht.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `mhtPath` | no | — |
+| `filePath` | no | — |
+
+## showChrome()
+
+**Run:**
+
+```bash
+node scripts/Chromes/showChrome.mjs
+```
+
+## userAgent()
+
+**Run:**
+
+```bash
+node scripts/Chromes/userAgent.mjs
+```
+
+
+---
+
 # Com
 
 Runners: `scripts/Com/` — 16 public static method(s).
@@ -275,6 +730,8 @@ node scripts/Dates/addDays.mjs --dateStr <dateStr>
 
 ## addYearsGetLastDate(dateStr, years)
 
+Add N whole years to dateStr, then snap to 31 December of the resulting year. PRESERVES input format: YYYY-MM-DD in → YYYY-MM-DD out; DD.MM.YYYY in → DD.MM.YYYY out. Returns '' for an unparseable date or a non-integer years, so caller warns instead of writing "Invalid Date".
+
 **Run:**
 
 ```bash
@@ -283,8 +740,10 @@ node scripts/Dates/addYearsGetLastDate.mjs --dateStr <dateStr>
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `dateStr` | no | — |
-| `years` | no | — |
+| `dateStr` | no | Date in YYYY-MM-DD or DD.MM.YYYY. |
+| `years` | no | Whole years to add. |
+
+**Returns:** 31 Dec of (dateStr year + years), same format as input; '' when input is invalid.
 
 ## compareDatesDMY(a, b)
 
@@ -654,7 +1113,48 @@ node scripts/Dialogs/warningBox.mjs --message <message>
 
 # Didox
 
-Runners: `scripts/Didox/` — 23 public static method(s).
+Runners: `scripts/Didox/` — 80 public static method(s).
+
+## authCompanyLogin(companyTaxId, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/authCompanyLogin.mjs --companyTaxId <companyTaxId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `companyTaxId` | no | — |
+| `locale` | no | — |
+
+## authSignup(mobile, email, password, signature)
+
+**Run:**
+
+```bash
+node scripts/Didox/authSignup.mjs --mobile <mobile>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `mobile` | no | — |
+| `email` | no | — |
+| `password` | no | — |
+| `signature` | no | — |
+
+## authToken(tin, [locale])
+
+**Run:**
+
+```bash
+node scripts/Didox/authToken.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `locale` | yes (default `'ru'`) | — |
 
 ## bankByCode(code)
 
@@ -679,6 +1179,64 @@ node scripts/Didox/carInfoByPinfl.mjs --tin <tin>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `tin` | no | — |
+
+## companiesPrivileges(taxIds, checkDate, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/companiesPrivileges.mjs --taxIds <taxIds>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `taxIds` | no | — |
+| `checkDate` | no | — |
+| `locale` | no | — |
+
+## companyPrivileges(tins, checkDate, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/companyPrivileges.mjs --tins <tins>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tins` | no | — |
+| `checkDate` | no | — |
+| `locale` | no | — |
+
+## compensationWorks({ locale, page, size, SearchText })
+
+**Run:**
+
+```bash
+node scripts/Didox/compensationWorks.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--SearchText` | — |
+
+## contractInfo(contractId, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/contractInfo.mjs --contractId <contractId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `contractId` | no | — |
+| `locale` | no | — |
 
 ## contracts(owner, rentType, state, [page], [size])
 
@@ -709,15 +1267,156 @@ node scripts/Didox/districtsByCode.mjs --regionId <regionId>
 | `regionId` | no | — |
 | `districtCode` | no | — |
 
-## documentList()
+## documentArchive(docId, out)
 
 **Run:**
 
 ```bash
-node scripts/Didox/documentList.mjs
+node scripts/Didox/documentArchive.mjs --docId <docId>
 ```
 
-## documentPDF(docId)
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `out` | no | — |
+
+## documentCreate(docType, body, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentCreate.mjs --docType <docType>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docType` | no | — |
+| `body` | no | — |
+| `locale` | no | — |
+
+## documentDelete(docId, signature)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentDelete.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `signature` | no | — |
+
+## documentDeleteDraft(docId)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentDeleteDraft.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+
+## documentExists(number, [docType])
+
+**Run:**
+
+```bash
+node scripts/Didox/documentExists.mjs --number <number>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `number` | no | — |
+| `docType` | yes (default `'002'`) | — |
+
+## documentFile(docId)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentFile.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+
+## documentGet(docId, [owner])
+
+**Run:**
+
+```bash
+node scripts/Didox/documentGet.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `owner` | yes (default `1`) | — |
+
+## documentGive(docId, signature)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentGive.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `signature` | no | — |
+
+## documentHtml(docId, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentHtml.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `locale` | no | — |
+
+## documentList({ page, size, owner, doctype, partner, status, name, sum, dateFromCreated, dateToCreated, dateFromUpdated, dateToUpdated, docDateFromCreated, docDateToCreated, contractName, contractDate, oneside, hasCommittent, hasLgota, hasMarks })
+
+**Run:**
+
+```bash
+node scripts/Didox/documentList.mjs --page <page> --size <size>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--page` | — |
+| `--size` | — |
+| `--owner` | — |
+| `--doctype` | — |
+| `--partner` | — |
+| `--status` | — |
+| `--name` | — |
+| `--sum` | — |
+| `--dateFromCreated` | — |
+| `--dateToCreated` | — |
+| `--dateFromUpdated` | — |
+| `--dateToUpdated` | — |
+| `--docDateFromCreated` | — |
+| `--docDateToCreated` | — |
+| `--contractName` | — |
+| `--contractDate` | — |
+| `--oneside` | — |
+| `--hasCommittent` | — |
+| `--hasLgota` | — |
+| `--hasMarks` | — |
+
+## documentPDF(docId, locale, out)
 
 **Run:**
 
@@ -728,16 +1427,287 @@ node scripts/Didox/documentPDF.mjs --docId <docId>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `docId` | no | — |
+| `locale` | no | — |
+| `out` | no | — |
 
-## frauds()
+## documentPreview(docType, body, locale)
 
 **Run:**
 
 ```bash
-node scripts/Didox/frauds.mjs
+node scripts/Didox/documentPreview.mjs --docType <docType>
 ```
 
-## fraudsByTin(tin)
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docType` | no | — |
+| `body` | no | — |
+| `locale` | no | — |
+
+## documentPrivileges(docId)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentPrivileges.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+
+## documentReject(docId, signature, comment)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentReject.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `signature` | no | — |
+| `comment` | no | — |
+
+## documentReturn(docId, signature, comment)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentReturn.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `signature` | no | — |
+| `comment` | no | — |
+
+## documentSign(docId, tin)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentSign.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `tin` | no | — |
+
+## documentTillReturn(docId, signature, comment)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentTillReturn.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `signature` | no | — |
+| `comment` | no | — |
+
+## documentToSign(docId, action)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentToSign.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `action` | no | — |
+
+## documentUpdate(docId, docType, body, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/documentUpdate.mjs --docId <docId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `docId` | no | — |
+| `docType` | no | — |
+| `body` | no | — |
+| `locale` | no | — |
+
+## exchangeLot(buyerTin, lotId)
+
+**Run:**
+
+```bash
+node scripts/Didox/exchangeLot.mjs --buyerTin <buyerTin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `buyerTin` | no | — |
+| `lotId` | no | — |
+
+## exchangeLotsWithTypes(buyerTin, lotId, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/exchangeLotsWithTypes.mjs --buyerTin <buyerTin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `buyerTin` | no | — |
+| `lotId` | no | — |
+| `locale` | no | — |
+
+## exchangeTypes()
+
+**Run:**
+
+```bash
+node scripts/Didox/exchangeTypes.mjs
+```
+
+## fakturaContract(folderContract, [yamlData])
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaContract.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `folderContract` | no | — |
+| `yamlData` | yes (default `{}`) | — |
+
+## fakturaEntries(yamlData, [date], [today])
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaEntries.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `yamlData` | no | — |
+| `date` | yes (default `''`) | — |
+| `today` | yes (default `Dates.today(`) | — |
+
+## fakturaName(base, start, end)
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaName.mjs --base <base>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `base` | no | — |
+| `start` | no | — |
+| `end` | no | — |
+
+## fakturaNumber(format, contractNo, date)
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaNumber.mjs --format <format>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `format` | no | — |
+| `contractNo` | no | — |
+| `date` | no | — |
+
+## fakturaParty(info, [own])
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaParty.mjs --info <info>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `info` | no | — |
+| `own` | yes (default `{}`) | — |
+
+## fakturaPayload(ctx)
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaPayload.mjs --ctx <ctx>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `ctx` | no | — |
+
+## fakturaSend(ymlFile, [dry], [date])
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaSend.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `ymlFile` | no | — |
+| `dry` | yes (default `true`) | — |
+| `date` | yes (default `''`) | — |
+
+## fakturaSendAll(all, [dry], [date])
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaSendAll.mjs --all <all>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `all` | no | — |
+| `dry` | yes (default `true`) | — |
+| `date` | yes (default `''`) | — |
+
+## fakturaSettings()
+
+**Run:**
+
+```bash
+node scripts/Didox/fakturaSettings.mjs
+```
+
+## frauds({ locale, page, size, tin })
+
+**Run:**
+
+```bash
+node scripts/Didox/frauds.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--tin` | — |
+
+## fraudsByTin(tin, locale)
 
 **Run:**
 
@@ -748,22 +1718,45 @@ node scripts/Didox/fraudsByTin.mjs --tin <tin>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `tin` | no | — |
+| `locale` | no | — |
 
-## getRegionInfo()
-
-**Run:**
-
-```bash
-node scripts/Didox/getRegionInfo.mjs
-```
-
-## getTaxpayerType()
+## getRegionInfo(regionId)
 
 **Run:**
 
 ```bash
-node scripts/Didox/getTaxpayerType.mjs
+node scripts/Didox/getRegionInfo.mjs --regionId <regionId>
 ```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `regionId` | no | — |
+
+## getTaxpayerType(tin, lang, date)
+
+**Run:**
+
+```bash
+node scripts/Didox/getTaxpayerType.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `lang` | no | — |
+| `date` | no | — |
+
+## incomeTypes(locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/incomeTypes.mjs --locale <locale>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `locale` | no | — |
 
 ## infoByTinPinfl(tin, [personFolder])
 
@@ -778,29 +1771,233 @@ node scripts/Didox/infoByTinPinfl.mjs --tin <tin>
 | `tin` | no | — |
 | `personFolder` | yes (default `globalThis.folderDirector`) | — |
 
-## login()
+## login(tin, locale, password)
 
 **Run:**
 
 ```bash
-node scripts/Didox/login.mjs
+node scripts/Didox/login.mjs --tin <tin>
 ```
 
-## profileIKPUCodes()
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `locale` | no | — |
+| `password` | no | — |
+
+## notIncludedProducts({ locale, page, size, SearchText })
 
 **Run:**
 
 ```bash
-node scripts/Didox/profileIKPUCodes.mjs
+node scripts/Didox/notIncludedProducts.mjs --locale <locale> --page <page>
 ```
 
-## profileInfo()
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--SearchText` | — |
+
+## otherIncomeProductClasses(locale)
 
 **Run:**
 
 ```bash
-node scripts/Didox/profileInfo.mjs
+node scripts/Didox/otherIncomeProductClasses.mjs --locale <locale>
 ```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `locale` | no | — |
+
+## partyInfo(tin, cacheFile, [online])
+
+**Run:**
+
+```bash
+node scripts/Didox/partyInfo.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `cacheFile` | no | — |
+| `online` | yes (default `false`) | — |
+
+## privilegedBuyerCompanies({ locale, page, size, Tin, newLgotaId, LgotaName })
+
+**Run:**
+
+```bash
+node scripts/Didox/privilegedBuyerCompanies.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--Tin` | — |
+| `--newLgotaId` | — |
+| `--LgotaName` | — |
+
+## privilegedSellerCompanies({ locale, page, size, Tin, newLgotaId, LgotaName })
+
+**Run:**
+
+```bash
+node scripts/Didox/privilegedSellerCompanies.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--Tin` | — |
+| `--newLgotaId` | — |
+| `--LgotaName` | — |
+
+## productClassAdd(classCode)
+
+**Run:**
+
+```bash
+node scripts/Didox/productClassAdd.mjs --classCode <classCode>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `classCode` | no | — |
+
+## productClassCheck(taxId, code, lang)
+
+**Run:**
+
+```bash
+node scripts/Didox/productClassCheck.mjs --taxId <taxId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `taxId` | no | — |
+| `code` | no | — |
+| `lang` | no | — |
+
+## productClassRemove(classCode)
+
+**Run:**
+
+```bash
+node scripts/Didox/productClassRemove.mjs --classCode <classCode>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `classCode` | no | — |
+
+## productPackage(tin, catalogCode, packageName, [locale])
+
+**Run:**
+
+```bash
+node scripts/Didox/productPackage.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+| `catalogCode` | no | — |
+| `packageName` | no | — |
+| `locale` | yes (default `'ru'`) | — |
+
+## productPrivileges(codes, checkDate, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/productPrivileges.mjs --codes <codes>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `codes` | no | — |
+| `checkDate` | no | — |
+| `locale` | no | — |
+
+## profileBranches(tin)
+
+**Run:**
+
+```bash
+node scripts/Didox/profileBranches.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
+
+## profileIKPUCodes({ locale, page, size, search })
+
+**Run:**
+
+```bash
+node scripts/Didox/profileIKPUCodes.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--search` | — |
+
+## profileInfo(locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/profileInfo.mjs --locale <locale>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `locale` | no | — |
+
+## profileUpdate(body, locale)
+
+**Run:**
+
+```bash
+node scripts/Didox/profileUpdate.mjs --body <body>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `body` | no | — |
+| `locale` | no | — |
+
+## profileWarehouses(tin)
+
+**Run:**
+
+```bash
+node scripts/Didox/profileWarehouses.mjs --tin <tin>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tin` | no | — |
 
 ## regionsByCode(code)
 
@@ -862,7 +2059,7 @@ node scripts/Didox/saveRegions.mjs
 node scripts/Didox/saveRegionsTTN.mjs
 ```
 
-## searchIKPUCode(text)
+## searchIKPUCode(text, lang)
 
 **Run:**
 
@@ -873,8 +2070,59 @@ node scripts/Didox/searchIKPUCode.mjs --text <text>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `text` | no | — |
+| `lang` | no | — |
 
-## vatRegStatus(tin, date)
+## signData(dataBase64, tin)
+
+**Run:**
+
+```bash
+node scripts/Didox/signData.mjs --dataBase64 <dataBase64>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dataBase64` | no | — |
+| `tin` | no | — |
+
+## stationInfo(stationId)
+
+**Run:**
+
+```bash
+node scripts/Didox/stationInfo.mjs --stationId <stationId>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `stationId` | no | — |
+
+## timestamp(pkcs764, signatureHex)
+
+**Run:**
+
+```bash
+node scripts/Didox/timestamp.mjs --pkcs764 <pkcs764>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `pkcs764` | no | — |
+| `signatureHex` | no | — |
+
+## utilsInfo(tinOrPinfl)
+
+**Run:**
+
+```bash
+node scripts/Didox/utilsInfo.mjs --tinOrPinfl <tinOrPinfl>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tinOrPinfl` | no | — |
+
+## vatRegStatus(tin, documentDate)
 
 **Run:**
 
@@ -885,7 +2133,59 @@ node scripts/Didox/vatRegStatus.mjs --tin <tin>
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
 | `tin` | no | — |
-| `date` | no | — |
+| `documentDate` | no | — |
+
+## waybillTransport(tinOrPinfl)
+
+**Run:**
+
+```bash
+node scripts/Didox/waybillTransport.mjs --tinOrPinfl <tinOrPinfl>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `tinOrPinfl` | no | — |
+
+## withoutVatProducts({ locale, page, size, TasnifCode, TasnifName, newLgotaId, LgotaName })
+
+**Run:**
+
+```bash
+node scripts/Didox/withoutVatProducts.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--TasnifCode` | — |
+| `--TasnifName` | — |
+| `--newLgotaId` | — |
+| `--LgotaName` | — |
+
+## zeroVatProducts({ locale, page, size, TasnifCode, TasnifName, newLgotaId, LgotaName })
+
+**Run:**
+
+```bash
+node scripts/Didox/zeroVatProducts.mjs --locale <locale> --page <page>
+```
+
+**Object parameter** — pass each key as `--key value`:
+
+| Key | Description |
+|-----|-------------|
+| `--locale` | — |
+| `--page` | — |
+| `--size` | — |
+| `--TasnifCode` | — |
+| `--TasnifName` | — |
+| `--newLgotaId` | — |
+| `--LgotaName` | — |
 
 
 ---
@@ -932,6 +2232,89 @@ node scripts/ES/findIn.mjs --name <name>
 | `name` | no | — |
 | `folder` | no | — |
 | `instance` | yes (default `"One"`) | — |
+
+
+---
+
+# Eimzo
+
+Runners: `scripts/Eimzo/` — 6 public static method(s).
+
+## holds(certificate, tin)
+
+**Run:**
+
+```bash
+node scripts/Eimzo/holds.mjs --certificate <certificate>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `certificate` | no | — |
+| `tin` | no | — |
+
+## parseAlias(alias)
+
+**Run:**
+
+```bash
+node scripts/Eimzo/parseAlias.mjs --alias <alias>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `alias` | no | — |
+
+## pickCertificate(certificates, [tin], [now])
+
+**Run:**
+
+```bash
+node scripts/Eimzo/pickCertificate.mjs --certificates <certificates>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `certificates` | no | — |
+| `tin` | yes (default `''`) | — |
+| `now` | yes (default `new Date(`) | — |
+
+## sign(dataBase64, [tin])
+
+**Run:**
+
+```bash
+node scripts/Eimzo/sign.mjs --dataBase64 <dataBase64>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `dataBase64` | no | — |
+| `tin` | yes (default `''`) | — |
+
+## toBase64(text)
+
+**Run:**
+
+```bash
+node scripts/Eimzo/toBase64.mjs --text <text>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `text` | no | — |
+
+## validTo(alias)
+
+**Run:**
+
+```bash
+node scripts/Eimzo/validTo.mjs --alias <alias>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `alias` | no | — |
 
 
 ---
@@ -2068,7 +3451,7 @@ node scripts/Files/getTINFromTXT.mjs --file "<path>"
 
 ## incrementFileName(filePath)
 
-Increments a file name if it already exists (e.g., file.yml -> file 1.yml)
+Increment existing filename; unnumbered original counts as version 1 (file.yml -> file 2.yml). Naming rule: smarts-file-increment/module/filename.md.
 
 **Run:**
 
@@ -2532,6 +3915,154 @@ node scripts/Homoglyph/wordAsk.mjs --file "<path>"
 
 ---
 
+# IjaraSoliq
+
+Runners: `scripts/IjaraSoliq/` — 3 public static method(s).
+
+## contracts([owner], [rentType], [state], [page], [size])
+
+**Run:**
+
+```bash
+node scripts/IjaraSoliq/contracts.mjs --owner <owner>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `owner` | yes (default `Owner.SRental`) | — |
+| `rentType` | yes (default `RentType.Out`) | — |
+| `state` | yes (default `IjaraState.Confirmed`) | — |
+| `page` | yes (default `0`) | — |
+| `size` | yes (default `1000`) | — |
+
+## download([owner], docId, startDate, endDate)
+
+**Run:**
+
+```bash
+node scripts/IjaraSoliq/download.mjs --owner <owner>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `owner` | yes (default `Owner.SRental`) | — |
+| `docId` | no | — |
+| `startDate` | no | — |
+| `endDate` | no | — |
+
+## testing()
+
+**Run:**
+
+```bash
+node scripts/IjaraSoliq/testing.mjs
+```
+
+
+---
+
+# KapitalBank
+
+Runners: `scripts/KapitalBank/` — 2 public static method(s).
+
+## payments([owner], [page], [size], [state])
+
+**Run:**
+
+```bash
+node scripts/KapitalBank/payments.mjs --owner <owner>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `owner` | yes (default `IjaraSoliq.Owner.SRental`) | — |
+| `page` | yes (default `1`) | — |
+| `size` | yes (default `1000`) | — |
+| `state` | yes (default `this.KapitalState.Conducted`) | — |
+
+## testing()
+
+**Run:**
+
+```bash
+node scripts/KapitalBank/testing.mjs
+```
+
+
+---
+
+# Markdown
+
+Runners: `scripts/Markdown/` — 4 public static method(s).
+
+## convertToHtml(filePath)
+
+**Run:**
+
+```bash
+node scripts/Markdown/convertToHtml.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+
+## convertToWord(filePath, [genPdf], [templatePath])
+
+Converts a Markdown file to Word .docx (plain template, no TOC). The .docx is saved in a `DOC` folder next to the source .md file. If genPdf is true (default) a PDF is also exported to a `PDF` folder. Template config key: Templates.WordMd (a FOLDER — latest file is picked).
+
+**Run:**
+
+```bash
+node scripts/Markdown/convertToWord.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `genPdf` | yes (default `true`) | =true]  Also export a PDF alongside the .docx |
+| `templatePath` | yes (default `null`) | Explicit template file/folder override. |
+
+**Returns:** Absolute path of the generated .docx
+
+## convertToWordTOC(filePath, [genPdf], [templatePath])
+
+Converts a Markdown file to a Word .docx using a TOC-enabled template. The template must contain the literal placeholder text "{Content}" where the converted content should be inserted. After insertion the existing Table of Contents field in the document is refreshed automatically. The .docx is saved in a `DOC` folder next to the source .md file. If genPdf is true (default) a PDF is also exported to a `PDF` folder. Template config key: Templates.WordMdTOC (a FOLDER — latest file is picked).
+
+**Run:**
+
+```bash
+node scripts/Markdown/convertToWordTOC.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+| `genPdf` | yes (default `true`) | =true]  Also export a PDF alongside the .docx |
+| `templatePath` | yes (default `null`) | Explicit template file/folder override. |
+
+**Returns:** Absolute path of the generated .docx
+
+## merge(files, [lineBetween])
+
+Merges an array of Markdown files into a single .md file. Output location : the same folder that contains the first file. Output filename  : <thatFolderName> 1.md, auto-incremented if it already exists (e.g. "Diagnose 1.md", "Diagnose 2.md", …). Between each file's content, `lineBetween` empty lines are inserted so the sections are visually separated when the result is opened in an editor or converted to another format. files to merge, in the desired order. each file's content. When null (default) the value is read from config key `Markdown.LineBetween` (fallback: 20). or undefined on error / empty input.
+
+**Run:**
+
+```bash
+node scripts/Markdown/merge.mjs <item1> <item2> …
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `files` | no | Absolute (or resolvable) paths to the .md |
+| `lineBetween` | yes (default `null`) | Number of empty lines to insert between |
+
+**Returns:** Absolute path of the written output file,
+
+
+---
+
 # MySoliq
 
 Runners: `scripts/MySoliq/` — 6 public static method(s).
@@ -2965,6 +4496,261 @@ node scripts/PowerPoints/unProtectFileAsk.mjs --file "<path>"
 
 ---
 
+# Puppe
+
+Runners: `scripts/Puppe/` — 23 public static method(s).
+
+## appSaveOffers()
+
+**Run:**
+
+```bash
+node scripts/Puppe/appSaveOffers.mjs
+```
+
+## appSavePages()
+
+**Run:**
+
+```bash
+node scripts/Puppe/appSavePages.mjs
+```
+
+## appSavePagination()
+
+**Run:**
+
+```bash
+node scripts/Puppe/appSavePagination.mjs
+```
+
+## appSavePhones()
+
+**Run:**
+
+```bash
+node scripts/Puppe/appSavePhones.mjs
+```
+
+## autoScroll([step], [delay])
+
+**Run:**
+
+```bash
+node scripts/Puppe/autoScroll.mjs --step <step>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `step` | yes (default `400`) | — |
+| `delay` | yes (default `150`) | — |
+
+## extractApp(pattern, page)
+
+**Run:**
+
+```bash
+node scripts/Puppe/extractApp.mjs --pattern <pattern>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `pattern` | no | — |
+| `page` | no | — |
+
+## extractAppPhone(pattern, page)
+
+**Run:**
+
+```bash
+node scripts/Puppe/extractAppPhone.mjs --pattern <pattern>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `pattern` | no | — |
+| `page` | no | — |
+
+## extractContent(page)
+
+**Run:**
+
+```bash
+node scripts/Puppe/extractContent.mjs --page <page>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `page` | no | — |
+
+## extractID(page)
+
+**Run:**
+
+```bash
+node scripts/Puppe/extractID.mjs --page <page>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `page` | no | — |
+
+## extractOffers()
+
+**Run:**
+
+```bash
+node scripts/Puppe/extractOffers.mjs
+```
+
+## extractUserId()
+
+**Run:**
+
+```bash
+node scripts/Puppe/extractUserId.mjs
+```
+
+## humanScroll()
+
+**Run:**
+
+```bash
+node scripts/Puppe/humanScroll.mjs
+```
+
+## itemSavePagination(url)
+
+**Run:**
+
+```bash
+node scripts/Puppe/itemSavePagination.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+
+## offersCount(fullPath)
+
+**Run:**
+
+```bash
+node scripts/Puppe/offersCount.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `fullPath` | no | — |
+
+## pageTitle()
+
+**Run:**
+
+```bash
+node scripts/Puppe/pageTitle.mjs
+```
+
+## saveAsMhtml(filePath)
+
+**Run:**
+
+```bash
+node scripts/Puppe/saveAsMhtml.mjs --file "<path>"
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `filePath` | no | — |
+
+## scrapeOffers(url)
+
+**Run:**
+
+```bash
+node scripts/Puppe/scrapeOffers.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+
+## scrapePages(url)
+
+**Run:**
+
+```bash
+node scripts/Puppe/scrapePages.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+
+## scrapePhone(url, userIdPath)
+
+**Run:**
+
+```bash
+node scripts/Puppe/scrapePhone.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+| `userIdPath` | no | — |
+
+## scrapeUser(url, userIdPath, match)
+
+**Run:**
+
+```bash
+node scripts/Puppe/scrapeUser.mjs --url <url>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `url` | no | — |
+| `userIdPath` | no | — |
+| `match` | no | — |
+
+## scrollAds()
+
+**Run:**
+
+```bash
+node scripts/Puppe/scrollAds.mjs
+```
+
+## scrollUntilSelector(selector, [{
+      step], [delay], [maxScrolls])
+
+**Run:**
+
+```bash
+node scripts/Puppe/scrollUntilSelector.mjs --selector <selector>
+```
+
+| Parameter | Optional | Description |
+|-----------|----------|-------------|
+| `selector` | no | — |
+| `{
+      step` | yes (default `500`) | — |
+| `delay` | yes (default `300`) | — |
+| `maxScrolls` | yes (default `30
+    } = {}`) | — |
+
+## showPhone()
+
+**Run:**
+
+```bash
+node scripts/Puppe/showPhone.mjs
+```
+
+
+---
+
 # Registry
 
 Runners: `scripts/Registry/` — 1 public static method(s).
@@ -3151,18 +4937,19 @@ node scripts/Secrets/env.mjs --name <name>
 |-----------|----------|-------------|
 | `name` | no | — |
 
-## get(section, [owner])
+## get(service, kind, firm)
 
 **Run:**
 
 ```bash
-node scripts/Secrets/get.mjs --section <section>
+node scripts/Secrets/get.mjs --service <service>
 ```
 
 | Parameter | Optional | Description |
 |-----------|----------|-------------|
-| `section` | no | — |
-| `owner` | yes (default `''`) | — |
+| `service` | no | — |
+| `kind` | no | — |
+| `firm` | no | — |
 
 
 ---
@@ -3621,7 +5408,7 @@ node scripts/Yamls/computeFaktura.mjs --accrual <accrual>
 | `accrual` | no | — |
 | `ehfIn` | no | — |
 
-## computeFakturaSend(accrual, ehfIn)
+## computeFakturaSend(accrual, ehfIn, bankTotal)
 
 **Run:**
 
@@ -3633,6 +5420,7 @@ node scripts/Yamls/computeFakturaSend.mjs --accrual <accrual>
 |-----------|----------|-------------|
 | `accrual` | no | — |
 | `ehfIn` | no | — |
+| `bankTotal` | no | — |
 
 ## computeHistory(payment, returns)
 
