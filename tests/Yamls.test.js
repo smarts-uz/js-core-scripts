@@ -1641,15 +1641,10 @@ describe('Yamls.computeFakturaSend', () => {
     }
   });
 
-  it('is all-zero when EHF-IN already covers every period in full', () => {
+  it('is just { ALL: 0 } when EHF-IN already covers every period in full', () => {
     const ehfIn = [{ '2025-09-10': '2000000' }]; // exceeds the 1,170,000 total
     const result = Yamls.computeFakturaSend(accrual, ehfIn);
-    expect(result).toEqual([
-      { '2026-01-31': '0' },
-      { '2026-02-28': '0' },
-      { '2026-03-31': '0' },
-      { ALL: '0' },
-    ]);
+    expect(result).toEqual([{ ALL: '0' }]);
   });
 
   it('equals the full Accrual amount for every period when there is no EHF-IN at all', () => {
@@ -1660,6 +1655,113 @@ describe('Yamls.computeFakturaSend', () => {
       { '2026-03-31': '390,000' },
       { ALL: '1,170,000' },
     ]);
+  });
+
+  it('FakturaSend.ALL = bankTotal - Faktura.ALL, spread over periods in order', () => {
+    const ehfIn = [{ '2025-09-10': '500000' }]; // Faktura.ALL = 500,000
+    const result = Yamls.computeFakturaSend(accrual, ehfIn, '1,000,000');
+
+    // 1,000,000 - 500,000 = 500,000 to send; period 1 is fully invoiced (room 0), period 2 room 280,000, period 3 gets the remaining 220,000.
+    expect(result).toEqual([
+      { '2026-01-31': '0' },
+      { '2026-02-28': '280,000' },
+      { '2026-03-31': '220,000' },
+      { ALL: '500,000' },
+    ]);
+  });
+
+  it('Faktura.ALL + FakturaSend.ALL never exceeds the bank total', () => {
+    const toAmount = (v) => Number(String(v).replace(/,/g, '')) || 0;
+    const ehfIn = [{ '2025-09-10': '200000' }];
+    const bankTotal = '700,000';
+    const faktura = Yamls.computeFaktura(accrual, ehfIn);
+    const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn, bankTotal);
+
+    const fakturaAll = toAmount(faktura.find((e) => 'ALL' in e).ALL);
+    const sendAll = toAmount(fakturaSend.find((e) => 'ALL' in e).ALL);
+    expect(sendAll).toBe(toAmount(bankTotal) - fakturaAll);
+    expect(fakturaAll + sendAll).toBeLessThanOrEqual(toAmount(bankTotal));
+  });
+
+  it('is just { ALL: 0 } when the bank total does not exceed Faktura.ALL', () => {
+    const ehfIn = [{ '2025-09-10': '500000' }];
+    expect(Yamls.computeFakturaSend(accrual, ehfIn, '500,000')).toEqual([{ ALL: '0' }]);
+    expect(Yamls.computeFakturaSend(accrual, ehfIn, '0')).toEqual([{ ALL: '0' }]);
+  });
+
+  it('stops in the month the bank money runs out — no zero months after it, never runs on to the last Accrual period', () => {
+    // 12 monthly periods of 100; 700 already invoiced (7 months), 900 paid via bank -> only 200 to send.
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const mm = String(i + 1).padStart(2, '0');
+      const end = ['31', '28', '31', '30', '31', '30', '31', '31', '30', '31', '30', '31'][i];
+      return { [`2026-${mm}-01#2026-${mm}-${end}`]: '100' };
+    });
+    const longAccrual = [...months, { ALL: '1,200' }];
+    const ehfIn = [{ '2025-12-01': '700' }];
+
+    const result = Yamls.computeFakturaSend(longAccrual, ehfIn, '900');
+
+    // Months 1-7 invoiced (zeros before the first funded month are kept), months 8-9 get the 200, then it stops.
+    expect(result).toEqual([
+      { '2026-01-31': '0' },
+      { '2026-02-28': '0' },
+      { '2026-03-31': '0' },
+      { '2026-04-30': '0' },
+      { '2026-05-31': '0' },
+      { '2026-06-30': '0' },
+      { '2026-07-31': '0' },
+      { '2026-08-31': '100' },
+      { '2026-09-30': '100' },
+      { ALL: '200' },
+    ]);
+  });
+
+  it('partially funded last month: bank 25.2M, Faktura 23.52M -> 1.68M sent, May remainder first then June, nothing after', () => {
+    const rent = [
+      { '2026-04-01#2026-04-30': '1,680,000' },
+      { '2026-05-01#2026-05-31': '1,680,000' },
+      { '2026-06-01#2026-06-30': '1,680,000' },
+      { '2026-07-01#2026-07-31': '1,680,000' },
+      { '2026-08-01#2026-08-31': '1,680,000' },
+      { ALL: '8,400,000' },
+    ];
+    // 1,680,000 + 623,225.76 invoiced: April full, May partly.
+    const ehfIn = [{ '2026-04-30': '1,680,000' }, { '2026-05-31': '623,225.76' }];
+
+    // bank 2,303,225.76 - Faktura 2,303,225.76 = 0 -> nothing to send.
+    expect(Yamls.computeFakturaSend(rent, ehfIn, '2,303,225.76')).toEqual([{ ALL: '0' }]);
+
+    const withMore = Yamls.computeFakturaSend(rent, ehfIn, '3,983,225.76');
+    // 3,983,225.76 - 2,303,225.76 = 1,680,000: May remainder 1,056,774.24, then June 623,225.76, then stop.
+    expect(withMore).toEqual([
+      { '2026-04-30': '0' },
+      { '2026-05-31': '1,056,774.24' },
+      { '2026-06-30': '623,225.76' },
+      { ALL: '1,680,000' },
+    ]);
+  });
+
+  it("caps each month at its own Accrual, so a Tariff change mid-contract is respected", () => {
+    // Accrual already carries each month's own tariff rate: month 2 jumped to 600,000.
+    const tariffAccrual = [
+      { '2026-01-01#2026-01-31': '390,000' },
+      { '2026-02-01#2026-02-28': '600,000' },
+      { '2026-03-01#2026-03-31': '600,000' },
+      { ALL: '1,590,000' },
+    ];
+    const result = Yamls.computeFakturaSend(tariffAccrual, [], '1,200,000');
+
+    expect(result).toEqual([
+      { '2026-01-31': '390,000' }, // old tariff cap
+      { '2026-02-28': '600,000' }, // new tariff cap
+      { '2026-03-31': '210,000' }, // only what the bank total still funds
+      { ALL: '1,200,000' },
+    ]);
+  });
+
+  it('never exceeds bank total even when it is larger than the whole Accrual (capped by Accrual room)', () => {
+    const result = Yamls.computeFakturaSend(accrual, [], '5,000,000');
+    expect(result.find((e) => 'ALL' in e).ALL).toBe('1,170,000');
   });
 });
 
