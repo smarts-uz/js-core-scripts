@@ -19,11 +19,15 @@ Cache:
     # matching file is archived to RestAPI/- Theory first, and only a real
     # (non-empty) answer ever replaces it. 0 = never expires.
     MaxAgeDays: 30
-# Secrets (My3Api, My3, Kapital, KapitalId, Didox, Ijara) moved to .env — read
-# via process.env (dotenv). See INTEGRATIONS.md for the variable names.
+# Secrets (didox, my3, ijara, kapital) live in keys.yml — read via
+# Secrets.get(service, kind, firm). See INTEGRATIONS.md for the key layout.
 # The non-secret Didox partner-API base URL stays here.
 Didox:
     BaseURL: api-partners.didox.uz
+    # Default Accept-Language / locale path segment (ru | uz) and the company
+    # TIN the password login (Didox.login) signs in as when no tin is passed.
+    Locale: ru
+    Tin: 311958304
 # Local E-IMZO signing service (Didox docs "01. Работа с E-IMZO"). Loopback only.
 # Origin is sent as the WebSocket Origin header. Device: pfx (key file) | ckc (USB token).
 Eimzo:
