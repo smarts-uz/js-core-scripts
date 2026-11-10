@@ -14,7 +14,7 @@ This project is a private Node.js ESM command-line toolkit for Windows document 
 - `classes/` contains the authored library classes. Public methods are non-underscore methods and are the source for generated runners.
 - `scripts/` contains generated per-method runner entry points plus generator scripts. Regenerate runners, README, shell definitions, and launch configs with the existing npm scripts when public APIs change.
 - `tests/` is the permanent Jest suite. Keep one focused test file per utility class and extend the matching spec when adding or changing public behavior.
-- `config.yml` stores non-secret runtime configuration only. Secrets belong in the gitignored `.env` and are read through `classes/Secrets.js`.
+- `config.yml` stores non-secret runtime configuration only. Secrets belong in the gitignored `keys.yml` (template `keys.example.yml`) and are read through `classes/Secrets.js`.
 - `sheller/`, `cmd/`, and `App/` hold Windows integration launchers and app shortcuts. Treat launcher edits as user-facing behavior changes and test the real invoked path where possible.
 
 ## Development Rules
