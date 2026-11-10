@@ -215,7 +215,7 @@ const FilesMock = {
   incrementFileName: (filePath) => {
     if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
-    let i = 1;
+    let i = 2;
     let np = filePath;
     while (fs.existsSync(np)) {
       np = path.join(parsed.dir, `${parsed.name} ${i}${parsed.ext}`);
@@ -462,7 +462,7 @@ describe('Word.getProtectedPath', () => {
   it('auto-increments when the suffixed target already exists', () => {
     fs.writeFileSync(path.join(workDir, 'doc Protected.docx'), 'x', 'utf8');
     const out = Word.getProtectedPath(path.join(workDir, 'doc.docx'));
-    expect(out).toBe(path.join(workDir, 'doc Protected 1.docx'));
+    expect(out).toBe(path.join(workDir, 'doc Protected 2.docx'));
   });
 
   it('returns an absolute path', () => {
@@ -697,7 +697,6 @@ describe('Word.makeContract', () => {
     for (const ext of extensions) {
       fs.writeFileSync(path.join(dir, `${core}.${ext}`), 'existing', 'utf8');
     }
-    fs.writeFileSync(path.join(dir, `${core} 1.pdf`), 'previous PDF', 'utf8');
     const spy = jest.spyOn(Word, 'wordReplace').mockImplementation((_data, _template, docx, pdf) => {
       fs.writeFileSync(docx, 'new DOCX', 'utf8');
       fs.writeFileSync(pdf, 'new PDF', 'utf8');
@@ -715,7 +714,8 @@ describe('Word.makeContract', () => {
       for (const ext of extensions) {
         expect(fs.readFileSync(path.join(dir, `${core}.${ext}`), 'utf8')).toBe('existing');
       }
-      expect(fs.readFileSync(path.join(dir, `${core} 1.pdf`), 'utf8')).toBe('previous PDF');
+      expect(fs.existsSync(path.join(dir, `${core} 1.docx`))).toBe(false);
+      expect(fs.existsSync(path.join(dir, `${core} 1.pdf`))).toBe(false);
     } finally {
       spy.mockRestore();
     }
