@@ -2316,7 +2316,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     // Price is read much later via String(Price).replaceAll(...); guarding it up
     // front keeps a missing Price from throwing after markers are already on disk.
@@ -2335,7 +2335,7 @@ describe('Yamls.replaceYaml', () => {
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     // No Contract.PrepayMonth configured, none in yamlData, no ActDateEnd to fall back on.
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     expect(() =>
       Yamls.replaceYaml(
@@ -2354,7 +2354,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = {
       ContractDate: '2024-11-05',
@@ -2374,11 +2374,57 @@ describe('Yamls.replaceYaml', () => {
     expect(yamlData.PeriodEnd).toBe('2025-03-31');
   });
 
+  it('derives IjaraDateEnd as 31 Dec of (ContractDateEnd year + 2): rental end 08.11.2027 -> 31.12.2029', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 363 } });
+
+    const yamlData = {
+      ContractDate: '2026-11-10',
+      ActDateEnd: '2027-03-31',
+      Price: '1,200,000',
+    };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, { regDate: null });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(yamlData.ContractDateEnd).toBe('2027-11-08');
+    expect(yamlData.IjaraDateEnd).toBe('2029-12-31');
+    expect(yamlData.YearIjara).toBe('2029');
+    expect(yamlData.MonthIjara).toBe('12');
+    expect(yamlData.DayIjara).toBe('31');
+  });
+
+  it('always overwrites a typed IjaraDateEnd: rental end 01.01.2028 -> 31.12.2030', () => {
+    globalThis.folderCompan = path.join(workDir, 'Compan');
+    fs.mkdirSync(globalThis.folderCompan, { recursive: true });
+    globalThis.folderALL = workDir;
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 363 } });
+
+    const yamlData = {
+      ContractDate: '2027-01-03',
+      ContractDateEnd: '2028-01-01',
+      IjaraDateEnd: '2099-01-01',
+      ActDateEnd: '2027-03-31',
+      Price: '1,200,000',
+    };
+    try {
+      Yamls.replaceYaml('file.yml', yamlData, { regDate: null });
+    } catch {
+      /* unrelated downstream field population, not under test */
+    }
+
+    expect(yamlData.IjaraDateEnd).toBe('2030-12-31');
+  });
+
   it('auto-fills a blank ContractDate from today when MySoliq streetName is not Adolat MFY', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '', Price: '1,200,000' };
     expect(() =>
@@ -2397,7 +2443,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '', Price: '1,200,000' };
     expect(() =>
@@ -2416,7 +2462,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '', Price: '1,200,000' };
     expect(() =>
@@ -2437,7 +2483,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'YaTT', ContractDate: '', Price: '1,200,000' };
     expect(() =>
@@ -2456,7 +2502,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '2024-11-05', Price: '1,200,000' };
     try {
@@ -2480,7 +2526,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '2026-09-15', Price: '1,200,000' };
     try {
@@ -2501,7 +2547,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '2026-09-18', Price: '1,200,000' };
     try {
@@ -2521,7 +2567,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ComType: 'MChJ', ContractDate: '2020-01-01', Price: '1,200,000' };
     try {
@@ -2541,7 +2587,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = { ContractDate: '2024-11-05', ContractDateEnd: '', Price: '1,200,000' };
     try {
@@ -2561,7 +2607,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const yamlData = {
       ContractDate: '2024-11-05',
@@ -2584,7 +2630,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     // ContractDate itself is valid, but the user-set ContractDateEnd is not a real date.
     expect(() =>
@@ -2626,7 +2672,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
     // Mirrors the real template shape: bare-named YYYY-MM-DD date lines, filled
@@ -2724,7 +2770,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
     // A pre-existing file already carrying a hand-edited PriceMon (January frozen at 390,000, a rate that differs from the yamlData.Price argument below) and PriceOK: true.
@@ -2793,7 +2839,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
     fs.writeFileSync(
@@ -2855,7 +2901,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
-    writeConfig({ Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 } });
+    writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
     const ymlFile = path.join(workDir, 'ALL.contract');
     fs.writeFileSync(
@@ -2912,7 +2958,7 @@ describe('Yamls.replaceYaml', () => {
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({
-      Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 },
+      Contract: { IjaraYears: 2, AddDays: 30 },
       Penalty: { PerDay: 50000 },
       Excel: { CellNames: [] },
     });
@@ -2992,7 +3038,7 @@ describe('Yamls.replaceYaml', () => {
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({
-      Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 },
+      Contract: { IjaraYears: 2, AddDays: 30 },
       Penalty: { PerDay: 50000 },
       Excel: { CellNames: [] },
     });
@@ -3097,7 +3143,7 @@ describe('Yamls.replaceYaml', () => {
     globalThis.folderALL = workDir;
     globalThis.folderPartners = path.join(workDir, 'Partners');
     writeConfig({
-      Contract: { IjaraDateEnd: '2024-01-01', AddDays: 30 },
+      Contract: { IjaraYears: 2, AddDays: 30 },
       Penalty: { PerDay: 50000 },
       Excel: { CellNames: [] },
     });
