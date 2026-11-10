@@ -910,26 +910,41 @@ export class Yamls {
         return result;
     }
 
-    // Per-period amount NOT YET invoiced — Accrual[period] minus that period's own Faktura amount (an invoice is always eventually sent for the full Accrual; FakturaSend is the shortfall still owed).
-    // Reuses computePaymentChain's own `loaners` half (owed - paid, same math computeFaktura's `payment` half is built from) rather than recomputing the subtraction by hand.
+    // Per-period amount still TO BE invoiced, bounded by the real bank money received: FakturaSend.ALL = bankTotal (HistoryBank.ALL) - Faktura.ALL, never negative.
+    // Faktura.ALL (already-sent invoices) + FakturaSend.ALL (invoices to send) therefore never exceeds what was actually paid through the bank.
+    // That total is spread over the periods in order, each period capped at its own unfunded room — Accrual[period] minus that period's own Faktura amount.
+    // Accrual[period] already carries the month's own PriceMon rate (the Tariff schedule's active tariff for that month, see buildPriceMonEntries), so a month where the Tariff changed is capped at its own new rate, never a flat one.
+    // Reuses computePaymentChain's own `payment`/`loaners` halves (paid, owed - paid — same math computeFaktura is built from) rather than recomputing by hand.
     // Same interval-key-to-end-only remap as computeFaktura, so FakturaSend and Faktura always share the same key for the same period.
+    // bankTotal omitted (undefined) -> no bank cap, every period gets its full unfunded room (Accrual minus Faktura).
+    // Every period AFTER the last non-zero one is dropped — the list stops in the month the bank money runs out, never runs on to PeriodEnd as zero rows.
     //
-    // Returns [{ "end": amount }, ..., { ALL: sum }], same order/shape as
-    // Faktura.
-    static computeFakturaSend(accrual, ehfIn) {
+    // Returns [{ "end": amount }, ..., { ALL: sum }], same key shape as
+    // Faktura, cut right after the last month that carries an amount.
+    static computeFakturaSend(accrual, ehfIn, bankTotal) {
         console.info(`[Yamls.computeFakturaSend] 🟢 Starting...`);
 
+        const toNumber = (v) => Number(String(v).replace(/,/g, '')) || 0;
         const periods = accrual.filter(e => !('ALL' in e));
-        const { loaners: chained } = Yamls.computePaymentChain(periods, ehfIn);
+        const { payment: fakturaChain, loaners: roomChain } = Yamls.computePaymentChain(periods, ehfIn);
 
-        const fakturaSend = chained.map(entry => {
+        const fakturaAll = fakturaChain.reduce((s, e) => s + toNumber(Object.values(e)[0]), 0);
+        const bankLimit = bankTotal === undefined ? Infinity : toNumber(bankTotal);
+        let remaining = Math.max(0, bankLimit - fakturaAll);
+
+        const fakturaSend = roomChain.map(entry => {
             const [intervalKey, amount] = Object.entries(entry)[0];
             const [, end] = intervalKey.split('#');
-            return { [end ?? intervalKey]: amount };
+            const send = Yamls.#round2(Math.min(toNumber(amount), remaining));
+            remaining = Yamls.#round2(remaining - send);
+            return { [end ?? intervalKey]: Yamls.#fmt(send) };
         });
 
-        const sum = Yamls.#round2(fakturaSend.reduce((s, e) => s + (Number(String(Object.values(e)[0]).replace(/,/g, '')) || 0), 0));
-        const result = [...fakturaSend, { ALL: Yamls.#fmt(sum) }];
+        const lastFundedIdx = fakturaSend.findLastIndex(e => toNumber(Object.values(e)[0]) > 0);
+        const funded = fakturaSend.slice(0, lastFundedIdx + 1);
+
+        const sum = Yamls.#round2(funded.reduce((s, e) => s + toNumber(Object.values(e)[0]), 0));
+        const result = [...funded, { ALL: Yamls.#fmt(sum) }];
 
         console.log(`computeFakturaSend: sum=${sum}`, result);
         return result;
@@ -3314,7 +3329,8 @@ export class Yamls {
         // Keep channel histories directly after History; retain refunds as negative entries and finish with net ALL totals.
         const historyBank = Yamls.computeHistory(bankOT, bankIN);
         const historyCard = Yamls.computeHistory(cardOT, cardIN);
-        Yamls.writeYamlArraySection(ymlFile, 'HistoryBank', Yamls.appendAllTotal(historyBank), 'History');
+        const historyBankWithAll = Yamls.appendAllTotal(historyBank);
+        Yamls.writeYamlArraySection(ymlFile, 'HistoryBank', historyBankWithAll, 'History');
         Yamls.writeYamlArraySection(ymlFile, 'HistoryCard', Yamls.appendAllTotal(historyCard), 'HistoryBank');
 
         // Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
@@ -3361,10 +3377,10 @@ export class Yamls {
         const faktura = Yamls.computeFaktura(accrual, ehfIn);
         Yamls.writeFaktura(ymlFile, faktura);
 
-        // FakturaSend: per-period amount not yet invoiced (Accrual minus
-        // that period's own Faktura) — sits directly after Faktura:, same
-        // end-date key.
-        const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn);
+        // FakturaSend: invoices still to send — FakturaSend.ALL = HistoryBank.ALL - Faktura.ALL (never above the bank money really received), spread over the periods in order, each capped at its own Accrual minus its own Faktura (Accrual carries each month's own Tariff rate).
+        // Sits directly after Faktura:, same end-date key.
+        const historyBankAll = historyBankWithAll.find(e => 'ALL' in e)?.ALL ?? '0';
+        const fakturaSend = Yamls.computeFakturaSend(accrual, ehfIn, historyBankAll);
         Yamls.writeFakturaSend(ymlFile, fakturaSend);
 
         // Penalty (§21.1 + §3.7/§1.20): every consecutive day (beyond the first, which is the 1-calendar-day grace period) Account's own balance stays negative counts as a penalty day, grouped by bare "YYYY-MM".
