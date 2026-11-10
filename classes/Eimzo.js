@@ -64,9 +64,14 @@ export class Eimzo {
 
     // True when the certificate belongs to the given TIN / PINFL.
     static holds(certificate, tin) {
+        const wanted = String(tin ?? '').trim();
+        switch (wanted) {
+            case '':
+                return false;
+        }
         const alias = Eimzo.parseAlias(certificate?.alias);
         const ids = [alias[TIN_OID], alias[PINFL_OID], alias.uid].map((value) => String(value ?? '').trim());
-        return ids.includes(String(tin ?? '').trim());
+        return ids.includes(wanted);
     }
 
     // Choose the certificate to sign with: holder = tin (when given), not expired,
