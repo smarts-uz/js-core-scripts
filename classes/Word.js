@@ -338,16 +338,10 @@ export class Word {
 
     const area = data.Area;
     const outputCore = `${data.ContractNum}, ${area}-kv, ${docBaseName}, ${data.MyCompany}`;
-    let outputDocxPath;
-    let outputPdfPath;
-    let increment = 0;
-    // Reserve one available basename for both formats; preserve template version.
-    do {
-      const suffix = increment === 0 ? "" : ` ${increment}`;
-      outputDocxPath = path.join(contractNumFolder, `${outputCore}${suffix}.docx`);
-      outputPdfPath = path.join(contractNumFolder, `${outputCore}${suffix}.pdf`);
-      increment++;
-    } while ([outputDocxPath, outputPdfPath].some((filePath) => existsSync(filePath)));
+    // Reuse filename owner policy; select one free basename for both formats.
+    const docxCandidate = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.docx`));
+    const outputPdfPath = Files.incrementFileName(path.join(contractNumFolder, `${path.basename(docxCandidate, '.docx')}.pdf`));
+    const outputDocxPath = path.join(contractNumFolder, `${path.basename(outputPdfPath, '.pdf')}.docx`);
 
     this.wordReplace(data, templatePath, outputDocxPath, outputPdfPath);
 
