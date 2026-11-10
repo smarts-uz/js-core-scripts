@@ -52,7 +52,7 @@ const FilesMock = {
     if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
     let baseName = parsed.name;
-    let counter = 1;
+    let counter = 2;
     const m = baseName.match(/^(.*?)\s+(\d+)$/);
     if (m) {
       baseName = m[1];
@@ -132,7 +132,7 @@ describe('Homoglyph.markdown', () => {
     const src = writeMd('dup.md', 'A');
     fs.writeFileSync(path.join(workDir, 'dup L21.md'), 'existing', 'utf8');
     const out = Homoglyph.markdown(src);
-    expect(out).toBe(path.join(workDir, 'dup L21 1.md'));
+    expect(out).toBe(path.join(workDir, 'dup L21 2.md'));
     expect(read(workDir, 'dup L21.md')).toBe('existing'); // not clobbered
   });
 
