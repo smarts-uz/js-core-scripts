@@ -3,7 +3,7 @@
 // Calls Didox.getTaxpayerType(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Didox/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -20,12 +20,15 @@ const { Dialogs } = await import('../../classes/Dialogs.js');
 async function main() {
     console.log('1️⃣ Didox getTaxpayerType Start');
 
-    yargs(hideBin(process.argv))
+    const argv = yargs(hideBin(process.argv))
+        .option("tin", { describe: "tin" })
+        .option("lang", { describe: "lang" })
+        .option("date", { describe: "date" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Didox.getTaxpayerType();
+        const result = await Didox.getTaxpayerType(argv["tin"], argv["lang"], argv["date"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

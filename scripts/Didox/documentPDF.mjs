@@ -3,7 +3,7 @@
 // Calls Didox.documentPDF(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Didox/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -22,11 +22,13 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("docId", { describe: "docId" })
+        .option("locale", { describe: "locale" })
+        .option("out", { describe: "out" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Didox.documentPDF(argv["docId"]);
+        const result = await Didox.documentPDF(argv["docId"], argv["locale"], argv["out"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

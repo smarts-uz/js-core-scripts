@@ -3,7 +3,7 @@
 // Calls Didox.profileInfo(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Didox/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -20,12 +20,13 @@ const { Dialogs } = await import('../../classes/Dialogs.js');
 async function main() {
     console.log('1️⃣ Didox profileInfo Start');
 
-    yargs(hideBin(process.argv))
+    const argv = yargs(hideBin(process.argv))
+        .option("locale", { describe: "locale" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Didox.profileInfo();
+        const result = await Didox.profileInfo(argv["locale"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 
