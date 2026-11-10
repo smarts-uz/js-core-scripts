@@ -24,6 +24,27 @@ Cache:
 # The non-secret Didox partner-API base URL stays here.
 Didox:
     BaseURL: api-partners.didox.uz
+# Local E-IMZO signing service (Didox docs "01. Работа с E-IMZO"). Loopback only.
+# Origin is sent as the WebSocket Origin header. Device: pfx (key file) | ckc (USB token).
+Eimzo:
+    Url: wss://127.0.0.1:64443/service/cryptapi
+    Origin: https://didox.uz
+    Device: pfx
+    Timeout: 60000
+# Faktura (счет-фактура, doctype 002) built from a contract's FakturaSend block by
+# Didox.fakturaSend. NumberFormat tokens: {ContractNo} {M} (month no.) {MM} {YYYY}.
+# PackageCode blank = resolved from the Didox catalog by PackageName at send time.
+# Catalog code is quoted — an unquoted 17-digit number would lose precision.
+Faktura:
+    DocType: '002'
+    Locale: ru
+    NumberFormat: '{ContractNo}-{M}'
+    ProductName: Аренда нежилого помещения согласно Договору Аренды
+    CatalogCode: '10701001001000000'
+    CatalogName: Услуги по аренде зданий и сооружений
+    PackageName: месяц
+    PackageCode:
+    Origin: 3
 Templates:
     WordMerge: d:\FileType\Office\Projects\DOCX\Merge\
     # Folders (not files). At runtime the latest "Basename N" file is picked from each.
