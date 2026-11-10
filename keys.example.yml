@@ -1,0 +1,19 @@
+# Template for keys.yml — copy to "keys.yml" and fill in real values. Tracked in git.
+# The real keys.yml is gitignored and must NEVER be committed.
+# Shape: service -> kind -> firm. Read by classes/Secrets.js.
+
+didox:
+  user_key: { SRental: "", WorkSpace: "" }
+  partner_key: { SRental: "", WorkSpace: "" }
+  login_password: { SRental: "", WorkSpace: "" }
+
+my3:
+  api_key: { SRental: "", WorkSpace: "" }
+  token: { SRental: "", WorkSpace: "" }
+
+ijara:
+  token: { SRental: "", WorkSpace: "" }
+
+kapital:
+  token: { SRental: "", WorkSpace: "" }
+  id: { SRental: "", WorkSpace: "" }
