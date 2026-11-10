@@ -3,3 +3,5 @@ NoClose;Words;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Wo
 NoClose;Excels;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Excels\contract.mjs" --all "%1"
 NoClose;Update;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Yamls\contractUpdate.mjs" --all "%1"
 NoClose;Yamls;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Yamls\contractFill.mjs" --all "%1"
+NoClose;FakturaDry;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Didox\fakturaSendAll.mjs" --all "%1"
+NoClose;FakturaSend;node.exe "d:\Develop\Projects\DevApp\Execute\JS\Sources\scripts\Didox\fakturaSendAll.mjs" --all "%1" --no-dry
