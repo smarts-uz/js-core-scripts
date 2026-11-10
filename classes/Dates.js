@@ -31,12 +31,25 @@ export class Dates {
     return date.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1');
   }
 
-  // add 2 years to current date. get last date (31 dec) of this year
+  /**
+   * Add N whole years to dateStr, then snap to 31 December of the resulting year.
+   * PRESERVES input format: YYYY-MM-DD in → YYYY-MM-DD out; DD.MM.YYYY in → DD.MM.YYYY out.
+   * Returns '' for an unparseable date or a non-integer years, so caller warns instead of writing "Invalid Date".
+   * @param {string} dateStr - Date in YYYY-MM-DD or DD.MM.YYYY.
+   * @param {number} years - Whole years to add.
+   * @returns {string} 31 Dec of (dateStr year + years), same format as input; '' when input is invalid.
+   */
   static addYearsGetLastDate(dateStr, years) {
       console.info(`[Dates.addYearsGetLastDate] 🟢 Starting...`);
     console.log("addYearsGetLastDate dateStr", dateStr, "years", years);
 
-    const formatted = dayjs(dateStr, 'DD.MM.YYYY').add(years, 'year').endOf('year').format('DD.MM.YYYY');
+    const format = Dates.isExcelDate(dateStr) ? 'YYYY-MM-DD' : 'DD.MM.YYYY';
+    const base = dayjs(dateStr, format);
+
+    if (!base.isValid()) return '';
+    if (!Number.isInteger(years)) return '';
+
+    const formatted = base.add(years, 'year').endOf('year').format(format);
 
     console.log("addYearsGetLastDate formatted", formatted);
     return formatted;
