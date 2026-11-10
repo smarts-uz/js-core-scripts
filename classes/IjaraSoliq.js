@@ -60,7 +60,7 @@ export class IjaraSoliq {
         console.log(state, 'state');
         if (!state) return Dialogs.warningBox('No state', 'Warning');
 
-        let bearer = Secrets.get('Ijara', owner);
+        let bearer = Secrets.get('ijara', 'token', owner);
         if (!bearer) return Dialogs.warningBox('No bearer', 'Warning');
 
         const options = {

@@ -18,7 +18,7 @@ export class MySoliq {
 
         const myHeaders = new Headers();
 
-        myHeaders.append("X-API-KEY", Secrets.get('My3Api', 'SRental'));
+        myHeaders.append("X-API-KEY", Secrets.get('my3', 'api_key', 'SRental'));
 
         const requestOptions = {
             method: "GET",
@@ -146,7 +146,7 @@ export class MySoliq {
     console.info(`[MySoliq.vatInfoAPI] 🟢 Starting...`);
         const myHeaders = new Headers();
 
-        const My3SRental = Secrets.get('My3', 'SRental');
+        const My3SRental = Secrets.get('my3', 'token', 'SRental');
 
         myHeaders.append("referer", "https://My3.soliq.uz/vat-payer-registration/vat-payers");
         myHeaders.append("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36");
@@ -201,7 +201,7 @@ export class MySoliq {
 
         const myHeaders = new Headers();
 
-        myHeaders.append("X-API-KEY", Secrets.get('My3Api', 'SRental'));
+        myHeaders.append("X-API-KEY", Secrets.get('my3', 'api_key', 'SRental'));
 
         const requestOptions = {
             method: "GET",
@@ -248,7 +248,7 @@ export class MySoliq {
 
         const myHeaders = new Headers();
 
-        myHeaders.append("X-API-KEY", Secrets.get('My3Api', 'SRental'));
+        myHeaders.append("X-API-KEY", Secrets.get('my3', 'api_key', 'SRental'));
 
         const requestOptions = {
             method: "GET",

@@ -39,10 +39,10 @@ export class KapitalBank {
         console.log(size, 'size');
         if (!size) return Dialogs.warningBox('No size', 'Warning');
 
-        let bearer = Secrets.get('Kapital', owner);
+        let bearer = Secrets.get('kapital', 'token', owner);
         if (!bearer) return Dialogs.warningBox('No bearer', 'Warning');
 
-        let kapitalId = Secrets.get('KapitalId', owner);
+        let kapitalId = Secrets.get('kapital', 'id', owner);
         if (!kapitalId) return Dialogs.warningBox('No kapitalId', 'Warning');
 
 
