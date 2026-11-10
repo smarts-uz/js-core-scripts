@@ -3,7 +3,7 @@
 // Calls Didox.documentList(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Didox/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -20,32 +20,12 @@ const { Dialogs } = await import('../../classes/Dialogs.js');
 async function main() {
     console.log('1️⃣ Didox documentList Start');
 
-    const argv = yargs(hideBin(process.argv))
-        .option("page", { describe: "page (object key)" })
-        .option("size", { describe: "size (object key)" })
-        .option("owner", { describe: "owner (object key)" })
-        .option("doctype", { describe: "doctype (object key)" })
-        .option("partner", { describe: "partner (object key)" })
-        .option("status", { describe: "status (object key)" })
-        .option("name", { describe: "name (object key)" })
-        .option("sum", { describe: "sum (object key)" })
-        .option("dateFromCreated", { describe: "dateFromCreated (object key)" })
-        .option("dateToCreated", { describe: "dateToCreated (object key)" })
-        .option("dateFromUpdated", { describe: "dateFromUpdated (object key)" })
-        .option("dateToUpdated", { describe: "dateToUpdated (object key)" })
-        .option("docDateFromCreated", { describe: "docDateFromCreated (object key)" })
-        .option("docDateToCreated", { describe: "docDateToCreated (object key)" })
-        .option("contractName", { describe: "contractName (object key)" })
-        .option("contractDate", { describe: "contractDate (object key)" })
-        .option("oneside", { describe: "oneside (object key)" })
-        .option("hasCommittent", { describe: "hasCommittent (object key)" })
-        .option("hasLgota", { describe: "hasLgota (object key)" })
-        .option("hasMarks", { describe: "hasMarks (object key)" })
+    yargs(hideBin(process.argv))
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Didox.documentList({ ...(argv["page"] !== undefined ? { page: argv["page"] } : {}), ...(argv["size"] !== undefined ? { size: argv["size"] } : {}), ...(argv["owner"] !== undefined ? { owner: argv["owner"] } : {}), ...(argv["doctype"] !== undefined ? { doctype: argv["doctype"] } : {}), ...(argv["partner"] !== undefined ? { partner: argv["partner"] } : {}), ...(argv["status"] !== undefined ? { status: argv["status"] } : {}), ...(argv["name"] !== undefined ? { name: argv["name"] } : {}), ...(argv["sum"] !== undefined ? { sum: argv["sum"] } : {}), ...(argv["dateFromCreated"] !== undefined ? { dateFromCreated: argv["dateFromCreated"] } : {}), ...(argv["dateToCreated"] !== undefined ? { dateToCreated: argv["dateToCreated"] } : {}), ...(argv["dateFromUpdated"] !== undefined ? { dateFromUpdated: argv["dateFromUpdated"] } : {}), ...(argv["dateToUpdated"] !== undefined ? { dateToUpdated: argv["dateToUpdated"] } : {}), ...(argv["docDateFromCreated"] !== undefined ? { docDateFromCreated: argv["docDateFromCreated"] } : {}), ...(argv["docDateToCreated"] !== undefined ? { docDateToCreated: argv["docDateToCreated"] } : {}), ...(argv["contractName"] !== undefined ? { contractName: argv["contractName"] } : {}), ...(argv["contractDate"] !== undefined ? { contractDate: argv["contractDate"] } : {}), ...(argv["oneside"] !== undefined ? { oneside: argv["oneside"] } : {}), ...(argv["hasCommittent"] !== undefined ? { hasCommittent: argv["hasCommittent"] } : {}), ...(argv["hasLgota"] !== undefined ? { hasLgota: argv["hasLgota"] } : {}), ...(argv["hasMarks"] !== undefined ? { hasMarks: argv["hasMarks"] } : {}) });
+        const result = await Didox.documentList();
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

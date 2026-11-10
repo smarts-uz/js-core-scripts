@@ -17,7 +17,6 @@ import fs from 'fs';
 import path from 'path';
 import { makeTmpDir, cleanupAllTmpDirs } from './helpers/tmp.js';
 import { utilsModule } from './helpers/esm.js';
-import { createSecretsMock } from './helpers/secrets.js';
 
 import banks from '../conf/data/banks.json' with { type: 'json' };
 import regions from '../conf/data/regions.json' with { type: 'json' };
@@ -58,10 +57,6 @@ const FilesMock = {
     fs.writeFileSync(p, JSON.stringify(data, null, 2));
   },
   mkdirIfNotExists: (d) => fs.mkdirSync(d, { recursive: true }),
-  incrementFileName: (p) => {
-    const parsed = path.parse(p);
-    return path.join(parsed.dir, `${parsed.name} 2${parsed.ext}`);
-  },
   saveInfoToFile: jest.fn(),
   normalizeApostrophe: (name) => (typeof name === 'string' ? name.replace(/[‘’ʻʼ]/g, "'") : name),
   isCacheFresh: (p, maxAgeDays) => {
@@ -112,20 +107,19 @@ jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMoc
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
 
-// Credentials come from keys.yml (service -> kind -> firm); the in-memory mock
-// keeps the developer's real keys.yml out of every test. Didox sends firm SRental.
-const secrets = createSecretsMock();
-jest.unstable_mockModule(utilsModule('Secrets.js'), () => ({ Secrets: secrets.mock }));
-const setDidox = (kind, value) => secrets.set('didox', kind, 'SRental', value);
-
 const { Didox } = await import('../classes/Didox.js');
 
 let restApiDir;
 let folderDir;
 let savedFetch;
+let savedEnv;
 
 beforeEach(() => {
-  secrets.clear();
+  savedEnv = { ...process.env };
+  delete process.env.DIDOX_USER_KEY;
+  delete process.env.DIDOX_SRENTAL;
+  delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+  delete process.env.DIDOX_LOGIN_PASSWORD;
   restApiDir = makeTmpDir('didox-rest-');
   folderDir = makeTmpDir('didox-folder-');
   globalThis.folderRestAPI = restApiDir;
@@ -137,6 +131,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  process.env = savedEnv;
   global.fetch = savedFetch;
   delete globalThis.folderRestAPI;
   delete globalThis.folderDirector;
@@ -154,12 +149,12 @@ function stubFetch(impl) {
 // Module wiring
 // ---------------------------------------------------------------------------
 describe('Didox module wiring', () => {
-  it('creates a single shared ofetch client with the partner base URL + auth headers', async () => {
+  it('creates a single shared ofetch client with the partner base URL + auth headers', () => {
     // The client is built LAZILY on first API call (not at module import) to
     // avoid the didox.js<->Yamls.js import-cycle TDZ crash, so trigger one call
     // before asserting the captured ofetch.create(...) config.
     didoxApi.mockResolvedValue('OK');
-    await Didox.saveMeasures();
+    Didox.saveMeasures();
     expect(capturedCreateConfig).not.toBeNull();
     expect(capturedCreateConfig.baseURL).toBe('https://api-partners.didox.uz');
     expect(capturedCreateConfig.headers).toContainKey('user-key');
@@ -168,245 +163,78 @@ describe('Didox module wiring', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Postman collection — every endpoint is a promise-returning method over didoxApi.
-// Nothing here touches the network: didoxApi is a jest.fn.
+// Fire-and-forget reference-data calls (return undefined, log result/error)
 // ---------------------------------------------------------------------------
-const DOC = 'ABC123';
-const PAGED = 'page=1&size=100';
-
-describe('Didox GET endpoints', () => {
-  // [method, args, expected path+query]
+describe('Didox reference-data GET calls', () => {
+  // [method, expected endpoint substring]
   const cases = [
-    ['saveMeasures', [], '/v1/measures/all'],
-    ['getRegionInfo', [6], '/v1/utils/waybills/districts?regionId=6'],
-    ['saveDistricts', [], '/v1/districts/all'],
-    ['saveRegions', [], '/v1/regions/all'],
-    ['saveBanks', [], '/v1/banks/all'],
-    ['saveRegionsTTN', [], '/v1/utils/waybills/regions'],
-    ['saveRailwayStations', [], '/v1/utils/stations'],
-    ['stationInfo', ['7'], '/v1/utils/stations/7'],
-    ['waybillTransport', ['555'], '/v1/utils/waybills/transport?tinOrPinfl=555'],
-    ['utilsInfo', ['312002053'], '/v1/utils/info/312002053'],
-    ['fraudsByTin', ['311506035'], `/v1/utils/non-conformity-goods-companies/ru?${PAGED}&tin=311506035`],
-    ['frauds', [], `/v1/utils/non-conformity-goods-companies/ru?${PAGED}`],
-    ['withoutVatProducts', [], `/v1/utils/without-vat-products/ru?${PAGED}`],
-    ['zeroVatProducts', [], `/v1/utils/zero-vat-products/ru?${PAGED}`],
-    ['privilegedSellerCompanies', [], `/v1/utils/privileged-seller-companies/ru?${PAGED}`],
-    ['privilegedBuyerCompanies', [], `/v1/utils/privileged-buyer-companies/ru?${PAGED}`],
-    ['notIncludedProducts', [], `/v1/utils/not-included-products/ru?${PAGED}`],
-    ['compensationWorks', [], `/v1/utils/compensation-works/ru?${PAGED}`],
-    ['incomeTypes', [], '/v1/utils/income-types/ru'],
-    ['otherIncomeProductClasses', [], '/v1/utils/other-income-product-classes/ru'],
-    ['profileInfo', [], '/v1/profile/'],
-    ['profileIKPUCodes', [], '/v1/profile/productClassCodes/ru'],
-    ['searchIKPUCode', ['noodle'], '/v1/profile/productClasses/search?text=noodle&lang=ru'],
-    ['productClassCheck', ['312002053', '1070', 'ru'], '/v1/profile/312002053/productClasses/check/1070/ru'],
-    ['profileBranches', ['312002053'], '/v1/profile/branches?tin=312002053'],
-    ['vatRegStatus', ['312261753'], '/v1/profile/vatRegStatus/312261753'],
-    ['profileWarehouses', ['312261753'], '/v1/profile/warehouses/312261753'],
-    ['getTaxpayerType', ['312261753'], '/v1/profile/taxpayerType/312261753/ru'],
-    ['documentList', [], `/v2/documents?${PAGED}&owner=1`],
-    ['documentGet', [DOC], `/v1/documents/${DOC}?owner=1`],
-    ['documentPrivileges', [DOC], `/v1/documents/${DOC}/privileges`],
-    ['documentHtml', [DOC], `/v1/documents/view/${DOC}/html/ru`],
-    ['documentFile', [DOC], `/v1/documents/${DOC}/file/true`],
-    ['contractInfo', ['C1'], '/v1/documents/contract/C1/info/ru'],
-    ['exchangeLot', ['311', 'L1'], '/v1/documents/exchange?buyerTin=311&lotId=L1'],
-    ['exchangeTypes', [], '/v1/documents/exchange/types'],
-    ['exchangeLotsWithTypes', ['311', 'L1'], '/v1/documents/exchange/lotswithtypes/ru?buyerTin=311&lotId=L1'],
+    ['saveMeasures', '/v1/measures/all'],
+    ['getRegionInfo', '/v1/utils/waybills/districts?regionId=6'],
+    ['saveDistricts', '/v1/districts/all'],
+    ['saveRegions', '/v1/regions/all'],
+    ['saveBanks', '/v1/banks/all'],
+    ['saveRegionsTTN', '/v1/utils/waybills/regions'],
+    ['saveRailwayStations', '/v1/utils/stations'],
+    ['fraudsByTin', '/v1/utils/non-conformity-goods-companies/ru?tin='],
+    ['frauds', '/v1/utils/non-conformity-goods-companies/ru?page=1&size=100&tin'],
+    ['profileIKPUCodes', '/v1/profile/productClassCodes/ru'],
+    ['documentList', '/v2/documents?page=1&size=100'],
+    ['searchIKPUCode', '/v1/profile/productClasses/search'],
+    ['profileInfo', '/v1/profile/'],
+    ['vatRegStatus', '/v1/profile/vatRegStatus/312261753'],
+    ['getTaxpayerType', '/v1/profile/taxpayerType/312261753/uz?date='],
   ];
 
-  it.each(cases)('%s(%j) GETs %s and returns the parsed reply', async (method, args, endpoint) => {
-    didoxApi.mockResolvedValue({ ok: 1 });
-    const ret = await Didox[method](...args);
-    expect(ret).toEqual({ ok: 1 });
-    expect(didoxApi).toHaveBeenCalledTimes(1);
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toBe(endpoint);
-    expect(opts.method).toBe('GET');
-    expect(opts.headers).toMatchObject({ 'Accept-Language': 'ru' });
-    expect(opts.body).toBeUndefined();
-  });
-
-  it('drops empty filters from the query and keeps the requested ones', async () => {
-    await Didox.documentList({ doctype: '002', partner: '312002053', status: '', name: undefined });
-    expect(didoxApi.mock.calls[0][0]).toBe(`/v2/documents?${PAGED}&owner=1&doctype=002&partner=312002053`);
-  });
-
-  it('config.yml Didox.Locale is the default locale; an explicit locale wins', async () => {
-    state.config['Didox.Locale'] = 'uz';
-    await Didox.incomeTypes();
-    expect(didoxApi.mock.calls[0][0]).toBe('/v1/utils/income-types/uz');
-    expect(didoxApi.mock.calls[0][1].headers).toMatchObject({ 'Accept-Language': 'uz' });
-    await Didox.incomeTypes('ru');
-    expect(didoxApi.mock.calls[1][0]).toBe('/v1/utils/income-types/ru');
-  });
-
-  it('a rejected request rejects the call (the runner reports it)', async () => {
-    didoxApi.mockRejectedValue(new Error('boom'));
-    await expect(Didox.saveMeasures()).rejects.toThrow('boom');
-  });
-});
-
-describe('Didox POST / DELETE endpoints', () => {
-  // [method, args, method, expected path+query, expected body]
-  const cases = [
-    ['productPrivileges', ['1,2', '2026-01-01'], 'POST', '/v1/utils/product-privileges/ru?checkDate=2026-01-01', ['1', '2']],
-    ['companyPrivileges', ['311,312', '2026-01-01'], 'POST', '/v1/utils/company-privileges/ru?checkDate=2026-01-01', ['311', '312']],
-    ['companiesPrivileges', [['311'], '2026-01-01'], 'POST', '/v1/utils/companies-privileges/ru', { check_date: '2026-01-01', tax_ids_or_pinfls: ['311'] }],
-    ['profileUpdate', ['{"a":1}'], 'POST', '/v1/profile/update', { a: 1 }],
-    ['productClassAdd', ['107'], 'POST', '/v1/profile/productClasses', { classCode: '107' }],
-    ['productClassRemove', ['107'], 'DELETE', '/v1/profile/productClasses/107', undefined],
-    ['authSignup', ['+998901234567', 'a@b.uz', 'pw', 'sig'], 'POST', '/v1/auth/signup', { mobile: '+998901234567', email: 'a@b.uz', password: 'pw', signature: 'sig' }],
-    ['authCompanyLogin', ['312002053'], 'POST', '/v1/auth/company/312002053/login/ru', undefined],
-    ['documentCreate', ['002', { x: 1 }], 'POST', '/v1/documents/002/create/ru', { x: 1 }],
-    ['documentPreview', ['002', '{"x":1}'], 'POST', '/v1/documents/preview/002/ru', { x: 1 }],
-    ['documentUpdate', [DOC, '002', { x: 1 }], 'POST', `/v1/documents/${DOC}/update/002`, { x: 1 }],
-    ['documentGive', [DOC, 'sig'], 'POST', `/v1/documents/${DOC}/give`, { signature: 'sig' }],
-    ['documentTillReturn', [DOC, 'sig', 'late'], 'POST', `/v1/documents/${DOC}/tillreturn`, { signature: 'sig', comment: 'late' }],
-    ['documentReturn', [DOC, 'sig', 'wrong'], 'POST', `/v1/documents/${DOC}/return`, { signature: 'sig', comment: 'wrong' }],
-    ['documentReject', [DOC, 'sig', 'why'], 'POST', `/v1/documents/${DOC}/reject`, { comment: 'why', signature: 'sig' }],
-    ['documentDeleteDraft', [DOC], 'POST', `/v1/documents/${DOC}/delete/draft`, undefined],
-    ['documentDelete', [DOC, 'sig'], 'POST', `/v1/documents/${DOC}/delete`, { signature: 'sig' }],
-    ['documentToSign', [DOC, 'Sign'], 'POST', `/v1/documents/${DOC}/tosign`, { action: 'Sign' }],
-  ];
-
-  it.each(cases)('%s(%j) -> %s %s', async (name, args, verb, endpoint, body) => {
-    didoxApi.mockResolvedValue({ ok: 1 });
-    const ret = await Didox[name](...args);
-    expect(ret).toEqual({ ok: 1 });
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toBe(endpoint);
-    expect(opts.method).toBe(verb);
-    expect(opts.body).toEqual(body);
-    switch (body === undefined) {
-      case false:
-        expect(opts.headers).toMatchObject({ 'Content-Type': 'application/json' });
+  it.each(cases)(
+    '%s requests %s as text and returns undefined (fire-and-forget)',
+    async (method, endpoint) => {
+      didoxApi.mockResolvedValue('payload');
+      const ret = Didox[method]();
+      expect(ret).toBeUndefined();
+      expect(didoxApi).toHaveBeenCalledTimes(1);
+      const [url, opts] = didoxApi.mock.calls[0];
+      expect(url).toContain(endpoint);
+      expect(opts).toMatchObject({ responseType: 'text' });
+      // let the internal .then() settle so a stray rejection cannot leak
+      await Promise.resolve();
     }
-  });
-});
+  );
 
-describe('Didox required-argument guards', () => {
-  // Each call is refused before any request is built.
-  const cases = [
-    ['getRegionInfo', [], /regionId is required/],
-    ['stationInfo', [], /stationId is required/],
-    ['waybillTransport', [], /tinOrPinfl is required/],
-    ['utilsInfo', [], /tinOrPinfl is required/],
-    ['fraudsByTin', [], /tin is required/],
-    ['searchIKPUCode', [], /text is required/],
-    ['productClassAdd', [], /classCode is required/],
-    ['productClassRemove', [], /classCode is required/],
-    ['vatRegStatus', [], /tin is required/],
-    ['getTaxpayerType', [], /tin is required/],
-    ['login', [], /tin is required/],
-    ['authSignup', ['+998'], /email is required/],
-    ['documentGet', [], /docId is required/],
-    ['documentGive', [DOC], /signature is required/],
-    ['documentReject', [DOC, 'sig'], /comment is required/],
-    ['documentDelete', [DOC], /signature is required/],
-    ['productPrivileges', [[], '2026-01-01'], /codes is required/],
-    ['companiesPrivileges', [['311']], /checkDate is required/],
-    ['documentCreate', ['002', 5], /body must be a JSON object or array/],
-    ['documentCreate', ['002', '{not json'], /body is not valid JSON/],
-  ];
-
-  it.each(cases)('%s(%j) throws %s without a request', async (name, args, message) => {
-    await expect(Didox[name](...args)).rejects.toThrow(message);
-    expect(didoxApi).not.toHaveBeenCalled();
-  });
-});
-
-describe('Didox binary endpoints', () => {
-  it('documentPDF asks for bytes and returns them when no out path is given', async () => {
-    const bytes = new Uint8Array([37, 80, 68, 70]).buffer;
-    didoxApi.mockResolvedValue(bytes);
-    const ret = await Didox.documentPDF(DOC);
-    expect(ret).toBe(bytes);
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toBe(`/v1/documents/view/${DOC}/pdf/ru`);
-    expect(opts).toMatchObject({ method: 'GET', responseType: 'arrayBuffer' });
+  it('documentPDF embeds the doc id in the view path', async () => {
+    didoxApi.mockResolvedValue('%PDF');
+    const ret = Didox.documentPDF('ABC123');
+    expect(ret).toBeUndefined();
+    expect(didoxApi.mock.calls[0][0]).toBe('/v1/documents/view/ABC123/pdf/ru');
+    await Promise.resolve();
   });
 
-  it('documentPDF saves to out, and a second save never overwrites the first', async () => {
-    didoxApi.mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
-    const out = path.join(folderDir, 'sub', 'doc.pdf');
-
-    const first = await Didox.documentPDF(DOC, 'ru', out);
-    const second = await Didox.documentPDF(DOC, 'ru', out);
-
-    expect(first).toBe(out);
-    expect(second).toBe(path.join(folderDir, 'sub', 'doc 2.pdf'));
-    expect([...fs.readFileSync(first)]).toEqual([1, 2, 3]);
-    expect(fs.existsSync(second)).toBe(true);
+  it('swallows a rejected request without throwing (logs via .catch)', async () => {
+    didoxApi.mockRejectedValue(new Error('boom'));
+    expect(() => Didox.saveMeasures()).not.toThrow();
+    // allow the internal promise chain to reject and be caught
+    await new Promise((r) => setTimeout(r, 0));
   });
 
-  it('documentArchive asks for bytes from the archive endpoint', async () => {
-    didoxApi.mockResolvedValue(new Uint8Array([80, 75]).buffer);
-    await Didox.documentArchive(DOC);
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toBe(`/v1/documents/${DOC}/archive`);
-    expect(opts.responseType).toBe('arrayBuffer');
-  });
-});
-
-describe('Didox auth + E-IMZO helpers', () => {
-  it('login POSTs the keys.yml password and keeps the returned token in-process', async () => {
-    // login reads the password via Secrets.get('didox', 'login_password', firm)
-    // (keys.yml), not a hardcoded literal — set it so the body carries it.
-    setDidox('login_password', 'pw-from-keys');
-    didoxApi.mockResolvedValue({ token: 'tok-1' });
-    const ret = await Didox.login('311958304');
-    expect(ret).toEqual({ token: 'tok-1' });
+  it('login POSTs the password body with Accept-Language', async () => {
+    // login reads the password via Secrets.env('DIDOX_LOGIN_PASSWORD') (process.env),
+    // not a hardcoded literal — set the env var so the body carries it.
+    process.env.DIDOX_LOGIN_PASSWORD = '4beruniave';
+    didoxApi.mockResolvedValue('{"token":"x"}');
+    const ret = Didox.login();
+    expect(ret).toBeUndefined();
     const [url, opts] = didoxApi.mock.calls[0];
     expect(url).toBe('/v1/auth/311958304/password/ru');
     expect(opts.method).toBe('POST');
-    expect(opts.body).toEqual({ password: 'pw-from-keys' });
-    expect(opts.headers).toMatchObject({ 'Accept-Language': 'ru', 'Content-Type': 'application/json' });
-    expect(secrets.mock._set).toHaveBeenCalledWith('didox', 'user_key', 'SRental', 'tok-1');
+    expect(opts.body).toEqual({ password: '4beruniave' });
+    expect(opts.headers).toMatchObject({ 'Accept-Language': 'ru' });
+    delete process.env.DIDOX_LOGIN_PASSWORD;
+    await Promise.resolve();
   });
 
-  it('login refuses when no password is configured', async () => {
-    await expect(Didox.login('311958304')).rejects.toThrow(/password is required/);
-    expect(didoxApi).not.toHaveBeenCalled();
-  });
-
-  it('timestamp returns timeStampTokenB64 and throws on a reply without it', async () => {
-    didoxApi.mockResolvedValueOnce({ timeStampTokenB64: 'TS' });
-    expect(await Didox.timestamp('p7', 'hex')).toBe('TS');
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toBe('/v1/dsvs/timestamp');
-    expect(opts.body).toEqual({ pkcs7: 'p7', signatureHex: 'hex' });
-
-    didoxApi.mockResolvedValueOnce({ error: 'nope' });
-    await expect(Didox.timestamp('p7', 'hex')).rejects.toThrow(/timestamp failed/);
-  });
-
-  it('documentExists is true only for an exact number match on the outgoing list', async () => {
-    didoxApi.mockResolvedValue({ data: [{ name: 'RC26-3-25-4' }, { name: 'RC26-3-25-40' }] });
-    expect(await Didox.documentExists('RC26-3-25-4')).toBe(true);
-    expect(await Didox.documentExists('RC26-3-25-5')).toBe(false);
-    expect(didoxApi.mock.calls[0][0]).toBe('/v2/documents?page=1&size=50&owner=1&doctype=002&name=RC26-3-25-4');
-  });
-
-  it('productPackage matches the unit by name, case-insensitively, and refuses an unknown one', async () => {
-    didoxApi.mockResolvedValue([{ code: '1425575', name: 'Месяц' }]);
-    expect(await Didox.productPackage('312002053', '1070', 'месяц')).toEqual({ code: '1425575', name: 'Месяц' });
-    await expect(Didox.productPackage('312002053', '1070', 'год')).rejects.toThrow(/not offered/);
-  });
-
-  it('partyInfo serves the cache first, never touches the network offline, and caches an online hit', async () => {
-    const cacheFile = path.join(restApiDir, 'INN Didox 312002053.json');
-    expect(await Didox.partyInfo('312002053', cacheFile, false)).toBeNull();
-    expect(didoxApi).not.toHaveBeenCalled();
-
-    didoxApi.mockResolvedValue({ tin: '312002053', name: 'CODENOVA' });
-    expect(await Didox.partyInfo('312002053', cacheFile, true)).toMatchObject({ name: 'CODENOVA' });
-    expect(didoxApi.mock.calls[0][0]).toBe('/v1/utils/info/312002053');
-
-    didoxApi.mockClear();
-    expect(await Didox.partyInfo('312002053', cacheFile, true)).toMatchObject({ name: 'CODENOVA' });
-    expect(didoxApi).not.toHaveBeenCalled();
+  it('profileIKPUCodes / documentList / searchIKPUCode send JSON content-type headers', async () => {
+    Didox.profileIKPUCodes();
+    expect(didoxApi.mock.calls[0][1].headers).toMatchObject({ 'Content-Type': 'application/json' });
+    await Promise.resolve();
   });
 });
 
@@ -484,8 +312,9 @@ describe('Didox.districtsByCode', () => {
 // ---------------------------------------------------------------------------
 describe('Didox.infoByTinPinfl', () => {
   beforeEach(() => {
-    setDidox('user_key', 'ukey-123');
-    setDidox('partner_key', 'token-123');
+    process.env.DIDOX_USER_KEY = 'ukey-123';
+    process.env.DIDOX_SRENTAL = 'token-123';
+    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
   });
 
   it('returns null for a missing tin without touching the network', async () => {
@@ -496,7 +325,7 @@ describe('Didox.infoByTinPinfl', () => {
 
   it('fetches, saves the JSON to folderRestAPI and classifies a company address', async () => {
     // infoByTinPinfl resolves baseURL via Yamls.getConfig('Didox.BaseURL') and sends
-    // both user-key (didox.user_key) and Partner-Authorization (didox.partner_key).
+    // both user-key (DIDOX_USER_KEY) and Partner-Authorization (DIDOX_SRENTAL).
     state.config['Didox.BaseURL'] = 'api.example.uz';
     const payload = { name: 'Acme', address: 'Adolat MFY, building 4', tin: '123456789' };
     // json() yields a FRESH object each call: the source mutates the returned
@@ -525,8 +354,10 @@ describe('Didox.infoByTinPinfl', () => {
     expect(out.AddressType).toBe('Adolat');
   });
 
-  it('accepts a base URL written with a scheme and a trailing slash', async () => {
+  it('falls back to DIDOX_PARTNER_AUTHORIZATION when DIDOX_SRENTAL is unset', async () => {
     state.config['Didox.BaseURL'] = 'https://api.example.uz/';
+    delete process.env.DIDOX_SRENTAL;
+    process.env.DIDOX_PARTNER_AUTHORIZATION = 'pauth-fallback';
     const payload = { name: 'Fallback LLC', address: 'Tashkent', tin: '222333444' };
     const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ ...payload }) }));
 
@@ -535,7 +366,7 @@ describe('Didox.infoByTinPinfl', () => {
     const [url, opts] = f.mock.calls[0];
     expect(url).toBe('https://api.example.uz/v1/utils/info/222333444');
     expect(opts.headers.get('user-key')).toBe('ukey-123');
-    expect(opts.headers.get('Partner-Authorization')).toBe('token-123');
+    expect(opts.headers.get('Partner-Authorization')).toBe('pauth-fallback');
   });
 
   it('uses the PINFL prefix and a person folder for an individual (personalNum present)', async () => {
@@ -572,21 +403,21 @@ describe('Didox.infoByTinPinfl', () => {
     expect(out.name).not.toMatch(/[‘’ʻʼ]/);
   });
 
-  it('does not call fetch and returns null when didox.user_key is missing or blank', async () => {
-    setDidox('user_key', undefined);
+  it('does not call fetch and returns null when DIDOX_USER_KEY is missing or blank', async () => {
+    delete process.env.DIDOX_USER_KEY;
     const f = stubFetch();
 
     expect(await Didox.infoByTinPinfl('123456789')).toBeNull();
     expect(f).not.toHaveBeenCalled();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
 
-    setDidox('user_key', '   ');
+    process.env.DIDOX_USER_KEY = '   ';
     expect(await Didox.infoByTinPinfl('123456789')).toBeNull();
     expect(f).not.toHaveBeenCalled();
   });
 
-  it('does not call fetch and keeps stale cache when didox.user_key is missing', async () => {
-    setDidox('user_key', undefined);
+  it('does not call fetch and keeps stale cache when DIDOX_USER_KEY is missing', async () => {
+    delete process.env.DIDOX_USER_KEY;
     const cachedFile = path.join(restApiDir, 'INN Didox 803803803.json');
     const cached = { name: 'Cached', address: 'Others place', tin: '803803803' };
     fs.writeFileSync(cachedFile, JSON.stringify(cached));
@@ -601,8 +432,9 @@ describe('Didox.infoByTinPinfl', () => {
     expect(DialogsMock.messageBox).toHaveBeenCalled();
   });
 
-  it('does not call fetch and returns null when didox.partner_key is missing', async () => {
-    setDidox('partner_key', undefined);
+  it('does not call fetch and returns null when both DIDOX_SRENTAL and DIDOX_PARTNER_AUTHORIZATION are missing', async () => {
+    delete process.env.DIDOX_SRENTAL;
+    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
     const f = stubFetch();
 
     const out = await Didox.infoByTinPinfl('123456789');
@@ -613,8 +445,8 @@ describe('Didox.infoByTinPinfl', () => {
   });
 
   it('reads from the cache file when it already exists (no fetch)', async () => {
-    setDidox('user_key', undefined);
-    setDidox('partner_key', undefined);
+    delete process.env.DIDOX_USER_KEY;
+    delete process.env.DIDOX_SRENTAL;
     const cached = { name: 'Cached', address: 'Others place', tin: '5' };
     fs.writeFileSync(path.join(restApiDir, 'INN Didox 5.json'), JSON.stringify(cached));
     const f = stubFetch();
@@ -708,8 +540,9 @@ describe('Didox.infoByTinPinfl', () => {
 describe('Didox.carInfoByPinfl', () => {
   beforeEach(() => {
     state.config['Didox.BaseURL'] = 'api.cars.uz';
-    setDidox('user_key', 'ukey');
-    setDidox('partner_key', 'pauth');
+    process.env.DIDOX_USER_KEY = 'ukey';
+    process.env.DIDOX_PARTNER_AUTHORIZATION = 'pauth';
+    delete process.env.DIDOX_SRENTAL;
   });
 
   it('returns null for a missing tin', async () => {
@@ -734,8 +567,8 @@ describe('Didox.carInfoByPinfl', () => {
     expect(opts.headers.get('Partner-Authorization')).toBe('pauth');
   });
 
-  it('does not call fetch and returns null when didox.user_key is missing', async () => {
-    setDidox('user_key', undefined);
+  it('does not call fetch and returns null when DIDOX_USER_KEY is missing', async () => {
+    delete process.env.DIDOX_USER_KEY;
     const f = stubFetch();
     const out = await Didox.carInfoByPinfl('556');
     expect(out).toBeNull();
@@ -744,8 +577,8 @@ describe('Didox.carInfoByPinfl', () => {
   });
 
   it('returns the cached CAR file when present (no fetch)', async () => {
-    setDidox('user_key', undefined);
-    setDidox('partner_key', undefined);
+    delete process.env.DIDOX_USER_KEY;
+    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
     const cached = { cars: [] };
     fs.writeFileSync(path.join(restApiDir, 'CAR Didox 9.json'), JSON.stringify(cached));
     const f = stubFetch();
@@ -792,9 +625,11 @@ describe('Didox.contracts', () => {
 
   it('warns when no bearer is configured for the owner', async () => {
     state.config = {};
-    // The bearer is keys.yml-sourced (Secrets.get('ijara', 'token', owner)); the
-    // per-test secrets.clear() leaves it unset, so the "No bearer" guard is
-    // exercised deterministically regardless of the developer's real keys.yml.
+    // Isolate the env: the bearer is env-sourced (Secrets.get('Ijara','SRental')
+    // → IJARA_SRENTAL). A consumer project's real .env may define it, so delete
+    // it here to deterministically exercise the "No bearer" guard regardless of
+    // which repo (and which .env) the suite runs from.
+    delete process.env.IJARA_SRENTAL;
     await Didox.contracts('SRental', 'IN', 'Confirmed');
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('No bearer', 'Warning');
   });
@@ -802,12 +637,13 @@ describe('Didox.contracts', () => {
   it('BUG: throws ReferenceError because `Chromes` is never imported, caught and routed to errorBox', async () => {
     // bearer present so it reaches the try-block; `Chromes.fetch(...)` is an
     // undefined symbol -> ReferenceError -> caught -> Dialogs.errorBox.
-    // The bearer is read via Secrets.get('ijara', 'token', owner) -> keys.yml ijara.token.SRental.
-    secrets.set('ijara', 'token', 'SRental', 'bearer-token');
+    // The bearer is now read via Secrets.get('Ijara', owner) -> process.env.IJARA_SRENTAL.
+    process.env.IJARA_SRENTAL = 'bearer-token';
     const r = await Didox.contracts('SRental', 'IN', 'Confirmed');
     expect(DialogsMock.errorBox).toHaveBeenCalled();
     const err = DialogsMock.errorBox.mock.calls[0][0];
     expect(err).toBeInstanceOf(ReferenceError);
     expect(r).toBeUndefined();
+    delete process.env.IJARA_SRENTAL;
   });
 });

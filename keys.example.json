@@ -1,0 +1,18 @@
+{
+  "didox": {
+    "user_key": { "SRental": "", "WorkSpace": "" },
+    "partner_key": { "SRental": "", "WorkSpace": "" },
+    "login_password": { "SRental": "", "WorkSpace": "" }
+  },
+  "my3": {
+    "api_key": { "SRental": "", "WorkSpace": "" },
+    "token": { "SRental": "", "WorkSpace": "" }
+  },
+  "ijara": {
+    "token": { "SRental": "", "WorkSpace": "" }
+  },
+  "kapital": {
+    "token": { "SRental": "", "WorkSpace": "" },
+    "id": { "SRental": "", "WorkSpace": "" }
+  }
+}

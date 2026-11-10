@@ -1,116 +1,63 @@
 // Unit tests for classes/Secrets.js — every public (non-_) static method:
 //   get, env.
 //
-// Strategy: Secrets reads a gitignored keys.yml shaped service -> kind -> firm.
-// There is no native, network, or UI boundary to mock — the real methods run
-// against a throwaway keys.yml in a temp dir (pinned via Secrets.file, or found
-// through process.argv[1] / cwd for the auto-lookup case), so the developer's
-// real keys.yml is never read. env() reads process.env, snapshotted and restored
-// per test. The in-process override (_set) is exercised with unique service
-// names because its map is module-wide.
+// Strategy: Secrets reads ONLY from process.env (dotenv is loaded once at import
+// time from the entry script's dir / cwd). There is no native, network, or UI
+// boundary to mock — we drive the real methods by setting/clearing process.env
+// per test and assert the SECTION_OWNER name-mapping and the null-on-missing
+// contract. The envName normalization (camelCase + digit→Cap boundaries:
+// My3Api→MY3_API, KapitalId→KAPITAL_ID, DidoxBaseURL→DIDOX_BASE_URL) is private
+// but is exercised through get()'s observable output.
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import fs from 'fs';
-import path from 'path';
-import { makeTmpDir, cleanupAllTmpDirs } from './helpers/tmp.js';
 
 import { Secrets } from '../classes/Secrets.js';
 
-let workDir;
+// Snapshot and restore process.env so a test's writes never leak across cases.
 let savedEnv;
-let savedArgv1;
-
-function writeKeys(text) {
-  const file = path.join(workDir, 'keys.yml');
-  fs.writeFileSync(file, text, 'utf8');
-  return file;
-}
-
 beforeEach(() => {
-  workDir = makeTmpDir('secrets-');
   savedEnv = { ...process.env };
-  savedArgv1 = process.argv[1];
-  Secrets.file = null;
 });
-
 afterEach(() => {
-  Secrets.file = null;
-  process.argv[1] = savedArgv1;
   process.env = savedEnv;
-  cleanupAllTmpDirs();
 });
 
 // ---------------------------------------------------------------------------
 describe('Secrets.get', () => {
-  it('reads service.kind.firm from keys.yml', () => {
-    Secrets.file = writeKeys('didox:\n  partner_key:\n    SRental: tok-123\n    WorkSpace: tok-456\n');
-    expect(Secrets.get('didox', 'partner_key', 'SRental')).toBe('tok-123');
-    expect(Secrets.get('didox', 'partner_key', 'WorkSpace')).toBe('tok-456');
+  it('maps (section, owner) to SECTION_OWNER and returns the value', () => {
+    process.env.DIDOX_SRENTAL = 'tok-123';
+    expect(Secrets.get('Didox', 'SRental')).toBe('tok-123');
   });
 
-  it('reads the inline-map shape used by keys.example.yml', () => {
-    Secrets.file = writeKeys('kapital:\n  token: { SRental: "bearer-x", WorkSpace: "" }\n');
-    expect(Secrets.get('kapital', 'token', 'SRental')).toBe('bearer-x');
+  it('maps a dotted "Section.Owner" string the same way', () => {
+    process.env.DIDOX_BASE_URL = 'https://api.example';
+    expect(Secrets.get('Didox.BaseURL')).toBe('https://api.example');
   });
 
-  it('returns an empty value as "" (distinct from missing)', () => {
-    Secrets.file = writeKeys('didox:\n  user_key: { SRental: "", WorkSpace: "" }\n');
-    expect(Secrets.get('didox', 'user_key', 'SRental')).toBe('');
+  it('normalizes camelCase boundaries (My3Api → MY3_API)', () => {
+    process.env.MY3_API_SRENTAL = 'my3-key';
+    expect(Secrets.get('My3Api', 'SRental')).toBe('my3-key');
   });
 
-  it('keeps a numeric-looking value as a string (never a number)', () => {
-    Secrets.file = writeKeys('kapital:\n  id:\n    SRental: 07209920\n');
-    expect(Secrets.get('kapital', 'id', 'SRental')).toBe('07209920');
+  it('normalizes a digit→Cap boundary (KapitalId → KAPITAL_ID)', () => {
+    process.env.KAPITAL_ID_SRENTAL = 'kap-id';
+    expect(Secrets.get('KapitalId', 'SRental')).toBe('kap-id');
   });
 
-  it('returns null (not undefined) for a missing service, kind or firm', () => {
-    Secrets.file = writeKeys('didox:\n  user_key: { SRental: abc }\n');
-    expect(Secrets.get('nope', 'user_key', 'SRental')).toBeNull();
-    expect(Secrets.get('didox', 'nope', 'SRental')).toBeNull();
-    expect(Secrets.get('didox', 'user_key', 'WorkSpace')).toBeNull();
+  it('keeps a digit that is NOT followed by a capital together (My3 → MY3)', () => {
+    process.env.MY3_SRENTAL = 'my3-only';
+    expect(Secrets.get('My3', 'SRental')).toBe('my3-only');
   });
 
-  it('returns null when keys.yml does not exist', () => {
-    Secrets.file = path.join(workDir, 'absent.yml');
-    expect(Secrets.get('didox', 'user_key', 'SRental')).toBeNull();
+  it('reads a section with no owner as just the section name', () => {
+    process.env.DIDOX_USER_KEY = 'uk';
+    expect(Secrets.get('Didox.UserKey')).toBe('uk');
+    process.env.KAPITAL = 'k-only';
+    expect(Secrets.get('Kapital')).toBe('k-only');
   });
 
-  it('returns null when keys.yml is not valid YAML', () => {
-    Secrets.file = writeKeys('didox: [unclosed\n');
-    expect(Secrets.get('didox', 'user_key', 'SRental')).toBeNull();
-  });
-
-  it('returns null for an empty keys.yml', () => {
-    Secrets.file = writeKeys('');
-    expect(Secrets.get('didox', 'user_key', 'SRental')).toBeNull();
-  });
-
-  it('re-reads the file on every call, so an edit is picked up without a restart', () => {
-    Secrets.file = writeKeys('ijara:\n  token: { SRental: old }\n');
-    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('old');
-    writeKeys('ijara:\n  token: { SRental: new }\n');
-    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('new');
-  });
-
-  it('finds keys.yml next to the running entry script when no file is pinned', () => {
-    writeKeys('my3:\n  api_key: { SRental: from-entry-dir }\n');
-    process.argv[1] = path.join(workDir, 'runner.js');
-    expect(Secrets.get('my3', 'api_key', 'SRental')).toBe('from-entry-dir');
-  });
-
-});
-
-describe('Secrets._set (in-process override)', () => {
-  it('wins over keys.yml for this run and is never written to disk', () => {
-    const file = writeKeys('zzauth:\n  user_key: { SRental: from-file }\n');
-    Secrets.file = file;
-    Secrets._set('zzauth', 'user_key', 'SRental', 'session-token');
-    expect(Secrets.get('zzauth', 'user_key', 'SRental')).toBe('session-token');
-    expect(fs.readFileSync(file, 'utf8')).not.toContain('session-token');
-  });
-
-  it('stores the value as a string', () => {
-    Secrets._set('zznum', 'id', 'SRental', 12345);
-    expect(Secrets.get('zznum', 'id', 'SRental')).toBe('12345');
+  it('returns null (not undefined) for a missing variable', () => {
+    delete process.env.DOES_NOT_EXIST_OWNER;
+    expect(Secrets.get('DoesNotExist', 'Owner')).toBeNull();
   });
 });
 

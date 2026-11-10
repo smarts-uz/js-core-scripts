@@ -3,7 +3,7 @@
 // Calls Yamls.computeFakturaSend(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Yamls/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -22,12 +22,11 @@ async function main() {
     const argv = yargs(hideBin(process.argv))
         .option("accrual", { describe: "accrual" })
         .option("ehfIn", { describe: "ehfIn" })
-        .option("bankTotal", { describe: "bankTotal" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Yamls.computeFakturaSend(argv["accrual"], argv["ehfIn"], argv["bankTotal"]);
+        const result = await Yamls.computeFakturaSend(argv["accrual"], argv["ehfIn"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

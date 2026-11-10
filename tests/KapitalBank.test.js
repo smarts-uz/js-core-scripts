@@ -5,14 +5,13 @@
 // (and Dialogs / Secrets / IjaraSoliq) so we can drive the response body and
 // assert the URL/auth/state that gets built. No real network ever runs.
 //
-// Credentials: the source reads `Secrets.get('kapital', 'token', owner)` (bearer)
-// and `Secrets.get('kapital', 'id', owner)` (b2b id) — both keys.yml-backed. We
-// mock Secrets with an in-memory store (tests/helpers/secrets.js) and set both
-// per test, so an owner only reaches the fetcher once both are present and the
-// developer's real keys.yml is never read.
+// Credentials: the source reads `Secrets.get('Kapital', owner)` (bearer) and
+// `Secrets.get('KapitalId', owner)` (b2b id) — both env-backed. We mock Secrets
+// to delegate to process.env via the same SECTION_OWNER mapping the real helper
+// uses (KapitalId -> KAPITAL_ID), and drive it by setting/restoring those env
+// vars per test, so an owner only reaches the fetcher once both are present.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { utilsModule } from './helpers/esm.js';
-import { createSecretsMock } from './helpers/secrets.js';
 
 const DialogsMock = {
   warningBox: jest.fn(),
@@ -26,9 +25,20 @@ const ChromesMock = {
 };
 const IjaraSoliqMock = { Owner: { SRental: 'SRental', WorkSpace: 'WorkSpace' } };
 
-// In-memory keys.yml stand-in: ('kapital','token',owner) and ('kapital','id',owner).
-const secrets = createSecretsMock();
-const SecretsMock = secrets.mock;
+// Mirror classes/Secrets.js: ('Kapital','SRental') -> KAPITAL_SRENTAL,
+// ('KapitalId','SRental') -> KAPITAL_ID_SRENTAL. Reads process.env, never config.
+const envName = (section, owner = '') => {
+  const norm = (s) =>
+    String(s)
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .replace(/(\d)([A-Z])/g, '$1_$2')
+      .toUpperCase();
+  return owner ? `${norm(section)}_${norm(owner)}` : norm(section);
+};
+const SecretsMock = {
+  get: jest.fn((section, owner = '') => process.env[envName(section, owner)] ?? null),
+  env: jest.fn((name) => process.env[name] ?? null),
+};
 
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Secrets.js'), () => ({ Secrets: SecretsMock }));
@@ -37,19 +47,35 @@ jest.unstable_mockModule(utilsModule('IjaraSoliq.js'), () => ({ IjaraSoliq: Ijar
 
 const { KapitalBank } = await import('../classes/KapitalBank.js');
 
+// Track every credential env var we set so afterEach can restore the prior value.
+const touchedEnv = new Map();
+function setEnv(name, value) {
+  if (!touchedEnv.has(name)) touchedEnv.set(name, process.env[name]);
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
 beforeEach(() => {
   // Start each test with no Kapital credentials present.
-  secrets.clear();
+  for (const owner of ['SRental', 'WorkSpace']) {
+    setEnv(envName('Kapital', owner), undefined);
+    setEnv(envName('KapitalId', owner), undefined);
+  }
 });
 
 afterEach(() => {
+  for (const [name, prev] of touchedEnv) {
+    if (prev === undefined) delete process.env[name];
+    else process.env[name] = prev;
+  }
+  touchedEnv.clear();
   jest.clearAllMocks();
 });
 
-/** Provide both keys.yml-backed credentials an owner needs to reach the fetcher. */
+/** Provide both env-backed credentials an owner needs to reach the fetcher. */
 function configureOwner(owner, bearer = 'bearer-x', kapitalId = '07209920') {
-  secrets.set('kapital', 'token', owner, bearer);
-  secrets.set('kapital', 'id', owner, kapitalId);
+  setEnv(envName('Kapital', owner), bearer);
+  setEnv(envName('KapitalId', owner), kapitalId);
 }
 
 describe('KapitalBank static surface', () => {
@@ -91,7 +117,7 @@ describe('KapitalBank.payments — guard clauses', () => {
   it('warns when bearer exists but kapitalId is missing', async () => {
     // Source guard order checks bearer BEFORE kapitalId, so with bearer set the
     // next failing guard is kapitalId.
-    secrets.set('kapital', 'token', 'SRental', 'bearer-x');
+    setEnv(envName('Kapital', 'SRental'), 'bearer-x');
     await KapitalBank.payments('SRental', 1, 10);
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('No kapitalId', 'Warning');
     expect(ChromesMock.fetcher).not.toHaveBeenCalled();

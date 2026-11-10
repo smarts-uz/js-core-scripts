@@ -38,7 +38,7 @@ function firstNonEmpty(values) {
     return '';
 }
 
-// Firm whose Didox credentials the shared client sends (keys.yml didox.<kind>.<firm>).
+// Firm whose Didox credentials the shared client sends (keys.json didox.<kind>.<firm>).
 const DIDOX_FIRM = 'SRental';
 
 function didoxUserKey() {
@@ -55,13 +55,13 @@ function resolveDidoxHeaders(callerName) {
 
     switch (true) {
         case !userKey: {
-            const msg = `[Didox.${callerName}] Missing didox.user_key.${DIDOX_FIRM} in keys.yml (user-key header is required)`;
+            const msg = `[Didox.${callerName}] Missing didox.user_key.${DIDOX_FIRM} in keys.json (user-key header is required)`;
             console.error(msg);
             Dialogs.messageBox(msg, 'Error');
             return null;
         }
         case !partnerAuth: {
-            const msg = `[Didox.${callerName}] Missing didox.partner_key.${DIDOX_FIRM} in keys.yml (Partner-Authorization header is required)`;
+            const msg = `[Didox.${callerName}] Missing didox.partner_key.${DIDOX_FIRM} in keys.json (Partner-Authorization header is required)`;
             console.error(msg);
             Dialogs.messageBox(msg, 'Error');
             return null;
@@ -110,569 +110,157 @@ function didoxApi(...args) {
     return _didoxClient(...args);
 }
 
-// ===== Shared request plumbing for every Postman endpoint ==============================
-
-// Locale path segment / Accept-Language: the caller's value, else config.yml Didox.Locale.
-function didoxLocale(locale) {
-    const wanted = String(locale ?? '').trim();
-    switch (wanted) {
-        case '':
-            return String(Yamls.getConfig('Didox.Locale') ?? 'ru').trim() || 'ru';
-        default:
-            return wanted;
-    }
-}
-
-// Locale as a URL path segment.
-function didoxLoc(locale) {
-    return encodeURIComponent(didoxLocale(locale));
-}
-
-// Required argument: trimmed string, or a descriptive error instead of a bad request.
-function didoxNeed(name, value) {
-    const text = String(value ?? '').trim();
-    switch (text) {
-        case '':
-            throw new Error(`Didox: ${name} is required`);
-        default:
-            return text;
-    }
-}
-
-// One URL path segment, safely encoded.
-function didoxSeg(name, value) {
-    return encodeURIComponent(didoxNeed(name, value));
-}
-
-// "?a=1&b=2" from an object; undefined / null / '' values are dropped, '' when nothing is left.
-function didoxQuery(params = {}) {
-    const search = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-        switch ([undefined, null, ''].includes(value)) {
-            case true:
-                continue;
-        }
-        search.append(key, String(value));
-    }
-    const text = search.toString();
-    return text ? `?${text}` : '';
-}
-
-// Object, or a JSON string (runner flags arrive as strings) -> object.
-function didoxJson(name, value) {
-    switch (typeof value) {
-        case 'string':
-            try {
-                return JSON.parse(value);
-            } catch (error) {
-                throw new Error(`Didox: ${name} is not valid JSON (${error.message})`);
-            }
-        default:
-            return value;
-    }
-}
-
-// Request body: JSON object/array (or its JSON string); anything else is a caller error.
-function didoxBody(name, value) {
-    const parsed = didoxJson(name, value);
-    switch (parsed !== null && typeof parsed === 'object') {
-        case true:
-            return parsed;
-        default:
-            throw new Error(`Didox: ${name} must be a JSON object or array`);
-    }
-}
-
-// Array, or "a,b,c" (runner flags) -> array of trimmed non-empty strings.
-function didoxList(value) {
-    switch (true) {
-        case Array.isArray(value):
-            return value.map((item) => String(item).trim()).filter(Boolean);
-        case [undefined, null].includes(value):
-            return [];
-        default:
-            return String(value).split(',').map((item) => item.trim()).filter(Boolean);
-    }
-}
-
-// Save bytes beside `out` without ever overwriting: an existing name takes the next free "Name N".
-function didoxSaveBinary(out, data) {
-    const target = fs.existsSync(out) ? Files.incrementFileName(out) : out;
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, Buffer.from(data));
-    console.log(`[Didox.save] ${target} (${Buffer.from(data).length} bytes)`);
-    return target;
-}
-
-// The one request every endpoint goes through: method + path (+ query/body/locale).
-// `binary` asks for raw bytes (pdf / zip / file endpoints); everything else is parsed JSON.
-function didoxCall(method, endpoint, { query, body, locale, binary = false, headers = {} } = {}) {
-    const options = {
-        method,
-        headers: { 'Accept-Language': didoxLocale(locale), ...headers },
-    };
-    switch (body === undefined) {
-        case false:
-            options.body = body;
-            options.headers['Content-Type'] = 'application/json';
-    }
-    switch (binary) {
-        case true:
-            options.responseType = 'arrayBuffer';
-    }
-    return didoxApi(`${endpoint}${didoxQuery(query)}`, options);
-}
-
-// Binary reply -> the bytes, or (when `out` is given) the path the bytes were saved to.
-function didoxBinaryResult(out, data) {
-    const target = String(out ?? '').trim();
-    switch (target) {
-        case '':
-            return data;
-        default:
-            return didoxSaveBinary(target, data);
-    }
-}
 
 export class Didox {
 
 
 
-    // ===== Reference data (Postman: Справочники + Дополнительные) ==========================
-    // Every method returns the parsed API reply; the runner prints it.
-
-    // GET /v1/measures/all
-    static async saveMeasures() {
-        console.info(`[Didox.saveMeasures] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/measures/all');
+    static saveMeasures() {
+    console.info(`[Didox.saveMeasures] 🟢 Starting...`);
+        didoxApi("/v1/measures/all", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/waybills/districts?regionId=
-    static async getRegionInfo(regionId) {
-        console.info(`[Didox.getRegionInfo] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/utils/waybills/districts', { query: { regionId: didoxNeed('regionId', regionId) } });
+
+    static getRegionInfo() {
+    console.info(`[Didox.getRegionInfo] 🟢 Starting...`);
+        didoxApi("/v1/utils/waybills/districts?regionId=6", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/districts/all
-    static async saveDistricts() {
-        console.info(`[Didox.saveDistricts] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/districts/all');
+    static saveDistricts() {
+    console.info(`[Didox.saveDistricts] 🟢 Starting...`);
+        didoxApi("/v1/districts/all", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/regions/all
-    static async saveRegions() {
-        console.info(`[Didox.saveRegions] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/regions/all');
+    static saveRegions() {
+    console.info(`[Didox.saveRegions] 🟢 Starting...`);
+        didoxApi("/v1/regions/all", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/banks/all
-    static async saveBanks() {
-        console.info(`[Didox.saveBanks] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/banks/all');
+    static saveBanks() {
+    console.info(`[Didox.saveBanks] 🟢 Starting...`);
+        didoxApi("/v1/banks/all", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/waybills/regions
-    static async saveRegionsTTN() {
-        console.info(`[Didox.saveRegionsTTN] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/utils/waybills/regions');
+    static saveRegionsTTN() {
+    console.info(`[Didox.saveRegionsTTN] 🟢 Starting...`);
+        didoxApi("/v1/utils/waybills/regions", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/stations
-    static async saveRailwayStations() {
-        console.info(`[Didox.saveRailwayStations] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/utils/stations');
+    static saveRailwayStations() {
+    console.info(`[Didox.saveRailwayStations] 🟢 Starting...`);
+        didoxApi("/v1/utils/stations", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/stations/{stationId}
-    static async stationInfo(stationId) {
-        console.info(`[Didox.stationInfo] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/stations/${didoxSeg('stationId', stationId)}`);
+
+    static fraudsByTin(tin) {
+    console.info(`[Didox.fraudsByTin] 🟢 Starting...`);
+        didoxApi("/v1/utils/non-conformity-goods-companies/ru?tin=311506035", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/waybills/transport?tinOrPinfl=
-    static async waybillTransport(tinOrPinfl) {
-        console.info(`[Didox.waybillTransport] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/utils/waybills/transport', { query: { tinOrPinfl: didoxNeed('tinOrPinfl', tinOrPinfl) } });
+    static frauds() {
+    console.info(`[Didox.frauds] 🟢 Starting...`);
+        didoxApi("/v1/utils/non-conformity-goods-companies/ru?page=1&size=100&tin", { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/info/{tinOrPinfl} — registry card, no cache (see partyInfo for the cached variant).
-    static async utilsInfo(tinOrPinfl) {
-        console.info(`[Didox.utilsInfo] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/info/${didoxSeg('tinOrPinfl', tinOrPinfl)}`);
+    static profileIKPUCodes() {
+    console.info(`[Didox.profileIKPUCodes] 🟢 Starting...`);
+        didoxApi("/v1/profile/productClassCodes/ru?page=&size=&search=", {
+            responseType: "text",
+            headers: { "Content-Type": "application/json", "Accept-Language": "ru" },
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/non-conformity-goods-companies/{locale}?tin=
-    static async fraudsByTin(tin, locale) {
-        console.info(`[Didox.fraudsByTin] 🟢 Starting...`);
-        return Didox.frauds({ locale, tin: didoxNeed('tin', tin) });
+
+    static documentList() {
+    console.info(`[Didox.documentList] 🟢 Starting...`);
+        didoxApi("/v2/documents?page=1&size=100&doctype=000,010&partner=312261753&owner=1", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/non-conformity-goods-companies/{locale}?page=&size=&tin=
-    static async frauds({ locale, page = 1, size = 100, tin } = {}) {
-        console.info(`[Didox.frauds] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/non-conformity-goods-companies/${didoxLoc(locale)}`, {
-            query: { page, size, tin },
-            locale,
-        });
+    static documentPDF(docId) {
+    console.info(`[Didox.documentPDF] 🟢 Starting...`);
+        didoxApi(`/v1/documents/view/${docId}/pdf/ru`, { responseType: "text" })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/without-vat-products/{locale}
-    static async withoutVatProducts({ locale, page = 1, size = 100, TasnifCode, TasnifName, newLgotaId, LgotaName } = {}) {
-        console.info(`[Didox.withoutVatProducts] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/without-vat-products/${didoxLoc(locale)}`, {
-            query: { page, size, TasnifCode, TasnifName, newLgotaId, LgotaName },
-            locale,
-        });
+    static searchIKPUCode(text) {
+    console.info(`[Didox.searchIKPUCode] 🟢 Starting...`);
+        didoxApi("/v1/profile/productClasses/search?text=Лапша&lang=uz", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/zero-vat-products/{locale}
-    static async zeroVatProducts({ locale, page = 1, size = 100, TasnifCode, TasnifName, newLgotaId, LgotaName } = {}) {
-        console.info(`[Didox.zeroVatProducts] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/zero-vat-products/${didoxLoc(locale)}`, {
-            query: { page, size, TasnifCode, TasnifName, newLgotaId, LgotaName },
-            locale,
-        });
+
+    static profileInfo() {
+    console.info(`[Didox.profileInfo] 🟢 Starting...`);
+        didoxApi("/v1/profile/", {
+            responseType: "text",
+            headers: { "Content-Type": "application/json", "Accept-Language": "ru" },
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/privileged-seller-companies/{locale}
-    static async privilegedSellerCompanies({ locale, page = 1, size = 100, Tin, newLgotaId, LgotaName } = {}) {
-        console.info(`[Didox.privilegedSellerCompanies] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/privileged-seller-companies/${didoxLoc(locale)}`, {
-            query: { page, size, Tin, newLgotaId, LgotaName },
-            locale,
-        });
+    static vatRegStatus(tin, date) {
+    console.info(`[Didox.vatRegStatus] 🟢 Starting...`);
+        didoxApi("/v1/profile/vatRegStatus/312261753?document_date=13.01.2024", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/privileged-buyer-companies/{locale}
-    static async privilegedBuyerCompanies({ locale, page = 1, size = 100, Tin, newLgotaId, LgotaName } = {}) {
-        console.info(`[Didox.privilegedBuyerCompanies] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/privileged-buyer-companies/${didoxLoc(locale)}`, {
-            query: { page, size, Tin, newLgotaId, LgotaName },
-            locale,
-        });
+    static getTaxpayerType() {
+    console.info(`[Didox.getTaxpayerType] 🟢 Starting...`);
+        didoxApi("/v1/profile/taxpayerType/312261753/uz?date=", {
+            responseType: "text",
+            headers: { "Accept-Language": "ru", "Content-Type": "application/json" },
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
 
-    // GET /v1/utils/not-included-products/{locale}
-    static async notIncludedProducts({ locale, page = 1, size = 100, SearchText } = {}) {
-        console.info(`[Didox.notIncludedProducts] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/not-included-products/${didoxLoc(locale)}`, {
-            query: { page, size, SearchText },
-            locale,
-        });
+
+    static login() {
+    console.info(`[Didox.login] 🟢 Starting...`);
+        didoxApi("/v1/auth/311958304/password/ru", {
+            method: "POST",
+            body: { password: Secrets.get("didox", "login_password", DIDOX_FIRM) ?? "" },
+            headers: { "Accept-Language": "ru" },
+            responseType: "text",
+        })
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
     }
-
-    // GET /v1/utils/compensation-works/{locale}
-    static async compensationWorks({ locale, page = 1, size = 100, SearchText } = {}) {
-        console.info(`[Didox.compensationWorks] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/compensation-works/${didoxLoc(locale)}`, {
-            query: { page, size, SearchText },
-            locale,
-        });
-    }
-
-    // GET /v1/utils/income-types/{locale}
-    static async incomeTypes(locale) {
-        console.info(`[Didox.incomeTypes] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/income-types/${didoxLoc(locale)}`, { locale });
-    }
-
-    // GET /v1/utils/other-income-product-classes/{locale}
-    static async otherIncomeProductClasses(locale) {
-        console.info(`[Didox.otherIncomeProductClasses] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/utils/other-income-product-classes/${didoxLoc(locale)}`, { locale });
-    }
-
-    // POST /v1/utils/product-privileges/{locale}?checkDate= — body: array of catalog codes.
-    static async productPrivileges(codes, checkDate, locale) {
-        console.info(`[Didox.productPrivileges] 🟢 Starting...`);
-        const list = didoxList(codes);
-        didoxNeed('codes', list.join(','));
-        return didoxCall('POST', `/v1/utils/product-privileges/${didoxLoc(locale)}`, {
-            query: { checkDate },
-            body: list,
-            locale,
-        });
-    }
-
-    // POST /v1/utils/company-privileges/{locale}?checkDate= — body: array of TINs.
-    static async companyPrivileges(tins, checkDate, locale) {
-        console.info(`[Didox.companyPrivileges] 🟢 Starting...`);
-        const list = didoxList(tins);
-        didoxNeed('tins', list.join(','));
-        return didoxCall('POST', `/v1/utils/company-privileges/${didoxLoc(locale)}`, {
-            query: { checkDate },
-            body: list,
-            locale,
-        });
-    }
-
-    // POST /v1/utils/companies-privileges/{locale} — body { check_date, tax_ids_or_pinfls }.
-    static async companiesPrivileges(taxIds, checkDate, locale) {
-        console.info(`[Didox.companiesPrivileges] 🟢 Starting...`);
-        const list = didoxList(taxIds);
-        didoxNeed('taxIds', list.join(','));
-        return didoxCall('POST', `/v1/utils/companies-privileges/${didoxLoc(locale)}`, {
-            body: { check_date: didoxNeed('checkDate', checkDate), tax_ids_or_pinfls: list },
-            locale,
-        });
-    }
-
-    // ===== Profile (Postman: Профиль) ======================================================
-
-    // GET /v1/profile/
-    static async profileInfo(locale) {
-        console.info(`[Didox.profileInfo] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/profile/', { locale });
-    }
-
-    // POST /v1/profile/update — body = profile fields (object or JSON string).
-    static async profileUpdate(body, locale) {
-        console.info(`[Didox.profileUpdate] 🟢 Starting...`);
-        return didoxCall('POST', '/v1/profile/update', { body: didoxBody('body', body), locale });
-    }
-
-    // GET /v1/profile/productClassCodes/{locale}?page=&size=&search=
-    static async profileIKPUCodes({ locale, page, size, search } = {}) {
-        console.info(`[Didox.profileIKPUCodes] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/profile/productClassCodes/${didoxLoc(locale)}`, {
-            query: { page, size, search },
-            locale,
-        });
-    }
-
-    // GET /v1/profile/productClasses/search?text=&lang=
-    static async searchIKPUCode(text, lang) {
-        console.info(`[Didox.searchIKPUCode] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/profile/productClasses/search', {
-            query: { text: didoxNeed('text', text), lang: didoxLocale(lang) },
-            locale: lang,
-        });
-    }
-
-    // POST /v1/profile/productClasses — add a catalog code to the company's list.
-    static async productClassAdd(classCode) {
-        console.info(`[Didox.productClassAdd] 🟢 Starting...`);
-        return didoxCall('POST', '/v1/profile/productClasses', { body: { classCode: didoxNeed('classCode', classCode) } });
-    }
-
-    // DELETE /v1/profile/productClasses/{classCode}
-    static async productClassRemove(classCode) {
-        console.info(`[Didox.productClassRemove] 🟢 Starting...`);
-        return didoxCall('DELETE', `/v1/profile/productClasses/${didoxSeg('classCode', classCode)}`);
-    }
-
-    // GET /v1/profile/{taxId}/productClasses/check/{code}/{lang} — packages (units) offered for a code.
-    static async productClassCheck(taxId, code, lang) {
-        console.info(`[Didox.productClassCheck] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/profile/${didoxSeg('taxId', taxId)}/productClasses/check/${didoxSeg('code', code)}/${didoxLoc(lang)}`, { locale: lang });
-    }
-
-    // GET /v1/profile/branches?tin=
-    static async profileBranches(tin) {
-        console.info(`[Didox.profileBranches] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/profile/branches', { query: { tin: didoxNeed('tin', tin) } });
-    }
-
-    // GET /v1/profile/vatRegStatus/{tinOrPinfl}?document_date=DD.MM.YYYY
-    static async vatRegStatus(tin, documentDate) {
-        console.info(`[Didox.vatRegStatus] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/profile/vatRegStatus/${didoxSeg('tin', tin)}`, { query: { document_date: documentDate } });
-    }
-
-    // GET /v1/profile/warehouses/{tinOrPinfl}
-    static async profileWarehouses(tin) {
-        console.info(`[Didox.profileWarehouses] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/profile/warehouses/${didoxSeg('tin', tin)}`);
-    }
-
-    // GET /v1/profile/taxpayerType/{tin}/{lang}?date=
-    static async getTaxpayerType(tin, lang, date) {
-        console.info(`[Didox.getTaxpayerType] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/profile/taxpayerType/${didoxSeg('tin', tin)}/${didoxLoc(lang)}`, {
-            query: { date },
-            locale: lang,
-        });
-    }
-
-    // ===== Auth by password / registration / company switch (Postman: Авторизация) ========
-
-    // POST /v1/auth/{tin}/password/{locale} — password from keys.yml (didox.login_password) unless given.
-    // The token is kept in this process only (Secrets._set -> didox.user_key).
-    static async login(tin, locale, password) {
-        console.info(`[Didox.login] 🟢 Starting...`);
-        const tinStr = didoxNeed('tin', tin ?? Yamls.getConfig('Didox.Tin'));
-        const secret = String(password ?? Secrets.get('didox', 'login_password', DIDOX_FIRM) ?? '');
-        const reply = await didoxCall('POST', `/v1/auth/${didoxSeg('tin', tinStr)}/password/${didoxLoc(locale)}`, {
-            body: { password: didoxNeed('password', secret) },
-            locale,
-        });
-        switch (Boolean(reply?.token)) {
-            case true:
-                Secrets._set('didox', 'user_key', DIDOX_FIRM, reply.token);
-        }
-        return reply;
-    }
-
-    // POST /v1/auth/signup — register by TIN/PINFL (signature = E-IMZO timeStampTokenB64).
-    static async authSignup(mobile, email, password, signature) {
-        console.info(`[Didox.authSignup] 🟢 Starting...`);
-        return didoxCall('POST', '/v1/auth/signup', {
-            body: {
-                mobile: didoxNeed('mobile', mobile),
-                email: didoxNeed('email', email),
-                password: didoxNeed('password', password),
-                signature: didoxNeed('signature', signature),
-            },
-        });
-    }
-
-    // POST /v1/auth/company/{companyTaxId}/login/{locale} — switch a person's token to a company.
-    static async authCompanyLogin(companyTaxId, locale) {
-        console.info(`[Didox.authCompanyLogin] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/auth/company/${didoxSeg('companyTaxId', companyTaxId)}/login/${didoxLoc(locale)}`, { locale });
-    }
-
-    // ===== Documents (Postman: Документы) ==================================================
-
-    // GET /v2/documents — filtered list (owner 1 = outgoing, 0 = incoming).
-    static async documentList({ page = 1, size = 100, owner = 1, doctype, partner, status, name, sum, dateFromCreated, dateToCreated, dateFromUpdated, dateToUpdated, docDateFromCreated, docDateToCreated, contractName, contractDate, oneside, hasCommittent, hasLgota, hasMarks } = {}) {
-        console.info(`[Didox.documentList] 🟢 Starting...`);
-        return didoxCall('GET', '/v2/documents', {
-            query: { page, size, owner, doctype, partner, status, name, sum, dateFromCreated, dateToCreated, dateFromUpdated, dateToUpdated, docDateFromCreated, docDateToCreated, contractName, contractDate, oneside, hasCommittent, hasLgota, hasMarks },
-        });
-    }
-
-    // GET /v1/documents/{id}?owner=
-    static async documentGet(docId, owner = 1) {
-        console.info(`[Didox.documentGet] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/documents/${didoxSeg('docId', docId)}`, { query: { owner } });
-    }
-
-    // GET /v1/documents/{id}/privileges
-    static async documentPrivileges(docId) {
-        console.info(`[Didox.documentPrivileges] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/documents/${didoxSeg('docId', docId)}/privileges`);
-    }
-
-    // GET /v1/documents/view/{id}/html/{locale}
-    static async documentHtml(docId, locale) {
-        console.info(`[Didox.documentHtml] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/documents/view/${didoxSeg('docId', docId)}/html/${didoxLoc(locale)}`, { locale });
-    }
-
-    // GET /v1/documents/view/{id}/pdf/{locale} — bytes, or the saved path when `out` is given.
-    static async documentPDF(docId, locale, out) {
-        console.info(`[Didox.documentPDF] 🟢 Starting...`);
-        const data = await didoxCall('GET', `/v1/documents/view/${didoxSeg('docId', docId)}/pdf/${didoxLoc(locale)}`, { locale, binary: true });
-        return didoxBinaryResult(out, data);
-    }
-
-    // GET /v1/documents/{id}/file/true — attached file (base64 `file.data` in the reply).
-    static async documentFile(docId) {
-        console.info(`[Didox.documentFile] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/documents/${didoxSeg('docId', docId)}/file/true`);
-    }
-
-    // GET /v1/documents/{id}/archive — zip with the signatures; bytes, or the saved path when `out` is given.
-    static async documentArchive(docId, out) {
-        console.info(`[Didox.documentArchive] 🟢 Starting...`);
-        const data = await didoxCall('GET', `/v1/documents/${didoxSeg('docId', docId)}/archive`, { binary: true });
-        return didoxBinaryResult(out, data);
-    }
-
-    // GET /v1/documents/contract/{contractId}/info/{locale}
-    static async contractInfo(contractId, locale) {
-        console.info(`[Didox.contractInfo] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/documents/contract/${didoxSeg('contractId', contractId)}/info/${didoxLoc(locale)}`, { locale });
-    }
-
-    // GET /v1/documents/exchange?buyerTin=&lotId=
-    static async exchangeLot(buyerTin, lotId) {
-        console.info(`[Didox.exchangeLot] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/documents/exchange', { query: { buyerTin: didoxNeed('buyerTin', buyerTin), lotId: didoxNeed('lotId', lotId) } });
-    }
-
-    // GET /v1/documents/exchange/types
-    static async exchangeTypes() {
-        console.info(`[Didox.exchangeTypes] 🟢 Starting...`);
-        return didoxCall('GET', '/v1/documents/exchange/types');
-    }
-
-    // GET /v1/documents/exchange/lotswithtypes/{locale}?buyerTin=&lotId=
-    static async exchangeLotsWithTypes(buyerTin, lotId, locale) {
-        console.info(`[Didox.exchangeLotsWithTypes] 🟢 Starting...`);
-        return didoxCall('GET', `/v1/documents/exchange/lotswithtypes/${didoxLoc(locale)}`, {
-            query: { buyerTin: didoxNeed('buyerTin', buyerTin), lotId: didoxNeed('lotId', lotId) },
-            locale,
-        });
-    }
-
-    // POST /v1/documents/preview/{doctype}/{locale} — render a draft without saving it.
-    static async documentPreview(docType, body, locale) {
-        console.info(`[Didox.documentPreview] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/preview/${didoxSeg('docType', docType)}/${didoxLoc(locale)}`, {
-            body: didoxBody('body', body),
-            locale,
-        });
-    }
-
-    // POST /v1/documents/{docId}/update/{doctype} — replace a draft's content.
-    static async documentUpdate(docId, docType, body, locale) {
-        console.info(`[Didox.documentUpdate] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/update/${didoxSeg('docType', docType)}`, {
-            body: didoxBody('body', body),
-            locale,
-        });
-    }
-
-    // POST /v1/documents/{docId}/give — signature = E-IMZO timeStampTokenB64.
-    static async documentGive(docId, signature) {
-        console.info(`[Didox.documentGive] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/give`, { body: { signature: didoxNeed('signature', signature) } });
-    }
-
-    // POST /v1/documents/{docId}/tillreturn
-    static async documentTillReturn(docId, signature, comment) {
-        console.info(`[Didox.documentTillReturn] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/tillreturn`, {
-            body: { signature: didoxNeed('signature', signature), comment: String(comment ?? '') },
-        });
-    }
-
-    // POST /v1/documents/{docId}/return
-    static async documentReturn(docId, signature, comment) {
-        console.info(`[Didox.documentReturn] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/return`, {
-            body: { signature: didoxNeed('signature', signature), comment: String(comment ?? '') },
-        });
-    }
-
-    // POST /v1/documents/{docId}/reject
-    static async documentReject(docId, signature, comment) {
-        console.info(`[Didox.documentReject] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/reject`, {
-            body: { comment: didoxNeed('comment', comment), signature: didoxNeed('signature', signature) },
-        });
-    }
-
-    // POST /v1/documents/{docId}/delete/draft
-    static async documentDeleteDraft(docId) {
-        console.info(`[Didox.documentDeleteDraft] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/delete/draft`);
-    }
-
-    // POST /v1/documents/{docId}/delete — signature = E-IMZO timeStampTokenB64.
-    static async documentDelete(docId, signature) {
-        console.info(`[Didox.documentDelete] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/delete`, { body: { signature: didoxNeed('signature', signature) } });
-    }
-
-    // POST /v1/documents/{docId}/tosign — data the E-IMZO key must sign for `action`.
-    static async documentToSign(docId, action) {
-        console.info(`[Didox.documentToSign] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/tosign`, { body: { action: String(action ?? '') } });
-    }
-
     static bankByCode(code) {
     console.info(`[Didox.bankByCode] 🟢 Starting...`);
         if (!code) return null;
@@ -823,8 +411,8 @@ export class Didox {
                         returns = cached;
                         switch (response.status) {
                             case 401: {
-                                console.error(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired didox.user_key / didox.partner_key in keys.yml)`);
-                                Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} — didox.user_key eskirgan yoki noto'g'ri (keys.yml ni yangilang)`, 'Error');
+                                console.error(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired didox.user_key / didox.partner_key in keys.json)`);
+                                Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} — didox.user_key eskirgan yoki noto'g'ri (keys.json ni yangilang)`, 'Error');
                                 break;
                             }
                             default: {
@@ -889,7 +477,11 @@ export class Didox {
     // POST /v1/dsvs/timestamp — attach a trusted timestamp to an E-IMZO signature.
     static async timestamp(pkcs764, signatureHex) {
         console.info(`[Didox.timestamp] 🟢 Starting...`);
-        const reply = await didoxCall('POST', '/v1/dsvs/timestamp', { body: { pkcs7: pkcs764, signatureHex } });
+        const reply = await didoxApi('/v1/dsvs/timestamp', {
+            method: 'POST',
+            body: { pkcs7: pkcs764, signatureHex },
+            headers: { 'Accept-Language': 'ru', 'Content-Type': 'application/json' },
+        });
         switch (Boolean(reply?.timeStampTokenB64)) {
             case false:
                 throw new Error(`Didox timestamp failed: ${JSON.stringify(reply)}`);
@@ -906,33 +498,41 @@ export class Didox {
     }
 
     // Log in as the company by E-IMZO: sign base64(TIN) -> POST /v1/auth/{tin}/token/{locale}.
-    // The token is kept in this process only (Secrets._set -> didox.user_key), never written to disk.
+    // The token is kept in this process only (process.env.DIDOX_USER_KEY), never written to disk.
     static async authToken(tin, locale = 'ru') {
         console.info(`[Didox.authToken] 🟢 Starting...`);
         const tinStr = String(tin ?? '').trim();
         const signature = await Didox.signData(Eimzo.toBase64(tinStr), tinStr);
-        const reply = await didoxCall('POST', `/v1/auth/${didoxSeg('tin', tinStr)}/token/${didoxLoc(locale)}`, { body: { signature }, locale });
+        const reply = await didoxApi(`/v1/auth/${tinStr}/token/${locale}`, {
+            method: 'POST',
+            body: { signature },
+            headers: { 'Accept-Language': locale, 'Content-Type': 'application/json' },
+        });
         switch (Boolean(reply?.token)) {
             case false:
                 throw new Error(`Didox login failed for ${tinStr}: ${JSON.stringify(reply)}`);
         }
-        Secrets._set('didox', 'user_key', DIDOX_FIRM, reply.token);
+        process.env.DIDOX_USER_KEY = reply.token;
         return reply.token;
     }
 
     // POST /v1/documents/{docType}/create/{locale} — draft document, returns the API reply (`_id` = doc id).
-    static async documentCreate(docType, body, locale) {
+    static async documentCreate(docType, body, locale = 'ru') {
         console.info(`[Didox.documentCreate] 🟢 Starting...`);
-        return didoxCall('POST', `/v1/documents/${didoxSeg('docType', docType)}/create/${didoxLoc(locale)}`, {
-            body: didoxBody('body', body),
-            locale,
+        return didoxApi(`/v1/documents/${docType}/create/${locale}`, {
+            method: 'POST',
+            body,
+            headers: { 'Accept-Language': locale, 'Content-Type': 'application/json' },
         });
     }
 
     // True when an outgoing document with exactly this number already exists (idempotency guard).
     static async documentExists(number, docType = '002') {
         console.info(`[Didox.documentExists] 🟢 Starting...`);
-        const reply = await Didox.documentList({ page: 1, size: 50, owner: 1, doctype: docType, name: number });
+        const reply = await didoxApi(
+            `/v2/documents?page=1&size=50&owner=1&doctype=${docType}&name=${encodeURIComponent(number)}`,
+            { headers: { 'Accept-Language': 'ru' } }
+        );
         const rows = Array.isArray(reply?.data) ? reply.data : [];
         return rows.some((row) => String(row?.name ?? '').trim() === String(number).trim());
     }
@@ -940,21 +540,27 @@ export class Didox {
     // Sign (= send) an outgoing draft: GET its json, sign base64(json), POST /v1/documents/{id}/sign.
     static async documentSign(docId, tin) {
         console.info(`[Didox.documentSign] 🟢 Starting...`);
-        const document = await Didox.documentGet(docId, 1);
+        const document = await didoxApi(`/v1/documents/${docId}?owner=1`);
         const json = document?.data?.json;
         switch (Boolean(json)) {
             case false:
                 throw new Error(`Didox document ${docId} has no data.json: ${JSON.stringify(document)}`);
         }
         const signature = await Didox.signData(Eimzo.toBase64(JSON.stringify(json)), tin);
-        const reply = await didoxCall('POST', `/v1/documents/${didoxSeg('docId', docId)}/sign`, { body: { signature } });
+        const reply = await didoxApi(`/v1/documents/${docId}/sign`, {
+            method: 'POST',
+            body: { signature },
+            headers: { 'Accept-Language': 'ru', 'Content-Type': 'application/json' },
+        });
         return reply?.data === true;
     }
 
     // Package (unit) of a catalog code, matched by name: GET /v1/profile/{tin}/productClasses/check/{code}/{lang}.
     static async productPackage(tin, catalogCode, packageName, locale = 'ru') {
         console.info(`[Didox.productPackage] 🟢 Starting...`);
-        const list = await Didox.productClassCheck(tin, catalogCode, locale);
+        const list = await didoxApi(`/v1/profile/${tin}/productClasses/check/${catalogCode}/${locale}`, {
+            headers: { 'Accept-Language': locale },
+        });
         const wanted = String(packageName).trim().toLowerCase();
         const found = (Array.isArray(list) ? list : []).find((item) => String(item?.name ?? '').trim().toLowerCase() === wanted);
         switch (Boolean(found)) {
@@ -977,7 +583,7 @@ export class Didox {
             case false:
                 return null;
         }
-        const info = await Didox.utilsInfo(tin);
+        const info = await didoxApi(`/v1/utils/info/${tin}`, { headers: { 'Accept-Language': 'ru' } });
         Files.writeJson(cacheFile, info);
         return info;
     }
@@ -1364,8 +970,8 @@ export class Didox {
                         returns = cached;
                         switch (response.status) {
                             case 401: {
-                                console.error(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired didox.user_key / didox.partner_key in keys.yml)`);
-                                Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} — didox.user_key eskirgan yoki noto'g'ri (keys.yml ni yangilang)`, 'Error');
+                                console.error(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired didox.user_key / didox.partner_key in keys.json)`);
+                                Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} — didox.user_key eskirgan yoki noto'g'ri (keys.json ni yangilang)`, 'Error');
                                 break;
                             }
                             default: {

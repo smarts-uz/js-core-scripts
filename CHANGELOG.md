@@ -7,10 +7,6 @@ be regenerated from the git history.
 
 ## [Unreleased]
 
-### Changed
-
-- **Secrets moved from `.env` to a gitignored `keys.yml`** shaped `service → kind → firm` (firms `SRental`, `WorkSpace`; template `keys.example.yml`). `Secrets.get(service, kind, firm)` reads it (re-read on every call, FAILSAFE schema = all strings); `Secrets.env(name)` stays as a real-process-env read; `Secrets._set(...)` is an in-process override. `Didox`/`IjaraSoliq`/`KapitalBank`/`MySoliq` and their specs migrated; specs use `tests/helpers/secrets.js` (in-memory mock) and never touch a real `keys.yml`.
-
 ### Fixed
 
 - **`Word.makeContract` output docx/pdf paths now increment-versioned via `Files.incrementFileName`** — same universal pattern already used by `Excels.js`/`Homoglyph.js`/`Markdown.js`/`PowerPoints.js`. Previously `doc.SaveAs(outputDocxPath, ...)` wrote straight to a fixed computed path, silently overwriting a prior run's contract docx/pdf for the same `ContractNum`/area/company combination.

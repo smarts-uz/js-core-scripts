@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SECRETS — gitignored. NEVER commit this file.
+# Read at runtime via dotenv (process.env.<NAME>). Mirrors the keys the shared
+# utils/ integrations (Didox, MySoliq, IjaraSoliq, KapitalBank) use.
+#
+# ⚠️ The tokens below were previously committed to config.yml / hardcoded in
+#    utils/Didox.js and pushed to git. Treat them as COMPROMISED and ROTATE them.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Didox Partner API (utils/Didox.js)
+# DIDOX_BASE_URL is non-secret — it lives in config.yml (Didox.BaseURL), not here.
+DIDOX_USER_KEY=6b613861-d97d-4dfc-9d5f-6e2b5cb87544
+DIDOX_PARTNER_AUTHORIZATION=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw
+DIDOX_LOGIN_PASSWORD=4beruniave
+
+# Didox per-owner partner token (utils/Didox.js getConfig 'Didox.<owner>')
+DIDOX_SRENTAL=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjMzLCJzdGF0dXMiOiJBQ1RJVkUiLCJuYW1lIjoiXCJLQU5TTEVSXCIgTUNISiIsInJvbGUiOiJQQVJUTkVSIiwidGluIjoiMzA0MTQ0OTI1IiwiaWF0IjoxNzYwNTE4ODY3fQ.nXUUDDyUGIXwSlsK9aV3fkLMAnaBYYS71VMNKiM-bCw
+
+# My3 / MySoliq API key (utils/MySoliq.js — X-API-KEY / Bearer)
+MY3_API_SRENTAL=4979e00f-da5b-4dcd-86f2-22672868d057
+MY3_SRENTAL=
+
+# Ijara Soliq bearer token (utils/IjaraSoliq.js, utils/Didox.js getConfig 'Ijara.<owner>')
+IJARA_SRENTAL=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJNeXNvbGlxLWF1dGhvcml6YXRpb24iLCJzdWIiOiJlNGU0MDFkMjljMjI3YzU0MDE5YzJlYzZiZDQ0NTE3NSIsImp0aSI6ImU0ZTQwMWQyOWMyMjdjNTQwMTljMmVjNmJkNDQ1MTc1IiwiZXhwIjo0MTA1NTMwNTAyfQ.8kKBkDJPM0A-PZYHt5OqfTobjPTI53QP-oQfwIjiXOQ
+
+# Kapital Bank API (utils/KapitalBank.js getConfig 'Kapital.<owner>' / 'KapitalId.<owner>')
+KAPITAL_SRENTAL=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMyOTg3OCIsIm5hbWUiOiJTTUFSVF9UIiwiaW5uIjoiIiwicGluZmwiOiIiLCJicmFuY2giOiIiLCJyb2xlIjoidXNlciIsInR5cGVpZCI6IjAiLCJzZXNzaW9uaWQiOiIyOTE5OTc4IiwicmlnaHRzIjoiR3pNQ0lCd0h1VG5GRzNPUmtzcGVwY2pXbmhzT1RIMlpBS0NiMXYrbHZuVll1dm9lbmRQYkxmSmVlQUFhMFJoSkE5QXBUTDFaNjhnbGViMWYvM09mRHlqMW5IekJaKzZhSno4KzZpUEJDQW9MRnpUUWhRMDlPRkREQkJFaVF2eVBqaDVHNFpnOUV0R21xamg5Z2VDa1IvL2p5N3JodGZ5elVKS3RpRk9VTFZKcVZwS2VkTVZXeFU4dFZMQkFMTW5HMkdDcVREOWVTc2l3aTFQVnBDRy9YcjdFcWpGQnRrdEszb283d3J2RHdJdnVVak5YSHRJd0JVUUdibEpwcUV3Vk5Yb05GaUpBWUlkMkFHa3BMMjlWTHhlaWRBenFpejJ4YkZzYWJwOG1XaUh6UHc9PSIsImFnZW50c19yaWdodHMiOiJpd0NBVzEwRCIsImVzYm1vZHVsZSI6IkczMEErTVc2T2UwM056VnNQY1Z6bFA1SmtuT01BNmVIWmRScnc4RmtEN2d4Nm96cVFiVGJ3MnAzVDFMMFNCVDBNRmxWSEd4VndPRVp4MGVLQTNBbEhzTUpmUT09IiwiZmlvIjoiWkFLSVJPViBBU0FST1IgQVNRQVIgT0dMSSIsImV4cCI6MTc3MDM2MDMxMywiaXNzIjoiS2FwaXRhbERiby5TZXJ2ZXIiLCJhdWQiOiJLYXBpdGFsRGJvLlVzZXIifQ.HUhaarfZPuqkEJURxNfShGUBnSqnGfyWrcAlagPxYZc
+KAPITAL_ID_SRENTAL=07209920

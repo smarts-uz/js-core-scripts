@@ -168,15 +168,6 @@ const configurations = [
         '--all',
         'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ALL.contractall',
     ]),
-    // Faktura (Didox) — dry-run only: builds the payloads, sends nothing (real send = `--no-dry`).
-    cfg('Faktura Dry Single, CODENOVA', 'Didox', 'fakturaSend', [
-        '--yaml',
-        'd:\\FSystem\\ALL\\Humans\\Rentalls\\Mamurjon\\CODENOVA\\ALL 2.contract',
-    ]),
-    cfg('Faktura Dry Batch, Mamurjon', 'Didox', 'fakturaSendAll', [
-        '--all',
-        'd:\\FSystem\\ALL\\Humans\\Rentalls\\Mamurjon\\ALL.contractall',
-    ]),
     cfg('Contract → Word Single, ZOKIROV', 'Word', 'contract', [
         '--yaml',
         'd:\\FSystem\\ALL\\Humans\\Rentalls\\AnvarIkr\\ZOKIROV CONSTRUCTION\\ALL.contract',

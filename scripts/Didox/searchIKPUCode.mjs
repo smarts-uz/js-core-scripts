@@ -3,7 +3,7 @@
 // Calls Didox.searchIKPUCode(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Didox/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -22,12 +22,11 @@ async function main() {
 
     const argv = yargs(hideBin(process.argv))
         .option("text", { describe: "text" })
-        .option("lang", { describe: "lang" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Didox.searchIKPUCode(argv["text"], argv["lang"]);
+        const result = await Didox.searchIKPUCode(argv["text"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

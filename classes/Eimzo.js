@@ -21,8 +21,8 @@ const PINFL_OID = '1.2.860.3.16.1.2';
 
 export class Eimzo {
 
-    static _settings() {
-        console.info(`[Eimzo._settings] 🟢 Starting...`);
+    static settings() {
+        console.info(`[Eimzo.settings] 🟢 Starting...`);
         const read = (key) => Yamls.getConfig(`Eimzo.${key}`, null, DEFAULTS[key]) ?? DEFAULTS[key];
         return {
             url: String(read('Url')),
@@ -64,14 +64,9 @@ export class Eimzo {
 
     // True when the certificate belongs to the given TIN / PINFL.
     static holds(certificate, tin) {
-        const wanted = String(tin ?? '').trim();
-        switch (wanted) {
-            case '':
-                return false;
-        }
         const alias = Eimzo.parseAlias(certificate?.alias);
         const ids = [alias[TIN_OID], alias[PINFL_OID], alias.uid].map((value) => String(value ?? '').trim());
-        return ids.includes(wanted);
+        return ids.includes(String(tin ?? '').trim());
     }
 
     // Choose the certificate to sign with: holder = tin (when given), not expired,
@@ -109,8 +104,8 @@ export class Eimzo {
 
     // Open the local WebSocket. Only loopback URLs are accepted; the E-IMZO
     // loopback certificate is self-issued, so verification is skipped for it alone.
-    static _open() {
-        const { url, origin, timeout } = Eimzo._settings();
+    static open() {
+        const { url, origin, timeout } = Eimzo.settings();
         const loopback = LOOPBACK.has(new URL(url).hostname);
         switch (loopback) {
             case false:
@@ -124,7 +119,7 @@ export class Eimzo {
     }
 
     // One request/response round trip. Rejects on timeout, socket error or success:false.
-    static _request(socket, message, timeout = DEFAULTS.Timeout) {
+    static request(socket, message, timeout = DEFAULTS.Timeout) {
         const label = `${message.plugin}.${message.name}`;
         return new Promise((resolve, reject) => {
             let timer = null;
@@ -158,15 +153,15 @@ export class Eimzo {
         });
     }
 
-    static async _listCertificates(socket, timeout = DEFAULTS.Timeout) {
-        console.info(`[Eimzo._listCertificates] 🟢 Starting...`);
-        const reply = await Eimzo._request(socket, { plugin: 'pfx', name: 'list_all_certificates' }, timeout);
+    static async listCertificates(socket, timeout = DEFAULTS.Timeout) {
+        console.info(`[Eimzo.listCertificates] 🟢 Starting...`);
+        const reply = await Eimzo.request(socket, { plugin: 'pfx', name: 'list_all_certificates' }, timeout);
         return reply.certificates ?? [];
     }
 
-    static async _loadKey(socket, certificate, timeout = DEFAULTS.Timeout) {
-        console.info(`[Eimzo._loadKey] 🟢 Starting...`);
-        const reply = await Eimzo._request(
+    static async loadKey(socket, certificate, timeout = DEFAULTS.Timeout) {
+        console.info(`[Eimzo.loadKey] 🟢 Starting...`);
+        const reply = await Eimzo.request(
             socket,
             {
                 plugin: 'pfx',
@@ -178,9 +173,9 @@ export class Eimzo {
         return reply.keyId;
     }
 
-    static async _createPkcs7(socket, dataBase64, keyId, timeout = DEFAULTS.Timeout) {
-        console.info(`[Eimzo._createPkcs7] 🟢 Starting...`);
-        return Eimzo._request(
+    static async createPkcs7(socket, dataBase64, keyId, timeout = DEFAULTS.Timeout) {
+        console.info(`[Eimzo.createPkcs7] 🟢 Starting...`);
+        return Eimzo.request(
             socket,
             { plugin: 'pkcs7', name: 'create_pkcs7', arguments: [dataBase64, keyId, 'no'] },
             timeout
@@ -189,14 +184,14 @@ export class Eimzo {
 
     // keyId for the configured device: pfx = pick + load the TIN's key file,
     // ckc = the USB token is addressed by the literal "ckc".
-    static async _keyFor(socket, device, tin, timeout = DEFAULTS.Timeout) {
+    static async keyFor(socket, device, tin, timeout = DEFAULTS.Timeout) {
         switch (device) {
             case 'ckc':
                 return 'ckc';
             default: {
-                const certificates = await Eimzo._listCertificates(socket, timeout);
+                const certificates = await Eimzo.listCertificates(socket, timeout);
                 const certificate = Eimzo.pickCertificate(certificates, tin);
-                return Eimzo._loadKey(socket, certificate, timeout);
+                return Eimzo.loadKey(socket, certificate, timeout);
             }
         }
     }
@@ -205,11 +200,11 @@ export class Eimzo {
     // signer_serial_number, success } — the pair Didox's /v1/dsvs/timestamp wants.
     static async sign(dataBase64, tin = '') {
         console.info(`[Eimzo.sign] 🟢 Starting...`);
-        const { device, timeout } = Eimzo._settings();
-        const socket = await Eimzo._open();
+        const { device, timeout } = Eimzo.settings();
+        const socket = await Eimzo.open();
         try {
-            const keyId = await Eimzo._keyFor(socket, device, tin, timeout);
-            return await Eimzo._createPkcs7(socket, dataBase64, keyId, timeout);
+            const keyId = await Eimzo.keyFor(socket, device, tin, timeout);
+            return await Eimzo.createPkcs7(socket, dataBase64, keyId, timeout);
         } finally {
             socket.close();
         }

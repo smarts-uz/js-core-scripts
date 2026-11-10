@@ -11,22 +11,29 @@
 // the default is evaluated — documented below, not fixed. Passing an owner
 // explicitly skips the default and works.
 //
-// SECRETS NOTE: the bearer token is read via `Secrets.get('ijara', 'token', owner)`,
-// i.e. keys.yml `ijara.token.<owner>`. We mock Secrets with an in-memory store
-// (tests/helpers/secrets.js) and set ijara.token.SRental per test, so the
-// developer's real keys.yml is never read.
+// SECRETS NOTE: the bearer token is read via `Secrets.get('Ijara', owner)`, which
+// resolves the env var `IJARA_<OWNER>` (e.g. IJARA_SRENTAL) from process.env —
+// the Yamls-config -> .env migration. We mock Secrets to read process.env and set
+// IJARA_SRENTAL per test, restoring it afterwards.
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { utilsModule } from './helpers/esm.js';
-import { createSecretsMock } from './helpers/secrets.js';
 
 const DialogsMock = {
   warningBox: jest.fn(),
   errorBox: jest.fn(),
   messageBox: jest.fn(),
 };
-// In-memory keys.yml stand-in (get / env / _set), shared shape with the other specs.
-const secrets = createSecretsMock();
-const SecretsMock = secrets.mock;
+// Mirror Secrets.get('Ijara', owner) -> process.env.IJARA_<OWNER>.
+const SecretsMock = {
+  get: jest.fn((section, owner = '') => {
+    const key = owner
+      ? `${section.toUpperCase()}_${owner.toUpperCase()}`
+      : section.toUpperCase().replace('.', '_');
+    return process.env[key] ?? null;
+  }),
+  // Some modules in the import graph (e.g. Didox.js) read exact vars at load.
+  env: jest.fn((name) => process.env[name] ?? null),
+};
 const ChromesMock = {
   Duration: { Sec1: 1, Sec10: 10, Hour10: 36000, noCache: -1, Unlimited: 0 },
   fetcher: jest.fn(),
@@ -39,11 +46,17 @@ jest.unstable_mockModule(utilsModule('Chromes.js'), () => ({ Chromes: ChromesMoc
 
 const { IjaraSoliq, RentType, IjaraState } = await import('../classes/IjaraSoliq.js');
 
+const ENV_KEY = 'IJARA_SRENTAL';
+let savedEnv;
+
 beforeEach(() => {
-  secrets.clear();
+  savedEnv = process.env[ENV_KEY];
+  delete process.env[ENV_KEY];
 });
 
 afterEach(() => {
+  if (savedEnv === undefined) delete process.env[ENV_KEY];
+  else process.env[ENV_KEY] = savedEnv;
   jest.clearAllMocks();
 });
 
@@ -82,7 +95,7 @@ describe('IjaraSoliq.contracts — guard clauses', () => {
 
 describe('IjaraSoliq.contracts — happy path', () => {
   it('builds the by-params URL, sends the Bearer + referer and returns the body', async () => {
-    secrets.set('ijara', 'token', 'SRental', 'tok-ij');
+    process.env[ENV_KEY] = 'tok-ij';
     const body = { items: [{ id: 1 }] };
     ChromesMock.fetcher.mockResolvedValue(body);
 
@@ -101,7 +114,7 @@ describe('IjaraSoliq.contracts — happy path', () => {
   });
 
   it('warns when the fetcher returns no body', async () => {
-    secrets.set('ijara', 'token', 'SRental', 'tok-ij');
+    process.env[ENV_KEY] = 'tok-ij';
     ChromesMock.fetcher.mockResolvedValue(null);
     const r = await IjaraSoliq.contracts('SRental', RentType.Out, IjaraState.Confirmed);
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('No body in response', 'Warning');
@@ -109,7 +122,7 @@ describe('IjaraSoliq.contracts — happy path', () => {
   });
 
   it('routes a thrown fetcher error to errorBox', async () => {
-    secrets.set('ijara', 'token', 'SRental', 'tok-ij');
+    process.env[ENV_KEY] = 'tok-ij';
     ChromesMock.fetcher.mockRejectedValue(new Error('blew up'));
     const r = await IjaraSoliq.contracts('SRental', RentType.Out, IjaraState.Confirmed);
     expect(DialogsMock.errorBox).toHaveBeenCalled();
@@ -182,7 +195,7 @@ describe('IjaraSoliq.download — happy path', () => {
 // ---------------------------------------------------------------------------
 describe('IjaraSoliq.testing', () => {
   it('invokes contracts and download with the SRental owner', async () => {
-    secrets.set('ijara', 'token', 'SRental', 'tok-ij');
+    process.env[ENV_KEY] = 'tok-ij';
     ChromesMock.fetcher.mockResolvedValue({ items: [] });
     ChromesMock.download.mockResolvedValue('C:/tmp/x.pdf');
 

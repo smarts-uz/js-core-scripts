@@ -3,7 +3,7 @@
 // Calls Homoglyph.powerpoint(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Homoglyph/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';

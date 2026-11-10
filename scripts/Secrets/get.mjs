@@ -3,7 +3,7 @@
 // Calls Secrets.get(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Secrets/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -21,14 +21,13 @@ async function main() {
     console.log('1️⃣ Secrets get Start');
 
     const argv = yargs(hideBin(process.argv))
-        .option("service", { describe: "service" })
-        .option("kind", { describe: "kind" })
-        .option("firm", { describe: "firm" })
+        .option("section", { describe: "section" })
+        .option("owner", { describe: "owner (optional)" })
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Secrets.get(argv["service"], argv["kind"], argv["firm"]);
+        const result = await Secrets.get(argv["section"], argv["owner"]);
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 

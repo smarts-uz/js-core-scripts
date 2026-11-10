@@ -3,7 +3,7 @@
 // Calls Didox.profileIKPUCodes(...) directly; no shared engine.
 //
 // argv[1] is repointed at a phantom entrypoint in the PROJECT ROOT *before* the
-// dynamic imports run, because classes/Secrets.js loads keys.yml (and Yamls reads
+// dynamic imports run, because classes/Secrets.js loads .env (and Yamls reads
 // config.yml) from dirname(process.argv[1]). scripts/Didox/ is two levels
 // below root, so '..','..' = root.
 import path from 'node:path';
@@ -20,16 +20,12 @@ const { Dialogs } = await import('../../classes/Dialogs.js');
 async function main() {
     console.log('1️⃣ Didox profileIKPUCodes Start');
 
-    const argv = yargs(hideBin(process.argv))
-        .option("locale", { describe: "locale (object key)" })
-        .option("page", { describe: "page (object key)" })
-        .option("size", { describe: "size (object key)" })
-        .option("search", { describe: "search (object key)" })
+    yargs(hideBin(process.argv))
         .help()
         .parse();
 
     const run = async () => {
-        const result = await Didox.profileIKPUCodes({ ...(argv["locale"] !== undefined ? { locale: argv["locale"] } : {}), ...(argv["page"] !== undefined ? { page: argv["page"] } : {}), ...(argv["size"] !== undefined ? { size: argv["size"] } : {}), ...(argv["search"] !== undefined ? { search: argv["search"] } : {}) });
+        const result = await Didox.profileIKPUCodes();
         if (result !== undefined) console.log('📤 Result:', typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
     };
 
