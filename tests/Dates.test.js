@@ -84,6 +84,17 @@ describe('Dates.addYearsGetLastDate', () => {
     expect(Dates.addYearsGetLastDate('01.01.2024', 0)).toBeDateDMY();
     expect(Dates.addYearsGetLastDate('01.01.2024', 0)).toBe('31.12.2024');
   });
+
+  it('preserves YYYY-MM-DD input format', () => {
+    expect(Dates.addYearsGetLastDate('2027-11-08', 2)).toBe('2029-12-31');
+    expect(Dates.addYearsGetLastDate('2028-01-01', 2)).toBe('2030-12-31');
+  });
+
+  it('returns empty string for an unparseable date or a non-integer years', () => {
+    expect(Dates.addYearsGetLastDate('not-a-date', 2)).toBe('');
+    expect(Dates.addYearsGetLastDate('2027-11-08', NaN)).toBe('');
+    expect(Dates.addYearsGetLastDate('2027-11-08', undefined)).toBe('');
+  });
 });
 
 describe('Dates.addDays', () => {
