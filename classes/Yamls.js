@@ -3311,6 +3311,12 @@ export class Yamls {
 
         Yamls.writePayment(ymlFile, Yamls.appendAllTotal(paymentFlat));
 
+        // Keep channel histories directly after History; retain refunds as negative entries and finish with net ALL totals.
+        const historyBank = Yamls.computeHistory(bankOT, bankIN);
+        const historyCard = Yamls.computeHistory(cardOT, cardIN);
+        Yamls.writeYamlArraySection(ymlFile, 'HistoryBank', Yamls.appendAllTotal(historyBank), 'History');
+        Yamls.writeYamlArraySection(ymlFile, 'HistoryCard', Yamls.appendAllTotal(historyCard), 'HistoryBank');
+
         // Account: client's own running balance, one entry per calendar day from PeriodStart through min(PeriodEnd, today).
         // Account exists only to feed AccrualDays/Loaners/PenaltyDays/Penalty — it never projects into days that have not happened yet, which would fabricate a debt/penalty for a future day nobody has missed a payment on.
         // Every day debits off the previous day's balance, then adds that day's own History entry.

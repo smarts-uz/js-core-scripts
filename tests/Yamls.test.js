@@ -2668,12 +2668,48 @@ describe('Yamls.replaceYaml', () => {
     );
   });
 
-  it('always writes one Accrual entry per month across the contract period', () => {
+  it.each([
+    {
+      name: 'empty channel histories',
+      folders: {},
+      bank: [{ ALL: '0' }],
+      card: [{ ALL: '0' }],
+    },
+    {
+      name: 'separate bank and card payments and refunds',
+      folders: {
+        'Bank-OT': { '2026-02-02 1,000': {}, '2026-02-01 2,000': {} },
+        'Bank-IN': { '2026-02-01 500': {} },
+        'Card-OT': { '2026-02-01 800': {} },
+        'Card-IN': { '2026-02-02 200': {} },
+        'Trans-OT': { '2026-02-01 7,000': {} },
+        'BaaR-OT': { '2026-02-01 9,000': {} },
+        'BaaR-IN': { '2026-02-01 100': {} },
+      },
+      bank: [
+        { '2026-02-01': '2,000' },
+        { '2026-02-01': '-500' },
+        { '2026-02-02': '1,000' },
+        { ALL: '2,500' },
+      ],
+      card: [{ '2026-02-01': '800' }, { '2026-02-02': '-200' }, { ALL: '600' }],
+    },
+    {
+      name: 'refund-only channel histories',
+      folders: {
+        'Bank-IN': { '2026-02-01 300': {} },
+        'Card-IN': { '2026-02-01 400': {} },
+      },
+      bank: [{ '2026-02-01': '-300' }, { ALL: '-300' }],
+      card: [{ '2026-02-01': '-400' }, { ALL: '-400' }],
+    },
+  ])('writes monthly Accrual and $name', ({ folders, bank, card }) => {
     globalThis.folderCompan = path.join(workDir, 'Compan');
     fs.mkdirSync(globalThis.folderCompan, { recursive: true });
     globalThis.folderALL = workDir;
     writeConfig({ Contract: { IjaraYears: 2, AddDays: 30 } });
 
+    writeTree(workDir, folders);
     const ymlFile = path.join(workDir, 'ALL.contract');
     // Mirrors the real template shape: bare-named YYYY-MM-DD date lines, filled
     // by replaceTextLine. ComBase: is the real anchor writeAccrual inserts after
@@ -2700,7 +2736,7 @@ describe('Yamls.replaceYaml', () => {
     // (non-deterministic across test runs) and, with no PrepayMonth
     // configured, resolves to dayjs's "Invalid Date" string, silently
     // emptying every downstream Accrual/Payment/Loaners/Penalty computation.
-    Yamls.replaceYaml(
+    const refill = () => Yamls.replaceYaml(
       ymlFile,
       {
         ComType: 'MChJ',
@@ -2724,6 +2760,11 @@ describe('Yamls.replaceYaml', () => {
         },
       }
     );
+
+    refill();
+    Yamls.writeYamlArraySection(ymlFile, 'HistoryBank', [{ ALL: '999' }], 'History');
+    Yamls.writeYamlArraySection(ymlFile, 'HistoryCard', [{ ALL: '888' }], 'HistoryBank');
+    refill();
 
     const content = fs.readFileSync(ymlFile, 'utf8');
     expect(content).toContain('Accrual:');
@@ -2754,6 +2795,12 @@ describe('Yamls.replaceYaml', () => {
     expect(content).toContain('PrepayMon:');
     // Every array-shaped block carries an ALL: subkey, even Payment/Returns/History which are flat, never-had-one before this fix.
     expect(content).toMatch(/History:\n(?:.*\n)*?\s+-\s+ALL:/);
+    const parsed = yaml.load(content, { schema: yaml.FAILSAFE_SCHEMA });
+    expect(parsed.HistoryBank).toEqual(bank);
+    expect(parsed.HistoryCard).toEqual(card);
+    const keys = Object.keys(parsed);
+    const historyIndex = keys.indexOf('History');
+    expect(keys.slice(historyIndex, historyIndex + 3)).toEqual(['History', 'HistoryBank', 'HistoryCard']);
     expect(content).toMatch(/Payment:\n(?:.*\n)*?\s+-\s+ALL:/);
     expect(content).toMatch(/Returns:\n(?:.*\n)*?\s+-\s+ALL:/);
     expect(content).toMatch(/PriceMon:\n(?:.*\n)*?\s+-\s+ALL:/);
