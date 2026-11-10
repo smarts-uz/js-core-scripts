@@ -62,11 +62,19 @@ const FilesMock = {
   isCacheFresh: (p, maxAgeDays) => {
     if (!fs.existsSync(p)) return false;
     const days = Number(maxAgeDays);
-    if (!Number.isFinite(days) || days <= 0) return true;
+    switch (true) {
+      case !Number.isFinite(days):
+      case days <= 0:
+        return true;
+    }
     return Date.now() - fs.statSync(p).mtimeMs <= days * 24 * 60 * 60 * 1000;
   },
   isMeaningfulJson: (value) => {
-    if (value === null || value === undefined) return false;
+    switch (value) {
+      case null:
+      case undefined:
+        return false;
+    }
     if (Array.isArray(value)) return value.length > 0;
     if (typeof value !== 'object') return false;
     return Object.keys(value).some((k) => value[k] !== null && value[k] !== undefined && value[k] !== '');
@@ -104,8 +112,14 @@ const { Didox } = await import('../classes/Didox.js');
 let restApiDir;
 let folderDir;
 let savedFetch;
+let savedEnv;
 
 beforeEach(() => {
+  savedEnv = { ...process.env };
+  delete process.env.DIDOX_USER_KEY;
+  delete process.env.DIDOX_SRENTAL;
+  delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+  delete process.env.DIDOX_LOGIN_PASSWORD;
   restApiDir = makeTmpDir('didox-rest-');
   folderDir = makeTmpDir('didox-folder-');
   globalThis.folderRestAPI = restApiDir;
@@ -117,6 +131,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  process.env = savedEnv;
   global.fetch = savedFetch;
   delete globalThis.folderRestAPI;
   delete globalThis.folderDirector;
@@ -296,6 +311,12 @@ describe('Didox.districtsByCode', () => {
 // global fetch — infoByTinPinfl
 // ---------------------------------------------------------------------------
 describe('Didox.infoByTinPinfl', () => {
+  beforeEach(() => {
+    process.env.DIDOX_USER_KEY = 'ukey-123';
+    process.env.DIDOX_SRENTAL = 'token-123';
+    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+  });
+
   it('returns null for a missing tin without touching the network', async () => {
     const f = stubFetch();
     expect(await Didox.infoByTinPinfl('')).toBeNull();
@@ -303,10 +324,9 @@ describe('Didox.infoByTinPinfl', () => {
   });
 
   it('fetches, saves the JSON to folderRestAPI and classifies a company address', async () => {
-    // infoByTinPinfl resolves baseURL via Yamls.getConfig('Didox.BaseURL') and the
-    // Partner-Authorization header via Secrets — set both the config and the env var.
+    // infoByTinPinfl resolves baseURL via Yamls.getConfig('Didox.BaseURL') and sends
+    // both user-key (DIDOX_USER_KEY) and Partner-Authorization (DIDOX_SRENTAL).
     state.config['Didox.BaseURL'] = 'api.example.uz';
-    process.env.DIDOX_SRENTAL = 'token-123';
     const payload = { name: 'Acme', address: 'Adolat MFY, building 4', tin: '123456789' };
     // json() yields a FRESH object each call: the source mutates the returned
     // object (adds AddressType) AFTER writing the file, so the saved file must
@@ -324,23 +344,41 @@ describe('Didox.infoByTinPinfl', () => {
     const saved = path.join(restApiDir, 'INN Didox 123456789.json');
     expect(fs.existsSync(saved)).toBe(true);
     expect(JSON.parse(fs.readFileSync(saved, 'utf8'))).toEqual(payload);
-    // correct URL + Partner-Authorization header
+    // correct URL + user-key + Partner-Authorization headers
     const [url, opts] = f.mock.calls[0];
     expect(url).toBe('https://api.example.uz/v1/utils/info/123456789');
     expect(opts.method).toBe('GET');
+    expect(opts.headers.get('user-key')).toBe('ukey-123');
+    expect(opts.headers.get('Partner-Authorization')).toBe('token-123');
     // address classified
     expect(out.AddressType).toBe('Adolat');
+  });
+
+  it('falls back to DIDOX_PARTNER_AUTHORIZATION when DIDOX_SRENTAL is unset', async () => {
+    state.config['Didox.BaseURL'] = 'https://api.example.uz/';
     delete process.env.DIDOX_SRENTAL;
+    process.env.DIDOX_PARTNER_AUTHORIZATION = 'pauth-fallback';
+    const payload = { name: 'Fallback LLC', address: 'Tashkent', tin: '222333444' };
+    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ ...payload }) }));
+
+    await Didox.infoByTinPinfl('222333444');
+
+    const [url, opts] = f.mock.calls[0];
+    expect(url).toBe('https://api.example.uz/v1/utils/info/222333444');
+    expect(opts.headers.get('user-key')).toBe('ukey-123');
+    expect(opts.headers.get('Partner-Authorization')).toBe('pauth-fallback');
   });
 
   it('uses the PINFL prefix and a person folder for an individual (personalNum present)', async () => {
     state.config['Didox.BaseURL'] = 'api.example.uz';
-    state.config['Didox.SRental'] = 'token-123';
     const payload = { name: 'John Doe', address: 'somewhere', tin: '99', personalNum: '301010' };
-    stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
+    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
 
     const out = await Didox.infoByTinPinfl('1234567890'); // length 10 -> PINFL
 
+    const [, opts] = f.mock.calls[0];
+    expect(opts.headers.get('user-key')).toBe('ukey-123');
+    expect(opts.headers.get('Partner-Authorization')).toBe('token-123');
     const saved = path.join(restApiDir, 'PINFL Didox 1234567890.json');
     expect(fs.existsSync(saved)).toBe(true);
     expect(out).toEqual(payload);
@@ -350,7 +388,6 @@ describe('Didox.infoByTinPinfl', () => {
 
   it('normalizes a curly apostrophe in the API-returned name before building the person folder path', async () => {
     state.config['Didox.BaseURL'] = 'api.example.uz';
-    state.config['Didox.SRental'] = 'token-123';
     const payload = {
       name: 'JO‘RABOYEVA SHAXNOZAXON BAXODIR QIZI',
       address: 'somewhere',
@@ -366,7 +403,50 @@ describe('Didox.infoByTinPinfl', () => {
     expect(out.name).not.toMatch(/[‘’ʻʼ]/);
   });
 
+  it('does not call fetch and returns null when DIDOX_USER_KEY is missing or blank', async () => {
+    delete process.env.DIDOX_USER_KEY;
+    const f = stubFetch();
+
+    expect(await Didox.infoByTinPinfl('123456789')).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+    expect(DialogsMock.messageBox).toHaveBeenCalled();
+
+    process.env.DIDOX_USER_KEY = '   ';
+    expect(await Didox.infoByTinPinfl('123456789')).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('does not call fetch and keeps stale cache when DIDOX_USER_KEY is missing', async () => {
+    delete process.env.DIDOX_USER_KEY;
+    const cachedFile = path.join(restApiDir, 'INN Didox 803803803.json');
+    const cached = { name: 'Cached', address: 'Others place', tin: '803803803' };
+    fs.writeFileSync(cachedFile, JSON.stringify(cached));
+    const old = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    fs.utimesSync(cachedFile, old, old);
+    const f = stubFetch();
+
+    const out = await Didox.infoByTinPinfl('803803803');
+
+    expect(f).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ name: 'Cached' });
+    expect(DialogsMock.messageBox).toHaveBeenCalled();
+  });
+
+  it('does not call fetch and returns null when both DIDOX_SRENTAL and DIDOX_PARTNER_AUTHORIZATION are missing', async () => {
+    delete process.env.DIDOX_SRENTAL;
+    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+    const f = stubFetch();
+
+    const out = await Didox.infoByTinPinfl('123456789');
+
+    expect(out).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+    expect(DialogsMock.messageBox).toHaveBeenCalled();
+  });
+
   it('reads from the cache file when it already exists (no fetch)', async () => {
+    delete process.env.DIDOX_USER_KEY;
+    delete process.env.DIDOX_SRENTAL;
     const cached = { name: 'Cached', address: 'Others place', tin: '5' };
     fs.writeFileSync(path.join(restApiDir, 'INN Didox 5.json'), JSON.stringify(cached));
     const f = stubFetch();
@@ -458,16 +538,20 @@ describe('Didox.infoByTinPinfl', () => {
 // global fetch — carInfoByPinfl
 // ---------------------------------------------------------------------------
 describe('Didox.carInfoByPinfl', () => {
+  beforeEach(() => {
+    state.config['Didox.BaseURL'] = 'api.cars.uz';
+    process.env.DIDOX_USER_KEY = 'ukey';
+    process.env.DIDOX_PARTNER_AUTHORIZATION = 'pauth';
+    delete process.env.DIDOX_SRENTAL;
+  });
+
   it('returns null for a missing tin', async () => {
     const f = stubFetch();
     expect(await Didox.carInfoByPinfl(undefined)).toBeNull();
     expect(f).not.toHaveBeenCalled();
   });
 
-  it('fetches transport info, writes the CAR file and returns the parsed result', async () => {
-    process.env.PARTNER_AUTHORIZATION = 'pauth';
-    process.env.USER_KEY = 'ukey';
-    process.env.baseURL = 'api.cars.uz';
+  it('fetches transport info with user-key + Partner-Authorization headers, writes the CAR file and returns the parsed result', async () => {
     const payload = { cars: [{ plate: '01A123BC' }] };
     const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => payload }));
 
@@ -477,14 +561,24 @@ describe('Didox.carInfoByPinfl', () => {
     expect(fs.existsSync(saved)).toBe(true);
     expect(JSON.parse(fs.readFileSync(saved, 'utf8'))).toEqual(payload);
     expect(out).toEqual(payload);
-    expect(f.mock.calls[0][0]).toContain('tinOrPinfl=555');
+    const [url, opts] = f.mock.calls[0];
+    expect(url).toBe('https://api.cars.uz/v1/utils/waybills/transport?tinOrPinfl=555');
+    expect(opts.headers.get('user-key')).toBe('ukey');
+    expect(opts.headers.get('Partner-Authorization')).toBe('pauth');
+  });
 
-    delete process.env.PARTNER_AUTHORIZATION;
-    delete process.env.USER_KEY;
-    delete process.env.baseURL;
+  it('does not call fetch and returns null when DIDOX_USER_KEY is missing', async () => {
+    delete process.env.DIDOX_USER_KEY;
+    const f = stubFetch();
+    const out = await Didox.carInfoByPinfl('556');
+    expect(out).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+    expect(DialogsMock.messageBox).toHaveBeenCalled();
   });
 
   it('returns the cached CAR file when present (no fetch)', async () => {
+    delete process.env.DIDOX_USER_KEY;
+    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
     const cached = { cars: [] };
     fs.writeFileSync(path.join(restApiDir, 'CAR Didox 9.json'), JSON.stringify(cached));
     const f = stubFetch();
@@ -494,22 +588,18 @@ describe('Didox.carInfoByPinfl', () => {
   });
 
   it('returns null and warns on a non-OK response', async () => {
-    process.env.baseURL = 'api.cars.uz';
     stubFetch(async () => ({ ok: false, status: 404, statusText: 'NF', json: async () => ({}) }));
     const out = await Didox.carInfoByPinfl('123');
     expect(out).toBeNull();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
-    delete process.env.baseURL;
   });
 
   it('returns null when fetch throws', async () => {
-    process.env.baseURL = 'api.cars.uz';
     stubFetch(async () => {
       throw new Error('boom');
     });
     const out = await Didox.carInfoByPinfl('124');
     expect(out).toBeNull();
-    delete process.env.baseURL;
   });
 });
 
