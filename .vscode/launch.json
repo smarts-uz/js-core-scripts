@@ -560,6 +560,34 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Faktura Dry Single, CODENOVA",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\scripts\\Didox\\fakturaSend.mjs",
+      "args": [
+        "--yaml",
+        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Mamurjon\\CODENOVA\\ALL 2.contract"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Faktura Dry Batch, Mamurjon",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\scripts\\Didox\\fakturaSendAll.mjs",
+      "args": [
+        "--all",
+        "d:\\FSystem\\ALL\\Humans\\Rentalls\\Mamurjon\\ALL.contractall"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Contract → Word Single, ZOKIROV",
       "skipFiles": [
         "<node_internals>/**"
