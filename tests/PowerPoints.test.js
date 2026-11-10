@@ -118,7 +118,7 @@ const FilesMock = {
     if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
     let base = parsed.name;
-    let counter = 1;
+    let counter = 2;
     const m = base.match(/^(.*?)\s+(\d+)$/);
     if (m) {
       base = m[1];
@@ -198,7 +198,7 @@ describe('PowerPoints.getProtectedPath', () => {
   it('auto-increments when the target path already exists on disk', () => {
     fs.writeFileSync(path.join(workDir, 'deck Protected.pptx'), 'x', 'utf8');
     const out = PowerPoints.getProtectedPath(path.join(workDir, 'deck.pptx'));
-    expect(out).toBe(path.join(workDir, 'deck Protected 1.pptx'));
+    expect(out).toBe(path.join(workDir, 'deck Protected 2.pptx'));
   });
 
   it('returns an absolute, resolved path', () => {
@@ -462,7 +462,7 @@ describe('PowerPoints.merge', () => {
 
     const out = PowerPoints.merge([base, source], 'Combined');
 
-    expect(path.basename(out)).toBe('Combined 1.pptx');
+    expect(path.basename(out)).toBe('Combined 2.pptx');
     expect(fs.existsSync(out)).toBe(true);
   });
 });

@@ -19,6 +19,7 @@ This project is a private Node.js ESM command-line toolkit for Windows document 
 
 ## Development Rules
 
+- Treat unnumbered original as version 1; use suffix 2 next, then highest existing version + 1: [canonical filename rule](~/.agents/skills/smarts-file-increment/module/filename.md).
 - Use native ESM JavaScript. Keep imports relative for local files.
 - Do not hardcode secrets, tokens, passwords, or machine-specific credentials in source, config, tests, docs, or generated runners.
 - Do not kill processes by image name. If a run launches a process that may need cleanup, snapshot PIDs before launch and terminate only PIDs created by that run.

@@ -22,11 +22,11 @@ const XLSX = {
 jest.unstable_mockModule('#xlsx', () => ({ default: XLSX, ...XLSX }));
 
 // --- sibling deps ------------------------------------------------------------
-// incrementFileName: append " 1" before the extension (deterministic for tests).
+// incrementFileName: append " 2" after existing unnumbered source.
 const FilesMock = {
   incrementFileName: jest.fn((p) => {
     const parsed = path.parse(p);
-    return path.join(parsed.dir, `${parsed.name} 1${parsed.ext}`);
+    return path.join(parsed.dir, `${parsed.name} 2${parsed.ext}`);
   }),
 };
 const YamlsMock = { getConfig: jest.fn((_key, _type, def) => def) };
@@ -149,7 +149,7 @@ describe('ExcelsJS.replaceFormula', () => {
     // Writes via incrementFileName-derived path and returns it.
     expect(FilesMock.incrementFileName).toHaveBeenCalledWith(path.resolve(file));
     expect(XLSX.writeFile).toHaveBeenCalledWith(wb, out);
-    expect(out).toMatch(/book 1\.xlsx$/);
+    expect(out).toMatch(/book 2\.xlsx$/);
   });
 
   it('only replaces the FIRST occurrence per formula (String.replace, not /g)', () => {

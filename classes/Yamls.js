@@ -2075,7 +2075,8 @@ export class Yamls {
         const tariffCosts = {};
 
         for (const entry of tariffArray) {
-            const [entryDate, entryTariff] = Object.entries(entry)[0];
+            const [entryDate, entryTariffRaw] = Object.entries(entry)[0];
+            const entryTariff = entryTariffRaw.replace(/\.(yaml|yml)$/i, '');
             const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', entryTariff + ".yaml");
             console.info("Using priceYaml", priceYaml);
 
@@ -3210,7 +3211,8 @@ export class Yamls {
             if (Array.isArray(yamlData.Tariff)) {
                 const tariffCosts = {};
                 for (const entry of yamlData.Tariff) {
-                    const [d, tName] = Object.entries(entry)[0];
+                    const [d, tNameRaw] = Object.entries(entry)[0];
+                    const tName = tNameRaw.replace(/\.(yaml|yml)$/i, '');
                     const priceYaml = path.join(Files.currentDir(), 'conf', 'cost', tName + ".yaml");
                     if (existsSync(priceYaml)) {
                         tariffCosts[tName] = Yamls.loadAndParseYaml(priceYaml);

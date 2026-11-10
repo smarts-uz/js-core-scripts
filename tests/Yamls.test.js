@@ -43,7 +43,7 @@ const FilesMock = {
     if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
     let baseName = parsed.name;
-    let counter = 1;
+    let counter = 2;
     const m = baseName.match(/^(.*?)\s+(\d+)$/);
     if (m) {
       baseName = m[1];
