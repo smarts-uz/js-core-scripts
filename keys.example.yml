@@ -1,0 +1,48 @@
+# Template for keys.yml - copy to keys.yml and fill in real values. Tracked in git.
+# Shape: service -> kind -> firm. keys.yml is gitignored and must NEVER be committed.
+
+didox:
+  user_key:
+    SRental:
+    WorkSpace:
+  partner_key:
+    SRental:
+    WorkSpace:
+  login:
+    SRental:
+    WorkSpace:
+  password:
+    SRental:
+    WorkSpace:
+
+didox_dev:
+  partner_key:
+    SRental:
+    WorkSpace:
+  login:
+    SRental:
+    WorkSpace:
+  password:
+    SRental:
+    WorkSpace:
+
+my3:
+  api_key:
+    SRental:
+    WorkSpace:
+  token:
+    SRental:
+    WorkSpace:
+
+ijara:
+  token:
+    SRental:
+    WorkSpace:
+
+kapital:
+  token:
+    SRental:
+    WorkSpace:
+  id:
+    SRental:
+    WorkSpace:

@@ -17,6 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { makeTmpDir, cleanupAllTmpDirs } from './helpers/tmp.js';
 import { utilsModule } from './helpers/esm.js';
+import { makeSecretsMock } from './helpers/secrets.js';
 
 import banks from '../conf/data/banks.json' with { type: 'json' };
 import regions from '../conf/data/regions.json' with { type: 'json' };
@@ -103,23 +104,37 @@ const FilesMock = {
   },
 };
 
+// keys.yml stand-in (service -> kind -> firm); the real file is never read or written.
+const SecretsMock = makeSecretsMock();
+
 jest.unstable_mockModule(utilsModule('Dialogs.js'), () => ({ Dialogs: DialogsMock }));
 jest.unstable_mockModule(utilsModule('Yamls.js'), () => ({ Yamls: YamlsMock }));
 jest.unstable_mockModule(utilsModule('Files.js'), () => ({ Files: FilesMock }));
+jest.unstable_mockModule(utilsModule('Secrets.js'), () => ({ Secrets: SecretsMock }));
 
-const { Didox } = await import('../classes/Didox.js');
+const { Didox, resetDidoxAuth } = await import('../classes/Didox.js');
 
 let restApiDir;
 let folderDir;
 let savedFetch;
-let savedEnv;
+
+/** keys.yml content for the shared SRental firm: partner_key + user_key under `didox`. */
+const KEYS_READY = {
+  didox: { partner_key: { SRental: 'token-123' }, user_key: { SRental: 'ukey-123' } },
+};
+
+/** keys.yml content that lets the login API mint a user-key (nothing stored yet). */
+const KEYS_LOGIN = {
+  didox: { partner_key: { SRental: 'token-123' }, login: { SRental: '311958304' }, password: { SRental: 'pw-1' } },
+};
+
+/** An ofetch-style failure carrying an HTTP status. */
+const httpError = (status) => Object.assign(new Error(`HTTP ${status}`), { response: { status } });
 
 beforeEach(() => {
-  savedEnv = { ...process.env };
-  delete process.env.DIDOX_USER_KEY;
-  delete process.env.DIDOX_SRENTAL;
-  delete process.env.DIDOX_PARTNER_AUTHORIZATION;
-  delete process.env.DIDOX_LOGIN_PASSWORD;
+  SecretsMock.reset();
+  resetDidoxAuth();
+  ofetch.mockReset();
   restApiDir = makeTmpDir('didox-rest-');
   folderDir = makeTmpDir('didox-folder-');
   globalThis.folderRestAPI = restApiDir;
@@ -131,7 +146,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  process.env = savedEnv;
   global.fetch = savedFetch;
   delete globalThis.folderRestAPI;
   delete globalThis.folderDirector;
@@ -149,16 +163,118 @@ function stubFetch(impl) {
 // Module wiring
 // ---------------------------------------------------------------------------
 describe('Didox module wiring', () => {
-  it('creates a single shared ofetch client with the partner base URL + auth headers', () => {
+  it('creates a shared ofetch client with the partner base URL and an onRequest hook that injects both auth headers', async () => {
     // The client is built LAZILY on first API call (not at module import) to
     // avoid the didox.js<->Yamls.js import-cycle TDZ crash, so trigger one call
     // before asserting the captured ofetch.create(...) config.
+    SecretsMock.reset(KEYS_READY);
     didoxApi.mockResolvedValue('OK');
     Didox.saveMeasures();
     expect(capturedCreateConfig).not.toBeNull();
     expect(capturedCreateConfig.baseURL).toBe('https://api-partners.didox.uz');
-    expect(capturedCreateConfig.headers).toContainKey('user-key');
-    expect(capturedCreateConfig.headers).toContainKey('Partner-Authorization');
+
+    const options = { headers: { 'Accept-Language': 'ru' } };
+    await capturedCreateConfig.onRequest({ options });
+    expect(options.headers.get('user-key')).toBe('ukey-123');
+    expect(options.headers.get('Partner-Authorization')).toBe('token-123');
+    expect(options.headers.get('Accept-Language')).toBe('ru');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// user-key lifecycle: keys.yml -> login API -> saved back to keys.yml
+// ---------------------------------------------------------------------------
+describe('Didox user-key via the login API', () => {
+  it('login mints a user-key from the profile holding login + password and saves it under that profile', async () => {
+    SecretsMock.reset({
+      didox_dev: {
+        partner_key: { SRental: 'dev-partner' },
+        login: { SRental: '311958304' },
+        password: { SRental: 'dev-pw' },
+      },
+    });
+    ofetch.mockResolvedValueOnce({ token: 'minted-key' });
+
+    const token = await Didox.login();
+
+    expect(token).toBe('minted-key');
+    const [url, opts] = ofetch.mock.calls[0];
+    expect(url).toBe('/v1/auth/311958304/password/ru');
+    expect(opts.method).toBe('POST');
+    expect(opts.body).toEqual({ password: 'dev-pw' });
+    expect(opts.headers).toMatchObject({ 'Partner-Authorization': 'dev-partner', 'Accept-Language': 'ru' });
+    expect(SecretsMock.saved).toEqual([
+      { service: 'didox_dev', kind: 'user_key', firm: 'SRental', value: 'minted-key' },
+    ]);
+    expect(SecretsMock.get('didox_dev', 'user_key', 'SRental')).toBe('minted-key');
+  });
+
+  it('login returns "" and saves nothing when no profile holds login + password', async () => {
+    SecretsMock.reset({ didox: { partner_key: { SRental: 'token-123' } } });
+
+    expect(await Didox.login()).toBe('');
+    expect(ofetch).not.toHaveBeenCalled();
+    expect(SecretsMock.saved).toEqual([]);
+  });
+
+  it('login returns "" and saves nothing when the login API fails', async () => {
+    SecretsMock.reset(KEYS_LOGIN);
+    ofetch.mockRejectedValueOnce(new Error('network down'));
+
+    expect(await Didox.login()).toBe('');
+    expect(SecretsMock.saved).toEqual([]);
+  });
+
+  it('a 401 from the API mints a fresh user-key, saves it and retries the call once', async () => {
+    SecretsMock.reset({ ...KEYS_LOGIN, didox: { ...KEYS_LOGIN.didox, user_key: { SRental: 'stale' } } });
+    ofetch.mockResolvedValueOnce({ token: 'fresh-key' });
+    didoxApi.mockRejectedValueOnce(httpError(401)).mockResolvedValueOnce({ _id: 'doc-1' });
+
+    const reply = await Didox.documentCreate('002', { a: 1 });
+
+    expect(reply).toEqual({ _id: 'doc-1' });
+    expect(didoxApi).toHaveBeenCalledTimes(2);
+    expect(ofetch).toHaveBeenCalledTimes(1);
+    expect(SecretsMock.get('didox', 'user_key', 'SRental')).toBe('fresh-key');
+  });
+
+  it('a 403 from the API takes the same login + retry path', async () => {
+    SecretsMock.reset(KEYS_LOGIN);
+    ofetch.mockResolvedValueOnce({ token: 'fresh-key' });
+    didoxApi.mockRejectedValueOnce(httpError(403)).mockResolvedValueOnce({ _id: 'doc-2' });
+
+    expect(await Didox.documentCreate('002', {})).toEqual({ _id: 'doc-2' });
+    expect(didoxApi).toHaveBeenCalledTimes(2);
+    expect(SecretsMock.get('didox', 'user_key', 'SRental')).toBe('fresh-key');
+  });
+
+  it('a 401 is rethrown when the login cannot mint a key (no retry)', async () => {
+    SecretsMock.reset({ didox: { partner_key: { SRental: 'token-123' } } });
+    didoxApi.mockRejectedValue(httpError(401));
+
+    await expect(Didox.documentCreate('002', {})).rejects.toThrow('HTTP 401');
+    expect(didoxApi).toHaveBeenCalledTimes(1);
+    expect(SecretsMock.saved).toEqual([]);
+  });
+
+  it('a non-auth error (500) is rethrown untouched, no login', async () => {
+    SecretsMock.reset(KEYS_LOGIN);
+    didoxApi.mockRejectedValue(httpError(500));
+
+    await expect(Didox.documentCreate('002', {})).rejects.toThrow('HTTP 500');
+    expect(ofetch).not.toHaveBeenCalled();
+    expect(didoxApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('concurrent callers share ONE login', async () => {
+    SecretsMock.reset(KEYS_LOGIN);
+    ofetch.mockResolvedValue({ token: 'shared-key' });
+
+    const [a, b] = await Promise.all([Didox.login(), Didox.login()]);
+
+    expect(a).toBe('shared-key');
+    expect(b).toBe('shared-key');
+    expect(ofetch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -213,22 +329,6 @@ describe('Didox reference-data GET calls', () => {
     expect(() => Didox.saveMeasures()).not.toThrow();
     // allow the internal promise chain to reject and be caught
     await new Promise((r) => setTimeout(r, 0));
-  });
-
-  it('login POSTs the password body with Accept-Language', async () => {
-    // login reads the password via Secrets.env('DIDOX_LOGIN_PASSWORD') (process.env),
-    // not a hardcoded literal — set the env var so the body carries it.
-    process.env.DIDOX_LOGIN_PASSWORD = '4beruniave';
-    didoxApi.mockResolvedValue('{"token":"x"}');
-    const ret = Didox.login();
-    expect(ret).toBeUndefined();
-    const [url, opts] = didoxApi.mock.calls[0];
-    expect(url).toBe('/v1/auth/311958304/password/ru');
-    expect(opts.method).toBe('POST');
-    expect(opts.body).toEqual({ password: '4beruniave' });
-    expect(opts.headers).toMatchObject({ 'Accept-Language': 'ru' });
-    delete process.env.DIDOX_LOGIN_PASSWORD;
-    await Promise.resolve();
   });
 
   it('profileIKPUCodes / documentList / searchIKPUCode send JSON content-type headers', async () => {
@@ -312,9 +412,7 @@ describe('Didox.districtsByCode', () => {
 // ---------------------------------------------------------------------------
 describe('Didox.infoByTinPinfl', () => {
   beforeEach(() => {
-    process.env.DIDOX_USER_KEY = 'ukey-123';
-    process.env.DIDOX_SRENTAL = 'token-123';
-    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+    SecretsMock.reset(KEYS_READY);
   });
 
   it('returns null for a missing tin without touching the network', async () => {
@@ -325,7 +423,7 @@ describe('Didox.infoByTinPinfl', () => {
 
   it('fetches, saves the JSON to folderRestAPI and classifies a company address', async () => {
     // infoByTinPinfl resolves baseURL via Yamls.getConfig('Didox.BaseURL') and sends
-    // both user-key (DIDOX_USER_KEY) and Partner-Authorization (DIDOX_SRENTAL).
+    // both user-key (didox.user_key.SRental) and Partner-Authorization (didox.partner_key.SRental).
     state.config['Didox.BaseURL'] = 'api.example.uz';
     const payload = { name: 'Acme', address: 'Adolat MFY, building 4', tin: '123456789' };
     // json() yields a FRESH object each call: the source mutates the returned
@@ -354,10 +452,11 @@ describe('Didox.infoByTinPinfl', () => {
     expect(out.AddressType).toBe('Adolat');
   });
 
-  it('falls back to DIDOX_PARTNER_AUTHORIZATION when DIDOX_SRENTAL is unset', async () => {
+  it('falls back to the didox_dev profile when didox has no partner_key', async () => {
     state.config['Didox.BaseURL'] = 'https://api.example.uz/';
-    delete process.env.DIDOX_SRENTAL;
-    process.env.DIDOX_PARTNER_AUTHORIZATION = 'pauth-fallback';
+    SecretsMock.reset({
+      didox_dev: { partner_key: { SRental: 'pauth-fallback' }, user_key: { SRental: 'ukey-123' } },
+    });
     const payload = { name: 'Fallback LLC', address: 'Tashkent', tin: '222333444' };
     const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ ...payload }) }));
 
@@ -403,21 +502,52 @@ describe('Didox.infoByTinPinfl', () => {
     expect(out.name).not.toMatch(/[‘’ʻʼ]/);
   });
 
-  it('does not call fetch and returns null when DIDOX_USER_KEY is missing or blank', async () => {
-    delete process.env.DIDOX_USER_KEY;
+  it('does not call fetch and returns null when no user_key is stored and no login can mint one', async () => {
+    SecretsMock.reset({ didox: { partner_key: { SRental: 'token-123' } } });
     const f = stubFetch();
 
     expect(await Didox.infoByTinPinfl('123456789')).toBeNull();
     expect(f).not.toHaveBeenCalled();
     expect(DialogsMock.messageBox).toHaveBeenCalled();
 
-    process.env.DIDOX_USER_KEY = '   ';
+    SecretsMock.reset({ didox: { partner_key: { SRental: 'token-123' }, user_key: { SRental: '   ' } } });
+    resetDidoxAuth();
     expect(await Didox.infoByTinPinfl('123456789')).toBeNull();
     expect(f).not.toHaveBeenCalled();
   });
 
-  it('does not call fetch and keeps stale cache when DIDOX_USER_KEY is missing', async () => {
-    delete process.env.DIDOX_USER_KEY;
+  it('mints the user_key through the login API when none is stored, saves it and sends it', async () => {
+    state.config['Didox.BaseURL'] = 'api.example.uz';
+    SecretsMock.reset(KEYS_LOGIN);
+    ofetch.mockResolvedValueOnce({ token: 'minted-key' });
+    const f = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ name: 'Acme', address: 'x', tin: '1' }) }));
+
+    await Didox.infoByTinPinfl('123456789');
+
+    expect(f.mock.calls[0][1].headers.get('user-key')).toBe('minted-key');
+    expect(SecretsMock.get('didox', 'user_key', 'SRental')).toBe('minted-key');
+  });
+
+  it('retries once with a freshly minted user_key when the API answers 401 (cache empty)', async () => {
+    state.config['Didox.BaseURL'] = 'api.example.uz';
+    SecretsMock.reset({ ...KEYS_LOGIN, didox: { ...KEYS_LOGIN.didox, user_key: { SRental: 'stale-key' } } });
+    ofetch.mockResolvedValueOnce({ token: 'fresh-key' });
+    const payload = { name: 'Acme', address: 'x', tin: '123456789' };
+    const f = stubFetch();
+    f.mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({}) });
+    f.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ...payload }) });
+
+    const out = await Didox.infoByTinPinfl('123456789');
+
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(f.mock.calls[0][1].headers.get('user-key')).toBe('stale-key');
+    expect(f.mock.calls[1][1].headers.get('user-key')).toBe('fresh-key');
+    expect(out).toMatchObject({ name: 'Acme' });
+    expect(SecretsMock.get('didox', 'user_key', 'SRental')).toBe('fresh-key');
+  });
+
+  it('does not call fetch and keeps stale cache when no user_key can be resolved', async () => {
+    SecretsMock.reset({ didox: { partner_key: { SRental: 'token-123' } } });
     const cachedFile = path.join(restApiDir, 'INN Didox 803803803.json');
     const cached = { name: 'Cached', address: 'Others place', tin: '803803803' };
     fs.writeFileSync(cachedFile, JSON.stringify(cached));
@@ -432,9 +562,8 @@ describe('Didox.infoByTinPinfl', () => {
     expect(DialogsMock.messageBox).toHaveBeenCalled();
   });
 
-  it('does not call fetch and returns null when both DIDOX_SRENTAL and DIDOX_PARTNER_AUTHORIZATION are missing', async () => {
-    delete process.env.DIDOX_SRENTAL;
-    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+  it('does not call fetch and returns null when no partner_key exists in didox or didox_dev', async () => {
+    SecretsMock.reset({ didox: { user_key: { SRental: 'ukey-123' } } });
     const f = stubFetch();
 
     const out = await Didox.infoByTinPinfl('123456789');
@@ -445,8 +574,7 @@ describe('Didox.infoByTinPinfl', () => {
   });
 
   it('reads from the cache file when it already exists (no fetch)', async () => {
-    delete process.env.DIDOX_USER_KEY;
-    delete process.env.DIDOX_SRENTAL;
+    SecretsMock.reset();
     const cached = { name: 'Cached', address: 'Others place', tin: '5' };
     fs.writeFileSync(path.join(restApiDir, 'INN Didox 5.json'), JSON.stringify(cached));
     const f = stubFetch();
@@ -540,9 +668,9 @@ describe('Didox.infoByTinPinfl', () => {
 describe('Didox.carInfoByPinfl', () => {
   beforeEach(() => {
     state.config['Didox.BaseURL'] = 'api.cars.uz';
-    process.env.DIDOX_USER_KEY = 'ukey';
-    process.env.DIDOX_PARTNER_AUTHORIZATION = 'pauth';
-    delete process.env.DIDOX_SRENTAL;
+    SecretsMock.reset({
+      didox_dev: { partner_key: { SRental: 'pauth' }, user_key: { SRental: 'ukey' } },
+    });
   });
 
   it('returns null for a missing tin', async () => {
@@ -567,8 +695,8 @@ describe('Didox.carInfoByPinfl', () => {
     expect(opts.headers.get('Partner-Authorization')).toBe('pauth');
   });
 
-  it('does not call fetch and returns null when DIDOX_USER_KEY is missing', async () => {
-    delete process.env.DIDOX_USER_KEY;
+  it('does not call fetch and returns null when no user_key can be resolved', async () => {
+    SecretsMock.reset({ didox_dev: { partner_key: { SRental: 'pauth' } } });
     const f = stubFetch();
     const out = await Didox.carInfoByPinfl('556');
     expect(out).toBeNull();
@@ -577,8 +705,7 @@ describe('Didox.carInfoByPinfl', () => {
   });
 
   it('returns the cached CAR file when present (no fetch)', async () => {
-    delete process.env.DIDOX_USER_KEY;
-    delete process.env.DIDOX_PARTNER_AUTHORIZATION;
+    SecretsMock.reset();
     const cached = { cars: [] };
     fs.writeFileSync(path.join(restApiDir, 'CAR Didox 9.json'), JSON.stringify(cached));
     const f = stubFetch();
@@ -625,11 +752,8 @@ describe('Didox.contracts', () => {
 
   it('warns when no bearer is configured for the owner', async () => {
     state.config = {};
-    // Isolate the env: the bearer is env-sourced (Secrets.get('Ijara','SRental')
-    // → IJARA_SRENTAL). A consumer project's real .env may define it, so delete
-    // it here to deterministically exercise the "No bearer" guard regardless of
-    // which repo (and which .env) the suite runs from.
-    delete process.env.IJARA_SRENTAL;
+    // The bearer is keys.yml's ijara.token.SRental; an empty store exercises the "No bearer" guard.
+    SecretsMock.reset();
     await Didox.contracts('SRental', 'IN', 'Confirmed');
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('No bearer', 'Warning');
   });
@@ -637,13 +761,12 @@ describe('Didox.contracts', () => {
   it('BUG: throws ReferenceError because `Chromes` is never imported, caught and routed to errorBox', async () => {
     // bearer present so it reaches the try-block; `Chromes.fetch(...)` is an
     // undefined symbol -> ReferenceError -> caught -> Dialogs.errorBox.
-    // The bearer is now read via Secrets.get('Ijara', owner) -> process.env.IJARA_SRENTAL.
-    process.env.IJARA_SRENTAL = 'bearer-token';
+    // The bearer is read via Secrets.get('ijara', 'token', owner) -> keys.yml ijara.token.SRental.
+    SecretsMock.reset({ ijara: { token: { SRental: 'bearer-token' } } });
     const r = await Didox.contracts('SRental', 'IN', 'Confirmed');
     expect(DialogsMock.errorBox).toHaveBeenCalled();
     const err = DialogsMock.errorBox.mock.calls[0][0];
     expect(err).toBeInstanceOf(ReferenceError);
     expect(r).toBeUndefined();
-    delete process.env.IJARA_SRENTAL;
   });
 });

@@ -38,30 +38,165 @@ function firstNonEmpty(values) {
     return '';
 }
 
-// Firm whose Didox credentials the shared client sends (keys.json didox.<kind>.<firm>).
+// Firm (account) whose Didox credentials the shared client sends (keys.yml <profile>.<kind>.<firm>).
 const DIDOX_FIRM = 'SRental';
 
-function didoxUserKey() {
-    return firstNonEmpty([Secrets.get('didox', 'user_key', DIDOX_FIRM)]);
+// Didox profiles in preference order — keys.yml service names, each holding
+// partner_key, login, password and user_key per firm.
+const DIDOX_PROFILES = ['didox', 'didox_dev'];
+
+// HTTP statuses that mean the user-key is missing, expired or invalid.
+const DIDOX_AUTH_STATUSES = new Set([401, 403]);
+
+// Per-process user-key in use, firm -> key (filled from keys.yml, the login API
+// or authToken's E-IMZO login), and the in-flight login call per firm so
+// concurrent callers share one login.
+const _userKeys = new Map();
+const _userKeyLogins = new Map();
+
+// Profile whose partner_key is set for the firm: didox first, then didox_dev. null when none is.
+function didoxProfile(firm = DIDOX_FIRM) {
+    return DIDOX_PROFILES.find((profile) => Boolean(firstNonEmpty([Secrets.get(profile, 'partner_key', firm)]))) ?? null;
 }
 
-function didoxPartnerKey() {
-    return firstNonEmpty([Secrets.get('didox', 'partner_key', DIDOX_FIRM)]);
+// Partner-Authorization of every data call: the active profile's partner_key.
+function didoxPartnerKey(firm = DIDOX_FIRM) {
+    const profile = didoxProfile(firm);
+    switch (profile) {
+        case null:
+            return '';
+        default:
+            return firstNonEmpty([Secrets.get(profile, 'partner_key', firm)]);
+    }
 }
 
-function resolveDidoxHeaders(callerName) {
-    const userKey = didoxUserKey();
+// Profile that owns the firm's user_key: the one holding the login + password
+// that mint it, else the one whose partner_key the calls use. null when neither exists.
+function didoxAccountProfile(firm = DIDOX_FIRM) {
+    return didoxLoginCredentials(firm)?.profile ?? didoxProfile(firm);
+}
+
+// user_key stored in keys.yml under the account profile; '' when none is stored.
+function didoxStoredUserKey(firm = DIDOX_FIRM) {
+    const profile = didoxAccountProfile(firm);
+    switch (profile) {
+        case null:
+            return '';
+        default:
+            return firstNonEmpty([Secrets.get(profile, 'user_key', firm)]);
+    }
+}
+
+// First profile holding BOTH login and password for the firm, the active
+// profile tried first. null when no profile holds a complete pair.
+function didoxLoginCredentials(firm = DIDOX_FIRM) {
+    const ordered = [didoxProfile(firm), ...DIDOX_PROFILES].filter((profile, index, all) => profile && all.indexOf(profile) === index);
+    for (const profile of ordered) {
+        const login = firstNonEmpty([Secrets.get(profile, 'login', firm)]);
+        const password = firstNonEmpty([Secrets.get(profile, 'password', firm)]);
+        switch ([login, password].every(Boolean)) {
+            case true:
+                return { profile, login, password };
+        }
+    }
+    return null;
+}
+
+// POST /v1/auth/{login}/password/ru with the firm's login + password.
+// Returns the API reply ({ token, taxId, pinfl, name, ... }); null when a
+// credential is missing in keys.yml or the call fails.
+async function didoxLoginReply(firm = DIDOX_FIRM) {
+    const credentials = didoxLoginCredentials(firm);
+    const partnerAuth = firstNonEmpty([
+        Secrets.get(credentials?.profile, 'partner_key', firm),
+        didoxPartnerKey(firm),
+    ]);
+
+    switch (true) {
+        case credentials === null:
+            console.warn(`[Didox.login] ⚠️ no profile (${DIDOX_PROFILES.join(', ')}) holds login + password for ${firm} in keys.yml — user-key not minted`);
+            return null;
+        case !partnerAuth:
+            console.warn(`[Didox.login] ⚠️ partner_key for ${firm} missing in keys.yml — user-key not minted`);
+            return null;
+    }
+
+    try {
+        return await ofetch(`/v1/auth/${encodeURIComponent(credentials.login)}/password/ru`, {
+            baseURL: didoxBaseURL(),
+            method: 'POST',
+            body: { password: credentials.password },
+            headers: { 'Partner-Authorization': partnerAuth, 'Accept-Language': 'ru' },
+        });
+    } catch (error) {
+        console.error(`[Didox.login] ❌ ${error.message}`);
+        return null;
+    }
+}
+
+// Mints a fresh user-key through the login API and saves it into keys.yml as
+// <profile>.user_key.<firm>, profile = the one (didox / didox_dev) whose
+// login + password minted it. Concurrent callers share one login. Resolves to
+// '' when the login fails.
+function didoxRefreshUserKey(firm = DIDOX_FIRM) {
+    switch (_userKeyLogins.has(firm)) {
+        case true:
+            return _userKeyLogins.get(firm);
+        default: {
+            const pending = didoxLoginReply(firm)
+                .then((reply) => {
+                    const token = firstNonEmpty([reply?.token]);
+                    switch (Boolean(token)) {
+                        case true: {
+                            _userKeys.set(firm, token);
+                            const profile = didoxAccountProfile(firm) ?? DIDOX_PROFILES[0];
+                            const saved = Secrets.set(profile, 'user_key', firm, token);
+                            console.info(`[Didox.login] ✅ user-key minted for ${firm}, ${saved ? `saved to keys.yml (${profile}.user_key.${firm})` : 'NOT saved (keys.yml write failed)'}`);
+                            break;
+                        }
+                    }
+                    return token;
+                })
+                .finally(() => {
+                    _userKeyLogins.delete(firm);
+                });
+            _userKeyLogins.set(firm, pending);
+            return pending;
+        }
+    }
+}
+
+// The user-key every Didox call sends: in memory, else stored in keys.yml,
+// else minted by the login API (and saved). Resolves to '' when none exists.
+async function didoxUserKey(firm = DIDOX_FIRM) {
+    const inMemory = _userKeys.get(firm);
+    switch (Boolean(inMemory)) {
+        case true:
+            return inMemory;
+    }
+    const stored = didoxStoredUserKey(firm);
+    switch (Boolean(stored)) {
+        case true:
+            _userKeys.set(firm, stored);
+            return stored;
+        default:
+            return didoxRefreshUserKey(firm);
+    }
+}
+
+async function resolveDidoxHeaders(callerName) {
+    const userKey = await didoxUserKey();
     const partnerAuth = didoxPartnerKey();
 
     switch (true) {
         case !userKey: {
-            const msg = `[Didox.${callerName}] Missing didox.user_key.${DIDOX_FIRM} in keys.json (user-key header is required)`;
+            const msg = `[Didox.${callerName}] No Didox user-key: fill <didox|didox_dev>.login + .password + .partner_key for ${DIDOX_FIRM} (login API mints the user-key) or <profile>.user_key.${DIDOX_FIRM} in keys.yml`;
             console.error(msg);
             Dialogs.messageBox(msg, 'Error');
             return null;
         }
         case !partnerAuth: {
-            const msg = `[Didox.${callerName}] Missing didox.partner_key.${DIDOX_FIRM} in keys.json (Partner-Authorization header is required)`;
+            const msg = `[Didox.${callerName}] Missing didox.partner_key.${DIDOX_FIRM} (or didox_dev.partner_key) in keys.yml (Partner-Authorization header is required)`;
             console.error(msg);
             Dialogs.messageBox(msg, 'Error');
             return null;
@@ -85,29 +220,91 @@ function resolveDidoxHeaders(callerName) {
 // "Cannot access 'Yamls' before initialization" (TDZ). Deferring to first use
 // lets both modules finish initializing before any config/secret is read.
 let _didoxClient = null;
-function didoxApi(...args) {
-    if (!_didoxClient) {
-        _didoxClient = ofetch.create({
-            baseURL: didoxBaseURL(),
-            headers: {
-                "user-key": didoxUserKey(),
-                "Partner-Authorization": didoxPartnerKey(),
-            },
-            onRequest({ options }) {
-                const reqHeaders = new Headers(options.headers);
-                const liveUserKey = didoxUserKey();
-                const livePartnerAuth = didoxPartnerKey();
-                if (liveUserKey) {
-                    reqHeaders.set("user-key", liveUserKey);
-                }
-                if (livePartnerAuth) {
-                    reqHeaders.set("Partner-Authorization", livePartnerAuth);
-                }
-                options.headers = reqHeaders;
-            },
-        });
+function didoxClient() {
+    switch (Boolean(_didoxClient)) {
+        case false:
+            _didoxClient = ofetch.create({
+                baseURL: didoxBaseURL(),
+                async onRequest({ options }) {
+                    const reqHeaders = new Headers(options.headers);
+                    const liveUserKey = await didoxUserKey();
+                    const livePartnerAuth = didoxPartnerKey();
+                    switch (Boolean(liveUserKey)) {
+                        case true:
+                            reqHeaders.set("user-key", liveUserKey);
+                            break;
+                    }
+                    switch (Boolean(livePartnerAuth)) {
+                        case true:
+                            reqHeaders.set("Partner-Authorization", livePartnerAuth);
+                            break;
+                    }
+                    options.headers = reqHeaders;
+                },
+            });
     }
-    return _didoxClient(...args);
+    return _didoxClient;
+}
+
+// HTTP status of a failed ofetch call (0 when the error carries none).
+function didoxStatus(error) {
+    return Number(error?.response?.status ?? error?.status ?? error?.statusCode ?? 0);
+}
+
+// Every Didox Partner API call goes through here. A 401/403 means the
+// user-key is missing, expired or invalid: a fresh one is minted by the login
+// API (saved to keys.yml) and the call is retried once.
+async function didoxApi(...args) {
+    try {
+        return await didoxClient()(...args);
+    } catch (error) {
+        const status = didoxStatus(error);
+        switch (DIDOX_AUTH_STATUSES.has(status)) {
+            case true: {
+                console.warn(`[Didox.api] ⚠️ ${status} — minting a fresh user-key via the login API, retrying once`);
+                const token = await didoxRefreshUserKey();
+                switch (Boolean(token)) {
+                    case true:
+                        return didoxClient()(...args);
+                }
+                throw error;
+            }
+            default:
+                throw error;
+        }
+    }
+}
+
+// GET with the Didox auth headers; on a 401/403 response a fresh user-key is
+// minted by the login API (saved to keys.yml) and the GET is retried once.
+async function didoxFetch(callerName, url, headers) {
+    const response = await fetch(url, { method: 'GET', headers, redirect: 'follow' });
+    switch (DIDOX_AUTH_STATUSES.has(response.status)) {
+        case true: {
+            console.warn(`[Didox.${callerName}] ⚠️ ${response.status} — minting a fresh user-key via the login API, retrying once`);
+            const token = await didoxRefreshUserKey();
+            switch (Boolean(token)) {
+                case false:
+                    return response;
+            }
+            const freshHeaders = await resolveDidoxHeaders(callerName);
+            switch (Boolean(freshHeaders)) {
+                case false:
+                    return response;
+            }
+            return fetch(url, { method: 'GET', headers: freshHeaders, redirect: 'follow' });
+        }
+        default:
+            return response;
+    }
+}
+
+// Forgets the per-process user-keys, in-flight logins and the lazily built
+// client, so the next call re-reads keys.yml. Used by the unit tests.
+export function resetDidoxAuth() {
+    _userKeys.clear();
+    _userKeyLogins.clear();
+    _didoxClient = null;
 }
 
 
@@ -250,16 +447,13 @@ export class Didox {
     }
 
 
-    static login() {
+    // Mints a fresh user-key through the login API and saves it into keys.yml
+    // (<profile>.user_key.<firm>). Returns the key, '' when the login failed.
+    static async login() {
     console.info(`[Didox.login] 🟢 Starting...`);
-        didoxApi("/v1/auth/311958304/password/ru", {
-            method: "POST",
-            body: { password: Secrets.get("didox", "login_password", DIDOX_FIRM) ?? "" },
-            headers: { "Accept-Language": "ru" },
-            responseType: "text",
-        })
-            .then((result) => console.log(result))
-            .catch((error) => console.error(error));
+        const token = await didoxRefreshUserKey();
+        console.log(`[Didox.login] user-key for ${DIDOX_FIRM}: ${token ? `✅ len ${token.length}` : '❌ not minted'}`);
+        return token;
     }
     static bankByCode(code) {
     console.info(`[Didox.bankByCode] 🟢 Starting...`);
@@ -374,21 +568,15 @@ export class Didox {
         } else {
             console.log(`infoByTinPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tinStr}`);
 
-            const myHeaders = resolveDidoxHeaders('infoByTinPinfl');
+            const myHeaders = await resolveDidoxHeaders('infoByTinPinfl');
 
             if (!myHeaders) {
                 returns = cached;
             } else {
-                const requestOptions = {
-                    method: "GET",
-                    headers: myHeaders,
-                    redirect: "follow"
-                };
-
                 try {
                     console.warn(`Fetching infoByTinPinfl for ${tinStr}`);
 
-                    const response = await fetch(`${baseURL}/v1/utils/info/${encodeURIComponent(tinStr)}`, requestOptions);
+                    const response = await didoxFetch('infoByTinPinfl', `${baseURL}/v1/utils/info/${encodeURIComponent(tinStr)}`, myHeaders);
 
                     if (response.ok) {
                         const result = await response.json();
@@ -410,9 +598,10 @@ export class Didox {
                     } else {
                         returns = cached;
                         switch (response.status) {
-                            case 401: {
-                                console.error(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired didox.user_key / didox.partner_key in keys.json)`);
-                                Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: 401 ${response.statusText} — didox.user_key eskirgan yoki noto'g'ri (keys.json ni yangilang)`, 'Error');
+                            case 401:
+                            case 403: {
+                                console.error(`Error infoByTinPinfl for ${tinStr}: ${response.status} ${response.statusText} (login API could not mint a valid user-key — check login / password / partner_key in keys.yml)`);
+                                Dialogs.messageBox(`Error infoByTinPinfl for ${tinStr}: ${response.status} ${response.statusText} — login API user-key bermadi (keys.yml dagi login / password / partner_key ni tekshiring)`, 'Error');
                                 break;
                             }
                             default: {
@@ -498,7 +687,7 @@ export class Didox {
     }
 
     // Log in as the company by E-IMZO: sign base64(TIN) -> POST /v1/auth/{tin}/token/{locale}.
-    // The token is kept in this process only (process.env.DIDOX_USER_KEY), never written to disk.
+    // The token is kept in this process only (module memory), never written to disk.
     static async authToken(tin, locale = 'ru') {
         console.info(`[Didox.authToken] 🟢 Starting...`);
         const tinStr = String(tin ?? '').trim();
@@ -512,7 +701,7 @@ export class Didox {
             case false:
                 throw new Error(`Didox login failed for ${tinStr}: ${JSON.stringify(reply)}`);
         }
-        process.env.DIDOX_USER_KEY = reply.token;
+        _userKeys.set(DIDOX_FIRM, reply.token);
         return reply.token;
     }
 
@@ -933,21 +1122,15 @@ export class Didox {
         } else {
             console.log(`carInfoByPinfl cache missing or expired (${maxAgeDays} day(s)), fetching ${tinStr}`);
 
-            const myHeaders = resolveDidoxHeaders('carInfoByPinfl');
+            const myHeaders = await resolveDidoxHeaders('carInfoByPinfl');
 
             if (!myHeaders) {
                 returns = cached;
             } else {
-                const requestOptions = {
-                    method: "GET",
-                    headers: myHeaders,
-                    redirect: "follow"
-                };
-
                 try {
                     console.warn(`Fetching carInfoByPinfl for ${tinStr}`);
 
-                    const response = await fetch(`${baseURL}/v1/utils/waybills/transport?tinOrPinfl=${encodeURIComponent(tinStr)}`, requestOptions);
+                    const response = await didoxFetch('carInfoByPinfl', `${baseURL}/v1/utils/waybills/transport?tinOrPinfl=${encodeURIComponent(tinStr)}`, myHeaders);
 
                     if (response.ok) {
                         const result = await response.json();
@@ -969,9 +1152,10 @@ export class Didox {
                     } else {
                         returns = cached;
                         switch (response.status) {
-                            case 401: {
-                                console.error(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} (invalid or expired didox.user_key / didox.partner_key in keys.json)`);
-                                Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: 401 ${response.statusText} — didox.user_key eskirgan yoki noto'g'ri (keys.json ni yangilang)`, 'Error');
+                            case 401:
+                            case 403: {
+                                console.error(`Error carInfoByPinfl for ${tinStr}: ${response.status} ${response.statusText} (login API could not mint a valid user-key — check login / password / partner_key in keys.yml)`);
+                                Dialogs.messageBox(`Error carInfoByPinfl for ${tinStr}: ${response.status} ${response.statusText} — login API user-key bermadi (keys.yml dagi login / password / partner_key ni tekshiring)`, 'Error');
                                 break;
                             }
                             default: {

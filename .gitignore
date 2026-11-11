@@ -2,6 +2,7 @@
 .env
 .env.*
 keys.json
+keys.yml
 
 # Dependencies (symlinked into a shared tree)
 node_modules/

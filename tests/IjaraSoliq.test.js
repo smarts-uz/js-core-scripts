@@ -11,29 +11,19 @@
 // the default is evaluated — documented below, not fixed. Passing an owner
 // explicitly skips the default and works.
 //
-// SECRETS NOTE: the bearer token is read via `Secrets.get('Ijara', owner)`, which
-// resolves the env var `IJARA_<OWNER>` (e.g. IJARA_SRENTAL) from process.env —
-// the Yamls-config -> .env migration. We mock Secrets to read process.env and set
-// IJARA_SRENTAL per test, restoring it afterwards.
+// SECRETS NOTE: the bearer token is read via `Secrets.get('ijara', 'token', owner)`
+// (keys.yml ijara.token.<owner>). Secrets is replaced by the in-memory store from
+// helpers/secrets.js; each test fills `ijara.token.SRental` through setBearer().
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { utilsModule } from './helpers/esm.js';
+import { makeSecretsMock } from './helpers/secrets.js';
 
 const DialogsMock = {
   warningBox: jest.fn(),
   errorBox: jest.fn(),
   messageBox: jest.fn(),
 };
-// Mirror Secrets.get('Ijara', owner) -> process.env.IJARA_<OWNER>.
-const SecretsMock = {
-  get: jest.fn((section, owner = '') => {
-    const key = owner
-      ? `${section.toUpperCase()}_${owner.toUpperCase()}`
-      : section.toUpperCase().replace('.', '_');
-    return process.env[key] ?? null;
-  }),
-  // Some modules in the import graph (e.g. Didox.js) read exact vars at load.
-  env: jest.fn((name) => process.env[name] ?? null),
-};
+const SecretsMock = makeSecretsMock();
 const ChromesMock = {
   Duration: { Sec1: 1, Sec10: 10, Hour10: 36000, noCache: -1, Unlimited: 0 },
   fetcher: jest.fn(),
@@ -46,17 +36,16 @@ jest.unstable_mockModule(utilsModule('Chromes.js'), () => ({ Chromes: ChromesMoc
 
 const { IjaraSoliq, RentType, IjaraState } = await import('../classes/IjaraSoliq.js');
 
-const ENV_KEY = 'IJARA_SRENTAL';
-let savedEnv;
+/** Store the SRental ijara bearer exactly where keys.yml keeps it. */
+function setBearer(token) {
+  SecretsMock.reset({ ijara: { token: { SRental: token } } });
+}
 
 beforeEach(() => {
-  savedEnv = process.env[ENV_KEY];
-  delete process.env[ENV_KEY];
+  SecretsMock.reset();
 });
 
 afterEach(() => {
-  if (savedEnv === undefined) delete process.env[ENV_KEY];
-  else process.env[ENV_KEY] = savedEnv;
   jest.clearAllMocks();
 });
 
@@ -95,7 +84,7 @@ describe('IjaraSoliq.contracts — guard clauses', () => {
 
 describe('IjaraSoliq.contracts — happy path', () => {
   it('builds the by-params URL, sends the Bearer + referer and returns the body', async () => {
-    process.env[ENV_KEY] = 'tok-ij';
+    setBearer('tok-ij');
     const body = { items: [{ id: 1 }] };
     ChromesMock.fetcher.mockResolvedValue(body);
 
@@ -114,7 +103,7 @@ describe('IjaraSoliq.contracts — happy path', () => {
   });
 
   it('warns when the fetcher returns no body', async () => {
-    process.env[ENV_KEY] = 'tok-ij';
+    setBearer('tok-ij');
     ChromesMock.fetcher.mockResolvedValue(null);
     const r = await IjaraSoliq.contracts('SRental', RentType.Out, IjaraState.Confirmed);
     expect(DialogsMock.warningBox).toHaveBeenCalledWith('No body in response', 'Warning');
@@ -122,7 +111,7 @@ describe('IjaraSoliq.contracts — happy path', () => {
   });
 
   it('routes a thrown fetcher error to errorBox', async () => {
-    process.env[ENV_KEY] = 'tok-ij';
+    setBearer('tok-ij');
     ChromesMock.fetcher.mockRejectedValue(new Error('blew up'));
     const r = await IjaraSoliq.contracts('SRental', RentType.Out, IjaraState.Confirmed);
     expect(DialogsMock.errorBox).toHaveBeenCalled();
@@ -195,7 +184,7 @@ describe('IjaraSoliq.download — happy path', () => {
 // ---------------------------------------------------------------------------
 describe('IjaraSoliq.testing', () => {
   it('invokes contracts and download with the SRental owner', async () => {
-    process.env[ENV_KEY] = 'tok-ij';
+    setBearer('tok-ij');
     ChromesMock.fetcher.mockResolvedValue({ items: [] });
     ChromesMock.download.mockResolvedValue('C:/tmp/x.pdf');
 

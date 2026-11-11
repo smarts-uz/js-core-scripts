@@ -1,67 +1,170 @@
 // Unit tests for classes/Secrets.js — every public (non-_) static method:
-//   get, env.
+//   get, set, env.
 //
-// Strategy: Secrets reads ONLY from process.env (dotenv is loaded once at import
-// time from the entry script's dir / cwd). There is no native, network, or UI
-// boundary to mock — we drive the real methods by setting/clearing process.env
-// per test and assert the SECTION_OWNER name-mapping and the null-on-missing
-// contract. The envName normalization (camelCase + digit→Cap boundaries:
-// My3Api→MY3_API, KapitalId→KAPITAL_ID, DidoxBaseURL→DIDOX_BASE_URL) is private
-// but is exercised through get()'s observable output.
+// Strategy: Secrets reads/writes a keys.yml shaped service -> kind -> firm.
+// Every test points `Secrets.file` at a throwaway keys.yml in a temp dir, so the
+// real YAML parse and the line-preserving writer run for real and the project's
+// own keys.yml is never touched. env() reads process.env directly.
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import fs from 'fs';
+import path from 'path';
+import { makeTmpDir, cleanupAllTmpDirs } from './helpers/tmp.js';
 
 import { Secrets } from '../classes/Secrets.js';
 
-// Snapshot and restore process.env so a test's writes never leak across cases.
-let savedEnv;
+let workDir;
+let keysFile;
+
+const KEYS = [
+  '# Secrets - gitignored',
+  '',
+  'didox:',
+  '  partner_key:',
+  '    SRental: pk-srental',
+  '    WorkSpace:',
+  '  login:',
+  '    SRental: 311958304',
+  '    WorkSpace:',
+  '',
+  'ijara:',
+  '  token:',
+  '    SRental: ij-token',
+  '    WorkSpace:',
+  '',
+].join('\n');
+
+const write = (text) => fs.writeFileSync(keysFile, text, 'utf8');
+const read = () => fs.readFileSync(keysFile, 'utf8');
+
 beforeEach(() => {
-  savedEnv = { ...process.env };
+  workDir = makeTmpDir('secrets-');
+  keysFile = path.join(workDir, 'keys.yml');
+  write(KEYS);
+  Secrets.file = keysFile;
 });
+
 afterEach(() => {
-  process.env = savedEnv;
+  Secrets.file = null;
+  cleanupAllTmpDirs();
 });
 
 // ---------------------------------------------------------------------------
 describe('Secrets.get', () => {
-  it('maps (section, owner) to SECTION_OWNER and returns the value', () => {
-    process.env.DIDOX_SRENTAL = 'tok-123';
-    expect(Secrets.get('Didox', 'SRental')).toBe('tok-123');
+  it('reads service -> kind -> firm from keys.yml', () => {
+    expect(Secrets.get('didox', 'partner_key', 'SRental')).toBe('pk-srental');
+    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('ij-token');
   });
 
-  it('maps a dotted "Section.Owner" string the same way', () => {
-    process.env.DIDOX_BASE_URL = 'https://api.example';
-    expect(Secrets.get('Didox.BaseURL')).toBe('https://api.example');
+  it('keeps a numeric-looking value a string (login 311958304)', () => {
+    expect(Secrets.get('didox', 'login', 'SRental')).toBe('311958304');
   });
 
-  it('normalizes camelCase boundaries (My3Api → MY3_API)', () => {
-    process.env.MY3_API_SRENTAL = 'my3-key';
-    expect(Secrets.get('My3Api', 'SRental')).toBe('my3-key');
+  it('returns a blank value as an empty/missing value, never a placeholder', () => {
+    expect(Secrets.get('didox', 'partner_key', 'WorkSpace') || '').toBe('');
   });
 
-  it('normalizes a digit→Cap boundary (KapitalId → KAPITAL_ID)', () => {
-    process.env.KAPITAL_ID_SRENTAL = 'kap-id';
-    expect(Secrets.get('KapitalId', 'SRental')).toBe('kap-id');
+  it('returns null (not undefined) for an absent service, kind or firm', () => {
+    expect(Secrets.get('nope', 'partner_key', 'SRental')).toBeNull();
+    expect(Secrets.get('didox', 'nope', 'SRental')).toBeNull();
+    expect(Secrets.get('didox', 'partner_key', 'Nobody')).toBeNull();
   });
 
-  it('keeps a digit that is NOT followed by a capital together (My3 → MY3)', () => {
-    process.env.MY3_SRENTAL = 'my3-only';
-    expect(Secrets.get('My3', 'SRental')).toBe('my3-only');
+  it('returns null when keys.yml does not exist', () => {
+    Secrets.file = path.join(workDir, 'missing.yml');
+    expect(Secrets.get('didox', 'partner_key', 'SRental')).toBeNull();
   });
 
-  it('reads a section with no owner as just the section name', () => {
-    process.env.DIDOX_USER_KEY = 'uk';
-    expect(Secrets.get('Didox.UserKey')).toBe('uk');
-    process.env.KAPITAL = 'k-only';
-    expect(Secrets.get('Kapital')).toBe('k-only');
+  it('returns null when keys.yml cannot be parsed', () => {
+    write('didox: [unclosed\n  - : :\n');
+    expect(Secrets.get('didox', 'partner_key', 'SRental')).toBeNull();
   });
 
-  it('returns null (not undefined) for a missing variable', () => {
-    delete process.env.DOES_NOT_EXIST_OWNER;
-    expect(Secrets.get('DoesNotExist', 'Owner')).toBeNull();
+  it('ignores a leading BOM', () => {
+    write('﻿' + KEYS);
+    expect(Secrets.get('didox', 'partner_key', 'SRental')).toBe('pk-srental');
+  });
+
+  it('re-reads the file on every call, so an edit is picked up without a restart', () => {
+    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('ij-token');
+    write(KEYS.replace('ij-token', 'ij-new'));
+    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('ij-new');
   });
 });
 
+// ---------------------------------------------------------------------------
+describe('Secrets.set', () => {
+  it('updates an existing value in place and leaves every other line byte-identical', () => {
+    expect(Secrets.set('ijara', 'token', 'SRental', 'ij-updated')).toBe(true);
+    expect(read()).toBe(KEYS.replace('ij-token', 'ij-updated'));
+    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('ij-updated');
+  });
+
+  it('fills a blank firm value', () => {
+    expect(Secrets.set('didox', 'partner_key', 'WorkSpace', 'pk-ws')).toBe(true);
+    expect(Secrets.get('didox', 'partner_key', 'WorkSpace')).toBe('pk-ws');
+    expect(Secrets.get('didox', 'partner_key', 'SRental')).toBe('pk-srental');
+  });
+
+  it('adds a missing firm at the end of its kind block', () => {
+    expect(Secrets.set('ijara', 'token', 'Newcomer', 'nc-token')).toBe(true);
+    expect(Secrets.get('ijara', 'token', 'Newcomer')).toBe('nc-token');
+    expect(Secrets.get('ijara', 'token', 'WorkSpace') || '').toBe('');
+    expect(Secrets.get('ijara', 'token', 'SRental')).toBe('ij-token');
+  });
+
+  it('adds a missing kind inside an existing service', () => {
+    expect(Secrets.set('didox', 'user_key', 'SRental', 'uk-1')).toBe(true);
+    expect(Secrets.get('didox', 'user_key', 'SRental')).toBe('uk-1');
+    expect(Secrets.get('didox', 'login', 'SRental')).toBe('311958304');
+  });
+
+  it('adds a missing service at the end of the file', () => {
+    expect(Secrets.set('didox_dev', 'user_key', 'SRental', 'dev-uk')).toBe(true);
+    expect(Secrets.get('didox_dev', 'user_key', 'SRental')).toBe('dev-uk');
+    expect(read().startsWith(KEYS.trimEnd())).toBe(true);
+  });
+
+  it('quotes a value that is not a plain token, and reads it back as the same string', () => {
+    expect(Secrets.set('didox', 'login', 'WorkSpace', '123456789')).toBe(true);
+    expect(read()).toContain('WorkSpace: "123456789"');
+    expect(Secrets.get('didox', 'login', 'WorkSpace')).toBe('123456789');
+
+    expect(Secrets.set('didox', 'partner_key', 'WorkSpace', 'has space: and "quote"')).toBe(true);
+    expect(Secrets.get('didox', 'partner_key', 'WorkSpace')).toBe('has space: and "quote"');
+  });
+
+  it('keeps a JWT-style token unquoted', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MX0.sig-nature_1=';
+    expect(Secrets.set('ijara', 'token', 'WorkSpace', jwt)).toBe(true);
+    expect(read()).toContain(`WorkSpace: ${jwt}`);
+    expect(Secrets.get('ijara', 'token', 'WorkSpace')).toBe(jwt);
+  });
+
+  it('preserves CRLF line endings', () => {
+    write(KEYS.replace(/\n/g, '\r\n'));
+    expect(Secrets.set('ijara', 'token', 'SRental', 'ij-crlf')).toBe(true);
+    const text = read();
+    expect(text).toContain('SRental: ij-crlf\r\n');
+    expect(text.replace(/\r\n/g, '')).not.toContain('\n');
+  });
+
+  it('returns false and writes nothing when keys.yml does not exist', () => {
+    Secrets.file = path.join(workDir, 'missing.yml');
+    expect(Secrets.set('didox', 'user_key', 'SRental', 'x')).toBe(false);
+    expect(fs.existsSync(path.join(workDir, 'missing.yml'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 describe('Secrets.env', () => {
+  let saved;
+  beforeEach(() => {
+    saved = { ...process.env };
+  });
+  afterEach(() => {
+    process.env = saved;
+  });
+
   it('reads an exact variable name verbatim', () => {
     process.env.DIDOX_PARTNER_AUTHORIZATION = 'Bearer xyz';
     expect(Secrets.env('DIDOX_PARTNER_AUTHORIZATION')).toBe('Bearer xyz');
@@ -69,7 +172,6 @@ describe('Secrets.env', () => {
 
   it('does NOT normalize the name — the exact key is used', () => {
     process.env.MY3_API_SRENTAL = 'set';
-    // the un-normalized lookups must miss
     expect(Secrets.env('My3Api_SRental')).toBeNull();
     expect(Secrets.env('MY3_API_SRENTAL')).toBe('set');
   });
@@ -81,7 +183,6 @@ describe('Secrets.env', () => {
 
   it('returns an empty string as-is when the var is set but empty', () => {
     process.env.EMPTY_VAR = '';
-    // '' ?? null === '' — an explicitly empty value is distinct from missing
     expect(Secrets.env('EMPTY_VAR')).toBe('');
   });
 });
