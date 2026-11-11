@@ -241,7 +241,10 @@ export class Files {
 
     const moved = [];
     for (const { path: filePath } of toMove) {
-      const dest = this.incrementFileName(path.join(archiveDir, path.basename(filePath)));
+      // A numbered name that is free in "@ Other" keeps its own number (X 3 stays X 3);
+      // incrementFileName always asks for "at least N+1", so it runs only on a real collision.
+      const archived = path.join(archiveDir, path.basename(filePath));
+      const dest = fs.existsSync(archived) ? this.incrementFileName(archived) : archived;
       try {
         fs.renameSync(filePath, dest);
         console.log(`[Files.retainLatestFiles] Moved to @ Other: ${filePath} → ${dest}`);

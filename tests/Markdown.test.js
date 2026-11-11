@@ -29,20 +29,34 @@ const YamlsMock = {
 
 // --- Files: real fs-backed helpers (mirrors the genuine implementations) ------
 const FilesMock = {
+  // Mirrors the real Files.incrementFileName: the unnumbered original counts as version 1,
+  // a numbered input asks for "at least N+1", and the next number follows the highest sibling.
   incrementFileName: jest.fn((filePath) => {
-    if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
     let baseName = parsed.name;
     let counter = 2;
     const m = baseName.match(/^(.*?)\s+(\d+)$/);
     if (m) {
       baseName = m[1];
-      counter = parseInt(m[2], 10);
+      counter = Math.max(2, parseInt(m[2], 10) + 1);
     }
-    let np = filePath;
+    const family = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: (\\d+))?$`);
+    let highest = 0;
+    if (fs.existsSync(parsed.dir)) {
+      for (const name of fs.readdirSync(parsed.dir)) {
+        const sibling = path.parse(name);
+        if (sibling.ext !== parsed.ext) continue;
+        const version = family.exec(sibling.name);
+        if (!version) continue;
+        highest = Math.max(highest, Number(version[1] ?? 1));
+      }
+    }
+    if (highest === 0) return filePath;
+    counter = Math.max(counter, highest + 1);
+    let np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
     while (fs.existsSync(np)) {
-      np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
       counter++;
+      np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
     }
     return np;
   }),
@@ -282,6 +296,38 @@ describe('Markdown.convertToWord', () => {
     const out = await Markdown.convertToWord(md, false);
     expect(out).toBeNull();
     expect(DialogsMock.warningBox).toHaveBeenCalled();
+  });
+});
+
+describe('Markdown._exportDocToPdf', () => {
+  it('names the PDF after its own docx — DOC/X 2.docx -> PDF/X 2.pdf, never X 3 — when only an unnumbered PDF exists', () => {
+    fs.mkdirSync(path.join(workDir, 'PDF'), { recursive: true });
+    fs.writeFileSync(path.join(workDir, 'PDF', 'paper.pdf'), 'v1', 'utf8');
+    const doc = { ExportAsFixedFormat: jest.fn() };
+
+    const out = Markdown._exportDocToPdf(path.join(workDir, 'DOC', 'paper 2.docx'), doc, workDir);
+
+    expect(out).toBe(path.join(workDir, 'PDF', 'paper 2.pdf'));
+    expect(doc.ExportAsFixedFormat).toHaveBeenCalledWith(out, 17);
+  });
+
+  it('uses the unnumbered docx name as is when no PDF exists yet', () => {
+    const doc = { ExportAsFixedFormat: jest.fn() };
+
+    const out = Markdown._exportDocToPdf(path.join(workDir, 'DOC', 'paper.docx'), doc, workDir);
+
+    expect(out).toBe(path.join(workDir, 'PDF', 'paper.pdf'));
+  });
+
+  it('increments only when the shared PDF name is already taken', () => {
+    fs.mkdirSync(path.join(workDir, 'PDF'), { recursive: true });
+    fs.writeFileSync(path.join(workDir, 'PDF', 'paper 2.pdf'), 'taken', 'utf8');
+    const doc = { ExportAsFixedFormat: jest.fn() };
+
+    const out = Markdown._exportDocToPdf(path.join(workDir, 'DOC', 'paper 2.docx'), doc, workDir);
+
+    expect(out).toBe(path.join(workDir, 'PDF', 'paper 3.pdf'));
+    expect(fs.readFileSync(path.join(workDir, 'PDF', 'paper 2.pdf'), 'utf8')).toBe('taken');
   });
 });
 

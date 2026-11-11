@@ -675,6 +675,29 @@ describe('Files.retainLatestFiles', () => {
     expect(read(path.join(dir, '@ Other', 'a 2.xlsx'))).toBe('x');
   });
 
+  it('keeps a numbered name unchanged when that name is free in "@ Other" (X 3 stays X 3, never X 4)', () => {
+    fs.mkdirSync(path.join(dir, '@ Other'));
+    fs.writeFileSync(path.join(dir, '@ Other', 'Rep 2.xlsx'), 'old', 'utf8');
+    writeAged(['Rep 3.xlsx', 'Rep 5.xlsx']);
+
+    const moved = Files.retainLatestFiles(dir, 1, '.xlsx');
+
+    expect(moved).toEqual([path.join(dir, '@ Other', 'Rep 3.xlsx')]);
+    expect(fs.existsSync(path.join(dir, '@ Other', 'Rep 4.xlsx'))).toBe(false);
+    expect(read(path.join(dir, '@ Other', 'Rep 2.xlsx'))).toBe('old');
+  });
+
+  it('increments a numbered name only when that exact name is already taken in "@ Other"', () => {
+    fs.mkdirSync(path.join(dir, '@ Other'));
+    fs.writeFileSync(path.join(dir, '@ Other', 'Rep 3.xlsx'), 'old', 'utf8');
+    writeAged(['Rep 3.xlsx', 'Rep 5.xlsx']);
+
+    const moved = Files.retainLatestFiles(dir, 1, '.xlsx');
+
+    expect(moved).toEqual([path.join(dir, '@ Other', 'Rep 4.xlsx')]);
+    expect(read(path.join(dir, '@ Other', 'Rep 3.xlsx'))).toBe('old');
+  });
+
   it('returns an empty array when the folder does not exist', () => {
     const moved = Files.retainLatestFiles(path.join(dir, 'missing'), 5, '.xlsx');
     expect(moved).toEqual([]);

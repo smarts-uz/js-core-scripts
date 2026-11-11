@@ -338,10 +338,16 @@ export class Word {
 
     const area = data.Area;
     const outputCore = `${data.ContractNum}, ${area}-kv, ${docBaseName}, ${data.MyCompany}`;
-    // Reuse filename owner policy; select one free basename for both formats.
+    // Reuse filename owner policy; select ONE free basename for both formats.
+    // Each extension resolves its own next free name from the UNNUMBERED base — a numbered candidate is never
+    // fed back into incrementFileName (it asks for "at least N+1" and skips a number: 1 -> 3 -> 5).
+    // The higher of the two wins, so DOCX and PDF always share the same suffix.
+    const versionOf = (candidate) => Number(path.parse(candidate).name.match(/\s(\d+)$/)?.[1] ?? 1);
     const docxCandidate = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.docx`));
-    const outputPdfPath = Files.incrementFileName(path.join(contractNumFolder, `${path.basename(docxCandidate, '.docx')}.pdf`));
-    const outputDocxPath = path.join(contractNumFolder, `${path.basename(outputPdfPath, '.pdf')}.docx`);
+    const pdfCandidate = Files.incrementFileName(path.join(contractNumFolder, `${outputCore}.pdf`));
+    const sharedCore = path.parse([docxCandidate, pdfCandidate].sort((a, b) => versionOf(b) - versionOf(a))[0]).name;
+    const outputDocxPath = path.join(contractNumFolder, `${sharedCore}.docx`);
+    const outputPdfPath = path.join(contractNumFolder, `${sharedCore}.pdf`);
 
     this.wordReplace(data, templatePath, outputDocxPath, outputPdfPath);
 

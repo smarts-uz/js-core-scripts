@@ -212,14 +212,36 @@ const FilesMock = {
     if (typeof v === 'object') return Object.keys(v).length === 0;
     return false;
   },
+  // Mirrors the real Files.incrementFileName: an unnumbered original is version 1,
+  // an already-numbered input ("X 2") asks for AT LEAST the next number after it,
+  // and the result is always above the highest existing sibling of that extension.
   incrementFileName: (filePath) => {
-    if (!fs.existsSync(filePath)) return filePath;
     const parsed = path.parse(filePath);
-    let i = 2;
-    let np = filePath;
+    let baseName = parsed.name;
+    let counter = 2;
+    const match = baseName.match(/^(.*?)\s+(\d+)$/);
+    if (match) {
+      baseName = match[1];
+      counter = Math.max(2, parseInt(match[2], 10) + 1);
+    }
+    const family = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: (\\d+))?$`);
+    let highest = 0;
+    if (fs.existsSync(parsed.dir)) {
+      for (const name of fs.readdirSync(parsed.dir)) {
+        const sibling = path.parse(name);
+        if (sibling.ext !== parsed.ext) continue;
+        const version = family.exec(sibling.name);
+        if (!version) continue;
+        if (!fs.statSync(path.join(parsed.dir, name)).isFile()) continue;
+        highest = Math.max(highest, Number(version[1] ?? 1));
+      }
+    }
+    if (highest === 0) return filePath;
+    counter = Math.max(counter, highest + 1);
+    let np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
     while (fs.existsSync(np)) {
-      np = path.join(parsed.dir, `${parsed.name} ${i}${parsed.ext}`);
-      i++;
+      counter++;
+      np = path.join(parsed.dir, `${baseName} ${counter}${parsed.ext}`);
     }
     return np;
   },

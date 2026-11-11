@@ -203,9 +203,12 @@ export class Markdown {
     console.info(`[Markdown._exportDocToPdf] 🟢 Starting...`);
     Markdown._ensureDir(path.join(baseDir, 'PDF'));
 
+    // The PDF shares the docx's own name (DOC/X 3.docx -> PDF/X 3.pdf). Feeding that numbered
+    // name into incrementFileName always asks for "at least N+1", which skips a number
+    // (docx 2 -> pdf 3), so it is used only when the shared name is already taken.
     const parsed  = path.parse(docxPath);
-    let pdfPath = path.join(baseDir, 'PDF', `${parsed.name}.pdf`);
-    pdfPath = Files.incrementFileName(pdfPath);
+    const sharedPdfPath = path.join(baseDir, 'PDF', `${parsed.name}.pdf`);
+    const pdfPath = fs.existsSync(sharedPdfPath) ? Files.incrementFileName(sharedPdfPath) : sharedPdfPath;
 
     console.log(`📄 Exporting PDF: ${pdfPath}`);
     // wdExportFormatPDF = 17
