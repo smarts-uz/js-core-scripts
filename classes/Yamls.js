@@ -2384,12 +2384,30 @@ export class Yamls {
         const cacheMaxAgeDays = Yamls.getCacheMaxAgeDays();
         const cacheFresh = Files.isCacheFresh(jsonCachePath, cacheMaxAgeDays);
 
+        // A cache that is "fresh" by mtime but carries 3+ null/empty keys is
+        // still garbage — a prior failed run wrote a null-filled ALL.json. Treat
+        // it as stale and force a fresh API fetch (saveJsonCache archives the old
+        // file into - Theory/ before overwriting). Never trust a mostly-null cache.
+        const CACHE_NULL_REFETCH_THRESHOLD = 3;
+        const cachedForCheck = cacheExists ? Files.readJsonCache(jsonCachePath) : null;
+        const cacheNullKeys = cachedForCheck
+            ? Object.entries(cachedForCheck).filter(([k, v]) =>
+                v === null ||
+                v === undefined ||
+                v === '' ||
+                (Array.isArray(v) && v.length === 0) ||
+                (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0)
+            ).map(([k]) => k)
+            : [];
+        const cacheNeedsRefetch = cacheNullKeys.length >= CACHE_NULL_REFETCH_THRESHOLD;
+
         let companyInfo;
 
         switch (true) {
             case Boolean(rewrite):
             case !cacheExists:
-            case !cacheFresh: {
+            case !cacheFresh:
+            case cacheNeedsRefetch: {
                 // 🌐 API rejimi: yangi ma'lumot olish va JSON ga yozish
                 switch (true) {
                     case !cacheExists: {
@@ -2413,7 +2431,7 @@ export class Yamls {
                 // folder for an ordinary company, or the YaTT owner's ID marker for a
                 // sole proprietor) — only ComType, never "which marker happens to exist",
                 // decides which one IS this company's identity.
-                const isYatt = yamlData.ComType === 'YaTT';
+                const isYatt = Yamls.#isYattType(yamlData.ComType, globalThis.folderCompan);
                 console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
 
                 let comTIN = isYatt
@@ -2422,26 +2440,49 @@ export class Yamls {
                 console.info("comTIN (from ComType-selected marker):", comTIN, "isYatt:", isYatt);
 
                 if (!comTIN) {
-                    Dialogs.warningBox(`comTIN is empty for TIN: ${ymlFile}`, ymlFile);
+                    // Step 1 failed: the identity marker itself is missing.
+                    console.error(
+                        `[Yamls.fillYamlWithInfo] Step 1/3 FAILED — company identity marker not found in Compan/.\n` +
+                        `Expected a ${isYatt ? '14-digit PINFL' : '9-digit TIN'} file, e.g. ${isYatt ? '12345678901234' : '123456789'}.app\n` +
+                        `Contract: ${ymlFile}\n\n` +
+                        `Nothing was fetched or written. Add the real marker file, then re-run.`
+                    );
                     return null;
                 }
 
                 if (isYatt)
                     Files.saveInfoToFile(globalThis.folderALL, '#YaTT');
 
+                console.info(`[Yamls.fillYamlWithInfo] Step 2/3: Didox API fetch for ${isYatt ? 'PINFL' : 'TIN'} ${comTIN}`);
                 companyInfo = await Didox.infoByTinPinfl(comTIN);
                 console.log(companyInfo, 'companyInfo');
 
                 if (!companyInfo) {
-                    // API failed (401/404/empty) — the existing ALL.json is untouched and reused.
-                    companyInfo = Files.readJsonCache(jsonCachePath);
+                    // Step 2 failed: the API returned nothing usable. Show the real
+                    // reason once, then skip (never write null data into the file).
+                    const cachedFallback = Files.readJsonCache(jsonCachePath);
+                    console.error(`[Yamls.fillYamlWithInfo] Step 2/3 FAILED — Didox returned no data for ${comTIN}`);
                     switch (true) {
-                        case !companyInfo: {
-                            Dialogs.warningBox(`companyInfo is empty for TIN: ${comTIN}`, comTIN);
+                        case !cachedFallback: {
+                            console.error(
+                                `[Yamls.fillYamlWithInfo] Step 2/3 FAILED — Didox API returned no usable data.\n` +
+                                `TIN/PINFL: ${comTIN}\n` +
+                                `Endpoint: Didox /v1/utils/info/${comTIN}\n` +
+                                `Cached ALL.json: missing or empty.\n\n` +
+                                `Likely cause: user-key not minted (check keys.yml login / password / partner_key) ` +
+                                `or Didox has no record for this TIN.`
+                            );
                             return null;
                         }
+                        default: {
+                            console.warn(
+                                `[Yamls.fillYamlWithInfo] Step 2/3 WARNING — Didox API returned no usable data for ${comTIN}; ` +
+                                `continuing with the previous ALL.json cache instead.\n` +
+                                `Check keys.yml (login / password / partner_key) if this data looks stale.`
+                            );
+                            companyInfo = cachedFallback;
+                        }
                     }
-                    console.warn(`[Yamls.fillYamlWithInfo] ⚠️ API xatosi — eski ALL.json keshidan davom etilmoqda: ${jsonCachePath}`);
                     break;
                 }
 
@@ -2697,7 +2738,7 @@ export class Yamls {
     static #resolveContractDate(yamlData, companyInfo) {
         console.info(`[Yamls.#resolveContractDate] 🟢 Starting...`);
 
-        const isYatt = yamlData.ComType === 'YaTT';
+        const isYatt = Yamls.#isYattType(yamlData.ComType, globalThis.folderCompan);
         const registrationDate = isYatt
             ? companyInfo.soliqYatt?.registrationDate
             : companyInfo.soliq?.company?.registrationDate;
@@ -2841,6 +2882,24 @@ export class Yamls {
     }
 
     /**
+     * YaTT type detection: explicit ComType === 'YaTT' wins; otherwise a
+     * 14-digit PINFL marker (app/txt) in Compan/ marks a YaTT sole proprietor.
+     * ComType === 'YaTT' means ComType is the source of truth; never a stale
+     * cached companyInfo.isYatt.
+     * @param {string} comType - yamlData.ComType (may be ''/undefined).
+     * @param {string} folderCompan - Compan/ directory path.
+     * @returns {boolean}
+     */
+    static #isYattType(comType, folderCompan) {
+        const explicit = String(comType ?? '').trim() === 'YaTT';
+        if (explicit) return true;
+        try {
+            return fs.existsSync(folderCompan) &&
+                fs.readdirSync(folderCompan).some(n => /^\d{14}\.(app|txt)$/i.test(n));
+        } catch { return false; }
+    }
+
+    /**
      * Resolve every company/director/bank/VAT field on yamlData, in place, from companyInfo and the registry lookups.
      * Also derives ComCategory from the .contract file's own path and writes the Compan/ marker files.
      * isYatt is read fresh from yamlData.ComType === 'YaTT' every call — never a cached companyInfo.isYatt.
@@ -2878,7 +2937,31 @@ export class Yamls {
                 break;
         }
 
-        yamlData.ComINN = companyInfo.tin
+        // Every API field that comes back null/empty is still WRITTEN to the file
+        // (as an empty value) — the file always mirrors the full field set. A
+        // null field is only recorded here so one non-blocking warning can list
+        // it; nothing is skipped.
+        const nullFields = [];
+        const keepIf = (value, key, apply) => {
+            switch (true) {
+                case value === null:
+                case value === undefined:
+                case value === '': {
+                    nullFields.push(key);
+                    apply('');
+                    return;
+                }
+                default: {
+                    apply(value);
+                }
+            }
+        };
+        // Same write-always rule for a plain yaml key — null/empty becomes ''.
+        const setNullable = (key, value) => {
+            keepIf(value, key, (v) => { yamlData[key] = v; });
+        };
+
+        setNullable('ComINN', companyInfo.tin);
 
 
         const price = String(yamlData.Price).replaceAll(',', '')
@@ -2889,9 +2972,8 @@ export class Yamls {
 
         yamlData.ComName = Word.cleanCompanyName(companyInfo.shortName)
 
-        yamlData.ComNameLong = companyInfo.name
-        yamlData.ComNameShort = companyInfo.shortName
-
+        keepIf(companyInfo.name, 'ComNameLong', (v) => { yamlData.ComNameLong = v; })
+        keepIf(companyInfo.shortName, 'ComNameShort', (v) => { yamlData.ComNameShort = v; })
 
         if (!yamlData.ContractNumber)
             yamlData.ContractNum = Word.contractNumFromFormat(yamlData);
@@ -2901,8 +2983,8 @@ export class Yamls {
         Files.deleteInfo(globalThis.folderCompan, `RC-`)
         Files.saveInfoToFile(globalThis.folderCompan, yamlData.ContractNum)
 
-        yamlData.ComAddress = companyInfo.address
-        yamlData.ComAddressType = companyInfo.AddressType;
+        keepIf(companyInfo.address, 'ComAddress', (v) => { yamlData.ComAddress = v; })
+        keepIf(companyInfo.AddressType, 'ComAddressType', (v) => { yamlData.ComAddressType = v; })
 
         Files.deleteInfo(globalThis.folderCompan, `${yamlData.ComAddressType}`)
         Files.saveInfoToFile(globalThis.folderCompan, yamlData.ComAddress);
@@ -2910,61 +2992,58 @@ export class Yamls {
         Files.deleteInfo(globalThis.folderCompan, `#Addr-`)
         Files.saveInfoToFile(globalThis.folderALL, `#Addr-${yamlData.ComAddressType}`);
 
-        yamlData.ComOKED = companyInfo.oked
-        if (!isYatt)
-            yamlData.ComOKEDName = companyInfo?.soliq?.company?.okedDetail?.name_uz_latn ?? ''
-        else
-            yamlData.ComOKEDName = companyInfo?.soliqYatt?.activityTypeName?.uz ?? ''
+        keepIf(companyInfo.oked, 'ComOKED', (v) => { yamlData.ComOKED = v; })
+        if (companyInfo?.soliq?.company?.okedDetail?.name_uz_latn) yamlData.ComOKEDName = companyInfo.soliq.company.okedDetail.name_uz_latn
+        else if (companyInfo?.soliqYatt?.activityTypeName?.uz) yamlData.ComOKEDName = companyInfo.soliqYatt.activityTypeName.uz
+        else nullFields.push('ComOKEDName')
 
-        yamlData.ComMFO = companyInfo.bankCode
-        yamlData.ComRS = companyInfo.account
-        yamlData.ComBankAccount = companyInfo.bankAccount
+        keepIf(companyInfo.bankCode, 'ComMFO', (v) => { yamlData.ComMFO = v; })
+        keepIf(companyInfo.account, 'ComRS', (v) => { yamlData.ComRS = v; })
+        keepIf(companyInfo.bankAccount, 'ComBankAccount', (v) => { yamlData.ComBankAccount = v; })
 
-        yamlData.ComBankCode = companyInfo.bankCode
+        setNullable('ComBankCode', companyInfo.bankCode);
         const bank = Didox.bankByCode(companyInfo.bankCode);
         console.log(bank, 'bank');
 
         if (bank) {
             yamlData.ComBank = bank.name
         }
+        else { yamlData.ComBank = ''; nullFields.push('ComBank') }
 
-        yamlData.ComNs10Code = companyInfo.ns10Code
+        setNullable('ComNs10Code', companyInfo.ns10Code);
         const region = Didox.regionsByCode(companyInfo.ns10Code)
         console.log(region, 'region');
 
         if (!region) {
             console.warn(`Region not found for code: ${companyInfo.ns10Code}`)
-            Dialogs.warningBox(`Region not found for code: ${companyInfo.ns10Code}`, yamlData.ComNameShort, 64)
+            nullFields.push('ComNs10Name')
         }
 
-        yamlData.ComNs10Name = region.name;
+        yamlData.ComNs10Name = region ? region.name : '';
 
-        yamlData.ComNs11Code = companyInfo.ns11Code
+        setNullable('ComNs11Code', companyInfo.ns11Code);
         const district = Didox.districtsByCode(companyInfo.ns10Code, companyInfo.ns11Code);
-        yamlData.ComNs11Name = district.name;
+        if (!district) {
+            console.warn(`District not found for code: ${companyInfo.ns11Code}`)
+            nullFields.push('ComNs11Name')
+        }
 
-        yamlData.DirName = companyInfo.director
+        yamlData.ComNs11Name = district ? district.name : '';
+
+        keepIf(companyInfo.director, 'DirName', (v) => { yamlData.DirName = v; })
         Files.saveInfoToFile(globalThis.folderCompan, `Director  ${yamlData.DirName}`)
 
-        if (!Files.isEmpty(yamlData.DirPINFL)) {
-            if (yamlData.DirPINFL !== companyInfo.directorPinfl) {
-                Files.saveInfoToFile(globalThis.folderALL, `#CEO-Changed`)
-                console.warn(`DirPINFL changed to: ${yamlData.DirPINFL}`)
-                Dialogs.messageBox(`DirPINFL changed to: ${yamlData.DirPINFL}`, yamlData.ComNameShort);
-            }
-        }
+        keepIf(companyInfo.directorPinfl, 'DirPINFL', (v) => { yamlData.DirPINFL = v; })
+        keepIf(companyInfo.directorTin, 'DirTIN', (v) => { yamlData.DirTIN = v; })
 
-        yamlData.DirPINFL = companyInfo.directorPinfl
-        yamlData.DirTIN = companyInfo.directorTin
-
-        yamlData.AccName = companyInfo.accountant
+        keepIf(companyInfo.accountant, 'AccName', (v) => { yamlData.AccName = v; })
 
         if (yamlData.SurEnable === true) {
-            yamlData.SurName = companyInfo.surety?.fullName ?? ''
-            yamlData.SurTIN = companyInfo.surety?.tin ?? ''
-            yamlData.SurAddress = companyInfo.surety?.address ?? ''
-            yamlData.SurNs10Code = companyInfo.surety?.ns10Code ?? ''
-            yamlData.SurNs11Code = companyInfo.surety?.ns11Code ?? ''
+            setNullable('SurName', companyInfo.surety?.fullName)
+            setNullable('SurTIN', companyInfo.surety?.tin)
+            setNullable('SurAddress', companyInfo.surety?.address)
+            setNullable('SurNs10Code', companyInfo.surety?.ns10Code)
+            setNullable('SurNs11Code', companyInfo.surety?.ns11Code)
             yamlData.SurPassport = `${yamlData.SurPassportSerial ?? ''} ${yamlData.SurPassportNumber ?? ''}`
         } else {
             yamlData.SurName = ''
@@ -3012,39 +3091,39 @@ export class Yamls {
             }
         }
 
-        yamlData.ComNa1Code = companyInfo.na1Code
-        yamlData.ComNa1Name = companyInfo.na1Name
+        setNullable('ComNa1Code', companyInfo.na1Code);
+        setNullable('ComNa1Name', companyInfo.na1Name);
         if (!isYatt)
-            yamlData.ComNa1NameLat = companyInfo?.soliq?.company?.businessStructureDetail?.name_uz_latn ?? ''
+            setNullable('ComNa1NameLat', companyInfo?.soliq?.company?.businessStructureDetail?.name_uz_latn);
         else
-            yamlData.ComNa1NameLat = companyInfo?.soliqYatt?.formName?.uz ?? ''
+            setNullable('ComNa1NameLat', companyInfo?.soliqYatt?.formName?.uz);
 
         if (!Files.isEmpty(yamlData.ComNa1NameLat)) {
             yamlData.ComNa1NameShort = yamlData.ComNa1NameLat.split(' ').map(word => word.charAt(0)).join('')
                 .toUpperCase()
         }
 
-        yamlData.ComStatusCode = companyInfo.statusCode
-        yamlData.ComStatusName = companyInfo.statusName
+        setNullable('ComStatusCode', companyInfo.statusCode);
+        setNullable('ComStatusName', companyInfo.statusName);
 
         if (!isYatt) {
-            yamlData.ComStatusNameLat = companyInfo?.soliq?.company?.statusDetail?.name_uz_latn ?? ''
-            yamlData.ComStatusGroup = companyInfo?.soliq?.company?.statusDetail?.group ?? ''
+            setNullable('ComStatusNameLat', companyInfo?.soliq?.company?.statusDetail?.name_uz_latn);
+            setNullable('ComStatusGroup', companyInfo?.soliq?.company?.statusDetail?.group);
 
-            yamlData.ComStatusType = companyInfo?.soliq?.company?.statusType ?? ''
-            yamlData.ComIsScammer = companyInfo?.soliq?.IsScammer ?? ''
+            setNullable('ComStatusType', companyInfo?.soliq?.company?.statusType);
+            setNullable('ComIsScammer', companyInfo?.soliq?.IsScammer);
 
         }
         else {
-            yamlData.ComStatusNameLat = companyInfo?.soliqYatt?.status?.name?.uz ?? ''
+            setNullable('ComStatusNameLat', companyInfo?.soliqYatt?.status?.name?.uz);
 
         }
 
 
 
-        yamlData.ComPersonalNum = companyInfo.personalNum
+        setNullable('ComPersonalNum', companyInfo.personalNum);
 
-        yamlData.ComIsItd = companyInfo.isItd
+        setNullable('ComIsItd', companyInfo.isItd);
         if (isYatt) {
             if (companyInfo.isItd === true)
                 Files.saveInfoToFile(globalThis.folderALL, '#YaTT-Active');
@@ -3052,60 +3131,60 @@ export class Yamls {
                 Files.saveInfoToFile(globalThis.folderALL, '#YaTT-Inactive');
         }
 
-        yamlData.ComIsBudget = companyInfo.isBudget
+        setNullable('ComIsBudget', companyInfo.isBudget);
         if (companyInfo.isBudget === true)
             Files.saveInfoToFile(globalThis.folderALL, '#Is-Budget');
 
-        yamlData.ComSelfEmployment = companyInfo.selfEmployment
+        setNullable('ComSelfEmployment', companyInfo.selfEmployment);
         if (companyInfo.selfEmployment === true)
             Files.saveInfoToFile(globalThis.folderALL, '#Is-SelfEmployment');
 
-        yamlData.ComPrivateNotary = companyInfo.privateNotary
+        setNullable('ComPrivateNotary', companyInfo.privateNotary);
         if (companyInfo.privateNotary === true)
             Files.saveInfoToFile(globalThis.folderALL, '#Is-PrivateNotary');
 
-        yamlData.ComPeasantFarm = companyInfo.peasantFarm
+        setNullable('ComPeasantFarm', companyInfo.peasantFarm);
         if (companyInfo.peasantFarm === true)
             Files.saveInfoToFile(globalThis.folderALL, '#Is-PeasantFarm');
 
 
         if (!isYatt) {
-            yamlData.ComOpf = companyInfo.soliq?.company.opf ?? ''
-            yamlData.ComKfs = companyInfo.soliq?.company.kfs ?? ''
-            yamlData.ComSoato = companyInfo.soliq?.company.soato ?? ''
-            yamlData.ComSoogu = companyInfo.soliq?.company.soogu ?? ''
-            yamlData.ComSooguRegistrator = companyInfo.soliq?.company.sooguRegistrator ?? ''
+            setNullable('ComOpf', companyInfo.soliq?.company.opf);
+            setNullable('ComKfs', companyInfo.soliq?.company.kfs);
+            setNullable('ComSoato', companyInfo.soliq?.company.soato);
+            setNullable('ComSoogu', companyInfo.soliq?.company.soogu);
+            setNullable('ComSooguRegistrator', companyInfo.soliq?.company.sooguRegistrator);
 
-            yamlData.ComRegDate = companyInfo.soliq?.company.registrationDate ?? ''
-            yamlData.ComRegNumber = companyInfo.soliq?.company.registrationNumber ?? ''
+            setNullable('ComRegDate', companyInfo.soliq?.company.registrationDate);
+            setNullable('ComRegNumber', companyInfo.soliq?.company.registrationNumber);
 
-            yamlData.ComReRegDate = companyInfo.soliq?.company.reregistrationDate ?? ''
+            setNullable('ComReRegDate', companyInfo.soliq?.company.reregistrationDate);
 
-            yamlData.ComLiquidationDate = companyInfo.soliq?.company.liquidationDate ?? ''
-            yamlData.ComLiquidationReason = companyInfo.soliq?.company.liquidationReason ?? ''
+            setNullable('ComLiquidationDate', companyInfo.soliq?.company.liquidationDate);
+            setNullable('ComLiquidationReason', companyInfo.soliq?.company.liquidationReason);
 
-            yamlData.ComTaxMode = companyInfo.soliq?.company.taxMode ?? ''
-            yamlData.ComTaxpayerType = companyInfo.soliq?.company.taxpayerType ?? ''
-            yamlData.ComBusinessType = companyInfo.soliq?.company.businessType ?? ''
+            setNullable('ComTaxMode', companyInfo.soliq?.company.taxMode);
+            setNullable('ComTaxpayerType', companyInfo.soliq?.company.taxpayerType);
+            setNullable('ComBusinessType', companyInfo.soliq?.company.businessType);
 
             // replace number with comma
             let fund = Number(companyInfo.soliq?.company.businessFund ?? 0)
             yamlData.ComBusinessFund = fund.toLocaleString("en-US")
 
-            yamlData.ComSectorCode = companyInfo.soliq?.companyBillingAddress.sectorCode ?? ''
-            yamlData.ComVillageCode = companyInfo.soliq?.company.villageCode ?? ''
-            yamlData.ComVillageName = companyInfo.soliq?.company.villageName ?? ''
+            setNullable('ComSectorCode', companyInfo.soliq?.companyBillingAddress.sectorCode);
+            setNullable('ComVillageCode', companyInfo.soliq?.company.villageCode);
+            setNullable('ComVillageName', companyInfo.soliq?.company.villageName);
 
         }
         else {
-            yamlData.ComRegDate = companyInfo.soliqYatt?.registrationDate ?? ''
-            yamlData.ComRegNumber = companyInfo.soliqYatt?.registrationId ?? ''
+            setNullable('ComRegDate', companyInfo.soliqYatt?.registrationDate);
+            setNullable('ComRegNumber', companyInfo.soliqYatt?.registrationId);
 
-            yamlData.ComLiquidationDate = companyInfo.soliqYatt?.liquidationDate ?? ''
+            setNullable('ComLiquidationDate', companyInfo.soliqYatt?.liquidationDate);
 
-            yamlData.ComTaxMode = companyInfo.soliqYatt?.taxMode ?? ''
+            setNullable('ComTaxMode', companyInfo.soliqYatt?.taxMode);
 
-            yamlData.ComSectorCode = companyInfo.soliqYatt?.entrepreneurshipAddress?.soatoCode ?? ''
+            setNullable('ComSectorCode', companyInfo.soliqYatt?.entrepreneurshipAddress?.soatoCode);
 
         }
 
@@ -3113,36 +3192,36 @@ export class Yamls {
 
         // ###########################
 
-        yamlData.ComVATRegCode = companyInfo.VATRegCode
-        yamlData.ComVATRegStatus = companyInfo.VATRegStatus
+        setNullable('ComVATRegCode', companyInfo.VATRegCode);
+        setNullable('ComVATRegStatus', companyInfo.VATRegStatus);
 
         if (!isYatt) {
-            yamlData.ComVATCompanyName = companyInfo.vat?.companyName ?? ''
-            yamlData.ComVATDirectorName = companyInfo.vat?.directorFioLatn ?? ''
+            setNullable('ComVATCompanyName', companyInfo.vat?.companyName);
+            setNullable('ComVATDirectorName', companyInfo.vat?.directorFioLatn);
 
-            yamlData.ComVATAddress = companyInfo.vat?.address ?? ''
-            yamlData.ComVATDateReg = companyInfo.vat?.dateReg ?? ''
-            yamlData.ComVATDateFrom = companyInfo.vat?.dateFrom ?? ''
+            setNullable('ComVATAddress', companyInfo.vat?.address);
+            setNullable('ComVATDateReg', companyInfo.vat?.dateReg);
+            setNullable('ComVATDateFrom', companyInfo.vat?.dateFrom);
 
-            yamlData.ComVATStateId = companyInfo.vat?.stateId ?? ''
-            yamlData.ComVATStateNameLat = companyInfo?.vat?.stateNameLat ?? '';
+            setNullable('ComVATStateId', companyInfo.vat?.stateId);
+            setNullable('ComVATStateNameLat', companyInfo?.vat?.stateNameLat);
 
-            yamlData.ComVATPkey = companyInfo?.vat?.pkey ?? '';
-            yamlData.ComVATDateSys = companyInfo?.vat?.dateSys ?? '';
+            setNullable('ComVATPkey', companyInfo?.vat?.pkey);
+            setNullable('ComVATDateSys', companyInfo?.vat?.dateSys);
 
-            yamlData.ComVATUpdatedAt = companyInfo?.vat?.updatedAt ?? '';
-            yamlData.ComVATStatementId = companyInfo?.vat?.statementId ?? '';
+            setNullable('ComVATUpdatedAt', companyInfo?.vat?.updatedAt);
+            setNullable('ComVATStatementId', companyInfo?.vat?.statementId);
 
         } else {
 
-            yamlData.ComVATAddress = companyInfo.soliqYatt?.entrepreneurshipAddress?.address ?? ''
-            yamlData.ComVATDateReg = companyInfo.soliqYatt?.vatRegDate ?? ''
+            setNullable('ComVATAddress', companyInfo.soliqYatt?.entrepreneurshipAddress?.address);
+            setNullable('ComVATDateReg', companyInfo.soliqYatt?.vatRegDate);
 
-            yamlData.ComVATStateId = companyInfo.soliqYatt?.vatStatusId ?? ''
-            yamlData.ComVATStateNameLat = companyInfo?.soliqYatt?.vatStatusName ?? '';
+            setNullable('ComVATStateId', companyInfo.soliqYatt?.vatStatusId);
+            setNullable('ComVATStateNameLat', companyInfo?.soliqYatt?.vatStatusName);
 
-            yamlData.ComVATUpdatedAt = companyInfo?.soliqYatt?.vatRegDate ?? '';
-            yamlData.ComVATStatementId = companyInfo?.soliqYatt?.certificateDocNumber ?? '';
+            setNullable('ComVATUpdatedAt', companyInfo?.soliqYatt?.vatRegDate);
+            setNullable('ComVATStatementId', companyInfo?.soliqYatt?.certificateDocNumber);
         }
 
 
@@ -3203,7 +3282,14 @@ export class Yamls {
             Files.saveInfoToFile(globalThis.folderALL, '#VAT-Mode')
         }
 
-
+        // ONE non-blocking warning for the null/empty API fields — they were
+        // still written to the file (as ''), so nothing is skipped. A CLI run
+        // must never block on a message box here.
+        if (nullFields.length > 0) {
+            console.warn(
+                `[Yamls.#resolveCompany] API null/empty (written as ''): ${nullFields.join(', ')}`
+            );
+        }
 
         return true;
     }
@@ -3218,9 +3304,10 @@ export class Yamls {
     static #writeChain(ymlFile, yamlData) {
         console.info(`[Yamls.#writeChain] 🟢 Starting...`);
 
-        if (yamlData.Tariff != null) {
-            yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
-        }
+        // Always normalize Tariff — includes an empty/null Tariff, which
+        // normalizeTariff resolves to Contract.DefaultTariff (or 1-450k), so the
+        // field is never left blank in the written file.
+        yamlData.Tariff = Yamls.normalizeTariff(yamlData.Tariff, yamlData.ActDateStart, yamlData.ContractDate);
 
         if (!yamlData.TariffCosts) {
             if (Array.isArray(yamlData.Tariff)) {

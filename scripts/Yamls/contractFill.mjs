@@ -12,9 +12,11 @@ const { Dates } = await import('../../classes/Dates.js');
 const { Dialogs } = await import('../../classes/Dialogs.js');
 
 // Per-contract step: the action.
+// rewrite=true: always re-fetch from the API (Yamls.fillYamlWithInfo also
+// forces a refetch on its own when the cache carries 3+ null/empty keys).
 async function processOne(ymlFile) {
     console.warn('Processing contract:', ymlFile);
-    await Yamls.fillYamlWithInfo(ymlFile, null, true, false);
+    await Yamls.fillYamlWithInfo(ymlFile, null, true, true);
 }
 
 async function main() {
