@@ -2384,22 +2384,20 @@ export class Yamls {
         const cacheMaxAgeDays = Yamls.getCacheMaxAgeDays();
         const cacheFresh = Files.isCacheFresh(jsonCachePath, cacheMaxAgeDays);
 
-        // A cache that is "fresh" by mtime but carries 3+ null/empty keys is
-        // still garbage — a prior failed run wrote a null-filled ALL.json. Treat
-        // it as stale and force a fresh API fetch (saveJsonCache archives the old
-        // file into - Theory/ before overwriting). Never trust a mostly-null cache.
-        const CACHE_NULL_REFETCH_THRESHOLD = 3;
+        /*
+        A "fresh" cache by mtime is still garbage when its OWN identity is empty
+        — a prior failed run wrote a null-filled ALL.json. Only `tin` decides
+        this: an ordinary MChJ response legitimately carries many empty
+        secondary fields (VAT, re-registration, personal number), and a cache
+        may legitimately hold only a partial record (a person looked up by
+        PINFL, no `name`/`mfo`), so a broader key set would force a needless
+        refetch on every run (VITAAGRO defect: a correct 313392337 cache was
+        discarded).
+        */
         const cachedForCheck = cacheExists ? Files.readJsonCache(jsonCachePath) : null;
-        const cacheNullKeys = cachedForCheck
-            ? Object.entries(cachedForCheck).filter(([k, v]) =>
-                v === null ||
-                v === undefined ||
-                v === '' ||
-                (Array.isArray(v) && v.length === 0) ||
-                (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0)
-            ).map(([k]) => k)
-            : [];
-        const cacheNeedsRefetch = cacheNullKeys.length >= CACHE_NULL_REFETCH_THRESHOLD;
+        const cacheMainEmpty = cachedForCheck
+            ? Files.isEmpty(cachedForCheck.tin)
+            : false;
 
         let companyInfo;
 
@@ -2407,7 +2405,7 @@ export class Yamls {
             case Boolean(rewrite):
             case !cacheExists:
             case !cacheFresh:
-            case cacheNeedsRefetch: {
+            case cacheMainEmpty: {
                 // 🌐 API rejimi: yangi ma'lumot olish va JSON ga yozish
                 switch (true) {
                     case !cacheExists: {
@@ -2431,7 +2429,7 @@ export class Yamls {
                 // folder for an ordinary company, or the YaTT owner's ID marker for a
                 // sole proprietor) — only ComType, never "which marker happens to exist",
                 // decides which one IS this company's identity.
-                const isYatt = Yamls.#isYattType(yamlData.ComType, globalThis.folderCompan);
+                const isYatt = Yamls.#isYattType(yamlData.ComType);
                 console.info("Core isYatt (from ComType):", isYatt, yamlData.ComType);
 
                 let comTIN = isYatt
@@ -2599,13 +2597,25 @@ export class Yamls {
 
         /*
         ContractDate is written into Compan/ as a DD.MM.YYYY marker (Didox format), mirroring the pre-existing DD.MM.YYYY marker Files.getDateFromTXT already reads from that folder.
-        Written only after replaceYaml resolves ContractDate (auto-fill or manual) — never a stale value from before this run.
+        Written only when ContractDate genuinely changed: a fresh contractFill re-run keeps the previous marker (real Contract/ folder, prior .contract, payments) instead of stamping today and deleting the true registration date (VITAAGRO defect).
         */
         if (filled) {
             if (Dates.isExcelDate(yamlData.ContractDate)) {
                 const contractDateDidox = Dates.excelToDidox(yamlData.ContractDate);
-                Files.deleteDateMarkers(globalThis.folderCompan);
-                Files.saveInfoToFile(globalThis.folderCompan, contractDateDidox);
+                const existingDates = fs.existsSync(globalThis.folderCompan)
+                    ? fs.readdirSync(globalThis.folderCompan)
+                        .filter((f) => /^\d{2}\.\d{2}\.\d{4}\.(txt|app)$/i.test(f))
+                    : [];
+                switch (existingDates.includes(contractDateDidox)) {
+                    case false: {
+                        Files.deleteDateMarkers(globalThis.folderCompan);
+                        Files.saveInfoToFile(globalThis.folderCompan, contractDateDidox);
+                        break;
+                    }
+                    default: {
+                        console.info(`[Yamls.fillYamlWithInfo] date marker ${contractDateDidox} already present — kept`);
+                    }
+                }
             }
         }
 
@@ -2738,7 +2748,7 @@ export class Yamls {
     static #resolveContractDate(yamlData, companyInfo) {
         console.info(`[Yamls.#resolveContractDate] 🟢 Starting...`);
 
-        const isYatt = Yamls.#isYattType(yamlData.ComType, globalThis.folderCompan);
+        const isYatt = Yamls.#isYattType(yamlData.ComType);
         const registrationDate = isYatt
             ? companyInfo.soliqYatt?.registrationDate
             : companyInfo.soliq?.company?.registrationDate;
@@ -2882,21 +2892,17 @@ export class Yamls {
     }
 
     /**
-     * YaTT type detection: explicit ComType === 'YaTT' wins; otherwise a
-     * 14-digit PINFL marker (app/txt) in Compan/ marks a YaTT sole proprietor.
-     * ComType === 'YaTT' means ComType is the source of truth; never a stale
-     * cached companyInfo.isYatt.
+     * YaTT type detection: ComType === 'YaTT' is the ONLY source of truth.
+     * A 14-digit PINFL marker in Compan/ NEVER decides this — an ordinary MChJ's
+     * Compan/ legitimately carries the director's personal PINFL marker, so
+     * marker-presence would fetch a PERSON for a COMPANY (VITAAGRO defect).
+     * ComType is the starting-Variables field filled by smarts-firm-docums from
+     * the real registration document; blank means "not confirmed", never "YaTT".
      * @param {string} comType - yamlData.ComType (may be ''/undefined).
-     * @param {string} folderCompan - Compan/ directory path.
      * @returns {boolean}
      */
-    static #isYattType(comType, folderCompan) {
-        const explicit = String(comType ?? '').trim() === 'YaTT';
-        if (explicit) return true;
-        try {
-            return fs.existsSync(folderCompan) &&
-                fs.readdirSync(folderCompan).some(n => /^\d{14}\.(app|txt)$/i.test(n));
-        } catch { return false; }
+    static #isYattType(comType) {
+        return String(comType ?? '').trim() === 'YaTT';
     }
 
     /**
